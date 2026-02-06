@@ -886,4 +886,111 @@ Filename: YYYY-MM-DD_HH-MM-SS-mmm</source>
         <translation>更改选择</translation>
     </message>
 </context>
+<context>
+    <name>SensorPanel</name>
+    <message>
+        <source>Enable Sensor Simulation</source>
+        <translation>启用传感器仿真</translation>
+    </message>
+    <message>
+        <source>Optics</source>
+        <translation>光学系统</translation>
+    </message>
+    <message>
+        <source>Focal Length:</source>
+        <translation>焦距:</translation>
+    </message>
+    <message>
+        <source>Aperture:</source>
+        <translation>光圈:</translation>
+    </message>
+    <message>
+        <source>Detector</source>
+        <translation>探测器</translation>
+    </message>
+    <message>
+        <source>Pixel Pitch:</source>
+        <translation>像元尺寸:</translation>
+    </message>
+    <message>
+        <source>Quantum Efficiency:</source>
+        <translation>量子效率:</translation>
+    </message>
+    <message>
+        <source>Well Capacity:</source>
+        <translation>满阱容量:</translation>
+    </message>
+    <message>
+        <source>Bit Depth:</source>
+        <translation>位深:</translation>
+    </message>
+    <message>
+        <source>Integration Time:</source>
+        <translation>积分时间:</translation>
+    </message>
+    <message>
+        <source>ADC</source>
+        <translation>模数转换</translation>
+    </message>
+    <message>
+        <source>Gain:</source>
+        <translation>增益:</translation>
+    </message>
+    <message>
+        <source>Noise Model</source>
+        <translation>噪声模型</translation>
+    </message>
+    <message>
+        <source>Read Noise:</source>
+        <translation>读出噪声:</translation>
+    </message>
+    <message>
+        <source>Dark Current:</source>
+        <translation>暗电流:</translation>
+    </message>
+    <message>
+        <source>Photon Shot Noise (Poisson)</source>
+        <translation>光子散粒噪声 (泊松)</translation>
+    </message>
+    <message>
+        <source>Enable Read Noise</source>
+        <translation>启用读出噪声</translation>
+    </message>
+    <message>
+        <source>Enable Dark Current</source>
+        <translation>启用暗电流</translation>
+    </message>
+    <message>
+        <source>Fixed Pattern Noise (FPN)</source>
+        <translation>固定图案噪声 (FPN)</translation>
+    </message>
+    <message>
+        <source>FPN Parameters</source>
+        <translation>FPN 参数</translation>
+    </message>
+    <message>
+        <source>PRNU Sigma:</source>
+        <translation>PRNU 标准差:</translation>
+    </message>
+    <message>
+        <source>DSNU Sigma:</source>
+        <translation>DSNU 标准差:</translation>
+    </message>
+    <message>
+        <source>Enable NUC</source>
+        <translation>启用非均匀性校正</translation>
+    </message>
+    <message>
+        <source>NUC Efficiency:</source>
+        <translation>NUC 校正效率:</translation>
+    </message>
+    <message>
+        <source>IR Detector</source>
+        <translation>红外探测器</translation>
+    </message>
+    <message>
+        <source>Detector Temperature:</source>
+        <translation>探测器温度:</translation>
+    </message>
+</context>
 </TS>

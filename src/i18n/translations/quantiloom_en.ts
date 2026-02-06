@@ -883,4 +883,111 @@ Filename: YYYY-MM-DD_HH-MM-SS-mmm</translation>
         <translation>Change Selection</translation>
     </message>
 </context>
+<context>
+    <name>SensorPanel</name>
+    <message>
+        <source>Enable Sensor Simulation</source>
+        <translation>Enable Sensor Simulation</translation>
+    </message>
+    <message>
+        <source>Optics</source>
+        <translation>Optics</translation>
+    </message>
+    <message>
+        <source>Focal Length:</source>
+        <translation>Focal Length:</translation>
+    </message>
+    <message>
+        <source>Aperture:</source>
+        <translation>Aperture:</translation>
+    </message>
+    <message>
+        <source>Detector</source>
+        <translation>Detector</translation>
+    </message>
+    <message>
+        <source>Pixel Pitch:</source>
+        <translation>Pixel Pitch:</translation>
+    </message>
+    <message>
+        <source>Quantum Efficiency:</source>
+        <translation>Quantum Efficiency:</translation>
+    </message>
+    <message>
+        <source>Well Capacity:</source>
+        <translation>Well Capacity:</translation>
+    </message>
+    <message>
+        <source>Bit Depth:</source>
+        <translation>Bit Depth:</translation>
+    </message>
+    <message>
+        <source>Integration Time:</source>
+        <translation>Integration Time:</translation>
+    </message>
+    <message>
+        <source>ADC</source>
+        <translation>ADC</translation>
+    </message>
+    <message>
+        <source>Gain:</source>
+        <translation>Gain:</translation>
+    </message>
+    <message>
+        <source>Noise Model</source>
+        <translation>Noise Model</translation>
+    </message>
+    <message>
+        <source>Read Noise:</source>
+        <translation>Read Noise:</translation>
+    </message>
+    <message>
+        <source>Dark Current:</source>
+        <translation>Dark Current:</translation>
+    </message>
+    <message>
+        <source>Photon Shot Noise (Poisson)</source>
+        <translation>Photon Shot Noise (Poisson)</translation>
+    </message>
+    <message>
+        <source>Enable Read Noise</source>
+        <translation>Enable Read Noise</translation>
+    </message>
+    <message>
+        <source>Enable Dark Current</source>
+        <translation>Enable Dark Current</translation>
+    </message>
+    <message>
+        <source>Fixed Pattern Noise (FPN)</source>
+        <translation>Fixed Pattern Noise (FPN)</translation>
+    </message>
+    <message>
+        <source>FPN Parameters</source>
+        <translation>FPN Parameters</translation>
+    </message>
+    <message>
+        <source>PRNU Sigma:</source>
+        <translation>PRNU Sigma:</translation>
+    </message>
+    <message>
+        <source>DSNU Sigma:</source>
+        <translation>DSNU Sigma:</translation>
+    </message>
+    <message>
+        <source>Enable NUC</source>
+        <translation>Enable NUC</translation>
+    </message>
+    <message>
+        <source>NUC Efficiency:</source>
+        <translation>NUC Efficiency:</translation>
+    </message>
+    <message>
+        <source>IR Detector</source>
+        <translation>IR Detector</translation>
+    </message>
+    <message>
+        <source>Detector Temperature:</source>
+        <translation>Detector Temperature:</translation>
+    </message>
+</context>
 </TS>

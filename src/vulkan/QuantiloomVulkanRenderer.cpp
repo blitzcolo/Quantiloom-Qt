@@ -655,7 +655,71 @@ std::unique_ptr<quantiloom::Image> QuantiloomVulkanRenderer::captureScreenshot()
         return nullptr;
     }
 
-    return std::make_unique<quantiloom::Image>(std::move(result.value()));
+    auto image = std::make_unique<quantiloom::Image>(std::move(result.value()));
+
+    // Apply sensor simulation if enabled
+    if (m_sensorEnabled && m_sensor && image) {
+        qDebug() << "[Sensor] Applying sensor simulation to screenshot...";
+        qDebug() << "[Sensor]   Image size:" << image->width << "x" << image->height
+                 << ", channels:" << image->channels;
+        qDebug() << "[Sensor]   Params: focal=" << m_sensorParams.focalLength_mm << "mm"
+                 << ", f/" << m_sensorParams.fNumber
+                 << ", QE=" << m_sensorParams.quantumEfficiency
+                 << ", bit_depth=" << m_sensorParams.bitDepth
+                 << ", gain=" << m_sensorParams.gain
+                 << ", integration_time=" << m_sensorParams.integrationTime_s << "s";
+        qDebug() << "[Sensor]   Noise: poisson=" << m_sensorParams.enablePoissonNoise
+                 << ", read=" << m_sensorParams.enableReadNoise
+                 << ", dark=" << m_sensorParams.enableDarkCurrent
+                 << ", fpn=" << m_sensorParams.enableFPN;
+
+        // Create 3-channel image for sensor (drop alpha if present)
+        quantiloom::Image hdrInput;
+        hdrInput.width = image->width;
+        hdrInput.height = image->height;
+        hdrInput.channels = 3;
+        hdrInput.data.resize(static_cast<size_t>(image->width) * image->height * 3);
+
+        const auto srcChannels = image->channels;
+        for (quantiloom::u32 y = 0; y < image->height; ++y) {
+            for (quantiloom::u32 x = 0; x < image->width; ++x) {
+                size_t srcIdx = (static_cast<size_t>(y) * image->width + x) * srcChannels;
+                size_t dstIdx = (static_cast<size_t>(y) * image->width + x) * 3;
+                hdrInput.data[dstIdx + 0] = image->data[srcIdx + 0];
+                hdrInput.data[dstIdx + 1] = image->data[srcIdx + 1];
+                hdrInput.data[dstIdx + 2] = (srcChannels >= 3) ? image->data[srcIdx + 2] : image->data[srcIdx + 0];
+            }
+        }
+
+        auto sensorResult = m_sensor->Apply(hdrInput, m_sensorParams);
+        if (sensorResult.has_value()) {
+            const auto& output = sensorResult.value();
+            qDebug() << "[Sensor] Sensor simulation applied successfully";
+            qDebug() << "[Sensor]   Enhanced preview size:" << output.enhancedPreview.width
+                     << "x" << output.enhancedPreview.height;
+
+            // Replace image with enhanced preview (noisy radiance with PSF blur)
+            const auto& preview = output.enhancedPreview;
+            for (quantiloom::u32 y = 0; y < image->height; ++y) {
+                for (quantiloom::u32 x = 0; x < image->width; ++x) {
+                    size_t dstIdx = (static_cast<size_t>(y) * image->width + x) * srcChannels;
+                    size_t srcIdx = (static_cast<size_t>(y) * image->width + x) * 3;
+                    image->data[dstIdx + 0] = preview.data[srcIdx + 0];
+                    image->data[dstIdx + 1] = preview.data[srcIdx + 1];
+                    if (srcChannels >= 3) {
+                        image->data[dstIdx + 2] = preview.data[srcIdx + 2];
+                    }
+                    // Keep alpha channel unchanged if present
+                }
+            }
+        } else {
+            qWarning() << "[Sensor] Sensor simulation failed:" << QString::fromStdString(sensorResult.error());
+        }
+    } else if (m_sensorEnabled && !m_sensor) {
+        qWarning() << "[Sensor] Sensor enabled but GenericSensor instance is null!";
+    }
+
+    return image;
 }
 
 std::unique_ptr<quantiloom::Image> QuantiloomVulkanRenderer::captureDisplayImage() {
@@ -669,7 +733,52 @@ std::unique_ptr<quantiloom::Image> QuantiloomVulkanRenderer::captureDisplayImage
         return nullptr;
     }
 
-    return std::make_unique<quantiloom::Image>(std::move(result.value()));
+    auto image = std::make_unique<quantiloom::Image>(std::move(result.value()));
+
+    // Apply sensor simulation if enabled
+    if (m_sensorEnabled && m_sensor && image) {
+        qDebug() << "[Sensor] Applying sensor simulation to display image...";
+
+        // Create 3-channel image for sensor (drop alpha if present)
+        quantiloom::Image hdrInput;
+        hdrInput.width = image->width;
+        hdrInput.height = image->height;
+        hdrInput.channels = 3;
+        hdrInput.data.resize(static_cast<size_t>(image->width) * image->height * 3);
+
+        const auto srcChannels = image->channels;
+        for (quantiloom::u32 y = 0; y < image->height; ++y) {
+            for (quantiloom::u32 x = 0; x < image->width; ++x) {
+                size_t srcIdx = (static_cast<size_t>(y) * image->width + x) * srcChannels;
+                size_t dstIdx = (static_cast<size_t>(y) * image->width + x) * 3;
+                hdrInput.data[dstIdx + 0] = image->data[srcIdx + 0];
+                hdrInput.data[dstIdx + 1] = image->data[srcIdx + 1];
+                hdrInput.data[dstIdx + 2] = (srcChannels >= 3) ? image->data[srcIdx + 2] : image->data[srcIdx + 0];
+            }
+        }
+
+        auto sensorResult = m_sensor->Apply(hdrInput, m_sensorParams);
+        if (sensorResult.has_value()) {
+            const auto& preview = sensorResult.value().enhancedPreview;
+            qDebug() << "[Sensor] Sensor simulation applied to display image";
+
+            for (quantiloom::u32 y = 0; y < image->height; ++y) {
+                for (quantiloom::u32 x = 0; x < image->width; ++x) {
+                    size_t dstIdx = (static_cast<size_t>(y) * image->width + x) * srcChannels;
+                    size_t srcIdx = (static_cast<size_t>(y) * image->width + x) * 3;
+                    image->data[dstIdx + 0] = preview.data[srcIdx + 0];
+                    image->data[dstIdx + 1] = preview.data[srcIdx + 1];
+                    if (srcChannels >= 3) {
+                        image->data[dstIdx + 2] = preview.data[srcIdx + 2];
+                    }
+                }
+            }
+        } else {
+            qWarning() << "[Sensor] Sensor simulation failed:" << QString::fromStdString(sensorResult.error());
+        }
+    }
+
+    return image;
 }
 
 // ============================================================================
@@ -750,9 +859,10 @@ void QuantiloomVulkanRenderer::setSensorEnabled(bool enabled) {
 
     if (enabled && !m_sensor) {
         m_sensor = std::make_unique<quantiloom::GenericSensor>();
+        qDebug() << "[Sensor] Created GenericSensor instance";
     }
 
-    qDebug() << "Sensor simulation" << (enabled ? "enabled" : "disabled");
+    qDebug() << "[Sensor] Sensor simulation" << (enabled ? "ENABLED" : "DISABLED");
 }
 
 void QuantiloomVulkanRenderer::setSensorParams(const quantiloom::SensorParams& params) {
@@ -760,11 +870,27 @@ void QuantiloomVulkanRenderer::setSensorParams(const quantiloom::SensorParams& p
 
     if (!m_sensor) {
         m_sensor = std::make_unique<quantiloom::GenericSensor>();
+        qDebug() << "[Sensor] Created GenericSensor instance (from setSensorParams)";
     }
 
-    qDebug() << "Sensor params updated: focal_length=" << params.focalLength_mm
-             << "mm, f/" << params.fNumber
-             << ", bit_depth=" << params.bitDepth;
+    qDebug() << "[Sensor] Params updated:"
+             << "focal=" << params.focalLength_mm << "mm"
+             << ", f/" << params.fNumber
+             << ", pixel_pitch=" << params.pixelPitch_um << "um"
+             << ", QE=" << params.quantumEfficiency
+             << ", well=" << params.wellCapacity_e << "e-"
+             << ", bit_depth=" << params.bitDepth
+             << ", gain=" << params.gain << "e-/DN"
+             << ", t_int=" << params.integrationTime_s << "s";
+    qDebug() << "[Sensor]   Noise: poisson=" << params.enablePoissonNoise
+             << ", read_noise=" << params.enableReadNoise << "(" << params.readNoise_e_rms << "e-)"
+             << ", dark_current=" << params.enableDarkCurrent << "(" << params.darkCurrent_e_s << "e-/s)"
+             << ", fpn=" << params.enableFPN;
+    if (params.enableFPN) {
+        qDebug() << "[Sensor]   FPN: prnu_sigma=" << params.prnuSigma
+                 << ", dsnu_sigma=" << params.dsnuSigma_e << "e-"
+                 << ", nuc=" << params.enableNUC << "(eff=" << params.nucEfficiency << ")";
+    }
 }
 
 void QuantiloomVulkanRenderer::setDisplayEnhancement(bool enabled, float clipLimit,

@@ -101,6 +101,22 @@ void SensorPanel::setupUi() {
     mainLayout->addWidget(m_detectorGroup);
 
     // ========================================================================
+    // ADC Group
+    // ========================================================================
+    m_adcGroup = new QGroupBox(tr("ADC"));
+    auto* adcLayout = new QFormLayout(m_adcGroup);
+
+    m_gain = new QDoubleSpinBox();
+    m_gain->setRange(0.1, 100.0);
+    m_gain->setDecimals(1);
+    m_gain->setSingleStep(0.1);
+    m_gain->setSuffix(" e-/DN");
+    m_gain->setValue(3.0);
+    adcLayout->addRow(tr("Gain:"), m_gain);
+
+    mainLayout->addWidget(m_adcGroup);
+
+    // ========================================================================
     // Noise Group
     // ========================================================================
     m_noiseGroup = new QGroupBox(tr("Noise Model"));
@@ -126,15 +142,77 @@ void SensorPanel::setupUi() {
     m_poissonNoise->setChecked(true);
     noiseLayout->addRow(m_poissonNoise);
 
+    m_readNoiseEnable = new QCheckBox(tr("Enable Read Noise"));
+    m_readNoiseEnable->setChecked(true);
+    noiseLayout->addRow(m_readNoiseEnable);
+
+    m_darkCurrentEnable = new QCheckBox(tr("Enable Dark Current"));
+    m_darkCurrentEnable->setChecked(true);
+    noiseLayout->addRow(m_darkCurrentEnable);
+
     m_fpnNoise = new QCheckBox(tr("Fixed Pattern Noise (FPN)"));
     m_fpnNoise->setChecked(false);
     noiseLayout->addRow(m_fpnNoise);
 
     mainLayout->addWidget(m_noiseGroup);
 
+    // ========================================================================
+    // FPN Parameters Group (enabled when FPN is checked)
+    // ========================================================================
+    m_fpnGroup = new QGroupBox(tr("FPN Parameters"));
+    auto* fpnLayout = new QFormLayout(m_fpnGroup);
+
+    m_prnuSigma = new QDoubleSpinBox();
+    m_prnuSigma->setRange(0.001, 0.5);
+    m_prnuSigma->setDecimals(3);
+    m_prnuSigma->setSingleStep(0.001);
+    m_prnuSigma->setValue(0.01);
+    fpnLayout->addRow(tr("PRNU Sigma:"), m_prnuSigma);
+
+    m_dsnuSigma = new QDoubleSpinBox();
+    m_dsnuSigma->setRange(0.1, 1000.0);
+    m_dsnuSigma->setDecimals(1);
+    m_dsnuSigma->setSingleStep(1.0);
+    m_dsnuSigma->setSuffix(" e-");
+    m_dsnuSigma->setValue(5.0);
+    fpnLayout->addRow(tr("DSNU Sigma:"), m_dsnuSigma);
+
+    m_nucEnable = new QCheckBox(tr("Enable NUC"));
+    m_nucEnable->setChecked(false);
+    fpnLayout->addRow(m_nucEnable);
+
+    m_nucEfficiency = new QDoubleSpinBox();
+    m_nucEfficiency->setRange(0.0, 1.0);
+    m_nucEfficiency->setDecimals(2);
+    m_nucEfficiency->setSingleStep(0.01);
+    m_nucEfficiency->setValue(0.98);
+    m_nucEfficiency->setEnabled(false);  // Disabled until NUC is enabled
+    fpnLayout->addRow(tr("NUC Efficiency:"), m_nucEfficiency);
+
+    m_fpnGroup->setEnabled(false);  // Disabled until FPN is enabled
+    mainLayout->addWidget(m_fpnGroup);
+
+    // ========================================================================
+    // IR Detector Group
+    // ========================================================================
+    m_irGroup = new QGroupBox(tr("IR Detector"));
+    auto* irLayout = new QFormLayout(m_irGroup);
+
+    m_detectorTemp = new QDoubleSpinBox();
+    m_detectorTemp->setRange(1.0, 400.0);
+    m_detectorTemp->setDecimals(1);
+    m_detectorTemp->setSingleStep(1.0);
+    m_detectorTemp->setSuffix(" K");
+    m_detectorTemp->setValue(77.0);
+    irLayout->addRow(tr("Detector Temperature:"), m_detectorTemp);
+
+    mainLayout->addWidget(m_irGroup);
+
     mainLayout->addStretch();
 
+    // ========================================================================
     // Connect signals
+    // ========================================================================
     connect(m_enabledCheck, &QCheckBox::toggled,
             this, &SensorPanel::onEnabledChanged);
 
@@ -156,6 +234,10 @@ void SensorPanel::setupUi() {
     connect(m_integrationTime, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &SensorPanel::onParamChanged);
 
+    // ADC params
+    connect(m_gain, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &SensorPanel::onParamChanged);
+
     // Noise params
     connect(m_readNoise, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &SensorPanel::onParamChanged);
@@ -163,13 +245,34 @@ void SensorPanel::setupUi() {
             this, &SensorPanel::onParamChanged);
     connect(m_poissonNoise, &QCheckBox::toggled,
             this, &SensorPanel::onParamChanged);
+    connect(m_readNoiseEnable, &QCheckBox::toggled,
+            this, &SensorPanel::onParamChanged);
+    connect(m_darkCurrentEnable, &QCheckBox::toggled,
+            this, &SensorPanel::onParamChanged);
     connect(m_fpnNoise, &QCheckBox::toggled,
+            this, &SensorPanel::onFpnToggled);
+
+    // FPN params
+    connect(m_prnuSigma, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &SensorPanel::onParamChanged);
+    connect(m_dsnuSigma, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &SensorPanel::onParamChanged);
+    connect(m_nucEnable, &QCheckBox::toggled,
+            this, &SensorPanel::onNucToggled);
+    connect(m_nucEfficiency, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &SensorPanel::onParamChanged);
+
+    // IR params
+    connect(m_detectorTemp, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &SensorPanel::onParamChanged);
 
     // Update enabled state of groups
     m_opticsGroup->setEnabled(false);
     m_detectorGroup->setEnabled(false);
+    m_adcGroup->setEnabled(false);
     m_noiseGroup->setEnabled(false);
+    m_fpnGroup->setEnabled(false);
+    m_irGroup->setEnabled(false);
 }
 
 void SensorPanel::setEnabled(bool enabled) {
@@ -177,7 +280,10 @@ void SensorPanel::setEnabled(bool enabled) {
     m_enabledCheck->setChecked(enabled);
     m_opticsGroup->setEnabled(enabled);
     m_detectorGroup->setEnabled(enabled);
+    m_adcGroup->setEnabled(enabled);
     m_noiseGroup->setEnabled(enabled);
+    m_fpnGroup->setEnabled(enabled && m_fpnNoise->isChecked());
+    m_irGroup->setEnabled(enabled);
     m_updatingUi = false;
 }
 
@@ -197,30 +303,59 @@ quantiloom::SensorParams SensorPanel::getSensorParams() const {
 void SensorPanel::onEnabledChanged(bool enabled) {
     m_opticsGroup->setEnabled(enabled);
     m_detectorGroup->setEnabled(enabled);
+    m_adcGroup->setEnabled(enabled);
     m_noiseGroup->setEnabled(enabled);
+    m_fpnGroup->setEnabled(enabled && m_fpnNoise->isChecked());
+    m_irGroup->setEnabled(enabled);
 
     if (!m_updatingUi) {
         emit enabledChanged(enabled);
     }
 }
 
+void SensorPanel::onFpnToggled(bool checked) {
+    m_fpnGroup->setEnabled(m_enabledCheck->isChecked() && checked);
+    onParamChanged();
+}
+
+void SensorPanel::onNucToggled(bool checked) {
+    m_nucEfficiency->setEnabled(checked);
+    onParamChanged();
+}
+
 void SensorPanel::onParamChanged() {
     if (m_updatingUi) return;
 
-    // Update params from UI (using correct SDK member names)
+    // Optics
     m_params.focalLength_mm = static_cast<float>(m_focalLength->value());
     m_params.fNumber = static_cast<float>(m_fNumber->value());
 
+    // Detector
     m_params.pixelPitch_um = static_cast<float>(m_pixelPitch->value());
     m_params.quantumEfficiency = static_cast<float>(m_quantumEfficiency->value());
     m_params.wellCapacity_e = static_cast<float>(m_wellCapacity->value());
     m_params.bitDepth = static_cast<quantiloom::u32>(m_bitDepth->value());
     m_params.integrationTime_s = static_cast<float>(m_integrationTime->value());
 
+    // ADC
+    m_params.gain = static_cast<float>(m_gain->value());
+
+    // Noise
     m_params.readNoise_e_rms = static_cast<float>(m_readNoise->value());
     m_params.darkCurrent_e_s = static_cast<float>(m_darkCurrent->value());
     m_params.enablePoissonNoise = m_poissonNoise->isChecked();
+    m_params.enableReadNoise = m_readNoiseEnable->isChecked();
+    m_params.enableDarkCurrent = m_darkCurrentEnable->isChecked();
     m_params.enableFPN = m_fpnNoise->isChecked();
+
+    // FPN
+    m_params.prnuSigma = static_cast<float>(m_prnuSigma->value());
+    m_params.dsnuSigma_e = static_cast<float>(m_dsnuSigma->value());
+    m_params.enableNUC = m_nucEnable->isChecked();
+    m_params.nucEfficiency = static_cast<float>(m_nucEfficiency->value());
+
+    // IR
+    m_params.detectorTemperature_K = static_cast<float>(m_detectorTemp->value());
 
     emit paramsChanged(m_params);
 }
@@ -229,35 +364,74 @@ void SensorPanel::updateUiFromParams(const quantiloom::SensorParams& params) {
     m_updatingUi = true;
     blockSignalsForUpdate(true);
 
-    // Use correct SDK member names
+    // Optics
     m_focalLength->setValue(static_cast<double>(params.focalLength_mm));
     m_fNumber->setValue(static_cast<double>(params.fNumber));
 
+    // Detector
     m_pixelPitch->setValue(static_cast<double>(params.pixelPitch_um));
     m_quantumEfficiency->setValue(static_cast<double>(params.quantumEfficiency));
     m_wellCapacity->setValue(static_cast<double>(params.wellCapacity_e));
     m_bitDepth->setValue(static_cast<int>(params.bitDepth));
     m_integrationTime->setValue(static_cast<double>(params.integrationTime_s));
 
+    // ADC
+    m_gain->setValue(static_cast<double>(params.gain));
+
+    // Noise
     m_readNoise->setValue(static_cast<double>(params.readNoise_e_rms));
     m_darkCurrent->setValue(static_cast<double>(params.darkCurrent_e_s));
     m_poissonNoise->setChecked(params.enablePoissonNoise);
+    m_readNoiseEnable->setChecked(params.enableReadNoise);
+    m_darkCurrentEnable->setChecked(params.enableDarkCurrent);
     m_fpnNoise->setChecked(params.enableFPN);
+
+    // FPN
+    m_prnuSigma->setValue(static_cast<double>(params.prnuSigma));
+    m_dsnuSigma->setValue(static_cast<double>(params.dsnuSigma_e));
+    m_nucEnable->setChecked(params.enableNUC);
+    m_nucEfficiency->setValue(static_cast<double>(params.nucEfficiency));
+    m_nucEfficiency->setEnabled(params.enableNUC);
+
+    // IR
+    m_detectorTemp->setValue(static_cast<double>(params.detectorTemperature_K));
+
+    // Update FPN group enabled state
+    m_fpnGroup->setEnabled(m_enabledCheck->isChecked() && params.enableFPN);
 
     blockSignalsForUpdate(false);
     m_updatingUi = false;
 }
 
 void SensorPanel::blockSignalsForUpdate(bool block) {
+    // Optics
     m_focalLength->blockSignals(block);
     m_fNumber->blockSignals(block);
+
+    // Detector
     m_pixelPitch->blockSignals(block);
     m_quantumEfficiency->blockSignals(block);
     m_wellCapacity->blockSignals(block);
     m_bitDepth->blockSignals(block);
     m_integrationTime->blockSignals(block);
+
+    // ADC
+    m_gain->blockSignals(block);
+
+    // Noise
     m_readNoise->blockSignals(block);
     m_darkCurrent->blockSignals(block);
     m_poissonNoise->blockSignals(block);
+    m_readNoiseEnable->blockSignals(block);
+    m_darkCurrentEnable->blockSignals(block);
     m_fpnNoise->blockSignals(block);
+
+    // FPN
+    m_prnuSigma->blockSignals(block);
+    m_dsnuSigma->blockSignals(block);
+    m_nucEnable->blockSignals(block);
+    m_nucEfficiency->blockSignals(block);
+
+    // IR
+    m_detectorTemp->blockSignals(block);
 }

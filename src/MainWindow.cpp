@@ -898,13 +898,11 @@ void MainWindow::applyConfig(const SceneConfig& config) {
     }
 
     // Apply sensor configuration
-    m_sensorPanel->setEnabled(config.sensorEnabled);
-    if (config.sensorEnabled) {
-        m_sensorPanel->setSensorParams(config.sensorParams);
-    }
+    m_sensorPanel->setSensorParams(config.sensorParams);  // Always set params first
+    m_sensorPanel->setEnabled(config.sensorEnabled);       // Then set enabled state
+    m_vulkanWindow->setSensorParams(config.sensorParams);
     m_vulkanWindow->setSensorEnabled(config.sensorEnabled);
     if (config.sensorEnabled) {
-        m_vulkanWindow->setSensorParams(config.sensorParams);
         qDebug() << "Sensor simulation enabled with custom params";
     }
 
@@ -970,6 +968,10 @@ void MainWindow::collectCurrentConfig(SceneConfig& config) {
     // Lighting is populated via the panel's emit signals
     // For now, use default or last known values
     config.lighting = quantiloom::CreateDefaultLightingParams();
+
+    // Collect sensor settings
+    config.sensorEnabled = m_sensorPanel->isEnabled();
+    config.sensorParams = m_sensorPanel->getSensorParams();
 }
 
 void MainWindow::applyPendingMaterialConfigs() {

@@ -67,6 +67,8 @@ signals:
 private slots:
     void onEnabledChanged(bool enabled);
     void onParamChanged();
+    void onFpnToggled(bool checked);
+    void onNucToggled(bool checked);
 
 private:
     void setupUi();
@@ -89,12 +91,29 @@ private:
     QSpinBox* m_bitDepth = nullptr;
     QDoubleSpinBox* m_integrationTime = nullptr;
 
+    // ADC group
+    QGroupBox* m_adcGroup = nullptr;
+    QDoubleSpinBox* m_gain = nullptr;
+
     // Noise group
     QGroupBox* m_noiseGroup = nullptr;
     QDoubleSpinBox* m_readNoise = nullptr;
     QDoubleSpinBox* m_darkCurrent = nullptr;
     QCheckBox* m_poissonNoise = nullptr;
+    QCheckBox* m_readNoiseEnable = nullptr;
+    QCheckBox* m_darkCurrentEnable = nullptr;
     QCheckBox* m_fpnNoise = nullptr;
+
+    // FPN sub-group
+    QGroupBox* m_fpnGroup = nullptr;
+    QDoubleSpinBox* m_prnuSigma = nullptr;
+    QDoubleSpinBox* m_dsnuSigma = nullptr;
+    QCheckBox* m_nucEnable = nullptr;
+    QDoubleSpinBox* m_nucEfficiency = nullptr;
+
+    // IR Detector group
+    QGroupBox* m_irGroup = nullptr;
+    QDoubleSpinBox* m_detectorTemp = nullptr;
 
     // Current params
     quantiloom::SensorParams m_params;

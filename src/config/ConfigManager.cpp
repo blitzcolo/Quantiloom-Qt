@@ -137,9 +137,8 @@ void ConfigManager::extractSceneConfig(const quantiloom::Config& config, SceneCo
 
     // [sensor]
     out.sensorEnabled = config.Get<bool>("sensor.enabled", false);
-    if (out.sensorEnabled) {
-        out.sensorParams = quantiloom::PostprocessConfig::ParseSensorParams(config);
-    }
+    // Always parse sensor params so they're available if user enables later
+    out.sensorParams = quantiloom::PostprocessConfig::ParseSensorParams(config);
 
     // [[materials]] - parse material IR overrides
     // TOML format:
@@ -315,6 +314,36 @@ bool ConfigManager::exportConfig(const QString& filePath, const SceneConfig& con
             }
             out << "\n";
         }
+    }
+
+    // [sensor]
+    out << "[sensor]\n";
+    out << "enabled = " << (config.sensorEnabled ? "true" : "false") << "\n";
+    out << "focal_length_mm = " << config.sensorParams.focalLength_mm << "\n";
+    out << "f_number = " << config.sensorParams.fNumber << "\n";
+    out << "pixel_pitch_um = " << config.sensorParams.pixelPitch_um << "\n";
+    out << "quantum_efficiency = " << config.sensorParams.quantumEfficiency << "\n";
+    out << "well_capacity_e = " << config.sensorParams.wellCapacity_e << "\n";
+    out << "read_noise_e_rms = " << config.sensorParams.readNoise_e_rms << "\n";
+    out << "dark_current_e_s = " << config.sensorParams.darkCurrent_e_s << "\n";
+    out << "integration_time_s = " << config.sensorParams.integrationTime_s << "\n";
+    out << "bit_depth = " << config.sensorParams.bitDepth << "\n";
+    out << "gain = " << config.sensorParams.gain << "\n";
+    out << "enable_poisson_noise = " << (config.sensorParams.enablePoissonNoise ? "true" : "false") << "\n";
+    out << "enable_read_noise = " << (config.sensorParams.enableReadNoise ? "true" : "false") << "\n";
+    out << "enable_dark_current = " << (config.sensorParams.enableDarkCurrent ? "true" : "false") << "\n";
+    out << "enable_fpn = " << (config.sensorParams.enableFPN ? "true" : "false") << "\n";
+    out << "detector_temperature_k = " << config.sensorParams.detectorTemperature_K << "\n";
+    out << "\n";
+
+    // [sensor.fpn] - only export if FPN is enabled
+    if (config.sensorParams.enableFPN) {
+        out << "[sensor.fpn]\n";
+        out << "prnu_sigma = " << config.sensorParams.prnuSigma << "\n";
+        out << "dsnu_sigma_e = " << config.sensorParams.dsnuSigma_e << "\n";
+        out << "enable_nuc = " << (config.sensorParams.enableNUC ? "true" : "false") << "\n";
+        out << "nuc_efficiency = " << config.sensorParams.nucEfficiency << "\n";
+        out << "\n";
     }
 
     file.close();
