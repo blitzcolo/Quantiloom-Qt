@@ -657,66 +657,10 @@ std::unique_ptr<quantiloom::Image> QuantiloomVulkanRenderer::captureScreenshot()
 
     auto image = std::make_unique<quantiloom::Image>(std::move(result.value()));
 
-    // Apply sensor simulation if enabled
-    if (m_sensorEnabled && m_sensor && image) {
-        qDebug() << "[Sensor] Applying sensor simulation to screenshot...";
-        qDebug() << "[Sensor]   Image size:" << image->width << "x" << image->height
-                 << ", channels:" << image->channels;
-        qDebug() << "[Sensor]   Params: focal=" << m_sensorParams.focalLength_mm << "mm"
-                 << ", f/" << m_sensorParams.fNumber
-                 << ", QE=" << m_sensorParams.quantumEfficiency
-                 << ", bit_depth=" << m_sensorParams.bitDepth
-                 << ", gain=" << m_sensorParams.gain
-                 << ", integration_time=" << m_sensorParams.integrationTime_s << "s";
-        qDebug() << "[Sensor]   Noise: poisson=" << m_sensorParams.enablePoissonNoise
-                 << ", read=" << m_sensorParams.enableReadNoise
-                 << ", dark=" << m_sensorParams.enableDarkCurrent
-                 << ", fpn=" << m_sensorParams.enableFPN;
-
-        // Create 3-channel image for sensor (drop alpha if present)
-        quantiloom::Image hdrInput;
-        hdrInput.width = image->width;
-        hdrInput.height = image->height;
-        hdrInput.channels = 3;
-        hdrInput.data.resize(static_cast<size_t>(image->width) * image->height * 3);
-
-        const auto srcChannels = image->channels;
-        for (quantiloom::u32 y = 0; y < image->height; ++y) {
-            for (quantiloom::u32 x = 0; x < image->width; ++x) {
-                size_t srcIdx = (static_cast<size_t>(y) * image->width + x) * srcChannels;
-                size_t dstIdx = (static_cast<size_t>(y) * image->width + x) * 3;
-                hdrInput.data[dstIdx + 0] = image->data[srcIdx + 0];
-                hdrInput.data[dstIdx + 1] = image->data[srcIdx + 1];
-                hdrInput.data[dstIdx + 2] = (srcChannels >= 3) ? image->data[srcIdx + 2] : image->data[srcIdx + 0];
-            }
-        }
-
-        auto sensorResult = m_sensor->Apply(hdrInput, m_sensorParams);
-        if (sensorResult.has_value()) {
-            const auto& output = sensorResult.value();
-            qDebug() << "[Sensor] Sensor simulation applied successfully";
-            qDebug() << "[Sensor]   Enhanced preview size:" << output.enhancedPreview.width
-                     << "x" << output.enhancedPreview.height;
-
-            // Replace image with enhanced preview (noisy radiance with PSF blur)
-            const auto& preview = output.enhancedPreview;
-            for (quantiloom::u32 y = 0; y < image->height; ++y) {
-                for (quantiloom::u32 x = 0; x < image->width; ++x) {
-                    size_t dstIdx = (static_cast<size_t>(y) * image->width + x) * srcChannels;
-                    size_t srcIdx = (static_cast<size_t>(y) * image->width + x) * 3;
-                    image->data[dstIdx + 0] = preview.data[srcIdx + 0];
-                    image->data[dstIdx + 1] = preview.data[srcIdx + 1];
-                    if (srcChannels >= 3) {
-                        image->data[dstIdx + 2] = preview.data[srcIdx + 2];
-                    }
-                    // Keep alpha channel unchanged if present
-                }
-            }
-        } else {
-            qWarning() << "[Sensor] Sensor simulation failed:" << QString::fromStdString(sensorResult.error());
-        }
-    } else if (m_sensorEnabled && !m_sensor) {
-        qWarning() << "[Sensor] Sensor enabled but GenericSensor instance is null!";
+    // GPU sensor is already applied in RenderFrame() if enabled
+    // No need to apply CPU sensor here - screenshot captures what's displayed
+    if (m_sensorEnabled) {
+        qDebug() << "[Sensor] Screenshot captured with GPU sensor effects (applied in real-time)";
     }
 
     return image;
@@ -735,47 +679,10 @@ std::unique_ptr<quantiloom::Image> QuantiloomVulkanRenderer::captureDisplayImage
 
     auto image = std::make_unique<quantiloom::Image>(std::move(result.value()));
 
-    // Apply sensor simulation if enabled
-    if (m_sensorEnabled && m_sensor && image) {
-        qDebug() << "[Sensor] Applying sensor simulation to display image...";
-
-        // Create 3-channel image for sensor (drop alpha if present)
-        quantiloom::Image hdrInput;
-        hdrInput.width = image->width;
-        hdrInput.height = image->height;
-        hdrInput.channels = 3;
-        hdrInput.data.resize(static_cast<size_t>(image->width) * image->height * 3);
-
-        const auto srcChannels = image->channels;
-        for (quantiloom::u32 y = 0; y < image->height; ++y) {
-            for (quantiloom::u32 x = 0; x < image->width; ++x) {
-                size_t srcIdx = (static_cast<size_t>(y) * image->width + x) * srcChannels;
-                size_t dstIdx = (static_cast<size_t>(y) * image->width + x) * 3;
-                hdrInput.data[dstIdx + 0] = image->data[srcIdx + 0];
-                hdrInput.data[dstIdx + 1] = image->data[srcIdx + 1];
-                hdrInput.data[dstIdx + 2] = (srcChannels >= 3) ? image->data[srcIdx + 2] : image->data[srcIdx + 0];
-            }
-        }
-
-        auto sensorResult = m_sensor->Apply(hdrInput, m_sensorParams);
-        if (sensorResult.has_value()) {
-            const auto& preview = sensorResult.value().enhancedPreview;
-            qDebug() << "[Sensor] Sensor simulation applied to display image";
-
-            for (quantiloom::u32 y = 0; y < image->height; ++y) {
-                for (quantiloom::u32 x = 0; x < image->width; ++x) {
-                    size_t dstIdx = (static_cast<size_t>(y) * image->width + x) * srcChannels;
-                    size_t srcIdx = (static_cast<size_t>(y) * image->width + x) * 3;
-                    image->data[dstIdx + 0] = preview.data[srcIdx + 0];
-                    image->data[dstIdx + 1] = preview.data[srcIdx + 1];
-                    if (srcChannels >= 3) {
-                        image->data[dstIdx + 2] = preview.data[srcIdx + 2];
-                    }
-                }
-            }
-        } else {
-            qWarning() << "[Sensor] Sensor simulation failed:" << QString::fromStdString(sensorResult.error());
-        }
+    // GPU sensor is already applied in RenderFrame() if enabled
+    // CaptureDisplayImage() captures the final displayed image (with GPU sensor + CLAHE)
+    if (m_sensorEnabled) {
+        qDebug() << "[Sensor] Display image captured with GPU sensor effects (applied in real-time)";
     }
 
     return image;
@@ -857,23 +764,35 @@ bool QuantiloomVulkanRenderer::hasEnvironmentMap() const {
 void QuantiloomVulkanRenderer::setSensorEnabled(bool enabled) {
     m_sensorEnabled = enabled;
 
-    if (enabled && !m_sensor) {
-        m_sensor = std::make_unique<quantiloom::GenericSensor>();
-        qDebug() << "[Sensor] Created GenericSensor instance";
+    // Use GPU sensor via libQuantiloom (real-time)
+    if (m_renderContext) {
+        m_renderContext->SetGPUSensorEnabled(enabled);
     }
 
-    qDebug() << "[Sensor] Sensor simulation" << (enabled ? "ENABLED" : "DISABLED");
+    // Keep CPU sensor for fallback/comparison (optional)
+    if (enabled && !m_sensor) {
+        m_sensor = std::make_unique<quantiloom::GenericSensor>();
+        qDebug() << "[Sensor] Created GenericSensor instance (CPU fallback)";
+    }
+
+    qDebug() << "[Sensor] GPU sensor simulation" << (enabled ? "ENABLED" : "DISABLED");
 }
 
 void QuantiloomVulkanRenderer::setSensorParams(const quantiloom::SensorParams& params) {
     m_sensorParams = params;
 
-    if (!m_sensor) {
-        m_sensor = std::make_unique<quantiloom::GenericSensor>();
-        qDebug() << "[Sensor] Created GenericSensor instance (from setSensorParams)";
+    // Update GPU sensor params in libQuantiloom
+    if (m_renderContext) {
+        m_renderContext->SetGPUSensorParams(params);
     }
 
-    qDebug() << "[Sensor] Params updated:"
+    // Keep CPU sensor for fallback/comparison (optional)
+    if (!m_sensor) {
+        m_sensor = std::make_unique<quantiloom::GenericSensor>();
+        qDebug() << "[Sensor] Created GenericSensor instance (CPU fallback)";
+    }
+
+    qDebug() << "[Sensor] GPU params updated:"
              << "focal=" << params.focalLength_mm << "mm"
              << ", f/" << params.fNumber
              << ", pixel_pitch=" << params.pixelPitch_um << "um"
