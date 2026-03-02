@@ -20,6 +20,10 @@
 #include <postprocess/SensorModel.hpp>
 #include <postprocess/GenericSensor.hpp>
 
+namespace quantiloom {
+struct ComplexRefractiveIndex;
+}
+
 class QuantiloomVulkanWindow;
 class QProgressDialog;
 
@@ -61,6 +65,7 @@ public:
     void setDebugMode(quantiloom::DebugVisualizationMode mode);
     void setLightingParams(const quantiloom::LightingParams& params);
     void updateMaterial(int index, const quantiloom::Material& material);
+    int addComplexRefractiveIndex(const quantiloom::ComplexRefractiveIndex& cri);
     void resetAccumulation();
     uint32_t currentSampleCount() const { return m_sampleCount; }
 

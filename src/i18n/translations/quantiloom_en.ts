@@ -80,6 +80,18 @@
         <translation>S&amp;top Render</translation>
     </message>
     <message>
+        <source>&amp;Tools</source>
+        <translation>&amp;Tools</translation>
+    </message>
+    <message>
+        <source>Spectral Material &amp;Generator...</source>
+        <translation>Spectral Material &amp;Generator...</translation>
+    </message>
+    <message>
+        <source>Spectral Gen</source>
+        <translation>Spectral Gen</translation>
+    </message>
+    <message>
         <source>&amp;Help</source>
         <translation>&amp;Help</translation>
     </message>
@@ -988,6 +1000,137 @@ Filename: YYYY-MM-DD_HH-MM-SS-mmm</translation>
     <message>
         <source>Detector Temperature:</source>
         <translation>Detector Temperature:</translation>
+    </message>
+</context>
+<context>
+    <name>SpectralMaterialGenPanel</name>
+    <message>
+        <source>Material Type</source>
+        <translation>Material Type</translation>
+    </message>
+    <message>
+        <source>Type:</source>
+        <translation>Type:</translation>
+    </message>
+    <message>
+        <source>Conductor</source>
+        <translation>Conductor</translation>
+    </message>
+    <message>
+        <source>Dielectric</source>
+        <translation>Dielectric</translation>
+    </message>
+    <message>
+        <source>Semiconductor</source>
+        <translation>Semiconductor</translation>
+    </message>
+    <message>
+        <source>Roughness:</source>
+        <translation>Roughness:</translation>
+    </message>
+    <message>
+        <source>Wavelength Range</source>
+        <translation>Wavelength Range</translation>
+    </message>
+    <message>
+        <source>Start (nm):</source>
+        <translation>Start (nm):</translation>
+    </message>
+    <message>
+        <source>End (nm):</source>
+        <translation>End (nm):</translation>
+    </message>
+    <message>
+        <source>Output Steps:</source>
+        <translation>Output Steps:</translation>
+    </message>
+    <message>
+        <source>Anchor Points</source>
+        <translation>Anchor Points</translation>
+    </message>
+    <message>
+        <source>Add Point</source>
+        <translation>Add Point</translation>
+    </message>
+    <message>
+        <source>Remove Point</source>
+        <translation>Remove Point</translation>
+    </message>
+    <message>
+        <source>Load CSV</source>
+        <translation>Load CSV</translation>
+    </message>
+    <message>
+        <source>Load YAML</source>
+        <translation>Load YAML</translation>
+    </message>
+    <message>
+        <source>Interpolation:</source>
+        <translation>Interpolation:</translation>
+    </message>
+    <message>
+        <source>Preview</source>
+        <translation>Preview</translation>
+    </message>
+    <message>
+        <source>Spectral Curves</source>
+        <translation>Spectral Curves</translation>
+    </message>
+    <message>
+        <source>Wavelength (nm)</source>
+        <translation>Wavelength (nm)</translation>
+    </message>
+    <message>
+        <source>Actions</source>
+        <translation>Actions</translation>
+    </message>
+    <message>
+        <source>Save CSV</source>
+        <translation>Save CSV</translation>
+    </message>
+    <message>
+        <source>Target Material Index:</source>
+        <translation>Target Material Index:</translation>
+    </message>
+    <message>
+        <source>Apply to Material</source>
+        <translation>Apply to Material</translation>
+    </message>
+    <message>
+        <source>Load Spectral CSV</source>
+        <translation>Load Spectral CSV</translation>
+    </message>
+    <message>
+        <source>CSV Files (*.csv);;All Files (*)</source>
+        <translation>CSV Files (*.csv);;All Files (*)</translation>
+    </message>
+    <message>
+        <source>Save Spectral CSV</source>
+        <translation>Save Spectral CSV</translation>
+    </message>
+    <message>
+        <source>Load RefractiveIndex.info YAML</source>
+        <translation>Load RefractiveIndex.info YAML</translation>
+    </message>
+    <message>
+        <source>YAML Files (*.yml *.yaml);;All Files (*)</source>
+        <translation>YAML Files (*.yml *.yaml);;All Files (*)</translation>
+    </message>
+    <message>
+        <source>Error</source>
+        <translation>Error</translation>
+    </message>
+    <message>
+        <source>Info</source>
+        <translation>Info</translation>
+    </message>
+    <message>
+        <source>No data to save. Add anchor points first.</source>
+        <translation>No data to save. Add anchor points first.</translation>
+    </message>
+    <message>
+        <source>No interpolated data. Add anchor points first.</source>
+        <translation>No interpolated data. Add anchor points first.</translation>
     </message>
 </context>
 </TS>

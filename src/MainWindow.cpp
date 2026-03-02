@@ -16,6 +16,7 @@
 #include "panels/AtmosphericPanel.hpp"
 #include "panels/SensorPanel.hpp"
 #include "panels/DisplayEnhancementPanel.hpp"
+#include "panels/SpectralMaterialGenPanel.hpp"
 #include "config/ConfigManager.hpp"
 #include "editing/SelectionManager.hpp"
 #include "editing/TransformGizmo.hpp"
@@ -159,6 +160,15 @@ void MainWindow::setupMenus() {
     QAction* stopRenderAction = renderMenu->addAction(tr("S&top Render"), this, &MainWindow::onStopRender);
     stopRenderAction->setShortcut(QKeySequence(Qt::Key_Escape));
 
+    // Tools menu
+    QMenu* toolsMenu = menuBar()->addMenu(tr("&Tools"));
+    toolsMenu->addAction(tr("Spectral Material &Generator..."), this, [this]() {
+        int idx = m_parameterTabs->indexOf(m_spectralMaterialGenPanel);
+        if (idx >= 0) m_parameterTabs->setCurrentIndex(idx);
+        m_parameterDock->show();
+        m_parameterDock->raise();
+    });
+
     // Settings menu
     QMenu* settingsMenu = menuBar()->addMenu(tr("&Settings"));
 
@@ -222,6 +232,8 @@ void MainWindow::setupDockWidgets() {
     m_atmosphericPanel = new AtmosphericPanel();
     m_sensorPanel = new SensorPanel();
     m_displayEnhancementPanel = new DisplayEnhancementPanel();
+    m_spectralMaterialGenPanel = new SpectralMaterialGenPanel();
+    m_spectralMaterialGenPanel->setVulkanWindow(m_vulkanWindow);
 
     // Add panels to tabs
     m_parameterTabs->addTab(m_sceneTreePanel, tr("Scene"));
@@ -232,6 +244,7 @@ void MainWindow::setupDockWidgets() {
     m_parameterTabs->addTab(m_renderSettingsPanel, tr("Render"));
     m_parameterTabs->addTab(m_spectralConfigPanel, tr("Spectral"));
     m_parameterTabs->addTab(m_displayEnhancementPanel, tr("Display"));
+    m_parameterTabs->addTab(m_spectralMaterialGenPanel, tr("Spectral Gen"));
     m_parameterTabs->addTab(m_debugVisualizationPanel, tr("Debug"));
 
     m_parameterDock->setWidget(m_parameterTabs);
@@ -248,6 +261,9 @@ void MainWindow::setupDockWidgets() {
             this, &MainWindow::onMaterialSelected);
 
     connect(m_materialEditorPanel, &MaterialEditorPanel::materialChanged,
+            this, &MainWindow::onMaterialChanged);
+
+    connect(m_spectralMaterialGenPanel, &SpectralMaterialGenPanel::materialChanged,
             this, &MainWindow::onMaterialChanged);
 
     connect(m_lightingPanel, &LightingPanel::lightingChanged,

@@ -42,6 +42,7 @@ class DebugVisualizationPanel;
 class AtmosphericPanel;
 class SensorPanel;
 class DisplayEnhancementPanel;
+class SpectralMaterialGenPanel;
 class ConfigManager;
 class SelectionManager;
 class TransformGizmo;
@@ -148,6 +149,7 @@ private:
     AtmosphericPanel* m_atmosphericPanel = nullptr;
     SensorPanel* m_sensorPanel = nullptr;
     DisplayEnhancementPanel* m_displayEnhancementPanel = nullptr;
+    SpectralMaterialGenPanel* m_spectralMaterialGenPanel = nullptr;
 
     // Display enhancement (CLAHE) settings
     bool m_displayEnhancementEnabled = false;

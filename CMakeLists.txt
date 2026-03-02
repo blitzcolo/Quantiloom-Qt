@@ -41,6 +41,9 @@ find_package(Qt6 REQUIRED COMPONENTS
     Core
     Widgets
     Gui
+    Charts
+    OpenGL
+    OpenGLWidgets
     LinguistTools
 )
 
@@ -122,6 +125,8 @@ set(GUI_SOURCES
     src/panels/SensorPanel.hpp
     src/panels/DisplayEnhancementPanel.cpp
     src/panels/DisplayEnhancementPanel.hpp
+    src/panels/SpectralMaterialGenPanel.cpp
+    src/panels/SpectralMaterialGenPanel.hpp
     # Configuration management
     src/config/ConfigManager.cpp
     src/config/ConfigManager.hpp
@@ -202,6 +207,7 @@ target_link_libraries(QuantiloomQt PRIVATE
     Qt6::Core
     Qt6::Widgets
     Qt6::Gui
+    Qt6::Charts
     Vulkan::Vulkan
     ${QUANTILOOM_LIBRARIES}
 )
@@ -228,6 +234,9 @@ if(WIN32)
             $<TARGET_FILE:Qt6::Core>
             $<TARGET_FILE:Qt6::Widgets>
             $<TARGET_FILE:Qt6::Gui>
+            $<TARGET_FILE:Qt6::Charts>
+            $<TARGET_FILE:Qt6::OpenGL>
+            $<TARGET_FILE:Qt6::OpenGLWidgets>
             $<TARGET_FILE_DIR:QuantiloomQt>
         COMMENT "Copying Qt6 DLLs..."
     )

@@ -14,6 +14,7 @@
 #include <scene/Material.hpp>
 #include <scene/Scene.hpp>
 #include <core/Image.hpp>
+#include <core/SpectralData.hpp>
 
 #include <QVulkanFunctions>
 #include <QFile>
@@ -46,10 +47,10 @@ void QuantiloomVulkanRenderer::initResources() {
 }
 
 void QuantiloomVulkanRenderer::initSwapChainResources() {
-    qDebug() << "QuantiloomVulkanRenderer::initSwapChainResources() - Starting...";
+    //qDebug() << "QuantiloomVulkanRenderer::initSwapChainResources() - Starting...";
 
     QSize swapSize = m_window->swapChainImageSize();
-    qDebug() << "  Swapchain size:" << swapSize;
+    //qDebug() << "  Swapchain size:" << swapSize;
 
     if (swapSize.width() <= 0 || swapSize.height() <= 0) {
         qWarning() << "Invalid swapchain size, skipping initialization";
@@ -58,7 +59,7 @@ void QuantiloomVulkanRenderer::initSwapChainResources() {
 
     // If already initialized, just resize
     if (m_renderContext) {
-        qDebug() << "  Resizing existing context...";
+        //qDebug() << "  Resizing existing context...";
         m_renderContext->Resize(
             static_cast<quantiloom::u32>(swapSize.width()),
             static_cast<quantiloom::u32>(swapSize.height())
@@ -379,6 +380,12 @@ void QuantiloomVulkanRenderer::updateMaterial(int index, const quantiloom::Mater
         m_renderContext->UpdateMaterial(static_cast<quantiloom::u32>(index), material);
         resetAccumulation();
     }
+}
+
+int QuantiloomVulkanRenderer::addComplexRefractiveIndex(const quantiloom::ComplexRefractiveIndex& cri) {
+    if (m_renderContext)
+        return m_renderContext->AddComplexRefractiveIndex(cri);
+    return -1;
 }
 
 const quantiloom::Scene* QuantiloomVulkanRenderer::getScene() const {

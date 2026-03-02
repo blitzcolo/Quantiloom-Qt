@@ -80,6 +80,18 @@
         <translation>停止渲染(&amp;T)</translation>
     </message>
     <message>
+        <source>&amp;Tools</source>
+        <translation>工具(&amp;T)</translation>
+    </message>
+    <message>
+        <source>Spectral Material &amp;Generator...</source>
+        <translation>光谱材质生成器(&amp;G)...</translation>
+    </message>
+    <message>
+        <source>Spectral Gen</source>
+        <translation>光谱生成</translation>
+    </message>
+    <message>
         <source>&amp;Help</source>
         <translation>帮助(&amp;H)</translation>
     </message>
@@ -991,6 +1003,137 @@ Filename: YYYY-MM-DD_HH-MM-SS-mmm</source>
     <message>
         <source>Detector Temperature:</source>
         <translation>探测器温度:</translation>
+    </message>
+</context>
+<context>
+    <name>SpectralMaterialGenPanel</name>
+    <message>
+        <source>Material Type</source>
+        <translation>材质类型</translation>
+    </message>
+    <message>
+        <source>Type:</source>
+        <translation>类型:</translation>
+    </message>
+    <message>
+        <source>Conductor</source>
+        <translation>导体</translation>
+    </message>
+    <message>
+        <source>Dielectric</source>
+        <translation>介质</translation>
+    </message>
+    <message>
+        <source>Semiconductor</source>
+        <translation>半导体</translation>
+    </message>
+    <message>
+        <source>Roughness:</source>
+        <translation>粗糙度:</translation>
+    </message>
+    <message>
+        <source>Wavelength Range</source>
+        <translation>波长范围</translation>
+    </message>
+    <message>
+        <source>Start (nm):</source>
+        <translation>起始 (nm):</translation>
+    </message>
+    <message>
+        <source>End (nm):</source>
+        <translation>终止 (nm):</translation>
+    </message>
+    <message>
+        <source>Output Steps:</source>
+        <translation>输出步数:</translation>
+    </message>
+    <message>
+        <source>Anchor Points</source>
+        <translation>锚点</translation>
+    </message>
+    <message>
+        <source>Add Point</source>
+        <translation>添加锚点</translation>
+    </message>
+    <message>
+        <source>Remove Point</source>
+        <translation>删除锚点</translation>
+    </message>
+    <message>
+        <source>Load CSV</source>
+        <translation>加载 CSV</translation>
+    </message>
+    <message>
+        <source>Load YAML</source>
+        <translation>加载 YAML</translation>
+    </message>
+    <message>
+        <source>Interpolation:</source>
+        <translation>插值方法:</translation>
+    </message>
+    <message>
+        <source>Preview</source>
+        <translation>预览</translation>
+    </message>
+    <message>
+        <source>Spectral Curves</source>
+        <translation>光谱曲线</translation>
+    </message>
+    <message>
+        <source>Wavelength (nm)</source>
+        <translation>波长 (nm)</translation>
+    </message>
+    <message>
+        <source>Actions</source>
+        <translation>操作</translation>
+    </message>
+    <message>
+        <source>Save CSV</source>
+        <translation>保存 CSV</translation>
+    </message>
+    <message>
+        <source>Target Material Index:</source>
+        <translation>目标材质索引:</translation>
+    </message>
+    <message>
+        <source>Apply to Material</source>
+        <translation>应用到材质</translation>
+    </message>
+    <message>
+        <source>Load Spectral CSV</source>
+        <translation>加载光谱 CSV</translation>
+    </message>
+    <message>
+        <source>CSV Files (*.csv);;All Files (*)</source>
+        <translation>CSV 文件 (*.csv);;所有文件 (*)</translation>
+    </message>
+    <message>
+        <source>Save Spectral CSV</source>
+        <translation>保存光谱 CSV</translation>
+    </message>
+    <message>
+        <source>Load RefractiveIndex.info YAML</source>
+        <translation>加载 RefractiveIndex.info YAML</translation>
+    </message>
+    <message>
+        <source>YAML Files (*.yml *.yaml);;All Files (*)</source>
+        <translation>YAML 文件 (*.yml *.yaml);;所有文件 (*)</translation>
+    </message>
+    <message>
+        <source>Error</source>
+        <translation>错误</translation>
+    </message>
+    <message>
+        <source>Info</source>
+        <translation>提示</translation>
+    </message>
+    <message>
+        <source>No data to save. Add anchor points first.</source>
+        <translation>没有数据可保存，请先添加锚点。</translation>
+    </message>
+    <message>
+        <source>No interpolated data. Add anchor points first.</source>
+        <translation>没有插值数据，请先添加锚点。</translation>
     </message>
 </context>
 </TS>

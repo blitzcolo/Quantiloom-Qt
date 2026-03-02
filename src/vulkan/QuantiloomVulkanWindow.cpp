@@ -186,6 +186,12 @@ void QuantiloomVulkanWindow::updateMaterial(int index, const quantiloom::Materia
     }
 }
 
+int QuantiloomVulkanWindow::addComplexRefractiveIndex(const quantiloom::ComplexRefractiveIndex& cri) {
+    if (m_renderer)
+        return m_renderer->addComplexRefractiveIndex(cri);
+    return -1;
+}
+
 void QuantiloomVulkanWindow::resetAccumulation() {
     if (m_renderer) {
         m_renderer->resetAccumulation();
