@@ -21,6 +21,7 @@ struct Material;
 struct LightingParams;
 struct Image;
 struct SensorParams;
+struct ComplexRefractiveIndex;
 }
 
 class QuantiloomVulkanRenderer;
@@ -94,6 +95,13 @@ public:
      * @brief Update material at specified index
      */
     void updateMaterial(int index, const quantiloom::Material& material);
+
+    /**
+     * @brief Add complex refractive index data for physical Fresnel
+     * @param cri CPU-side complex refractive index (n,k curves)
+     * @return Index into CRI buffer, or -1 on failure
+     */
+    int addComplexRefractiveIndex(const quantiloom::ComplexRefractiveIndex& cri);
 
     /**
      * @brief Reset render accumulation
