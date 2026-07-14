@@ -9,22 +9,23 @@
 resolution = [1280, 1280]      # Output resolution
 spp = 16                        # Samples per pixel
 output = "usd_spectral_output.exr"
-environment_map = "D:/Quantiloom-Qt/assets/maps/qwantani_noon_puresky_4k.exr"
+environment_map = ""#"D:/Quantiloom-Qt/assets/maps/qwantani_noon_puresky_4k.exr"
 
 [spectral]
 # ============================================================================
 # Spectral Rendering Mode
 # ============================================================================
 # Available modes:
-#   - "rgb_fused"    : RGB rendering with full color (preview quality)
+#   - "rgb"          : Classic 3-channel RGB (fast preview)
+#   - "vis_fused"    : Visible spectral integration (higher fidelity)
 #   - "single"       : Single wavelength grayscale
 #   - "swir_fused"   : Short-wave IR fusion 1-2.5um
 #   - "mwir_fused"   : Mid-wave IR fusion 3-5um
 #   - "lwir_fused"   : Long-wave IR fusion 8-12um
 # ============================================================================
-mode = "rgb_fused"
-basis_file = "D:/Quantiloom-Qt/assets/spectral/quantiloom_basis_v3_usgs.qlbin"
-materials_json = "D:/Quantiloom-Qt/assets/spectral/quantiloom_materials_usgs.json"
+mode = "rgb"
+basis_file = ""#"D:/Quantiloom-Qt/assets/spectral/quantiloom_basis_v3_usgs.qlbin"
+materials_json = ""#"D:/Quantiloom-Qt/assets/spectral/quantiloom_materials_usgs.json"
 band = "VIS"
 
 [scene]
@@ -50,7 +51,7 @@ band = "VIS"
 #   }
 #
 # ============================================================================
-usd = "D:/Quantiloom-Qt/assets/models/usd_test/pbr_sphere.usda"
+gltf = "D:/Quantiloom-Qt/assets/models/ford.glb"
 world_units_to_meters = 1.0
 
 [camera]
@@ -61,8 +62,8 @@ fov_y = 45.0
 
 [lighting]
 sun_direction = [0.5, 0.8, 0.3]
-sun_radiance = [5.0, 5.0, 5.0]
-sky_radiance = [0.5, 0.7, 1.0]
+sun_radiance = [1.0, 1.0, 1.0]
+sky_radiance = [0.7, 0.7, 0.7]
 atmosphere_temperature_k = 260.0
 
 [material]

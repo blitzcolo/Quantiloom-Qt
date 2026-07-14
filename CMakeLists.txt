@@ -198,6 +198,8 @@ endif()
 # ============================================================================
 target_include_directories(QuantiloomQt PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
+    # libSpectraForge headers (workaround: SDK target missing INTERFACE_INCLUDE_DIRECTORIES)
+    ${QUANTILOOM_SDK_DIR}/include/spectraforge
 )
 
 # ============================================================================
@@ -210,6 +212,7 @@ target_link_libraries(QuantiloomQt PRIVATE
     Qt6::Charts
     Vulkan::Vulkan
     ${QUANTILOOM_LIBRARIES}
+    Quantiloom::libSpectraForge
 )
 
 # ============================================================================
@@ -257,6 +260,14 @@ if(WIN32)
             $<TARGET_FILE:Quantiloom::libQuantiloom>
             $<TARGET_FILE_DIR:QuantiloomQt>
         COMMENT "Copying libQuantiloom DLL from SDK..."
+    )
+
+    # Copy libSpectraForge DLL from SDK
+    add_custom_command(TARGET QuantiloomQt POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_FILE:Quantiloom::libSpectraForge>
+            $<TARGET_FILE_DIR:QuantiloomQt>
+        COMMENT "Copying libSpectraForge DLL from SDK..."
     )
 
     # Copy shader files from SDK (required at runtime)

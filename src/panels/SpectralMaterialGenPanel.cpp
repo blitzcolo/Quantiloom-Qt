@@ -10,16 +10,20 @@
 #include <QHBoxLayout>
 #include <QGroupBox>
 #include <QLabel>
+#include <QCheckBox>
 #include <QComboBox>
 #include <QDoubleSpinBox>
+#include <QRadioButton>
 #include <QSpinBox>
 #include <QTableWidget>
 #include <QHeaderView>
 #include <QPushButton>
 #include <QFormLayout>
 #include <QDialog>
+#include <QScrollArea>
 #include <QFileDialog>
 #include <QMessageBox>
+#include <QTextEdit>
 #include <QTextStream>
 #include <QDateTime>
 
@@ -29,7 +33,10 @@
 #include <QtCharts/QValueAxis>
 
 #include <scene/Material.hpp>
+#include <scene/Texture.hpp>
+#include <scene/Scene.hpp>
 #include <io/SpectralIO.hpp>
+#include <SpectraForge.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -57,9 +64,73 @@ void SpectralMaterialGenPanel::setVulkanWindow(QuantiloomVulkanWindow* window) {
 // ============================================================================
 
 void SpectralMaterialGenPanel::setupUi() {
-    auto* mainLayout = new QVBoxLayout(this);
+    // Outer layout holds scroll area
+    auto* outerLayout = new QVBoxLayout(this);
+    outerLayout->setContentsMargins(0, 0, 0, 0);
+
+    auto* scrollArea = new QScrollArea();
+    scrollArea->setWidgetResizable(true);
+    scrollArea->setFrameShape(QFrame::NoFrame);
+    outerLayout->addWidget(scrollArea);
+
+    auto* scrollContent = new QWidget();
+    scrollArea->setWidget(scrollContent);
+
+    auto* mainLayout = new QVBoxLayout(scrollContent);
     mainLayout->setContentsMargins(6, 6, 6, 6);
     mainLayout->setSpacing(4);
+
+    // --- Auto IR Generation group (SpectraForge) ---
+    {
+        auto* group = new QGroupBox(tr("Auto IR Generation (SpectraForge)"));
+        auto* form = new QFormLayout(group);
+        form->setContentsMargins(6, 10, 6, 6);
+
+        // Mode selection
+        auto* modeRow = new QHBoxLayout();
+        m_autoIRSingleRadio = new QRadioButton(tr("Current Material"));
+        m_autoIRAllRadio = new QRadioButton(tr("All Materials"));
+        m_autoIRSingleRadio->setChecked(true);
+        modeRow->addWidget(m_autoIRSingleRadio);
+        modeRow->addWidget(m_autoIRAllRadio);
+        form->addRow(tr("Mode:"), modeRow);
+
+        // Cluster count
+        m_clusterCountSpin = new QSpinBox();
+        m_clusterCountSpin->setRange(1, 12);
+        m_clusterCountSpin->setValue(5);
+        m_clusterCountSpin->setToolTip(tr("K-means cluster count for texture color analysis"));
+        form->addRow(tr("Clusters (K):"), m_clusterCountSpin);
+
+        // Temperature
+        m_temperatureSpin = new QDoubleSpinBox();
+        m_temperatureSpin->setRange(100.0, 5000.0);
+        m_temperatureSpin->setValue(300.0);
+        m_temperatureSpin->setSuffix(" K");
+        m_temperatureSpin->setToolTip(tr("Surface temperature for thermal emission"));
+        form->addRow(tr("Temperature:"), m_temperatureSpin);
+
+        // Overwrite existing
+        m_overwriteCheck = new QCheckBox(tr("Overwrite existing IR data"));
+        m_overwriteCheck->setChecked(false);
+        form->addRow(m_overwriteCheck);
+
+        // Generate button
+        auto* generateBtn = new QPushButton(tr("Generate IR Materials"));
+        form->addRow(generateBtn);
+
+        // Result text
+        m_autoIRResultText = new QTextEdit();
+        m_autoIRResultText->setReadOnly(true);
+        m_autoIRResultText->setMaximumHeight(100);
+        m_autoIRResultText->setPlaceholderText(tr("Results will appear here..."));
+        form->addRow(m_autoIRResultText);
+
+        mainLayout->addWidget(group);
+
+        connect(generateBtn, &QPushButton::clicked,
+                this, &SpectralMaterialGenPanel::onAutoIRGenerate);
+    }
 
     // --- Material Type group ---
     {
@@ -218,6 +289,93 @@ void SpectralMaterialGenPanel::setupUi() {
     }
 
     mainLayout->addStretch();
+}
+
+// ============================================================================
+// Auto IR Generation (SpectraForge)
+// ============================================================================
+
+void SpectralMaterialGenPanel::onAutoIRGenerate() {
+    if (!m_vulkanWindow) {
+        QMessageBox::warning(this, tr("Error"), tr("No renderer available."));
+        return;
+    }
+
+    const auto* scene = m_vulkanWindow->getScene();
+    if (!scene || scene->materials.empty()) {
+        QMessageBox::warning(this, tr("Error"), tr("No scene loaded or no materials in scene."));
+        return;
+    }
+
+    auto clusterCount = static_cast<quantiloom::u32>(m_clusterCountSpin->value());
+    auto temperature = static_cast<quantiloom::f32>(m_temperatureSpin->value());
+    bool overwrite = m_overwriteCheck->isChecked();
+
+    m_autoIRResultText->clear();
+
+    if (m_autoIRSingleRadio->isChecked()) {
+        // Single material mode
+        int idx = m_currentMaterialIndex;
+        if (idx < 0 || idx >= static_cast<int>(scene->materials.size())) {
+            QMessageBox::warning(this, tr("Error"),
+                tr("No material selected. Select a material in the Scene Tree first."));
+            return;
+        }
+
+        quantiloom::Material mat = scene->materials[static_cast<quantiloom::u32>(idx)];
+
+        if (!overwrite && mat.HasIRData()) {
+            m_autoIRResultText->append(
+                tr("Material[%1] '%2' already has IR data, skipped.")
+                    .arg(idx)
+                    .arg(QString::fromStdString(mat.name)));
+            return;
+        }
+
+        const quantiloom::Texture* tex = nullptr;
+        if (mat.baseColorTextureIndex >= 0 &&
+            static_cast<quantiloom::u32>(mat.baseColorTextureIndex) < scene->textures.size()) {
+            tex = &scene->textures[static_cast<quantiloom::u32>(mat.baseColorTextureIndex)];
+        }
+
+        bool ok = spectraforge::SpectraForge::ProcessSingle(mat, tex, temperature, clusterCount);
+        if (ok) {
+            emit materialChanged(idx, mat);
+            m_autoIRResultText->append(
+                tr("Material[%1] '%2' -> IR generated (T=%3 K)")
+                    .arg(idx)
+                    .arg(QString::fromStdString(mat.name))
+                    .arg(temperature, 0, 'f', 1));
+        } else {
+            m_autoIRResultText->append(tr("Failed to process material[%1]").arg(idx));
+        }
+    } else {
+        // All materials mode
+        spectraforge::ForgeConfig config;
+        config.clusterCount = clusterCount;
+        config.defaultTemperature_K = temperature;
+        config.overwriteExisting = overwrite;
+        config.verbose = true;
+
+        quantiloom::Vector<quantiloom::Material> outMats;
+        auto result = spectraforge::SpectraForge::Process(*scene, outMats, config);
+
+        // Apply each modified material
+        for (quantiloom::u32 i = 0; i < outMats.size(); ++i) {
+            emit materialChanged(static_cast<int>(i), outMats[i]);
+        }
+
+        // Display results
+        m_autoIRResultText->append(
+            tr("Processed: %1/%2, Skipped: %3")
+                .arg(result.materialsProcessed)
+                .arg(result.totalMaterials)
+                .arg(result.materialsSkipped));
+
+        for (const auto& assignment : result.assignments) {
+            m_autoIRResultText->append(QString::fromStdString(assignment));
+        }
+    }
 }
 
 // ============================================================================
@@ -661,12 +819,14 @@ void SpectralMaterialGenPanel::onLoadYAML() {
     }
 
     // Auto-detect material type based on k values
-    float avgK = 0;
-    for (auto kv : cri.k) avgK += kv;
-    avgK /= cri.k.size();
-    if (avgK > 1.0f) m_materialTypeCombo->setCurrentIndex(0);       // Conductor
-    else if (avgK < 0.01f) m_materialTypeCombo->setCurrentIndex(1);  // Dielectric
-    else m_materialTypeCombo->setCurrentIndex(2);                     // Semiconductor
+    if (!cri.k.empty()) {
+        float avgK = 0;
+        for (auto kv : cri.k) avgK += kv;
+        avgK /= static_cast<float>(cri.k.size());
+        if (avgK > 1.0f) m_materialTypeCombo->setCurrentIndex(0);       // Conductor
+        else if (avgK < 0.01f) m_materialTypeCombo->setCurrentIndex(1);  // Dielectric
+        else m_materialTypeCombo->setCurrentIndex(2);                     // Semiconductor
+    }
 
     // Update wavelength range from data
     m_lambdaStartSpin->setValue(cri.wavelengths_nm.front());
