@@ -10,7 +10,7 @@
 
 #include <renderer/ExternalRenderContext.hpp>
 #include <renderer/LightingParams.hpp>
-#include <renderer/AtmosphericConfig.hpp>
+#include <atmos/AtmosphereNNConfig.hpp>
 #include <scene/Material.hpp>
 #include <scene/Scene.hpp>
 #include <core/Image.hpp>
@@ -703,32 +703,81 @@ void QuantiloomVulkanRenderer::setAtmosphericPreset(const QString& preset) {
     m_atmosphericPreset = preset;
     std::string presetStr = preset.toLower().toStdString();
 
-    if (presetStr == "clear_day") {
-        m_atmosphericConfig = quantiloom::AtmosphericConfig::ClearDay();
+    // Map legacy analytic preset names to their closest NN preset
+    if (presetStr == "clear_day" || presetStr == "mountain_top") {
+        presetStr = "clear";
     } else if (presetStr == "hazy") {
-        m_atmosphericConfig = quantiloom::AtmosphericConfig::Hazy();
+        presetStr = "haze";
     } else if (presetStr == "polluted_urban") {
-        m_atmosphericConfig = quantiloom::AtmosphericConfig::PollutedUrban();
-    } else if (presetStr == "mountain_top") {
-        m_atmosphericConfig = quantiloom::AtmosphericConfig::MountainTop();
+        presetStr = "urban_haze";
     } else if (presetStr == "mars") {
-        m_atmosphericConfig = quantiloom::AtmosphericConfig::Mars();
+        qWarning() << "Atmospheric preset 'mars' has no NN equivalent, disabling atmosphere";
+        presetStr = "disabled";
+    }
+
+    quantiloom::AtmosphereNNConfig config;
+    config.modelPackDir = m_atmosphericConfig.modelPackDir;  // Keep user's pack dir
+    if (config.ApplyPreset(presetStr)) {
+        config.enabled = (presetStr != "disabled");
     } else {
-        m_atmosphericConfig = quantiloom::AtmosphericConfig::Disabled();
+        qWarning() << "Unknown atmospheric preset" << preset << "- disabling atmosphere";
+        config.enabled = false;
+        config.preset = "disabled";
     }
-
-    if (m_renderContext) {
-        m_renderContext->SetAtmosphericConfig(m_atmosphericConfig);
-    }
-
-    qDebug() << "Atmospheric preset set to:" << preset;
-}
-
-void QuantiloomVulkanRenderer::setAtmosphericConfig(const quantiloom::AtmosphericConfig& config) {
     m_atmosphericConfig = config;
 
-    if (m_renderContext) {
-        m_renderContext->SetAtmosphericConfig(m_atmosphericConfig);
+    applyAtmosphereToContext();
+
+    qDebug() << "Atmospheric preset set to:" << QString::fromStdString(presetStr);
+}
+
+void QuantiloomVulkanRenderer::setAtmosphericConfig(const quantiloom::AtmosphereNNConfig& config) {
+    m_atmosphericConfig = config;
+    applyAtmosphereToContext();
+}
+
+std::string QuantiloomVulkanRenderer::resolveDefaultModelPackDir() {
+    QStringList candidates;
+    QString envDir = qEnvironmentVariable("QUANTILOOM_ATMOS_MODELS");
+    if (!envDir.isEmpty()) {
+        candidates << envDir;
+    }
+    // Copied next to the exe from the SDK by a POST_BUILD step
+    candidates << QCoreApplication::applicationDirPath() + "/assets/atmos_models";
+
+    for (const QString& dir : candidates) {
+        if (QDir(dir).exists()) {
+            return QDir::toNativeSeparators(dir).toStdString();
+        }
+    }
+    return {};
+}
+
+void QuantiloomVulkanRenderer::applyAtmosphereToContext() {
+    if (!m_renderContext) {
+        return;
+    }
+
+    quantiloom::AtmosphereNNConfig config = m_atmosphericConfig;
+    if (config.enabled && config.modelPackDir.empty()) {
+        config.modelPackDir = resolveDefaultModelPackDir();
+        if (config.modelPackDir.empty()) {
+            qWarning() << "NN atmosphere model pack not found (set QUANTILOOM_ATMOS_MODELS "
+                          "or pick a directory in the Atmospheric panel); disabling atmosphere";
+            config.enabled = false;
+        }
+    }
+
+    try {
+        m_renderContext->SetAtmosphere(config);
+    } catch (const std::exception& e) {
+        qWarning() << "Failed to apply NN atmosphere:" << e.what() << "- disabling atmosphere";
+        config.enabled = false;
+        try {
+            m_renderContext->SetAtmosphere(config);
+        } catch (const std::exception& e2) {
+            qWarning() << "Failed to disable NN atmosphere:" << e2.what();
+        }
     }
 }
 

@@ -285,8 +285,11 @@ void MainWindow::setupDockWidgets() {
     // Atmospheric panel signals
     connect(m_atmosphericPanel, &AtmosphericPanel::presetChanged,
             this, [this](const QString& preset) {
-                m_vulkanWindow->setAtmosphericPreset(preset);
                 m_statusLabel->setText(tr("Atmospheric preset: %1").arg(preset));
+            });
+    connect(m_atmosphericPanel, &AtmosphericPanel::configChanged,
+            this, [this](const quantiloom::AtmosphereNNConfig& config) {
+                m_vulkanWindow->setAtmosphericConfig(config);
             });
 
     // Sensor panel signals
@@ -650,7 +653,7 @@ void MainWindow::onAbout() {
         this,
         tr("About Quantiloom"),
         tr("<h3>Quantiloom</h3>"
-           "<p>Version 0.0.3</p>"
+           "<p>Version 0.0.4</p>"
            "<p>A spectral renderer with hardware ray tracing support.</p>"
            "<p>Features:</p>"
            "<ul>"

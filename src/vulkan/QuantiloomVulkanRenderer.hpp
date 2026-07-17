@@ -16,7 +16,7 @@
 #include <glm/glm.hpp>
 #include <core/Types.hpp>
 #include <renderer/LightingParams.hpp>
-#include <renderer/AtmosphericConfig.hpp>
+#include <atmos/AtmosphereNNConfig.hpp>
 #include <postprocess/SensorModel.hpp>
 #include <postprocess/GenericSensor.hpp>
 
@@ -129,22 +129,24 @@ public:
     // ========================================================================
 
     /**
-     * @brief Set atmospheric configuration by preset name
-     * @param preset Preset name: "clear_day", "hazy", "polluted_urban",
-     *               "mountain_top", "mars", "disabled"
+     * @brief Set atmosphere configuration by preset name
+     * @param preset Preset name: "clear", "turbulent_clear", "urban_haze",
+     *               "fog", "light_rain", "heavy_rain", "snow", "haze",
+     *               "disabled". Legacy analytic names (e.g. "clear_day")
+     *               are mapped to their closest NN preset.
      */
     void setAtmosphericPreset(const QString& preset);
 
     /**
-     * @brief Set atmospheric configuration directly
-     * @param config Atmospheric configuration
+     * @brief Set atmosphere configuration directly
+     * @param config NN atmosphere configuration
      */
-    void setAtmosphericConfig(const quantiloom::AtmosphericConfig& config);
+    void setAtmosphericConfig(const quantiloom::AtmosphereNNConfig& config);
 
     /**
-     * @brief Get current atmospheric configuration
+     * @brief Get current atmosphere configuration
      */
-    const quantiloom::AtmosphericConfig& getAtmosphericConfig() const { return m_atmosphericConfig; }
+    const quantiloom::AtmosphereNNConfig& getAtmosphericConfig() const { return m_atmosphericConfig; }
 
     // ========================================================================
     // Environment Map (IBL)
@@ -256,9 +258,14 @@ private:
     quantiloom::LightingParams m_lightingParams = quantiloom::CreateDefaultLightingParams();
     bool m_hasLightingParams = false;  // True if set from config
 
-    // Atmospheric configuration
-    quantiloom::AtmosphericConfig m_atmosphericConfig;  // Default: disabled
+    // Atmosphere configuration (NN MODTRAN surrogate)
+    quantiloom::AtmosphereNNConfig m_atmosphericConfig;  // Default: disabled
     QString m_atmosphericPreset = "disabled";
+
+    // Push m_atmosphericConfig to the render context, resolving the model
+    // pack directory and downgrading to disabled on failure
+    void applyAtmosphereToContext();
+    static std::string resolveDefaultModelPackDir();
 
     // Sensor simulation
     bool m_sensorEnabled = false;

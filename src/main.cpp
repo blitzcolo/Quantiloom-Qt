@@ -33,7 +33,7 @@ int main(int argc, char* argv[]) {
 
     // Set application metadata
     app.setApplicationName("Quantiloom");
-    app.setApplicationVersion("0.0.3");
+    app.setApplicationVersion("0.0.4");
     app.setOrganizationName("wtflmao");
     app.setOrganizationDomain("github.com/wtflmao");
 

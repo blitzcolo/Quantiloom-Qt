@@ -22,6 +22,7 @@ struct LightingParams;
 struct Image;
 struct SensorParams;
 struct ComplexRefractiveIndex;
+struct AtmosphereNNConfig;
 }
 
 class QuantiloomVulkanRenderer;
@@ -157,11 +158,18 @@ public:
     // ========================================================================
 
     /**
-     * @brief Set atmospheric configuration by preset name
-     * @param preset Preset name: "clear_day", "hazy", "polluted_urban",
-     *               "mountain_top", "mars", "disabled"
+     * @brief Set atmosphere configuration by preset name
+     * @param preset NN preset name: "clear", "turbulent_clear", "urban_haze",
+     *               "fog", "light_rain", "heavy_rain", "snow", "haze",
+     *               "disabled" (legacy analytic names are mapped)
      */
     void setAtmosphericPreset(const QString& preset);
+
+    /**
+     * @brief Set full NN atmosphere configuration
+     * @param config Weather / geometry configuration
+     */
+    void setAtmosphericConfig(const quantiloom::AtmosphereNNConfig& config);
 
     // ========================================================================
     // Environment Map (IBL)

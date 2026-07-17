@@ -64,7 +64,6 @@ private:
     float m_transmittance = 0.9f;
     float m_atmosphereTemp = 260.0f;
 
-    // SDK 0.0.3 new fields
     float m_chromaR_correction = 0.7872f;
     float m_chromaB_correction = 1.0437f;
     bool m_enableShadowRays = false;

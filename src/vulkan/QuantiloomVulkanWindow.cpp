@@ -232,6 +232,12 @@ void QuantiloomVulkanWindow::setAtmosphericPreset(const QString& preset) {
     }
 }
 
+void QuantiloomVulkanWindow::setAtmosphericConfig(const quantiloom::AtmosphereNNConfig& config) {
+    if (m_renderer) {
+        m_renderer->setAtmosphericConfig(config);
+    }
+}
+
 // ============================================================================
 // Environment Map (IBL)
 // ============================================================================

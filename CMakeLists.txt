@@ -5,7 +5,7 @@
 cmake_minimum_required(VERSION 3.21)
 
 project(QuantiloomQt
-    VERSION 0.0.3
+    VERSION 0.0.4
     DESCRIPTION "Qt6 GUI for libQuantiloom"
     LANGUAGES CXX
 )
@@ -278,6 +278,17 @@ if(WIN32)
                 ${QUANTILOOM_SHADERS}
                 $<TARGET_FILE_DIR:QuantiloomQt>
             COMMENT "Copying shader files from SDK..."
+        )
+    endif()
+
+    # Copy NN atmosphere model pack from SDK (required at runtime when the
+    # atmosphere is enabled; copy_directory_if_different skips unchanged files)
+    if(EXISTS "${QUANTILOOM_SDK_DIR}/assets/atmos_models")
+        add_custom_command(TARGET QuantiloomQt POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
+                "${QUANTILOOM_SDK_DIR}/assets/atmos_models"
+                "$<TARGET_FILE_DIR:QuantiloomQt>/assets/atmos_models"
+            COMMENT "Copying atmosphere model pack from SDK..."
         )
     endif()
 

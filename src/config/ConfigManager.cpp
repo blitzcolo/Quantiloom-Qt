@@ -118,7 +118,7 @@ void ConfigManager::extractSceneConfig(const quantiloom::Config& config, SceneCo
     out.lighting.transmittance = config.GetFloat("lighting.transmittance", 0.9f);
     out.lighting.worldUnitsToMeters = out.worldUnitsToMeters;
 
-    // [quality] VIS_Fused chromaticity correction (SDK 0.0.3)
+    // [quality] VIS_Fused chromaticity correction
     out.lighting.chromaR_correction = config.GetFloat(
         "quality.chroma_r_correction",
         quantiloom::LightingDefaults::CHROMA_R_CORRECTION);
@@ -126,13 +126,26 @@ void ConfigManager::extractSceneConfig(const quantiloom::Config& config, SceneCo
         "quality.chroma_b_correction",
         quantiloom::LightingDefaults::CHROMA_B_CORRECTION);
 
-    // [renderer] Shadow ray control (SDK 0.0.3)
+    // [renderer] Shadow ray control
     bool enableShadowRays = config.Get<bool>("renderer.enable_shadow_rays", false);
     out.lighting.enableShadowRays = enableShadowRays ? 1u : 0u;
 
-    // [atmospheric]
+    // [atmospheric] / [atmosphere] — prefer the NN [atmosphere] section,
+    // fall back to the legacy [atmospheric] one
     out.atmosphericPreset = QString::fromStdString(
-        config.GetString("atmospheric.preset", "disabled"));
+        config.GetString("atmosphere.preset",
+                         config.GetString("atmospheric.preset", "disabled")));
+    // Map legacy analytic preset names to their closest NN preset
+    const QString p = out.atmosphericPreset.toLower();
+    if (p == "clear_day" || p == "mountain_top") {
+        out.atmosphericPreset = "clear";
+    } else if (p == "hazy") {
+        out.atmosphericPreset = "haze";
+    } else if (p == "polluted_urban") {
+        out.atmosphericPreset = "urban_haze";
+    } else if (p == "mars") {
+        out.atmosphericPreset = "disabled";
+    }
     out.atmosphericEnabled = (out.atmosphericPreset != "disabled");
 
     // [sensor]
@@ -228,7 +241,7 @@ bool ConfigManager::exportConfig(const QString& filePath, const SceneConfig& con
     if (!config.environmentMap.isEmpty()) {
         out << "environment_map = \"" << config.environmentMap << "\"\n";
     }
-    // SDK 0.0.3: shadow ray control
+    // shadow ray control
     if (config.lighting.enableShadowRays) {
         out << "enable_shadow_rays = true\n";
     }
@@ -288,7 +301,7 @@ bool ConfigManager::exportConfig(const QString& filePath, const SceneConfig& con
     out << "atmosphere_temperature_k = " << config.lighting.atmosphereTemperature_K << "\n";
     out << "\n";
 
-    // [quality] - SDK 0.0.3: VIS_Fused chromaticity correction (only if non-default)
+    // [quality] - VIS_Fused chromaticity correction (only if non-default)
     if (config.lighting.chromaR_correction != quantiloom::LightingDefaults::CHROMA_R_CORRECTION ||
         config.lighting.chromaB_correction != quantiloom::LightingDefaults::CHROMA_B_CORRECTION) {
         out << "[quality]\n";
