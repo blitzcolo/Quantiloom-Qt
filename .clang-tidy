@@ -1,0 +1,41 @@
+# clang-tidy for Quantiloom Studio.
+#
+# clangd reads this automatically, so warnings appear as LSP diagnostics while editing.
+# There is no separate lint command and no CI; this is the only static analysis in the
+# repo beyond MSVC /W4.
+#
+# Curated against a full run over all 21 tracked sources. Unfiltered, bugprone-* +
+# performance-* + misc-* produced 488 warnings here. The five exclusions below account
+# for 469 of them, each for a reason measured in this codebase rather than inherited
+# from Quantiloom-dev's copy of this file.
+Checks: >
+  -*,
+  bugprone-*,
+  performance-*,
+  misc-*,
+  -misc-include-cleaner,
+  -misc-const-correctness,
+  -bugprone-narrowing-conversions,
+  -performance-enum-size,
+  -bugprone-easily-swappable-parameters,
+  -misc-non-private-member-variables-in-classes
+
+# -misc-include-cleaner        265 of 488. Counts ordinary Qt spellings as missing
+#                              includes -- emit, QOverload, Qt::Checked, QWidget itself
+#                              in a file that includes the class header. Also duplicates
+#                              clangd's own unused-include diagnostic.
+# -misc-const-correctness      172 of 488. A style preference, not a defect, and at 35%
+#                              of the total it buries everything else.
+# -bugprone-narrowing-conversions  15. Almost all int -> float from Qt slider and
+#                              spinbox values, which is what those widgets are for.
+# -performance-enum-size       12. Wants uint8_t for Axis, Mode, Space, CommandId.
+#                              Micro-optimisation with no bearing on a GUI.
+# -bugprone-easily-swappable-parameters  5. Fires on ordinary 2-parameter setters.
+# -misc-non-private-member-variables-in-classes  4.
+
+# Panels are the point of this file: bugprone-derived-method-shadowing-base-method is
+# what catches SensorPanel::setEnabled and RenderSettingsPanel::width() shadowing the
+# QWidget methods of the same name. See src/panels/CLAUDE.md.
+HeaderFilterRegex: 'src/.*\.hpp$'
+WarningsAsErrors: ''
+FormatStyle: none

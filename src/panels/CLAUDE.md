@@ -23,6 +23,15 @@ producing a panel that never appears or never reacts:
 If the panel's value belongs in an exported `.toml`, it also needs a field in
 `SceneConfig` and both halves of the round trip; see `src/config/CLAUDE.md`.
 
+## Do not shadow QWidget
+
+`QWidget` already has `setEnabled`, `isEnabled`, `width` and `height`, and none of them
+are virtual. `SensorPanel::setEnabled(bool)` means "tick the sensor box and activate the
+groups"; the identical call through a `QWidget*` means "make this widget interactive".
+Which one runs depends on the static type of the pointer, and nothing warns. Five such
+methods already exist here — do not add a sixth. Name new accessors for what they carry:
+`setSensorEnabled`, `renderWidth`.
+
 ## Strings
 
 Every user-visible string goes through `tr()`. Read `src/i18n/CLAUDE.md` before
