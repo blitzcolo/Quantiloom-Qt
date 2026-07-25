@@ -73,6 +73,11 @@ public:
     void setSPP(uint32_t spp);
 
     /**
+     * @brief Set the path tracer sampling seed (0 = nondeterministic)
+     */
+    void setSamplingSeed(uint32_t seed);
+
+    /**
      * @brief Set spectral wavelength for mono-band mode
      */
     void setWavelength(float wavelength_nm);

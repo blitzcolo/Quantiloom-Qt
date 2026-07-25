@@ -14,6 +14,20 @@
 #include <postprocess/PostprocessConfig.hpp>
 #include <renderer/LightingParams.hpp>
 
+// Reading is delegated to the SDK's PostprocessConfig::ParseSensorParams, but
+// writing is hand-rolled TOML below, so the two drift apart whenever the SDK
+// adds a field: noiseSeed was parsed on load and dropped on save, which made a
+// config that had been through this GUI stop matching the one the CLI reads.
+//
+// This assert is the tripwire. If it fires, the SDK's SensorParams changed --
+// diff it against ParseSensorParams and against the [sensor] block in
+// saveConfig() below, then update the expected size. The SDK/GUI boundary is
+// already a single MSVC toolchain (SRS CON-04), so the layout is well-defined.
+static_assert(sizeof(quantiloom::SensorParams) == 84,
+              "SensorParams changed size: a field was added or removed. Check "
+              "that saveConfig() still writes every key ParseSensorParams reads "
+              "before updating this number.");
+
 ConfigManager::ConfigManager(QObject* parent)
     : QObject(parent)
 {
@@ -58,6 +72,8 @@ void ConfigManager::extractSceneConfig(const quantiloom::Config& config, SceneCo
     out.spp = config.Get<quantiloom::u32>("renderer.spp", 4);
     out.outputPath = QString::fromStdString(config.GetString("renderer.output", "output.exr"));
     out.environmentMap = QString::fromStdString(config.GetString("renderer.environment_map", ""));
+    out.samplingSeed = config.Get<quantiloom::u32>(
+        "renderer.seed", quantiloom::constants::DEFAULT_SAMPLING_SEED);
 
     // [spectral]
     std::string modeStr = config.GetString("spectral.mode", "rgb");
@@ -235,6 +251,7 @@ bool ConfigManager::exportConfig(const QString& filePath, const SceneConfig& con
     out << "[renderer]\n";
     out << "resolution = [" << config.width << ", " << config.height << "]\n";
     out << "spp = " << config.spp << "\n";
+    out << "seed = " << config.samplingSeed << "\n";
     if (!config.outputPath.isEmpty()) {
         out << "output = \"" << config.outputPath << "\"\n";
     }
@@ -260,15 +277,23 @@ bool ConfigManager::exportConfig(const QString& filePath, const SceneConfig& con
         default: modeStr = "rgb"; break;
     }
     out << "mode = \"" << modeStr << "\"\n";
-    if (config.spectralMode == quantiloom::SpectralMode::Single) {
-        out << "wavelength_nm = " << config.wavelength_nm << "\n";
-    }
+    // Written for every mode, not just Single: PostprocessConfig reads
+    // spectral.wavelength_nm into SensorParams::wavelength_nm regardless of
+    // mode, so omitting it here silently reset the sensor's peak wavelength
+    // to 550 nm on the next load.
+    out << "wavelength_nm = " << config.wavelength_nm << "\n";
+    out << "lambda_min = " << config.lambda_min << "\n";
+    out << "lambda_max = " << config.lambda_max << "\n";
+    out << "delta_lambda = " << config.delta_lambda << "\n";
     out << "\n";
 
     // [scene]
     out << "[scene]\n";
     if (!config.gltfPath.isEmpty()) {
         out << "gltf = \"" << config.gltfPath << "\"\n";
+    }
+    if (!config.usdPath.isEmpty()) {
+        out << "usd = \"" << config.usdPath << "\"\n";
     }
     out << "world_units_to_meters = " << config.worldUnitsToMeters << "\n";
     out << "\n";
@@ -299,6 +324,13 @@ bool ConfigManager::exportConfig(const QString& filePath, const SceneConfig& con
                               << config.lighting.skyRadiance_rgb.g << ", "
                               << config.lighting.skyRadiance_rgb.b << "]\n";
     out << "atmosphere_temperature_k = " << config.lighting.atmosphereTemperature_K << "\n";
+    out << "\n";
+
+    // [atmosphere] - the NN preset. extractSceneConfig reads this section (and
+    // maps the legacy [atmospheric] names onto it), so it has to be written
+    // back or the preset reverts to "disabled" on the next load.
+    out << "[atmosphere]\n";
+    out << "preset = \"" << config.atmosphericPreset << "\"\n";
     out << "\n";
 
     // [quality] - VIS_Fused chromaticity correction (only if non-default)
@@ -346,18 +378,19 @@ bool ConfigManager::exportConfig(const QString& filePath, const SceneConfig& con
     out << "enable_read_noise = " << (config.sensorParams.enableReadNoise ? "true" : "false") << "\n";
     out << "enable_dark_current = " << (config.sensorParams.enableDarkCurrent ? "true" : "false") << "\n";
     out << "enable_fpn = " << (config.sensorParams.enableFPN ? "true" : "false") << "\n";
+    out << "noise_seed = " << config.sensorParams.noiseSeed << "\n";
     out << "detector_temperature_k = " << config.sensorParams.detectorTemperature_K << "\n";
     out << "\n";
 
-    // [sensor.fpn] - only export if FPN is enabled
-    if (config.sensorParams.enableFPN) {
-        out << "[sensor.fpn]\n";
-        out << "prnu_sigma = " << config.sensorParams.prnuSigma << "\n";
-        out << "dsnu_sigma_e = " << config.sensorParams.dsnuSigma_e << "\n";
-        out << "enable_nuc = " << (config.sensorParams.enableNUC ? "true" : "false") << "\n";
-        out << "nuc_efficiency = " << config.sensorParams.nucEfficiency << "\n";
-        out << "\n";
-    }
+    // [sensor.fpn] - written unconditionally. ParseSensorParams reads these
+    // whether or not FPN is enabled, so exporting them only when enabled meant
+    // tuning the FPN values, turning FPN off, and saving discarded the tuning.
+    out << "[sensor.fpn]\n";
+    out << "prnu_sigma = " << config.sensorParams.prnuSigma << "\n";
+    out << "dsnu_sigma_e = " << config.sensorParams.dsnuSigma_e << "\n";
+    out << "enable_nuc = " << (config.sensorParams.enableNUC ? "true" : "false") << "\n";
+    out << "nuc_efficiency = " << config.sensorParams.nucEfficiency << "\n";
+    out << "\n";
 
     file.close();
     return true;

@@ -60,6 +60,9 @@ public:
 
     // Render settings
     void setSPP(uint32_t spp);
+    /// Path tracer sampling seed, same convention as the CLI's renderer.seed:
+    /// nonzero reproduces a render, 0 draws a nondeterministic seed.
+    void setSamplingSeed(uint32_t seed);
     void setWavelength(float wavelength_nm);
     void setSpectralMode(quantiloom::SpectralMode mode);
     void setDebugMode(quantiloom::DebugVisualizationMode mode);
@@ -269,6 +272,7 @@ private:
 
     // Sensor simulation
     bool m_sensorEnabled = false;
+    uint32_t m_samplingSeed = quantiloom::constants::DEFAULT_SAMPLING_SEED;
     quantiloom::SensorParams m_sensorParams;
     std::unique_ptr<quantiloom::GenericSensor> m_sensor;
 

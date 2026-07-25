@@ -152,6 +152,12 @@ void QuantiloomVulkanWindow::setSPP(uint32_t spp) {
     }
 }
 
+void QuantiloomVulkanWindow::setSamplingSeed(uint32_t seed) {
+    if (m_renderer) {
+        m_renderer->setSamplingSeed(seed);
+    }
+}
+
 void QuantiloomVulkanWindow::setWavelength(float wavelength_nm) {
     if (m_renderer) {
         m_renderer->setWavelength(wavelength_nm);

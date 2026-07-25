@@ -653,7 +653,7 @@ void MainWindow::onAbout() {
         this,
         tr("About Quantiloom"),
         tr("<h3>Quantiloom</h3>"
-           "<p>Version 0.1.0</p>"
+           "<p>Version 0.1.1</p>"
            "<p>A spectral renderer with hardware ray tracing support.</p>"
            "<p>Features:</p>"
            "<ul>"
@@ -893,10 +893,16 @@ void MainWindow::onExportConfig() {
 }
 
 void MainWindow::applyConfig(const SceneConfig& config) {
+    // Remember the whole config, not just the parts the panels can show. Export
+    // starts from this so fields with no widget behind them survive a load/save
+    // round trip instead of reverting to defaults.
+    m_lastConfig = std::make_unique<SceneConfig>(config);
+
     // Apply render settings
     m_renderSettingsPanel->setResolution(config.width, config.height);
     m_renderSettingsPanel->setTargetSPP(config.spp);
     m_vulkanWindow->setSPP(config.spp);
+    m_vulkanWindow->setSamplingSeed(config.samplingSeed);
 
     // Apply spectral settings
     m_spectralConfigPanel->setSpectralMode(config.spectralMode);
@@ -971,6 +977,16 @@ void MainWindow::applyConfig(const SceneConfig& config) {
 }
 
 void MainWindow::collectCurrentConfig(SceneConfig& config) {
+    // Start from the last config we were given rather than from a default
+    // SceneConfig, then let the panels overwrite what they own. The panels do
+    // not cover every field -- renderer.seed, the hyperspectral range, the USD
+    // path, world scale, material overrides -- and starting empty quietly reset
+    // each of those to its default on export, so a config that went through
+    // this GUI came out meaning something different.
+    if (m_lastConfig) {
+        config = *m_lastConfig;
+    }
+
     // Collect render settings
     config.width = m_renderSettingsPanel->width();
     config.height = m_renderSettingsPanel->height();
@@ -979,14 +995,29 @@ void MainWindow::collectCurrentConfig(SceneConfig& config) {
     // Collect spectral settings from panel
     // These are tracked in the panel's internal state
 
-    // Use current scene file as gltf path
+    // Record the loaded scene under the right key. Only one of the two is
+    // written, or a USD scene would be exported as both `gltf` and `usd` now
+    // that config.usdPath survives from the loaded config.
     if (!m_currentSceneFile.isEmpty()) {
-        config.gltfPath = m_currentSceneFile;
+        if (m_currentSceneFile == config.usdPath ||
+            m_currentSceneFile.endsWith(".usd", Qt::CaseInsensitive) ||
+            m_currentSceneFile.endsWith(".usda", Qt::CaseInsensitive) ||
+            m_currentSceneFile.endsWith(".usdc", Qt::CaseInsensitive) ||
+            m_currentSceneFile.endsWith(".usdz", Qt::CaseInsensitive)) {
+            config.usdPath = m_currentSceneFile;
+            config.gltfPath.clear();
+        } else {
+            config.gltfPath = m_currentSceneFile;
+            config.usdPath.clear();
+        }
     }
 
-    // Lighting is populated via the panel's emit signals
-    // For now, use default or last known values
-    config.lighting = quantiloom::CreateDefaultLightingParams();
+    // Lighting is populated via the panel's emit signals; keep whatever came in
+    // with the config rather than overwriting it, and only fall back to the
+    // defaults when there was no config to start from.
+    if (!m_lastConfig) {
+        config.lighting = quantiloom::CreateDefaultLightingParams();
+    }
 
     // Collect sensor settings
     config.sensorEnabled = m_sensorPanel->isEnabled();

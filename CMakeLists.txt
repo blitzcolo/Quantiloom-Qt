@@ -5,7 +5,7 @@
 cmake_minimum_required(VERSION 3.21)
 
 project(QuantiloomQt
-    VERSION 0.1.0
+    VERSION 0.1.1
     DESCRIPTION "Qt6 GUI for libQuantiloom"
     LANGUAGES CXX
 )
@@ -96,10 +96,79 @@ message(STATUS "Found Quantiloom: ${Quantiloom_VERSION}")
 set(QUANTILOOM_LIBRARIES Quantiloom::libQuantiloom)
 
 # ============================================================================
+# SDK freshness guard
+# ============================================================================
+# Quantiloom-dev's build_wsl.sh reinstalls the SDK wholesale (rm -rf, then
+# cmake --install), so every SDK file gets a new timestamp whenever the core is
+# rebuilt. Two things have to follow from that, and neither did on its own:
+#
+#   1. This build tree must reconfigure and recompile. CMAKE_CONFIGURE_DEPENDS
+#      below forces it -- the package files are rewritten by every install.
+#   2. A binary linked against the old SDK must never *run* against the new
+#      one. SensorParams gained a field and GenericSensor gained two members
+#      while staying source-compatible, so such a pairing is undefined
+#      behaviour that produces no error of any kind. We record the library's
+#      hash here and check it at startup; see src/SdkGuard.cpp.
+#
+# Note that a POST_BUILD copy of the DLL is not enough by itself: POST_BUILD
+# only runs when QuantiloomQt relinks, and a changed DLL with an unchanged
+# import library does not trigger a relink.
+
+get_target_property(QUANTILOOM_SDK_DLL Quantiloom::libQuantiloom IMPORTED_LOCATION_RELEASE)
+if(NOT QUANTILOOM_SDK_DLL)
+    get_target_property(QUANTILOOM_SDK_DLL Quantiloom::libQuantiloom IMPORTED_LOCATION)
+endif()
+get_target_property(QUANTILOOM_SDK_IMPLIB Quantiloom::libQuantiloom IMPORTED_IMPLIB_RELEASE)
+
+set(QUANTILOOM_SDK_DLL_NAME "")
+set(QUANTILOOM_SDK_DLL_SHA256 "")
+if(QUANTILOOM_SDK_DLL AND EXISTS "${QUANTILOOM_SDK_DLL}")
+    get_filename_component(QUANTILOOM_SDK_DLL_NAME "${QUANTILOOM_SDK_DLL}" NAME)
+    file(SHA256 "${QUANTILOOM_SDK_DLL}" QUANTILOOM_SDK_DLL_SHA256)
+    message(STATUS "SDK library stamp: ${QUANTILOOM_SDK_DLL_NAME} ${QUANTILOOM_SDK_DLL_SHA256}")
+else()
+    message(WARNING
+        "Could not read the SDK's Quantiloom library; the startup mismatch "
+        "guard will be inert for this build.")
+endif()
+
+# Reconfigure whenever the SDK is reinstalled. The package files are enough on
+# their own -- the install rewrites all of them -- but the binaries are listed
+# too so that a hand-copied DLL is also caught.
+set(QUANTILOOM_SDK_WATCHED
+    "${QUANTILOOM_SDK_DIR}/lib/cmake/Quantiloom/QuantiloomConfig.cmake"
+    "${QUANTILOOM_SDK_DIR}/lib/cmake/Quantiloom/QuantiloomTargets.cmake"
+    "${QUANTILOOM_SDK_DIR}/lib/cmake/Quantiloom/QuantiloomTargets-release.cmake"
+)
+foreach(_sdk_binary "${QUANTILOOM_SDK_DLL}" "${QUANTILOOM_SDK_IMPLIB}")
+    if(_sdk_binary AND EXISTS "${_sdk_binary}")
+        list(APPEND QUANTILOOM_SDK_WATCHED "${_sdk_binary}")
+    endif()
+endforeach()
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${QUANTILOOM_SDK_WATCHED})
+
+# ============================================================================
+# Spectral asset drift check
+# ============================================================================
+set(QUANTILOOM_DEV_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../Quantiloom-dev"
+    CACHE PATH "Path to the Quantiloom-dev checkout that bakes assets/spectral")
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/CheckSpectralAssets.cmake)
+quantiloom_check_spectral_assets("${CMAKE_CURRENT_SOURCE_DIR}/assets/spectral")
+
+set(QUANTILOOM_GENERATED_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
+configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/SdkStamp.hpp.in"
+    "${QUANTILOOM_GENERATED_DIR}/SdkStamp.hpp"
+    @ONLY
+)
+
+# ============================================================================
 # Sources
 # ============================================================================
 set(GUI_SOURCES
     src/main.cpp
+    src/SdkGuard.cpp
+    src/SdkGuard.hpp
     src/MainWindow.cpp
     src/MainWindow.hpp
     src/vulkan/QuantiloomVulkanWindow.cpp
@@ -198,6 +267,8 @@ endif()
 # ============================================================================
 target_include_directories(QuantiloomQt PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
+    # Generated SdkStamp.hpp (see "SDK freshness guard" above)
+    ${QUANTILOOM_GENERATED_DIR}
     # libSpectraForge headers (workaround: SDK target missing INTERFACE_INCLUDE_DIRECTORIES)
     ${QUANTILOOM_SDK_DIR}/include/spectraforge
 )

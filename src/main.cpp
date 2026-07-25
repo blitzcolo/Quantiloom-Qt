@@ -8,10 +8,12 @@
  */
 
 #include "MainWindow.hpp"
+#include "SdkGuard.hpp"
 
 #include <QApplication>
 #include <QVulkanInstance>
 #include <QLoggingCategory>
+#include <QMessageBox>
 #include <QTranslator>
 #include <QLocale>
 #include <QSettings>
@@ -33,7 +35,7 @@ int main(int argc, char* argv[]) {
 
     // Set application metadata
     app.setApplicationName("Quantiloom");
-    app.setApplicationVersion("0.1.0");
+    app.setApplicationVersion("0.1.1");
     app.setOrganizationName("wtflmao");
     app.setOrganizationDomain("github.com/wtflmao");
 
@@ -67,6 +69,25 @@ int main(int argc, char* argv[]) {
                 break;
             }
         }
+    }
+
+    // Verify this binary and the Quantiloom library it is about to load came
+    // from the same SDK install. Placed after the translators so the message is
+    // localised, and before any SDK call so a mismatch cannot act first.
+    // Reported through libQuantiloom's logger rather than qCritical/qWarning:
+    // Qt's own categories do not reach stderr in this build, so a qWarning here
+    // would be invisible on a non-interactive run.
+    const SdkCheckResult sdkCheck = checkSdkBinaries();
+    if (sdkCheck.mismatch) {
+        QL_LOG_CRITICAL("SDK mismatch: {}", sdkCheck.message.toStdString());
+        QMessageBox::critical(nullptr,
+                              QObject::tr("Quantiloom SDK mismatch"),
+                              sdkCheck.message);
+        quantiloom::Log::Shutdown();
+        return 1;
+    }
+    if (sdkCheck.stale) {
+        QL_LOG_WARN("SDK stale: {}", sdkCheck.message.toStdString());
     }
 
     // Create Vulkan instance for Qt

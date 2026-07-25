@@ -16,6 +16,39 @@
 #include <QFormLayout>
 #include <cmath>
 
+namespace {
+
+/// The wavelength range a fused mode actually integrates, formatted for display.
+///
+/// Deliberately not built from quantiloom::constants::WAVELENGTH_*: those are
+/// the ISO 20473 taxonomy for what a band *name* means, and for two modes they
+/// are not what the renderer integrates -- NIR is 780-1400 by that taxonomy but
+/// 930-1200 as rendered (narrowed to the NN atmosphere's coverage), and SWIR is
+/// 1000-2500 versus 1400-2400 (avoiding the NIR overlap). This panel used to
+/// quote the taxonomy, so the range on screen was not the range the image was
+/// computed over. GetFusedBandInfo() is the renderer's own source of truth.
+///
+/// Returns an empty string for modes that are not fused bands.
+QString fusedRangeText(quantiloom::SpectralMode mode) {
+    const auto info = quantiloom::GetFusedBandInfo(mode);
+    if (!info) {
+        return {};
+    }
+    // Micrometres past 3 um, nanometres below, matching how each band is
+    // conventionally written. QString::number rather than arg's numeric
+    // overload so the digits never pick up locale grouping ("1 200 nm").
+    if (info->lambdaMinNm >= 3000.0f) {
+        return SpectralConfigPanel::tr("%1-%2 μm")
+            .arg(QString::number(info->lambdaMinNm / 1000.0, 'g', 3),
+                 QString::number(info->lambdaMaxNm / 1000.0, 'g', 3));
+    }
+    return SpectralConfigPanel::tr("%1-%2 nm")
+        .arg(QString::number(info->lambdaMinNm, 'g', 4),
+             QString::number(info->lambdaMaxNm, 'g', 4));
+}
+
+} // namespace
+
 SpectralConfigPanel::SpectralConfigPanel(QWidget* parent)
     : QWidget(parent)
 {
@@ -38,13 +71,13 @@ void SpectralConfigPanel::setupUi() {
                          static_cast<int>(quantiloom::SpectralMode::VIS_Fused));
     m_modeCombo->addItem(tr("Single Wavelength"),
                          static_cast<int>(quantiloom::SpectralMode::Single));
-    m_modeCombo->addItem(tr("NIR (780-1400 nm)"),
+    m_modeCombo->addItem(tr("NIR (%1)").arg(fusedRangeText(quantiloom::SpectralMode::NIR_Fused)),
                          static_cast<int>(quantiloom::SpectralMode::NIR_Fused));
-    m_modeCombo->addItem(tr("SWIR (1000-2500 nm)"),
+    m_modeCombo->addItem(tr("SWIR (%1)").arg(fusedRangeText(quantiloom::SpectralMode::SWIR_Fused)),
                          static_cast<int>(quantiloom::SpectralMode::SWIR_Fused));
-    m_modeCombo->addItem(tr("MWIR (3-5 μm)"),
+    m_modeCombo->addItem(tr("MWIR (%1)").arg(fusedRangeText(quantiloom::SpectralMode::MWIR_Fused)),
                          static_cast<int>(quantiloom::SpectralMode::MWIR_Fused));
-    m_modeCombo->addItem(tr("LWIR (8-12 μm)"),
+    m_modeCombo->addItem(tr("LWIR (%1)").arg(fusedRangeText(quantiloom::SpectralMode::LWIR_Fused)),
                          static_cast<int>(quantiloom::SpectralMode::LWIR_Fused));
     connect(m_modeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &SpectralConfigPanel::onModeChanged);
@@ -101,14 +134,18 @@ void SpectralConfigPanel::setupUi() {
     // Page 2: MWIR mode
     auto* mwirPage = new QWidget();
     auto* mwirLayout = new QVBoxLayout(mwirPage);
-    mwirLayout->addWidget(new QLabel(tr("Mid-Wave Infrared (3-5 μm)\nThermal imaging mode.")));
+    mwirLayout->addWidget(new QLabel(
+        tr("Mid-Wave Infrared (%1)\nThermal imaging mode.")
+            .arg(fusedRangeText(quantiloom::SpectralMode::MWIR_Fused))));
     mwirLayout->addStretch();
     m_settingsStack->addWidget(mwirPage);
 
     // Page 3: LWIR mode
     auto* lwirPage = new QWidget();
     auto* lwirLayout = new QVBoxLayout(lwirPage);
-    lwirLayout->addWidget(new QLabel(tr("Long-Wave Infrared (8-12 μm)\nThermal imaging mode.")));
+    lwirLayout->addWidget(new QLabel(
+        tr("Long-Wave Infrared (%1)\nThermal imaging mode.")
+            .arg(fusedRangeText(quantiloom::SpectralMode::LWIR_Fused))));
     lwirLayout->addStretch();
     m_settingsStack->addWidget(lwirPage);
 
@@ -359,23 +396,23 @@ void SpectralConfigPanel::updateModeDescription(quantiloom::SpectralMode mode) {
                       "Useful for spectral analysis and wavelength-specific effects.");
             break;
         case quantiloom::SpectralMode::MWIR_Fused:
-            desc = tr("Mid-Wave Infrared (3-5 um). Thermal imaging for hot objects, "
-                      "engine exhaust, and fire detection.");
+            desc = tr("Mid-Wave Infrared (%1). Thermal imaging for hot objects, "
+                      "engine exhaust, and fire detection.").arg(fusedRangeText(mode));
             showWarning = true;
             break;
         case quantiloom::SpectralMode::LWIR_Fused:
-            desc = tr("Long-Wave Infrared (8-12 um). Thermal imaging for room-temperature "
-                      "objects, people, and buildings.");
+            desc = tr("Long-Wave Infrared (%1). Thermal imaging for room-temperature "
+                      "objects, people, and buildings.").arg(fusedRangeText(mode));
             showWarning = true;
             break;
         case quantiloom::SpectralMode::SWIR_Fused:
-            desc = tr("Short-Wave Infrared (1000-2500 nm). Moisture detection, "
-                      "material identification, and imaging through haze.");
+            desc = tr("Short-Wave Infrared (%1). Moisture detection, "
+                      "material identification, and imaging through haze.").arg(fusedRangeText(mode));
             showWarning = true;
             break;
         case quantiloom::SpectralMode::NIR_Fused:
-            desc = tr("Near-Infrared (780-1400 nm). Reflected solar radiation, "
-                      "vegetation analysis, and night vision.");
+            desc = tr("Near-Infrared (%1). Reflected solar radiation, "
+                      "vegetation analysis, and night vision.").arg(fusedRangeText(mode));
             showWarning = true;
             break;
         default:

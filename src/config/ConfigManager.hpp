@@ -35,6 +35,9 @@ struct SceneConfig {
     uint32_t spp = 4;
     QString outputPath;
     QString environmentMap;
+    /// renderer.seed -- path tracer sampling seed. Same convention as the CLI:
+    /// nonzero reproduces, 0 draws a nondeterministic seed each run.
+    uint32_t samplingSeed = quantiloom::constants::DEFAULT_SAMPLING_SEED;
 
     // [spectral]
     quantiloom::SpectralMode spectralMode = quantiloom::SpectralMode::RGB;

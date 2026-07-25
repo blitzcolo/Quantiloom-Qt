@@ -284,6 +284,7 @@ void QuantiloomVulkanRenderer::loadScene(const QString& filePath) {
         m_renderContext->SetSpectralMode(m_spectralMode);
         m_renderContext->SetDebugMode(m_debugMode);
         m_renderContext->SetSPP(m_targetSPP);
+        m_renderContext->SetSamplingSeed(m_samplingSeed);
         m_renderContext->SetWavelength(m_wavelength);
 
         resetAccumulation();
@@ -299,9 +300,14 @@ void QuantiloomVulkanRenderer::resetCamera() {
     m_cameraPosition = glm::vec3(0.0f, 1.0f, 5.0f);
     m_cameraTarget = glm::vec3(0.0f, 0.0f, 0.0f);
     m_cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
-    m_orbitDistance = 5.0f;
-    m_orbitYaw = 0.0f;
-    m_orbitPitch = 0.0f;
+
+    // Derive the orbit state from the position rather than restating it: the
+    // hardcoded 5.0 / 0 / 0 did not describe (0, 1, 5), so the first drag after
+    // a reset snapped the camera to where the orbit state said it already was.
+    const glm::vec3 offset = m_cameraPosition - m_cameraTarget;
+    m_orbitDistance = glm::length(offset);
+    m_orbitPitch = std::asin(glm::clamp(offset.y / m_orbitDistance, -1.0f, 1.0f));
+    m_orbitYaw = std::atan2(offset.x, offset.z);
 
     if (m_renderContext) {
         m_renderContext->SetCameraLookAt(m_cameraPosition, m_cameraTarget, m_cameraUp);
@@ -319,10 +325,18 @@ void QuantiloomVulkanRenderer::setCamera(const glm::vec3& position, const glm::v
     // Update orbit distance based on new position/target
     m_orbitDistance = glm::length(position - lookAt);
 
-    // Calculate orbit angles from the direction vector
-    glm::vec3 dir = glm::normalize(position - lookAt);
-    m_orbitPitch = glm::degrees(std::asin(dir.y));
-    m_orbitYaw = glm::degrees(std::atan2(dir.x, dir.z));
+    // Recover the orbit angles from the direction vector. These are radians
+    // everywhere else -- orbitCamera() feeds them straight to sin/cos and
+    // clamps against half_pi -- so they must be stored as radians here too.
+    // glm::degrees() used to be applied to both, which meant loading a scene
+    // config and then dragging jumped the camera to an unrelated angle.
+    // A zero-length view vector has no angles to recover; keep the current
+    // ones rather than normalize() a zero vector into NaN.
+    if (m_orbitDistance > 1e-6f) {
+        const glm::vec3 dir = (position - lookAt) / m_orbitDistance;
+        m_orbitPitch = std::asin(glm::clamp(dir.y, -1.0f, 1.0f));
+        m_orbitYaw = std::atan2(dir.x, dir.z);
+    }
 
     if (m_renderContext) {
         m_renderContext->SetCameraLookAt(m_cameraPosition, m_cameraTarget, m_cameraUp);
@@ -339,6 +353,15 @@ void QuantiloomVulkanRenderer::setSPP(uint32_t spp) {
     m_targetSPP = spp;
     if (m_renderContext) {
         m_renderContext->SetSPP(spp);
+    }
+}
+
+void QuantiloomVulkanRenderer::setSamplingSeed(uint32_t seed) {
+    m_samplingSeed = seed;
+    if (m_renderContext) {
+        // SetSamplingSeed resets accumulation itself, so the next pass starts
+        // from the new sequence rather than mixing two of them.
+        m_renderContext->SetSamplingSeed(seed);
     }
 }
 
@@ -419,9 +442,14 @@ void QuantiloomVulkanRenderer::orbitCamera(float deltaX, float deltaY) {
     m_orbitYaw -= deltaX * sensitivity;
     m_orbitPitch -= deltaY * sensitivity;
 
-    // Clamp pitch to avoid gimbal lock
-    m_orbitPitch = glm::clamp(m_orbitPitch, -glm::half_pi<float>() + 0.1f,
-                                             glm::half_pi<float>() - 0.1f);
+    // Straight down and straight up are allowed. The 0.1 rad margin that used
+    // to be subtracted here was not about gimbal lock in this code: it existed
+    // because Camera::UpdateVectors normalize()d a zero cross product when
+    // forward became parallel to up, producing a NaN basis that reached every
+    // primary ray. The SDK now gives both degenerate inputs a defined result,
+    // so the margin only cost the user a viewpoint.
+    m_orbitPitch = glm::clamp(m_orbitPitch, -glm::half_pi<float>(),
+                                             glm::half_pi<float>());
 
     // Calculate new camera position
     float x = m_orbitDistance * std::cos(m_orbitPitch) * std::sin(m_orbitYaw);
@@ -440,7 +468,24 @@ void QuantiloomVulkanRenderer::panCamera(float deltaX, float deltaY) {
     const float sensitivity = 0.01f;
 
     glm::vec3 forward = glm::normalize(m_cameraTarget - m_cameraPosition);
-    glm::vec3 right = glm::normalize(glm::cross(forward, m_cameraUp));
+
+    // Straight-down and straight-up views are reachable now that orbitCamera()
+    // no longer keeps a margin away from the poles, and there forward is
+    // parallel to m_cameraUp. That breaks the cross product two ways: exactly
+    // parallel (a camera placed directly above the target by setCamera) gives a
+    // zero vector that normalize() turns into NaN, which pans the camera to
+    // nowhere and never recovers; arriving via orbitCamera leaves cos(pitch) at
+    // ~-4.4e-8 instead of 0, so the cross product is merely tiny and normalize()
+    // returns a finite direction made of floating-point dust that swings with
+    // yaw. Swing to a reference axis that is not parallel, exactly as the SDK's
+    // Camera::UpdateVectors does for the same input.
+    glm::vec3 upRef = m_cameraUp;
+    if (std::abs(glm::dot(forward, upRef)) > 1.0f - 1e-6f) {
+        upRef = (std::abs(forward.y) > 0.9f) ? glm::vec3(0.0f, 0.0f, 1.0f)
+                                             : glm::vec3(0.0f, 1.0f, 0.0f);
+    }
+
+    glm::vec3 right = glm::normalize(glm::cross(forward, upRef));
     glm::vec3 up = glm::cross(right, forward);
 
     glm::vec3 pan = -right * deltaX * sensitivity + up * deltaY * sensitivity;

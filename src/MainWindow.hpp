@@ -195,5 +195,13 @@ private:
 
     // Pending material configs (applied after scene load)
     QVector<struct MaterialConfig> m_pendingMaterialConfigs;
+
+    // Last configuration seen by applyConfig(), used as the base for
+    // collectCurrentConfig(). Not every field has a panel behind it -- the
+    // sampling seed, the hyperspectral range, the USD path, world scale -- and
+    // rebuilding the struct from panels alone silently reset all of those to
+    // their defaults on export. Held by pointer to keep SceneConfig, and with
+    // it the SDK headers it pulls in, out of this header.
+    std::unique_ptr<SceneConfig> m_lastConfig;
     void applyPendingMaterialConfigs();
 };
