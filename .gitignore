@@ -97,3 +97,4 @@ docs/html/
 # Claude Code: settings.json and skills/ are shared; these are not
 .claude/settings.local.json
 .claude/SURVEY.md
+build-cdb/

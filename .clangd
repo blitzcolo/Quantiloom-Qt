@@ -1,0 +1,38 @@
+# clangd configuration for Quantiloom Studio.
+#
+# This repo is developed from WSL2 but built with the Windows MSVC toolchain, so code
+# intelligence must run the WINDOWS clangd.exe, not a Linux clangd -- there is no Linux
+# C++ toolchain here, and a Linux clangd cannot resolve the MSVC STL or the Windows SDK.
+#
+# Regenerate the compilation database after adding files or changing CMake:
+#   ./scripts/gen_compile_commands.sh
+#   ./scripts/gen_compile_commands.sh --check    # is the existing one stale?
+#
+# build-msvc/ cannot supply the database: the Visual Studio generator ignores
+# CMAKE_EXPORT_COMPILE_COMMANDS. build-cdb/ is a configure-only Ninja tree that exists
+# solely to emit it, and is never built.
+#
+# Per-developer setup: the clangd-lsp plugin invokes a bare `clangd`, so ~/.local/bin
+# must hold a shim that execs clangd.exe with
+#   --path-mappings=/mnt/c=C:/,/mnt/d=D:/
+# Without it clangd.exe rejects every LSP URI ("Failed to resolve path /mnt/d/...").
+# The same shim serves Quantiloom-dev; if that repo already works here, this one will.
+#
+# The MSVC system include paths below come from vcvars64.bat's INCLUDE variable.
+# cl.exe reads them from the environment rather than the command line, so they never
+# appear in compile_commands.json and clangd cannot infer them. Each must be a single
+# argument token (-imsvc<path>); a separate "-imsvc" entry followed by the path is
+# parsed as an extra source file instead.
+#
+# Qt, Vulkan and the Quantiloom SDK need no entry here -- CMake passes those as
+# -external:I flags, which clangd reads out of the database.
+
+CompileFlags:
+  CompilationDatabase: build-cdb
+  Add:
+    - -imsvcC:/Program Files/Microsoft Visual Studio/18/Enterprise/VC/Tools/MSVC/14.50.35717/include
+    - -imsvcC:/Program Files/Microsoft Visual Studio/18/Enterprise/VC/Auxiliary/VS/include
+    - -imsvcC:/Program Files (x86)/Windows Kits/10/include/10.0.26100.0/ucrt
+    - -imsvcC:/Program Files (x86)/Windows Kits/10/include/10.0.26100.0/um
+    - -imsvcC:/Program Files (x86)/Windows Kits/10/include/10.0.26100.0/shared
+    - -imsvcC:/Program Files (x86)/Windows Kits/10/include/10.0.26100.0/winrt

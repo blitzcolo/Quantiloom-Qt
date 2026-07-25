@@ -13,6 +13,9 @@
       "/mnt/c/Qt"
     ]
   },
+  "enabledPlugins": {
+    "clangd-lsp@claude-plugins-official": true
+  },
   "autoMode": {
     "allow": [
       "$defaults",

@@ -23,6 +23,11 @@ runs) — judge a run by its log, not by `$?`.
 **This repo has no tests, no lint, and no formatter.** No ctest, no test target; the
 suite lives in Quantiloom-dev. MSVC `/W4` at build time is the only static check.
 
+clangd resolves symbols through `build-cdb/`, a configure-only Ninja tree that exists
+because the Visual Studio generator will not emit `compile_commands.json`. Regenerate
+it after adding a source file or editing CMake — `./scripts/gen_compile_commands.sh`
+(7 s), or `--check` to ask whether the current one is stale.
+
 ## The SDK is a separate repository
 
 `find_package(Quantiloom)` resolves `../Quantiloom-SDK/windows_amd64`, which is built

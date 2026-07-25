@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+# Generate compile_commands.json for clangd.
+#
+# The primary build-msvc/ tree uses the "Visual Studio 18 2026" generator, which does
+# NOT honour CMAKE_EXPORT_COMPILE_COMMANDS -- only the Makefile and Ninja generators
+# do, which is why the ON in CMakeLists.txt has no effect there. So this configures a
+# second, build-only tree (build-cdb/) with Ninja purely to emit the database. It never
+# compiles anything.
+#
+# cl.exe needs the MSVC developer environment (INCLUDE/LIB/PATH), so the whole
+# configure runs inside vcvars64.bat.
+#
+# `--check` reports whether the existing database is stale and exits non-zero if it is,
+# without regenerating. Nothing else notices: clangd silently falls back to heuristic
+# flags for a file it cannot find, so staleness has to be asked for.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+if [ "${1:-}" = "--check" ]; then
+    CDB=build-cdb/compile_commands.json
+    if [ ! -f "$CDB" ]; then
+        echo "STALE: $CDB does not exist. clangd is guessing flags for the whole repo."
+        exit 1
+    fi
+    python3 - "$CDB" <<'PY'
+import json, os, subprocess, sys
+
+cdb = sys.argv[1]
+cdb_mtime = os.path.getmtime(cdb)
+stale = False
+
+newer = [f for f in subprocess.run(
+    ["git", "ls-files", "*CMakeLists.txt", "*.cmake"],
+    capture_output=True, text=True).stdout.split()
+    if os.path.exists(f) and os.path.getmtime(f) > cdb_mtime]
+if newer:
+    stale = True
+    print(f"STALE: {len(newer)} CMake file(s) modified after the database was generated:")
+    for f in newer[:10]:
+        print(f"    {f}")
+
+repo = os.path.basename(os.getcwd())
+known = {e.get("file", "").replace("\\", "/").rsplit(repo + "/", 1)[-1]
+         for e in json.load(open(cdb, encoding="utf-8"))}
+tracked = [f for f in subprocess.run(
+    ["git", "ls-files", "src/*.cpp"],
+    capture_output=True, text=True).stdout.split() if f not in known]
+if tracked:
+    stale = True
+    print(f"STALE: {len(tracked)} tracked source file(s) absent from the database:")
+    for f in tracked[:10]:
+        print(f"    {f}")
+
+if not stale:
+    print(f"OK: {cdb} covers every tracked source and postdates every CMake file.")
+sys.exit(1 if stale else 0)
+PY
+    exit $?
+fi
+
+VCVARS="C:\\Program Files\\Microsoft Visual Studio\\18\\Enterprise\\VC\\Auxiliary\\Build\\vcvars64.bat"
+NINJA="C:/Program Files/Microsoft Visual Studio/18/Enterprise/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe"
+
+# Same Qt as build_wsl.sh, and overridable the same way.
+QT_PREFIX="${QT_PREFIX:-C:\\Qt\\6.10.1\\msvc2022_64}"
+
+cat > _gen_cdb.bat <<EOF
+@echo off
+call "${VCVARS}" >nul
+if errorlevel 1 exit /b 1
+cd /d D:\\Quantiloom-Qt
+cmake.exe -B build-cdb -G Ninja ^
+  -DCMAKE_MAKE_PROGRAM="${NINJA}" ^
+  -DCMAKE_CXX_COMPILER=cl ^
+  -DCMAKE_BUILD_TYPE=Release ^
+  -DCMAKE_EXPORT_COMPILE_COMMANDS=ON ^
+  -DCMAKE_PREFIX_PATH="${QT_PREFIX}"
+exit /b %errorlevel%
+EOF
+
+trap 'rm -f _gen_cdb.bat' EXIT
+cmd.exe /c "_gen_cdb.bat" </dev/null
+
+echo
+echo "compile_commands.json entries: $(python3 -c "import json;print(len(json.load(open('build-cdb/compile_commands.json'))))")"
+echo "Re-run this after adding source files or changing CMakeLists.txt."
