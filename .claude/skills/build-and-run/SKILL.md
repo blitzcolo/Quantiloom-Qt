@@ -45,6 +45,7 @@ It is a Windows GUI app — the window opens on the Windows desktop, not in the 
 - **`find_package(Qt6)` fails** — wrong `QT_PREFIX` for the installed Qt; check `ls /mnt/c/Qt/`.
 - **GUI crashes at startup / missing entry point in Quantiloom.dll** — stale SDK DLL vs headers mismatch; run the refresh flow above from step 1.
 - **Vulkan errors at startup** — needs the Windows NVIDIA driver with RT extensions; check the core CLI renders first (core repo's render-verify skill) to separate SDK problems from GUI problems.
+- **A scene fails to load** — `loadScene()` logs the resolved path on entry and the SDK's error string on failure (`src/vulkan/QuantiloomVulkanRenderer.cpp:205` and `:293`); read those before anything else. `assets/models/` and `assets/maps/` are deny-listed, so `ls`, `find` and `test` on an asset path are refused — `du -a assets/models/<dir>` lists names and sizes and is the way to check what is actually on disk.
 
 ## Architecture guardrails (SRS)
 
