@@ -985,10 +985,6 @@ May cause color shifts.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>&lt;h3&gt;Quantiloom&lt;/h3&gt;&lt;p&gt;Version 0.1.0&lt;/p&gt;&lt;p&gt;A spectral renderer with hardware ray tracing support.&lt;/p&gt;&lt;p&gt;Features:&lt;/p&gt;&lt;ul&gt;&lt;li&gt;Hardware ray tracing&lt;/li&gt;&lt;li&gt;Spectral rendering&lt;/li&gt;&lt;li&gt;PBR materials with spectral extensions&lt;/li&gt;&lt;li&gt;Atmospheric scattering&lt;/li&gt;&lt;/ul&gt;&lt;p&gt;Copyright (c) 2025-2026 wtflmao&lt;/p&gt;</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Debug mode: %1</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1237,6 +1233,10 @@ PNG: %2</source>
 
 EXR: %1
 PNG: %2</translation>
+    </message>
+    <message>
+        <source>&lt;h3&gt;Quantiloom&lt;/h3&gt;&lt;p&gt;Version 0.1.1&lt;/p&gt;&lt;p&gt;A spectral renderer with hardware ray tracing support.&lt;/p&gt;&lt;p&gt;Features:&lt;/p&gt;&lt;ul&gt;&lt;li&gt;Hardware ray tracing&lt;/li&gt;&lt;li&gt;Spectral rendering&lt;/li&gt;&lt;li&gt;PBR materials with spectral extensions&lt;/li&gt;&lt;li&gt;Atmospheric scattering&lt;/li&gt;&lt;/ul&gt;&lt;p&gt;Copyright (c) 2025-2026 wtflmao&lt;/p&gt;</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Settings saved</source>
