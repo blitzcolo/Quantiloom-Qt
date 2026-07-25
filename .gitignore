@@ -93,3 +93,7 @@ assets/usgs/
 reference-only/
 scripts/spectral-baker/output/
 docs/html/
+
+# Claude Code: settings.json and skills/ are shared; these are not
+.claude/settings.local.json
+.claude/SURVEY.md
