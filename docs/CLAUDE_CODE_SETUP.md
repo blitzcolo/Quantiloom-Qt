@@ -132,6 +132,28 @@ Its line endings were also normalised back to LF. The working copy had been conv
 to CRLF at some point, which made every commit touching it show as a whole-file
 rewrite.
 
+### 6. clang-tidy
+
+Not copied from Quantiloom-dev — its exclusions are justified with measurements taken
+there. Measured here instead: dev's check set produces **488 warnings** over the 21
+tracked sources, of which five exclusions remove 469. Two of those five differ from
+dev's, because a Qt GUI trips different checks than a rendering library:
+`misc-include-cleaner` treats `emit`, `QOverload` and `Qt::Checked` as missing includes
+(265 warnings, 54%), and `performance-enum-size` wants `uint8_t` for four GUI enums.
+
+What remains is 15 warnings at 14 sites, and five of them are the reason to keep the
+file: `DisplayEnhancementPanel::setEnabled`, `RenderSettingsPanel::width` and
+`::height`, `SensorPanel::setEnabled` and `::isEnabled` each shadow a `QWidget` method
+of the same name. None are virtual, so which one runs depends on the static type of the
+pointer — and `SensorPanel::setEnabled(bool)` ticks the sensor box and activates four
+parameter groups, while the same call through a `QWidget*` merely makes the widget
+interactive. `src/panels/CLAUDE.md` now warns against adding a sixth.
+
+Measured with standalone clang-tidy. **Whether clangd surfaces these while editing is
+not verified**: `clangd --check` emits no tidy diagnostics here or in Quantiloom-dev, so
+that is a `--check` limitation rather than a misconfiguration — but the in-editor half
+rests on dev's claim, not on a test run here.
+
 ---
 
 ## What was deliberately not done
@@ -144,10 +166,6 @@ rewrite.
 - **`SessionStart` and `Stop` hooks.** One codebase, one team — there is no "this area
   belongs to X" to announce, and monitoring a configuration for rot on the day it is
   written is premature. Revisit `Stop` in six months.
-- **`.clang-tidy`.** Quantiloom-dev has one, but each of its exclusions is justified
-  with measurements taken there ("86 of 119 warnings across a six-file sample").
-  Copying it would import conclusions never tested against this code. Doing it properly
-  means measuring the noise here first.
 
 ---
 
