@@ -924,7 +924,7 @@ void MainWindow::applyConfig(const SceneConfig& config) {
 
     // Apply sensor configuration
     m_sensorPanel->setSensorParams(config.sensorParams);  // Always set params first
-    m_sensorPanel->setEnabled(config.sensorEnabled);       // Then set enabled state
+    m_sensorPanel->setSensorEnabled(config.sensorEnabled); // Then set enabled state
     m_vulkanWindow->setSensorParams(config.sensorParams);
     m_vulkanWindow->setSensorEnabled(config.sensorEnabled);
     if (config.sensorEnabled) {
@@ -988,8 +988,8 @@ void MainWindow::collectCurrentConfig(SceneConfig& config) {
     }
 
     // Collect render settings
-    config.width = m_renderSettingsPanel->width();
-    config.height = m_renderSettingsPanel->height();
+    config.width = m_renderSettingsPanel->renderWidth();
+    config.height = m_renderSettingsPanel->renderHeight();
     config.spp = m_renderSettingsPanel->spp();
 
     // Collect spectral settings from panel
@@ -1020,7 +1020,7 @@ void MainWindow::collectCurrentConfig(SceneConfig& config) {
     }
 
     // Collect sensor settings
-    config.sensorEnabled = m_sensorPanel->isEnabled();
+    config.sensorEnabled = m_sensorPanel->isSensorEnabled();
     config.sensorParams = m_sensorPanel->getSensorParams();
 }
 

@@ -29,7 +29,9 @@ class DisplayEnhancementPanel : public QWidget {
 public:
     explicit DisplayEnhancementPanel(QWidget* parent = nullptr);
 
-    void setEnabled(bool enabled);
+    /// Not named setEnabled: that is a non-virtual QWidget method meaning "make
+    /// this widget interactive", and a QWidget* handle would reach it instead.
+    void setEnhancementEnabled(bool enabled);
     void setClipLimit(float clipLimit);
     void setTileSize(int tileSize);
     void setLuminanceOnly(bool luminanceOnly);

@@ -30,9 +30,11 @@ public:
     void setTargetSPP(uint32_t spp);
     void setResolution(uint32_t width, uint32_t height);
 
-    // Getters for current settings
-    uint32_t width() const { return m_width; }
-    uint32_t height() const { return m_height; }
+    // Getters for current settings. These are the render resolution, not the
+    // panel's own geometry -- naming them width()/height() would shadow the
+    // non-virtual QWidget methods that answer the latter.
+    uint32_t renderWidth() const { return m_width; }
+    uint32_t renderHeight() const { return m_height; }
     uint32_t spp() const { return m_targetSPP; }
 
 signals:

@@ -35,13 +35,17 @@ public:
 
     /**
      * @brief Set sensor enabled state
+     *
+     * Not named setEnabled: that is a non-virtual QWidget method meaning
+     * "make this widget interactive", and a QWidget* handle would silently
+     * reach it instead of this one.
      */
-    void setEnabled(bool enabled);
+    void setSensorEnabled(bool enabled);
 
     /**
      * @brief Check if sensor is enabled
      */
-    bool isEnabled() const;
+    bool isSensorEnabled() const;
 
     /**
      * @brief Set sensor parameters

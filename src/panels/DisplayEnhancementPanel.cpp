@@ -100,7 +100,7 @@ void DisplayEnhancementPanel::setupUi() {
     mainLayout->addStretch();
 }
 
-void DisplayEnhancementPanel::setEnabled(bool enabled) {
+void DisplayEnhancementPanel::setEnhancementEnabled(bool enabled) {
     m_enabled = enabled;
     m_enableCheckbox->blockSignals(true);
     m_enableCheckbox->setChecked(enabled);

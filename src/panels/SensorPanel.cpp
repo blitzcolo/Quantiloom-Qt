@@ -275,7 +275,7 @@ void SensorPanel::setupUi() {
     m_irGroup->setEnabled(false);
 }
 
-void SensorPanel::setEnabled(bool enabled) {
+void SensorPanel::setSensorEnabled(bool enabled) {
     m_updatingUi = true;
     m_enabledCheck->setChecked(enabled);
     m_opticsGroup->setEnabled(enabled);
@@ -287,7 +287,7 @@ void SensorPanel::setEnabled(bool enabled) {
     m_updatingUi = false;
 }
 
-bool SensorPanel::isEnabled() const {
+bool SensorPanel::isSensorEnabled() const {
     return m_enabledCheck->isChecked();
 }
 
