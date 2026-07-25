@@ -1,0 +1,27 @@
+# Line endings: LF in the repository and LF on checkout.
+#
+# Nothing in this tree wants CRLF. MSVC and PowerShell both read LF happily,
+# while build_wsl.sh, scripts/*.sh and the PostToolUse hook are executed by WSL
+# bash, which does not: a CRLF `set -euo pipefail` fails outright with
+# "set: pipefail: invalid option name".
+#
+# Without this file git has no line-ending policy at all -- core.autocrlf is
+# unset, so it stores whatever bytes it is handed. An editor that rewrote a
+# source file with CRLF therefore turned a four-line edit into a whole-file
+# diff, and 37 tracked files sat permanently "modified" for that reason alone.
+* text=auto eol=lf
+
+# Binary, never normalised. `text=auto` already detects these from their NUL
+# bytes; naming them makes that independent of the heuristic.
+*.bin    binary
+*.qlbin  binary
+*.glb    binary
+*.gltf   binary
+*.usdc   binary
+*.usdz   binary
+*.fbx    binary
+*.exr    binary
+*.png    binary
+*.jpg    binary
+*.jpeg   binary
+*.qm     binary
