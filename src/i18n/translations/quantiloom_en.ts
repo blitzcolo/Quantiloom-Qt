@@ -939,6 +939,10 @@ May cause colour shifts.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>&amp;Theme</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>&amp;Camera</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1587,6 +1591,14 @@ Replace the curves?</source>
     <name>PreferencesDialog</name>
     <message>
         <source>Preferences</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Appearance</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Theme:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -2503,6 +2515,21 @@ Not suitable for quantitative analysis. Load measured spectral materials for acc
     <message>
         <source>No interpolated data. Add anchor points first.</source>
         <translation>No interpolated data. Add anchor points first.</translation>
+    </message>
+</context>
+<context>
+    <name>ThemeManager</name>
+    <message>
+        <source>Blender Dark</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Classic</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Windows 11</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>

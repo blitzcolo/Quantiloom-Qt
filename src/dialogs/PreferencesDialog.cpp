@@ -6,6 +6,7 @@
 
 #include "../i18n/LanguageManager.hpp"
 #include "../ui/UiStyle.hpp"
+#include "../ui/theme/ThemeManager.hpp"
 
 #include <QComboBox>
 #include <QDialogButtonBox>
@@ -31,6 +32,18 @@ PreferencesDialog::PreferencesDialog(QWidget* parent)
 
 void PreferencesDialog::setupUi() {
     auto* mainLayout = new QVBoxLayout(this);
+
+    // --- appearance ------------------------------------------------------
+    m_appearanceGroup = new QGroupBox(this);
+    auto* appearanceForm = new QFormLayout(m_appearanceGroup);
+
+    // Items are added in retranslateUi(), not here: theme names are
+    // translated, so the list has to be rebuilt on every language change.
+    m_themeCombo = new QComboBox(m_appearanceGroup);
+    m_themeLabel = new QLabel(m_appearanceGroup);
+    appearanceForm->addRow(m_themeLabel, m_themeCombo);
+
+    mainLayout->addWidget(m_appearanceGroup);
 
     // --- language ------------------------------------------------------
     m_languageGroup = new QGroupBox(this);
@@ -61,7 +74,7 @@ void PreferencesDialog::setupUi() {
     captureForm->addRow(m_pathLabel, pathRow);
 
     m_captureInfo = new QLabel(m_captureGroup);
-    uistyle::applyHintStyle(m_captureInfo);
+    m_styling.bind([this] { uistyle::applyHintStyle(m_captureInfo); });
     captureForm->addRow(m_captureInfo);
 
     m_restoreButton = new QPushButton(m_captureGroup);
@@ -80,6 +93,21 @@ void PreferencesDialog::setupUi() {
 
 void PreferencesDialog::retranslateUi() {
     setWindowTitle(tr("Preferences"));
+
+    m_appearanceGroup->setTitle(tr("Appearance"));
+    m_themeLabel->setText(tr("Theme:"));
+    // Theme names are translated, so the list is refilled rather than
+    // relabelled. Restore the selection by value: restoring by index would
+    // silently change the user's theme if the list ever reorders.
+    const QString selectedTheme = m_themeCombo->currentData().toString();
+    m_themeCombo->clear();
+    for (const auto& theme : ThemeManager::availableThemes()) {
+        m_themeCombo->addItem(ThemeManager::displayName(theme.id), theme.id);
+    }
+    setSelectedThemeId(selectedTheme.isEmpty()
+                           ? ThemeManager::instance().currentThemeId()
+                           : selectedTheme);
+
     m_languageGroup->setTitle(tr("Language"));
     m_languageLabel->setText(tr("Interface language:"));
 
@@ -97,6 +125,8 @@ void PreferencesDialog::retranslateUi() {
 void PreferencesDialog::changeEvent(QEvent* event) {
     if (event->type() == QEvent::LanguageChange) {
         retranslateUi();
+    } else if (uistyle::isThemeChangeEvent(event)) {
+        m_styling.reapply();
     }
     QDialog::changeEvent(event);
 }
@@ -109,6 +139,17 @@ void PreferencesDialog::setSelectedLocale(const QString& locale) {
     const int index = m_languageCombo->findData(locale);
     if (index >= 0) {
         m_languageCombo->setCurrentIndex(index);
+    }
+}
+
+QString PreferencesDialog::selectedThemeId() const {
+    return m_themeCombo->currentData().toString();
+}
+
+void PreferencesDialog::setSelectedThemeId(const QString& id) {
+    const int index = m_themeCombo->findData(id);
+    if (index >= 0) {
+        m_themeCombo->setCurrentIndex(index);
     }
 }
 

@@ -30,6 +30,7 @@
 #include "ui/ModeCatalog.hpp"
 #include "ui/UiStyle.hpp"
 #include "ui/ViewportFrame.hpp"
+#include "ui/theme/ThemeManager.hpp"
 #include "ui/WorkspaceManager.hpp"
 
 #include <QApplication>
@@ -178,8 +179,9 @@ void MainWindow::setupUi() {
 
     // Visible boundaries between the docked regions; without this the docks,
     // the viewport and the window background are all the same colour with a
-    // one-pixel gap between them.
-    setStyleSheet(uistyle::shellStyleSheet(this));
+    // one-pixel gap between them. Bound rather than set, because the colours
+    // come from the palette and the palette changes with the theme.
+    m_styling.bind([this] { setStyleSheet(uistyle::shellStyleSheet(this)); });
 
     m_viewportFrame = new ViewportFrame(m_vulkanContainer, this);
     connect(m_viewportFrame, &ViewportFrame::openSceneRequested,
@@ -315,6 +317,14 @@ void MainWindow::setupMenus() {
     m_displayEnhancementAction->setCheckable(true);
     connect(m_displayEnhancementAction, &QAction::triggered,
             this, &MainWindow::applyDisplayEnhancementEnabled);
+
+    m_viewMenu->addSeparator();
+
+    // The theme is also reachable from Edit ▸ Preferences. It is here too
+    // because the menu bar is the complete catalogue: a setting that only
+    // exists inside a dialog is a setting with no shortcut and no discovery.
+    m_themeMenu = m_viewMenu->addMenu(QString());
+    buildThemeMenu(m_themeMenu);
 
     // --- Render ---------------------------------------------------------
     m_renderMenu = menuBar()->addMenu(QString());
@@ -636,6 +646,42 @@ void MainWindow::applyTargetSpp(uint32_t spp) {
     showStatusMessage(tr("Target samples: %1").arg(spp));
 }
 
+void MainWindow::buildThemeMenu(QMenu* menu) {
+    m_themeGroup = new QActionGroup(this);
+    m_themeGroup->setExclusive(true);
+
+    for (const auto& theme : ThemeManager::availableThemes()) {
+        QAction* action = menu->addAction(QString());
+        action->setCheckable(true);
+        action->setData(theme.id);
+        m_themeGroup->addAction(action);
+        m_themeActions.insert(theme.id, action);
+        connect(action, &QAction::triggered, this, [this, id = theme.id]() {
+            applyTheme(id);
+        });
+    }
+
+    if (QAction* current = m_themeActions.value(ThemeManager::instance().currentThemeId())) {
+        current->setChecked(true);
+    }
+}
+
+void MainWindow::applyTheme(const QString& themeId) {
+    // The single application point for the theme: the View menu entry and the
+    // Preferences combo both land here, so the two cannot drift into doing
+    // slightly different things.
+    if (!ThemeManager::instance().switchTo(themeId)) {
+        return;
+    }
+    if (QAction* action = m_themeActions.value(themeId)) {
+        action->setChecked(true);
+    }
+}
+
+void MainWindow::restyleUi() {
+    m_styling.reapply();
+}
+
 void MainWindow::applyDisplayEnhancementEnabled(bool enabled) {
     // Route through the panel so the checkbox, the menu entry and the renderer
     // cannot disagree; the panel's own signal carries the current parameters.
@@ -884,10 +930,10 @@ void MainWindow::setupStatusBar() {
     m_fpsLabel = new QLabel();
     m_sampleCountLabel = new QLabel();
     m_editModeLabel = new QLabel();
-    uistyle::applyChipStyle(m_editModeLabel, uistyle::ChipTone::Accent);
+    m_styling.bind([this] { uistyle::applyChipStyle(m_editModeLabel, uistyle::ChipTone::Accent); });
     m_debugValueLabel = new QLabel();
     m_debugValueLabel->setMinimumWidth(250);
-    uistyle::applyMonospaceStyle(m_debugValueLabel);
+    m_styling.bind([this] { uistyle::applyMonospaceStyle(m_debugValueLabel); });
     m_renderProgress = new QProgressBar();
     m_renderProgress->setMaximumWidth(200);
     m_renderProgress->setRange(0, 100);
@@ -1056,6 +1102,8 @@ void MainWindow::setupEditingSystem() {
 void MainWindow::changeEvent(QEvent* event) {
     if (event->type() == QEvent::LanguageChange) {
         retranslateUi();
+    } else if (uistyle::isThemeChangeEvent(event)) {
+        restyleUi();
     }
     QMainWindow::changeEvent(event);
 }
@@ -1099,6 +1147,12 @@ void MainWindow::retranslateUi() {
     }
     m_panelsMenu->setTitle(tr("&Panels"));
     m_resetLayoutAction->setText(tr("&Reset Layout"));
+    if (m_themeMenu) {
+        m_themeMenu->setTitle(tr("&Theme"));
+        for (auto it = m_themeActions.cbegin(); it != m_themeActions.cend(); ++it) {
+            it.value()->setText(ThemeManager::displayName(it.key()));
+        }
+    }
     m_cameraMenu->setTitle(tr("&Camera"));
     m_resetCameraAction->setText(tr("&Reset View"));
     for (QAction* action : std::as_const(m_viewPresetActions)) {
@@ -1613,6 +1667,7 @@ void MainWindow::onPreferences() {
     QSettings settings;
     dialog.setScreenshotPath(settings.value("screenshot_path").toString());
     dialog.setSelectedLocale(LanguageManager::instance().currentLocale());
+    dialog.setSelectedThemeId(ThemeManager::instance().currentThemeId());
 
     if (dialog.exec() != QDialog::Accepted) {
         return;
@@ -1620,9 +1675,11 @@ void MainWindow::onPreferences() {
 
     settings.setValue("screenshot_path", dialog.screenshotPath());
 
-    // Takes effect immediately: installing the translator makes Qt post a
-    // LanguageChange event to every widget, and each one re-applies its text.
+    // Both take effect immediately. Installing the translator makes Qt post a
+    // LanguageChange event to every widget, and setting the palette posts a
+    // PaletteChange; each widget re-applies its text and its colours in turn.
     LanguageManager::instance().switchTo(dialog.selectedLocale());
+    applyTheme(dialog.selectedThemeId());
 
     showStatusMessage(tr("Preferences saved"));
 }

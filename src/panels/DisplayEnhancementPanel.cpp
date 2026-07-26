@@ -41,7 +41,7 @@ void DisplayEnhancementPanel::setupUi() {
     mainLayout->addWidget(m_enableCheckbox);
 
     m_infoLabel = new QLabel(this);
-    uistyle::applyHintStyle(m_infoLabel);
+    bindStyle([this] { uistyle::applyHintStyle(m_infoLabel); });
     bindText([this] {
         // Spelling out the scope here and in the export menu entries is the
         // whole point: users could not tell which of the two images they were

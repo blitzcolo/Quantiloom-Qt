@@ -112,7 +112,7 @@ void CameraPanel::setupUi() {
     mainLayout->addWidget(m_presetGroup);
 
     auto* hint = new QLabel(this);
-    uistyle::applyHintStyle(hint);
+    bindStyle([hint] { uistyle::applyHintStyle(hint); });
     mainLayout->addWidget(hint);
     mainLayout->addStretch();
 

@@ -6,6 +6,7 @@
 #include "MaterialEditorPanel.hpp"
 
 #include "../ui/UiStyle.hpp"
+#include "../ui/theme/ThemeManager.hpp"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -45,7 +46,7 @@ void MaterialEditorPanel::setupUi() {
 
     // Material name
     m_materialName = new QLabel(this);
-    uistyle::applyHeadingStyle(m_materialName);
+    bindStyle([this] { uistyle::applyHeadingStyle(m_materialName); });
     bindText([this] {
         if (m_currentIndex < 0) {
             m_materialName->setText(tr("No material selected"));
@@ -136,7 +137,7 @@ void MaterialEditorPanel::setupUi() {
     auto* irLayout = new QFormLayout(m_irGroup);
 
     m_spectralCurveNotice = new QLabel(m_irGroup);
-    uistyle::applyNoticeStyle(m_spectralCurveNotice);
+    bindStyle([this] { uistyle::applyNoticeStyle(m_spectralCurveNotice); });
     m_spectralCurveNotice->setVisible(false);
     irLayout->addRow(m_spectralCurveNotice);
 
@@ -188,7 +189,7 @@ void MaterialEditorPanel::setupUi() {
 
     // Kirchhoff's law validation label
     m_irKirchhoffLabel = new QLabel();
-    uistyle::applyHintStyle(m_irKirchhoffLabel);
+    bindStyle([this] { uistyle::applyHintStyle(m_irKirchhoffLabel); });
     irLayout->addRow(m_irKirchhoffLabel);
 
     mainLayout->addWidget(m_irGroup);
@@ -205,6 +206,14 @@ void MaterialEditorPanel::retranslateUi() {
     PanelBase::retranslateUi();
     updateKirchhoffLabel();
     updateSpectralCurveNotice();
+}
+
+void MaterialEditorPanel::restyleUi() {
+    PanelBase::restyleUi();
+    // The Kirchhoff label is one of two colours depending on whether energy
+    // conservation currently holds, so the bound setter above can only restore
+    // the neutral one. Re-deciding is the same call the value change makes.
+    updateKirchhoffLabel();
 }
 
 void MaterialEditorPanel::setMaterial(int index, const quantiloom::Material* material) {
@@ -397,7 +406,8 @@ void MaterialEditorPanel::updateKirchhoffLabel() {
         m_irKirchhoffLabel->setText(
             tr("Warning: ε + τ > 1 (violates energy conservation)"));
         QPalette pal = m_irKirchhoffLabel->palette();
-        pal.setColor(QPalette::WindowText, QColor(0xd0, 0x30, 0x30));
+        pal.setColor(QPalette::WindowText,
+                     ThemeManager::instance().currentTheme().accents.errorText);
         m_irKirchhoffLabel->setPalette(pal);
     } else {
         uistyle::applyHintStyle(m_irKirchhoffLabel);

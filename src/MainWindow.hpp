@@ -7,8 +7,11 @@
 
 #pragma once
 
+#include "ui/UiStyle.hpp"
+
 #include <QMainWindow>
 #include <QVulkanInstance>
+#include <QHash>
 #include <QMap>
 #include <QSet>
 #include <QStringList>
@@ -164,6 +167,13 @@ private:
     void applySpectralMode(quantiloom::SpectralMode mode);
     void applyTargetSpp(uint32_t spp);
     void applyDisplayEnhancementEnabled(bool enabled);
+    void applyTheme(const QString& themeId);
+
+    void buildThemeMenu(QMenu* menu);
+
+    /// Re-apply the shell's own theme-derived styling. The panels look after
+    /// themselves through PanelBase; this is the window's share.
+    void restyleUi();
 
     void buildDebugMenu(QMenu* menu, QComboBox* combo);
     void buildSpectralMenu(QMenu* menu, QComboBox* combo);
@@ -289,11 +299,15 @@ private:
     QMenu* m_debugMenu = nullptr;
     QMenu* m_spectralMenu = nullptr;
     QMenu* m_qualityMenu = nullptr;
+    QMenu* m_themeMenu = nullptr;
 
     QActionGroup* m_debugGroup = nullptr;
     QActionGroup* m_spectralGroup = nullptr;
     QActionGroup* m_qualityGroup = nullptr;
     QActionGroup* m_transformModeGroup = nullptr;
+    QActionGroup* m_themeGroup = nullptr;
+
+    QHash<QString, QAction*> m_themeActions;  ///< keyed by theme id
 
     QHash<int, QAction*> m_debugActions;      ///< keyed by DebugVisualizationMode
     QHash<int, QAction*> m_spectralActions;   ///< keyed by SpectralMode
@@ -358,4 +372,6 @@ private:
     // it the SDK headers it pulls in, out of this header.
     std::unique_ptr<SceneConfig> m_lastConfig;
     void applyPendingMaterialConfigs();
+
+    uistyle::StyleBindings m_styling;
 };

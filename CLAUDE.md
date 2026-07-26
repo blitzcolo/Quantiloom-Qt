@@ -43,6 +43,7 @@ has the refresh flow and the failure modes.
 |---|---|
 | `src/panels/` | 12 dockable parameter panels — most feature work lands here |
 | `src/ui/` | Shell infrastructure: `PanelBase`, the debug/spectral `ModeCatalog`, workspaces, the viewport frame, shared styling |
+| `src/ui/theme/` | The three themes as data (`Theme`) and the runtime switcher (`ThemeManager`) |
 | `src/dialogs/` | Preferences and the generated help pages |
 | `src/vulkan/` | Qt↔SDK render bridge and orbit camera; the only `ExternalRenderContext` caller |
 | `src/config/` | TOML load/save (`ConfigManager`) |
@@ -61,16 +62,23 @@ config or a bare model, Save writes a config. Above the toolbar sits a row of
 **workspaces** — Layout, Environment & Spectral, Material Prep, Debug — each a preset
 arrangement of the independent panel docks, with the viewport always in the centre.
 
-Three rules the shell keeps, and that new work should not break:
+Four rules the shell keeps, and that new work should not break:
 
 - **The menu bar is the complete catalogue.** Anything a panel button does, a menu entry
   does too, and shows its shortcut. A panel is a shortcut, never the only route.
-- **One dispatcher per setting.** Debug mode, spectral mode, target samples and display
-  enhancement each have a single `MainWindow::apply*` function; the menu, the toolbar
-  control and the panel widget all call it. Two paths that do slightly different things
-  is the bug class this replaced.
+- **One dispatcher per setting.** Debug mode, spectral mode, target samples, display
+  enhancement and the theme each have a single `MainWindow::apply*` function; the menu,
+  the toolbar control and the panel widget all call it. Two paths that do slightly
+  different things is the bug class this replaced.
 - **No user-visible string is set once.** Everything goes through `bindText()` or a
   `retranslateUi()`, because language switches at runtime.
+- **No colour is set once.** The same sentence with a different noun, because the theme
+  also switches at runtime. Panels use `bindStyle()`; other widgets own a
+  `uistyle::StyleBindings` and drive it from `changeEvent`. Two consequences worth
+  knowing before touching `src/ui/UiStyle.cpp`: every helper there must stay
+  **idempotent** — it is re-run on the same widget on every switch, so deriving from the
+  widget's *current* font or palette compounds — and a widget that restyles *itself*
+  re-enters, which is what the guard in `StyleBindings::reapply()` is for.
 
 ## Conventions
 

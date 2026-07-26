@@ -39,7 +39,7 @@ void RenderSettingsPanel::setupUi() {
     auto* statusLayout = new QFormLayout(statusGroup);
 
     m_sampleCountLabel = new QLabel(QStringLiteral("0"));
-    uistyle::applyHeadingStyle(m_sampleCountLabel);
+    bindStyle([this] { uistyle::applyHeadingStyle(m_sampleCountLabel); });
     auto* samplesCaption = new QLabel(statusGroup);
     bindText([statusGroup, samplesCaption] {
         statusGroup->setTitle(tr("Status"));
@@ -108,7 +108,7 @@ void RenderSettingsPanel::setupUi() {
     resLayout->addRow(resCaption, m_resolutionLabel);
 
     auto* resNote = new QLabel(resGroup);
-    uistyle::applyHintStyle(resNote);
+    bindStyle([resNote] { uistyle::applyHintStyle(resNote); });
     resLayout->addRow(resNote);
 
     bindText([resGroup, resCaption, resNote] {

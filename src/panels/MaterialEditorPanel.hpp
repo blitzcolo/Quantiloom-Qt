@@ -41,6 +41,7 @@ public:
     [[nodiscard]] QString panelTitle() const override;
     [[nodiscard]] QString panelId() const override { return QStringLiteral("material"); }
     void retranslateUi() override;
+    void restyleUi() override;
 
     void setMaterial(int index, const quantiloom::Material* material);
     void clear();

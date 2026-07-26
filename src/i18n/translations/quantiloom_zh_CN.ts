@@ -950,6 +950,10 @@ May cause colour shifts.</source>
         <translation>重置布局(&amp;R)</translation>
     </message>
     <message>
+        <source>&amp;Theme</source>
+        <translation>主题(&amp;T)</translation>
+    </message>
+    <message>
         <source>&amp;Camera</source>
         <translation>相机(&amp;C)</translation>
     </message>
@@ -1602,6 +1606,14 @@ Replace the curves?</source>
     <message>
         <source>Preferences</source>
         <translation>首选项</translation>
+    </message>
+    <message>
+        <source>Appearance</source>
+        <translation>外观</translation>
+    </message>
+    <message>
+        <source>Theme:</source>
+        <translation>主题：</translation>
     </message>
     <message>
         <source>Language</source>
@@ -2530,6 +2542,21 @@ Not suitable for quantitative analysis. Load measured spectral materials for acc
     <message>
         <source>No interpolated data. Add anchor points first.</source>
         <translation>没有插值数据，请先添加锚点。</translation>
+    </message>
+</context>
+<context>
+    <name>ThemeManager</name>
+    <message>
+        <source>Blender Dark</source>
+        <translation>Blender 深色</translation>
+    </message>
+    <message>
+        <source>Classic</source>
+        <translation>经典</translation>
+    </message>
+    <message>
+        <source>Windows 11</source>
+        <translation>Windows 11</translation>
     </message>
 </context>
 <context>

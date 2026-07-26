@@ -10,6 +10,7 @@
 #include "MainWindow.hpp"
 #include "SdkGuard.hpp"
 #include "i18n/LanguageManager.hpp"
+#include "ui/theme/ThemeManager.hpp"
 
 #include <QApplication>
 #include <QVulkanInstance>
@@ -41,6 +42,13 @@ int main(int argc, char* argv[]) {
     // runtime through Edit ▸ Preferences; LanguageManager swaps the translator
     // and Qt notifies every widget, so nothing here is startup-only.
     LanguageManager::instance().applyStoredPreference();
+
+    // Same shape, and for the same reason: applied before the window exists so
+    // the first paint is already themed rather than flashing the default style.
+    // With no stored preference this picks by environment -- Classic on a
+    // Windows older than 10, Blender Dark under a dark system scheme, Windows
+    // 11 otherwise. Changeable at runtime from View ▸ Theme.
+    ThemeManager::instance().applyStoredPreference();
 
     // Verify this binary and the Quantiloom library it is about to load came
     // from the same SDK install. Placed after the translators so the message is

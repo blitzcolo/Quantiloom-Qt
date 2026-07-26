@@ -20,6 +20,8 @@
 
 #pragma once
 
+#include "UiStyle.hpp"
+
 #include <QWidget>
 #include <QStringList>
 
@@ -59,7 +61,15 @@ signals:
     void openSceneRequested();
     void openRecentRequested(const QString& path);
 
+protected:
+    void changeEvent(QEvent* event) override;
+
 private:
+    /// Re-apply every theme-derived colour. Driven from changeEvent rather
+    /// than called by the shell, so a theme change cannot be forgotten here
+    /// the way an explicit call would be.
+    void restyleUi();
+
     void buildEmptyState();
     void updateChips();
     void rebuildRecentButtons();
@@ -86,4 +96,6 @@ private:
     quantiloom::SpectralMode m_spectralMode = quantiloom::SpectralMode::RGB;
     quantiloom::DebugVisualizationMode m_debugMode = quantiloom::DebugVisualizationMode::None;
     bool m_sceneLoaded = false;
+
+    uistyle::StyleBindings m_styling;
 };

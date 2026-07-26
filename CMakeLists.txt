@@ -184,6 +184,9 @@ set(GUI_SOURCES
     src/ui/ViewportFrame.hpp
     src/ui/WorkspaceManager.cpp
     src/ui/WorkspaceManager.hpp
+    src/ui/theme/Theme.hpp
+    src/ui/theme/ThemeManager.cpp
+    src/ui/theme/ThemeManager.hpp
     # Runtime language switching
     src/i18n/LanguageManager.cpp
     src/i18n/LanguageManager.hpp

@@ -50,7 +50,7 @@ void SpectralConfigPanel::setupUi() {
     modeLayout->addWidget(m_modeCombo);
 
     m_modeDescription = new QLabel();
-    uistyle::applyHintStyle(m_modeDescription);
+    bindStyle([this] { uistyle::applyHintStyle(m_modeDescription); });
     modeLayout->addWidget(m_modeDescription);
 
     bindText([this, modeGroup] {
@@ -185,7 +185,7 @@ void SpectralConfigPanel::setupUi() {
 
     // Quantitative warning (shown for the fused IR bands)
     m_quantitativeWarning = new QLabel();
-    uistyle::applyNoticeStyle(m_quantitativeWarning);
+    bindStyle([this] { uistyle::applyNoticeStyle(m_quantitativeWarning); });
     m_quantitativeWarning->setVisible(false);
     bindText([this] {
         m_quantitativeWarning->setText(

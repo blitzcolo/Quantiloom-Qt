@@ -42,7 +42,7 @@ SceneTreePanel::SceneTreePanel(QWidget* parent)
     // blank rectangle that gave no hint whether anything was wrong.
     m_emptyLabel = new QLabel(this);
     m_emptyLabel->setAlignment(Qt::AlignCenter);
-    uistyle::applyHintStyle(m_emptyLabel);
+    bindStyle([this] { uistyle::applyHintStyle(m_emptyLabel); });
     bindText([this] { m_emptyLabel->setText(tr("Open a scene to see its contents.")); });
     layout->addWidget(m_emptyLabel);
 

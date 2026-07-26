@@ -7,6 +7,7 @@
 #include "ModeCatalog.hpp"
 #include "UiStyle.hpp"
 
+#include <QEvent>
 #include <QFileInfo>
 #include <QFrame>
 #include <QHBoxLayout>
@@ -32,22 +33,22 @@ ViewportFrame::ViewportFrame(QWidget* viewport, QWidget* parent)
     stripLayout->setSpacing(6);
 
     m_spectralChip = new QLabel(strip);
-    uistyle::applyChipStyle(m_spectralChip, uistyle::ChipTone::Accent);
+    m_styling.bind([this] { uistyle::applyChipStyle(m_spectralChip, uistyle::ChipTone::Accent); });
     stripLayout->addWidget(m_spectralChip);
 
     m_debugChip = new QLabel(strip);
-    uistyle::applyChipStyle(m_debugChip, uistyle::ChipTone::Neutral);
+    m_styling.bind([this] { uistyle::applyChipStyle(m_debugChip, uistyle::ChipTone::Neutral); });
     stripLayout->addWidget(m_debugChip);
 
     m_previewOnlyChip = new QLabel(strip);
-    uistyle::applyChipStyle(m_previewOnlyChip, uistyle::ChipTone::Warning);
+    m_styling.bind([this] { uistyle::applyChipStyle(m_previewOnlyChip, uistyle::ChipTone::Warning); });
     m_previewOnlyChip->setVisible(false);
     stripLayout->addWidget(m_previewOnlyChip);
 
     stripLayout->addStretch();
 
     m_busyLabel = new QLabel(strip);
-    uistyle::applyHintStyle(m_busyLabel);
+    m_styling.bind([this] { uistyle::applyHintStyle(m_busyLabel); });
     m_busyLabel->setVisible(false);
     stripLayout->addWidget(m_busyLabel);
 
@@ -81,12 +82,12 @@ void ViewportFrame::buildEmptyState() {
 
     m_emptyTitle = new QLabel(m_emptyPage);
     m_emptyTitle->setAlignment(Qt::AlignCenter);
-    uistyle::applyHeadingStyle(m_emptyTitle);
+    m_styling.bind([this] { uistyle::applyHeadingStyle(m_emptyTitle); });
     layout->addWidget(m_emptyTitle);
 
     m_emptyHint = new QLabel(m_emptyPage);
     m_emptyHint->setAlignment(Qt::AlignCenter);
-    uistyle::applyHintStyle(m_emptyHint);
+    m_styling.bind([this] { uistyle::applyHintStyle(m_emptyHint); });
     layout->addWidget(m_emptyHint);
 
     m_openButton = new QPushButton(m_emptyPage);
@@ -100,7 +101,7 @@ void ViewportFrame::buildEmptyState() {
 
     m_recentHeading = new QLabel(m_emptyPage);
     m_recentHeading->setAlignment(Qt::AlignCenter);
-    uistyle::applyHintStyle(m_recentHeading);
+    m_styling.bind([this] { uistyle::applyHintStyle(m_recentHeading); });
     m_recentHeading->setVisible(false);
     layout->addWidget(m_recentHeading);
 
@@ -180,6 +181,20 @@ void ViewportFrame::rebuildRecentButtons() {
         row->addStretch();
         m_recentLayout->addLayout(row);
     }
+}
+
+void ViewportFrame::changeEvent(QEvent* event) {
+    if (uistyle::isThemeChangeEvent(event)) {
+        restyleUi();
+    }
+    QWidget::changeEvent(event);
+}
+
+void ViewportFrame::restyleUi() {
+    m_styling.reapply();
+    // The debug chip's tone tracks whether a debug mode is active, so the
+    // bound setter can only put back the inactive one. updateChips() re-decides.
+    updateChips();
 }
 
 void ViewportFrame::retranslateUi() {

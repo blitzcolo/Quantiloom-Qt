@@ -52,11 +52,11 @@ void DebugVisualizationPanel::setupUi() {
     modeLayout->addWidget(m_modeCombo);
 
     m_categoryLabel = new QLabel();
-    uistyle::applyChipStyle(m_categoryLabel, uistyle::ChipTone::Accent);
+    bindStyle([this] { uistyle::applyChipStyle(m_categoryLabel, uistyle::ChipTone::Accent); });
     modeLayout->addWidget(m_categoryLabel);
 
     m_description = new QLabel();
-    uistyle::applyHintStyle(m_description);
+    bindStyle([this] { uistyle::applyHintStyle(m_description); });
     modeLayout->addWidget(m_description);
 
     bindText([this, modeGroup] {
@@ -76,18 +76,18 @@ void DebugVisualizationPanel::setupUi() {
     auto* pixelLayout = new QFormLayout(m_pixelGroup);
 
     m_pixelPosition = new QLabel(QStringLiteral("--"));
-    uistyle::applyMonospaceStyle(m_pixelPosition);
+    bindStyle([this] { uistyle::applyMonospaceStyle(m_pixelPosition); });
     auto* positionCaption = new QLabel(m_pixelGroup);
     pixelLayout->addRow(positionCaption, m_pixelPosition);
 
     m_pixelValue = new QLabel(QStringLiteral("--"));
     m_pixelValue->setWordWrap(true);
-    uistyle::applyMonospaceStyle(m_pixelValue);
+    bindStyle([this] { uistyle::applyMonospaceStyle(m_pixelValue); });
     auto* valueCaption = new QLabel(m_pixelGroup);
     pixelLayout->addRow(valueCaption, m_pixelValue);
 
     m_pixelHint = new QLabel(m_pixelGroup);
-    uistyle::applyHintStyle(m_pixelHint);
+    bindStyle([this] { uistyle::applyHintStyle(m_pixelHint); });
     pixelLayout->addRow(m_pixelHint);
 
     bindText([this, positionCaption, valueCaption] {

@@ -29,9 +29,23 @@
  *
  * A bound lambda captures widget pointers raw, which is safe because the
  * widgets it touches are children of the panel and outlive nothing.
+ *
+ * Colour works the same way and for the same reason. Since themes became
+ * switchable at runtime, no colour, font size or style sheet may be set once
+ * either — Qt posts QEvent::PaletteChange and QEvent::StyleChange to every
+ * widget when the theme changes, and a panel that baked a shade into a style
+ * sheet in its constructor keeps it and becomes the one unreadable label in
+ * the window. `bindStyle()` is the exact twin of `bindText()`:
+ *
+ * @code
+ * uistyle::applyHintStyle(hint);                            // before
+ * bindStyle([hint] { uistyle::applyHintStyle(hint); });     // after
+ * @endcode
  */
 
 #pragma once
+
+#include "UiStyle.hpp"
 
 #include <QWidget>
 
@@ -54,6 +68,12 @@ public:
     /// Re-apply every user-visible string owned by this panel.
     virtual void retranslateUi();
 
+    /// Re-apply every theme-derived colour, font size and style sheet owned by
+    /// this panel. Panels whose styling depends on current values — a chip
+    /// whose tone tracks a mode, a hint shown only in one state — override
+    /// this, call the base, and add that work.
+    virtual void restyleUi();
+
 signals:
     /// Emitted after a language change so the shell can refresh dock titles
     /// and View menu entries that mirror panelTitle().
@@ -64,8 +84,13 @@ protected:
     /// subsequent language change.
     void bindText(std::function<void()> setter);
 
+    /// Register a piece of theme-derived styling. The setter runs now and on
+    /// every subsequent theme change.
+    void bindStyle(std::function<void()> setter);
+
     void changeEvent(QEvent* event) override;
 
 private:
     std::vector<std::function<void()>> m_textSetters;
+    uistyle::StyleBindings m_styling;
 };

@@ -69,7 +69,7 @@ void AtmosphericPanel::setupUi() {
     analyticLayout->addRow(m_atmosphereTempCaption, m_atmosphereTempSpin);
 
     m_analyticNote = new QLabel(m_analyticGroup);
-    uistyle::applyHintStyle(m_analyticNote);
+    bindStyle([this] { uistyle::applyHintStyle(m_analyticNote); });
     analyticLayout->addRow(m_analyticNote);
 
     mainLayout->addWidget(m_analyticGroup);

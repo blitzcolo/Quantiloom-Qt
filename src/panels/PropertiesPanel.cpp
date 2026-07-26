@@ -80,7 +80,7 @@ void PropertiesPanel::setupUi() {
     emptyLayout->setAlignment(Qt::AlignCenter);
     m_emptyLabel = new QLabel(emptyPage);
     m_emptyLabel->setAlignment(Qt::AlignCenter);
-    uistyle::applyHintStyle(m_emptyLabel);
+    bindStyle([this] { uistyle::applyHintStyle(m_emptyLabel); });
     emptyLayout->addWidget(m_emptyLabel);
     m_stack->addWidget(emptyPage);
 
@@ -90,7 +90,7 @@ void PropertiesPanel::setupUi() {
     nodeLayout->setContentsMargins(4, 4, 4, 4);
 
     m_nodeName = new QLabel(nodePage);
-    uistyle::applyHeadingStyle(m_nodeName);
+    bindStyle([this] { uistyle::applyHeadingStyle(m_nodeName); });
     nodeLayout->addWidget(m_nodeName);
 
     m_transformGroup = new QGroupBox(nodePage);
@@ -148,7 +148,7 @@ void PropertiesPanel::setupUi() {
     multiLayout->setAlignment(Qt::AlignCenter);
     m_multiLabel = new QLabel(multiPage);
     m_multiLabel->setAlignment(Qt::AlignCenter);
-    uistyle::applyHintStyle(m_multiLabel);
+    bindStyle([this] { uistyle::applyHintStyle(m_multiLabel); });
     multiLayout->addWidget(m_multiLabel);
     m_stack->addWidget(multiPage);
 

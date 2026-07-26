@@ -8,11 +8,13 @@
  * Everything that is a property of the application rather than of the scene is
  * here, reached from Edit → Preferences as desktop convention expects.
  *
- * Language takes effect immediately on OK; there is nothing to warn about and
- * no restart to ask for.
+ * Language and theme both take effect immediately on OK; there is nothing to
+ * warn about and no restart to ask for.
  */
 
 #pragma once
+
+#include "../ui/UiStyle.hpp"
 
 #include <QDialog>
 
@@ -35,6 +37,10 @@ public:
     [[nodiscard]] QString selectedLocale() const;
     void setSelectedLocale(const QString& locale);
 
+    /// Theme selected in the dialog ("blender-dark", "classic", "windows11").
+    [[nodiscard]] QString selectedThemeId() const;
+    void setSelectedThemeId(const QString& id);
+
     [[nodiscard]] QString screenshotPath() const;
     void setScreenshotPath(const QString& path);
 
@@ -52,6 +58,10 @@ private:
     void setupUi();
     void retranslateUi();
 
+    QGroupBox* m_appearanceGroup = nullptr;
+    QLabel* m_themeLabel = nullptr;
+    QComboBox* m_themeCombo = nullptr;
+
     QGroupBox* m_languageGroup = nullptr;
     QLabel* m_languageLabel = nullptr;
     QComboBox* m_languageCombo = nullptr;
@@ -64,4 +74,6 @@ private:
     QPushButton* m_restoreButton = nullptr;
 
     QDialogButtonBox* m_buttonBox = nullptr;
+
+    uistyle::StyleBindings m_styling;
 };
