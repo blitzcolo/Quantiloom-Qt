@@ -2,7 +2,7 @@
  * @file QuantiloomVulkanRenderer.hpp
  * @brief QVulkanWindowRenderer adapter for libQuantiloom integration
  *
- * @author wtflmao
+ * @author blitzccolo
  */
 
 #pragma once

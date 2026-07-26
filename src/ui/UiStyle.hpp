@@ -50,4 +50,13 @@ void applyNoticeStyle(QLabel* label);
 /// Bold section heading inside a panel.
 void applyHeadingStyle(QLabel* label);
 
+/// Stylesheet for the main window.
+///
+/// Qt's default dock separator is a 1-pixel gap in the window background, so
+/// with several docks around the viewport there is nothing to tell one region
+/// from the next. This widens it and gives it a colour, and makes each dock's
+/// title read as the heading of its region. Colours come from @p reference's
+/// palette, so the result follows the theme rather than assuming a light one.
+[[nodiscard]] QString shellStyleSheet(const QWidget* reference);
+
 } // namespace uistyle

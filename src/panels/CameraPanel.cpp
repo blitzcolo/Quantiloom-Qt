@@ -145,9 +145,11 @@ void CameraPanel::setupUi() {
 
 void CameraPanel::retranslateUi() {
     PanelBase::retranslateUi();
-    // The distance readout carries a unit-formatted number, so it is rebuilt
-    // rather than merely re-labelled.
-    onPoseFieldChanged();
+    // Rebuild the formatted reading, but through the display-only helper.
+    // Calling the field handler here emitted cameraEdited, so merely switching
+    // language moved the camera, reset the accumulation and marked the scene
+    // modified -- the application then asked to save on exit.
+    updateDistanceLabel();
 }
 
 void CameraPanel::setCameraState(const glm::vec3& position, const glm::vec3& target,
@@ -163,7 +165,7 @@ void CameraPanel::setCameraState(const glm::vec3& position, const glm::vec3& tar
     m_distanceLabel->setText(QString::number(glm::length(position - target), 'f', 3));
 }
 
-void CameraPanel::onPoseFieldChanged() {
+void CameraPanel::updateDistanceLabel() {
     glm::vec3 position;
     glm::vec3 target;
     for (int axis = 0; axis < 3; ++axis) {
@@ -171,9 +173,20 @@ void CameraPanel::onPoseFieldChanged() {
         target[axis] = static_cast<float>(m_target[axis]->value());
     }
     m_distanceLabel->setText(QString::number(glm::length(position - target), 'f', 3));
+}
+
+void CameraPanel::onPoseFieldChanged() {
+    updateDistanceLabel();
 
     if (m_updatingFields) {
         return;
+    }
+
+    glm::vec3 position;
+    glm::vec3 target;
+    for (int axis = 0; axis < 3; ++axis) {
+        position[axis] = static_cast<float>(m_position[axis]->value());
+        target[axis] = static_cast<float>(m_target[axis]->value());
     }
     emit cameraEdited(position, target);
 }

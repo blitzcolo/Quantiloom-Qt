@@ -41,7 +41,7 @@ public:
     /// A stored layout carrying a different number is discarded rather than
     /// restored, which is what keeps an upgrade from resurrecting a layout
     /// that refers to docks this build no longer has.
-    static constexpr int kLayoutVersion = 3;
+    static constexpr int kLayoutVersion = 4;
 
     explicit WorkspaceManager(QMainWindow* window, QObject* parent = nullptr);
 

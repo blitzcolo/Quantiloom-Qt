@@ -13,6 +13,11 @@ namespace {
 constexpr auto kStateGroup   = "layout";
 constexpr auto kVersionKey   = "layout/version";
 constexpr auto kCurrentKey   = "layout/workspace";
+
+/// Width a docked column starts at. Wide enough for a form row with a label
+/// and a spin box without the label eliding, narrow enough to leave the
+/// viewport the bulk of a 1600 px window.
+constexpr int kSideColumnWidth = 330;
 } // namespace
 
 QStringList WorkspaceManager::workspaceIds() {
@@ -44,10 +49,12 @@ QVector<WorkspaceManager::DockPlacement> WorkspaceManager::preset(const QString&
     }
     if (id == QLatin1String("environment")) {
         // Deciding what the image means: band, atmosphere, sensor, quality.
-        // Sensor stacks onto atmosphere -- both are calibrate-once panels.
+        // Two stacks of two rather than four docks sharing the column: four
+        // vertical slots left every panel too short to use and the viewport
+        // too narrow.
         return {
             {QStringLiteral("spectral"),   Qt::RightDockWidgetArea, false},
-            {QStringLiteral("render"),     Qt::RightDockWidgetArea, false},
+            {QStringLiteral("render"),     Qt::RightDockWidgetArea, true},
             {QStringLiteral("atmosphere"), Qt::RightDockWidgetArea, false},
             {QStringLiteral("sensor"),     Qt::RightDockWidgetArea, true},
         };
@@ -66,7 +73,7 @@ QVector<WorkspaceManager::DockPlacement> WorkspaceManager::preset(const QString&
             {QStringLiteral("scene"),      Qt::LeftDockWidgetArea,  false},
             {QStringLiteral("debug"),      Qt::RightDockWidgetArea, false},
             {QStringLiteral("properties"), Qt::RightDockWidgetArea, true},
-        };
+        };  // one stack: the debug workspace is about the image, not the panels
     }
     return {};
 }
@@ -155,6 +162,7 @@ void WorkspaceManager::applyPreset(const QString& id) {
 
     QDockWidget* previous = nullptr;
     QList<QDockWidget*> placed;
+    QList<QDockWidget*> stackLeaders;
     for (const DockPlacement& placement : preset(id)) {
         QDockWidget* dock = m_docks.value(placement.panelId, nullptr);
         if (!dock) {
@@ -164,6 +172,7 @@ void WorkspaceManager::applyPreset(const QString& id) {
             m_window->tabifyDockWidget(previous, dock);
         } else {
             m_window->addDockWidget(placement.area, dock);
+            stackLeaders.append(dock);
         }
         dock->show();
         previous = dock;
@@ -171,24 +180,23 @@ void WorkspaceManager::applyPreset(const QString& id) {
     }
 
     // Give the side columns a usable width instead of whatever the last
-    // arrangement left behind. resizeDocks works on the visible layout, so it
-    // has to come after the docks are shown.
-    if (!placed.isEmpty()) {
+    // arrangement left behind, and leave the viewport the larger share.
+    // resizeDocks works on the visible layout, so it has to come after the
+    // docks are shown.
+    if (!stackLeaders.isEmpty()) {
         QList<int> widths;
-        widths.reserve(placed.size());
-        for (QDockWidget* dock : std::as_const(placed)) {
-            widths.append(dock->objectName() == QLatin1String("dock_spectralgen") ? 900 : 340);
+        widths.reserve(stackLeaders.size());
+        for (QDockWidget* dock : std::as_const(stackLeaders)) {
+            widths.append(dock->objectName() == QLatin1String("dock_spectralgen")
+                              ? 900 : kSideColumnWidth);
         }
-        m_window->resizeDocks(placed, widths, Qt::Horizontal);
+        m_window->resizeDocks(stackLeaders, widths, Qt::Horizontal);
     }
 
-    // The first tab of each stack should be the one the preset listed first.
-    for (QDockWidget* dock : std::as_const(placed)) {
-        if (m_window->tabifiedDockWidgets(dock).isEmpty()) {
-            continue;
-        }
+    // Each stack should open on the panel the preset listed first, not on
+    // whichever tab Qt happened to leave in front.
+    for (QDockWidget* dock : std::as_const(stackLeaders)) {
         dock->raise();
-        break;
     }
 }
 

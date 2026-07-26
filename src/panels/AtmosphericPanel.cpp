@@ -2,7 +2,7 @@
  * @file AtmosphericPanel.cpp
  * @brief Combined analytic + NN atmosphere panel — implementation
  *
- * @author wtflmao
+ * @author blitzccolo
  */
 
 #include "AtmosphericPanel.hpp"

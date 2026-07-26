@@ -5,7 +5,7 @@
  * Each command stores the minimum state needed for undo/redo.
  * No duplicate data - store only what changed.
  *
- * @author wtflmao
+ * @author blitzccolo
  */
 
 #pragma once

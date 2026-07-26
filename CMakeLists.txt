@@ -441,6 +441,36 @@ add_custom_command(TARGET QuantiloomQt POST_BUILD
     COMMENT "Copying translation files..."
 )
 
+# Qt's own catalogue, for the strings Qt supplies rather than we do: the
+# Save/Discard/Cancel buttons of a QMessageBox, the file dialog's furniture,
+# the standard shortcuts' names. Without these the application was translated
+# and its dialog buttons were not.
+get_target_property(QUANTILOOM_QMAKE Qt6::qmake IMPORTED_LOCATION)
+get_filename_component(QUANTILOOM_QT_BIN "${QUANTILOOM_QMAKE}" DIRECTORY)
+get_filename_component(QUANTILOOM_QT_PREFIX "${QUANTILOOM_QT_BIN}" DIRECTORY)
+set(QUANTILOOM_QT_TRANSLATIONS "${QUANTILOOM_QT_PREFIX}/translations")
+
+set(QT_BASE_QM_FILES "")
+foreach(_locale en zh_CN)
+    set(_qm "${QUANTILOOM_QT_TRANSLATIONS}/qtbase_${_locale}.qm")
+    if(EXISTS "${_qm}")
+        list(APPEND QT_BASE_QM_FILES "${_qm}")
+    endif()
+endforeach()
+
+if(QT_BASE_QM_FILES)
+    add_custom_command(TARGET QuantiloomQt POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${QT_BASE_QM_FILES}
+            $<TARGET_FILE_DIR:QuantiloomQt>
+        COMMENT "Copying Qt's own translation catalogues..."
+    )
+else()
+    message(WARNING
+        "Qt translations not found under ${QUANTILOOM_QT_TRANSLATIONS}; "
+        "standard dialog buttons will stay in English.")
+endif()
+
 # ============================================================================
 # Summary
 # ============================================================================

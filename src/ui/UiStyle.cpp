@@ -116,6 +116,38 @@ void applyNoticeStyle(QLabel* label) {
         .arg(foreground, background, border));
 }
 
+QString shellStyleSheet(const QWidget* reference) {
+    const QPalette pal = reference ? reference->palette() : QApplication::palette();
+    const bool dark = pal.color(QPalette::Window).lightnessF() < 0.5;
+
+    // A separator has to be visibly darker than the window on a light theme and
+    // visibly darker than the panels on a dark one; blending towards black in
+    // both directions gets that without two hand-picked colour sets.
+    const QColor window = pal.color(QPalette::Window);
+    const QColor separator = dark ? window.darker(160) : window.darker(135);
+    const QColor separatorHover = pal.color(QPalette::Highlight);
+    const QColor titleBackground = dark ? window.lighter(125) : window.darker(108);
+    const QColor titleText = pal.color(QPalette::WindowText);
+
+    return QStringLiteral(
+        "QMainWindow::separator {"
+        "  background: %1;"
+        "  width: 4px;"
+        "  height: 4px;"
+        "}"
+        "QMainWindow::separator:hover {"
+        "  background: %2;"
+        "}"
+        "QDockWidget::title {"
+        "  background: %3;"
+        "  color: %4;"
+        "  padding: 4px 8px;"
+        "  border-bottom: 1px solid %1;"
+        "}")
+        .arg(separator.name(), separatorHover.name(),
+             titleBackground.name(), titleText.name());
+}
+
 void applyHeadingStyle(QLabel* label) {
     if (!label) return;
     QFont f = label->font();

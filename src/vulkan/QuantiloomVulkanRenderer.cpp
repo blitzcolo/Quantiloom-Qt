@@ -2,7 +2,7 @@
  * @file QuantiloomVulkanRenderer.cpp
  * @brief QVulkanWindowRenderer adapter implementation
  *
- * @author wtflmao
+ * @author blitzccolo
  */
 
 #include "QuantiloomVulkanRenderer.hpp"
@@ -120,6 +120,13 @@ void QuantiloomVulkanRenderer::initSwapChainResources() {
 
     m_renderContext = std::move(result.value());
     m_initialized = true;
+
+    // Everything the shell configured before this point -- lighting, spectral
+    // mode, sensor model, camera, environment map -- was queued by the window
+    // because there was nothing to apply it to. Replay it now, before the
+    // scene loads, so the first scene opened after launch renders with the
+    // configuration it was opened with rather than with defaults.
+    m_window->applyDeferredSettings();
 
     // Load pending scene if any
     if (!m_pendingScenePath.isEmpty()) {

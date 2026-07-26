@@ -2,7 +2,7 @@
  * @file MainWindow.hpp
  * @brief Main application window with Vulkan viewport and parameter panels
  *
- * @author wtflmao
+ * @author blitzccolo
  */
 
 #pragma once

@@ -2,7 +2,7 @@
  * @file MainWindow.cpp
  * @brief Main application window implementation
  *
- * @author wtflmao
+ * @author blitzccolo
  */
 
 #include "MainWindow.hpp"
@@ -175,6 +175,11 @@ void MainWindow::setupUi() {
     // working while the native render surface has focus, without the viewport
     // owning a second copy of the logic.
     m_vulkanWindow->installEventFilter(this);
+
+    // Visible boundaries between the docked regions; without this the docks,
+    // the viewport and the window background are all the same colour with a
+    // one-pixel gap between them.
+    setStyleSheet(uistyle::shellStyleSheet(this));
 
     m_viewportFrame = new ViewportFrame(m_vulkanContainer, this);
     connect(m_viewportFrame, &ViewportFrame::openSceneRequested,
@@ -630,7 +635,9 @@ void MainWindow::applyTargetSpp(uint32_t spp) {
 void MainWindow::applyDisplayEnhancementEnabled(bool enabled) {
     // Route through the panel so the checkbox, the menu entry and the renderer
     // cannot disagree; the panel's own signal carries the current parameters.
-    m_displayEnhancementPanel->setEnhancementEnabled(enabled);
+    // The *reporting* setter, not the silent one -- the silent one left the
+    // menu entry ticked and the renderer untouched.
+    m_displayEnhancementPanel->requestEnhancementEnabled(enabled);
 }
 
 // ============================================================================
@@ -1556,7 +1563,7 @@ void MainWindow::onAbout() {
            "<li>PBR materials with spectral extensions</li>"
            "<li>Atmospheric scattering</li>"
            "</ul>"
-           "<p>Copyright (c) 2025-2026 wtflmao</p>"));
+           "<p>Copyright (c) 2025-2026 blitzccolo</p>"));
 }
 
 void MainWindow::onShowShortcuts() {

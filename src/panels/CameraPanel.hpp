@@ -49,6 +49,8 @@ private slots:
 
 private:
     void setupUi();
+    /// Refresh the derived readout without reporting an edit.
+    void updateDistanceLabel();
 
     QGroupBox* m_poseGroup = nullptr;
     QLabel* m_positionCaption = nullptr;

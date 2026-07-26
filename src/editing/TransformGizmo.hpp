@@ -14,7 +14,7 @@
  * - Shift: Fine control (10x slower)
  * - Space: Toggle world/local coordinates
  *
- * @author wtflmao
+ * @author blitzccolo
  */
 
 #pragma once

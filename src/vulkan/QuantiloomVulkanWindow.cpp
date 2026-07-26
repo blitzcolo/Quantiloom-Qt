@@ -2,7 +2,7 @@
  * @file QuantiloomVulkanWindow.cpp
  * @brief QVulkanWindow subclass implementation
  *
- * @author wtflmao
+ * @author blitzccolo
  */
 
 #include "QuantiloomVulkanWindow.hpp"
@@ -115,6 +115,9 @@ QuantiloomVulkanWindow::~QuantiloomVulkanWindow() = default;
 QVulkanWindowRenderer* QuantiloomVulkanWindow::createRenderer() {
     m_renderer = new QuantiloomVulkanRenderer(this);
 
+    // The queued settings are *not* replayed here: there is no render context
+    // yet. The renderer calls applyDeferredSettings() once there is one.
+
     // Load pending scene if set before renderer was created
     if (!m_pendingScenePath.isEmpty()) {
         m_renderer->loadScene(m_pendingScenePath);
@@ -122,6 +125,28 @@ QVulkanWindowRenderer* QuantiloomVulkanWindow::createRenderer() {
     }
 
     return m_renderer;
+}
+
+void QuantiloomVulkanWindow::applyDeferredSettings() {
+    if (!m_renderer || m_deferredCalls.empty()) {
+        return;
+    }
+    // Settings first, scene second: the renderer keeps each setting as a
+    // member and re-applies it after a scene loads, so this order is the one
+    // that survives the load.
+    const auto calls = std::move(m_deferredCalls);
+    m_deferredCalls.clear();
+    for (const auto& call : calls) {
+        call(*m_renderer);
+    }
+}
+
+void QuantiloomVulkanWindow::withRenderer(std::function<void(QuantiloomVulkanRenderer&)> call) {
+    if (m_renderer) {
+        call(*m_renderer);
+        return;
+    }
+    m_deferredCalls.push_back(std::move(call));
 }
 
 void QuantiloomVulkanWindow::loadScene(const QString& filePath) {
@@ -134,16 +159,14 @@ void QuantiloomVulkanWindow::loadScene(const QString& filePath) {
 }
 
 void QuantiloomVulkanWindow::resetCamera() {
-    if (m_renderer) {
-        m_renderer->resetCamera();
-    }
+    withRenderer([](QuantiloomVulkanRenderer& r) { r.resetCamera(); });
 }
 
 void QuantiloomVulkanWindow::setCamera(const glm::vec3& position, const glm::vec3& lookAt,
                                         const glm::vec3& up, float fovY) {
-    if (m_renderer) {
-        m_renderer->setCamera(position, lookAt, up, fovY);
-    }
+    withRenderer([position, lookAt, up, fovY](QuantiloomVulkanRenderer& r) {
+        r.setCamera(position, lookAt, up, fovY);
+    });
 }
 
 void QuantiloomVulkanWindow::getCameraState(glm::vec3& position, glm::vec3& target,
@@ -159,33 +182,23 @@ void QuantiloomVulkanWindow::getCameraState(glm::vec3& position, glm::vec3& targ
 }
 
 void QuantiloomVulkanWindow::setCameraFovY(float fovY) {
-    if (m_renderer) {
-        m_renderer->setCameraFovY(fovY);
-    }
+    withRenderer([fovY](QuantiloomVulkanRenderer& r) { r.setCameraFovY(fovY); });
 }
 
 void QuantiloomVulkanWindow::setViewDirection(const glm::vec3& direction) {
-    if (m_renderer) {
-        m_renderer->setViewDirection(direction);
-    }
+    withRenderer([direction](QuantiloomVulkanRenderer& r) { r.setViewDirection(direction); });
 }
 
 void QuantiloomVulkanWindow::setSPP(uint32_t spp) {
-    if (m_renderer) {
-        m_renderer->setSPP(spp);
-    }
+    withRenderer([spp](QuantiloomVulkanRenderer& r) { r.setSPP(spp); });
 }
 
 void QuantiloomVulkanWindow::setSamplingSeed(uint32_t seed) {
-    if (m_renderer) {
-        m_renderer->setSamplingSeed(seed);
-    }
+    withRenderer([seed](QuantiloomVulkanRenderer& r) { r.setSamplingSeed(seed); });
 }
 
 void QuantiloomVulkanWindow::setWavelength(float wavelength_nm) {
-    if (m_renderer) {
-        m_renderer->setWavelength(wavelength_nm);
-    }
+    withRenderer([wavelength_nm](QuantiloomVulkanRenderer& r) { r.setWavelength(wavelength_nm); });
 }
 
 uint32_t QuantiloomVulkanWindow::currentSampleCount() const {
@@ -197,9 +210,7 @@ uint32_t QuantiloomVulkanWindow::targetSPP() const {
 }
 
 void QuantiloomVulkanWindow::setRenderPaused(bool paused) {
-    if (m_renderer) {
-        m_renderer->setPaused(paused);
-    }
+    withRenderer([paused](QuantiloomVulkanRenderer& r) { r.setPaused(paused); });
 }
 
 bool QuantiloomVulkanWindow::isRenderPaused() const {
@@ -212,21 +223,15 @@ QPointF QuantiloomVulkanWindow::toDevicePixels(const QPointF& logical) const {
 }
 
 void QuantiloomVulkanWindow::setSpectralMode(quantiloom::SpectralMode mode) {
-    if (m_renderer) {
-        m_renderer->setSpectralMode(mode);
-    }
+    withRenderer([mode](QuantiloomVulkanRenderer& r) { r.setSpectralMode(mode); });
 }
 
 void QuantiloomVulkanWindow::setDebugMode(quantiloom::DebugVisualizationMode mode) {
-    if (m_renderer) {
-        m_renderer->setDebugMode(mode);
-    }
+    withRenderer([mode](QuantiloomVulkanRenderer& r) { r.setDebugMode(mode); });
 }
 
 void QuantiloomVulkanWindow::setLightingParams(const quantiloom::LightingParams& params) {
-    if (m_renderer) {
-        m_renderer->setLightingParams(params);
-    }
+    withRenderer([params](QuantiloomVulkanRenderer& r) { r.setLightingParams(params); });
 }
 
 void QuantiloomVulkanWindow::updateMaterial(int index, const quantiloom::Material& material) {
@@ -276,15 +281,11 @@ std::unique_ptr<quantiloom::Image> QuantiloomVulkanWindow::captureDisplayImage()
 // ============================================================================
 
 void QuantiloomVulkanWindow::setAtmosphericPreset(const QString& preset) {
-    if (m_renderer) {
-        m_renderer->setAtmosphericPreset(preset);
-    }
+    withRenderer([preset](QuantiloomVulkanRenderer& r) { r.setAtmosphericPreset(preset); });
 }
 
 void QuantiloomVulkanWindow::setAtmosphericConfig(const quantiloom::AtmosphereNNConfig& config) {
-    if (m_renderer) {
-        m_renderer->setAtmosphericConfig(config);
-    }
+    withRenderer([config](QuantiloomVulkanRenderer& r) { r.setAtmosphericConfig(config); });
 }
 
 // ============================================================================
@@ -292,7 +293,13 @@ void QuantiloomVulkanWindow::setAtmosphericConfig(const quantiloom::AtmosphereNN
 // ============================================================================
 
 bool QuantiloomVulkanWindow::loadEnvironmentMap(const QString& hdrPath) {
-    return m_renderer ? m_renderer->loadEnvironmentMap(hdrPath) : false;
+    if (!m_renderer) {
+        // Queued rather than refused. Reporting false here would have the
+        // caller log a failure for a map that does load moments later.
+        withRenderer([hdrPath](QuantiloomVulkanRenderer& r) { r.loadEnvironmentMap(hdrPath); });
+        return true;
+    }
+    return m_renderer->loadEnvironmentMap(hdrPath);
 }
 
 // ============================================================================
@@ -300,22 +307,18 @@ bool QuantiloomVulkanWindow::loadEnvironmentMap(const QString& hdrPath) {
 // ============================================================================
 
 void QuantiloomVulkanWindow::setSensorEnabled(bool enabled) {
-    if (m_renderer) {
-        m_renderer->setSensorEnabled(enabled);
-    }
+    withRenderer([enabled](QuantiloomVulkanRenderer& r) { r.setSensorEnabled(enabled); });
 }
 
 void QuantiloomVulkanWindow::setSensorParams(const quantiloom::SensorParams& params) {
-    if (m_renderer) {
-        m_renderer->setSensorParams(params);
-    }
+    withRenderer([params](QuantiloomVulkanRenderer& r) { r.setSensorParams(params); });
 }
 
 void QuantiloomVulkanWindow::setDisplayEnhancement(bool enabled, float clipLimit,
                                                     int tileSize, bool luminanceOnly) {
-    if (m_renderer) {
-        m_renderer->setDisplayEnhancement(enabled, clipLimit, tileSize, luminanceOnly);
-    }
+    withRenderer([enabled, clipLimit, tileSize, luminanceOnly](QuantiloomVulkanRenderer& r) {
+        r.setDisplayEnhancement(enabled, clipLimit, tileSize, luminanceOnly);
+    });
 }
 
 // ============================================================================

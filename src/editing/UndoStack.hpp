@@ -6,7 +6,7 @@
  * Commands are objects with execute() and undo() methods.
  * No special cases - every operation is a command.
  *
- * @author wtflmao
+ * @author blitzccolo
  */
 
 #pragma once

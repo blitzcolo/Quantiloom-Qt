@@ -4,7 +4,7 @@
  *
  * Initializes Qt6 application with Vulkan support and launches main window.
  *
- * @author wtflmao
+ * @author blitzccolo
  */
 
 #include "MainWindow.hpp"
@@ -34,8 +34,8 @@ int main(int argc, char* argv[]) {
     // Set application metadata
     app.setApplicationName("Quantiloom");
     app.setApplicationVersion("0.1.1");
-    app.setOrganizationName("wtflmao");
-    app.setOrganizationDomain("github.com/wtflmao");
+    app.setOrganizationName("blitzccolo");
+    app.setOrganizationDomain("github.com/blitzccolo");
 
     // Load translations. From here on the language can also be changed at
     // runtime through Edit ▸ Preferences; LanguageManager swaps the translator

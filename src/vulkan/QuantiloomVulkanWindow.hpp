@@ -2,14 +2,16 @@
  * @file QuantiloomVulkanWindow.hpp
  * @brief QVulkanWindow subclass for Quantiloom rendering
  *
- * @author wtflmao
+ * @author blitzccolo
  */
 
 #pragma once
 
 #include <QVulkanWindow>
 #include <QString>
+#include <functional>
 #include <memory>
+#include <vector>
 #include <vulkan/vulkan.h>
 
 #include <glm/glm.hpp>
@@ -55,6 +57,26 @@ public:
      * @param filePath Path to glTF or TOML scene file
      */
     void loadScene(const QString& filePath);
+
+    /**
+     * @brief Replay the settings queued before the render context existed
+     *
+     * Called by the renderer once its ExternalRenderContext is up. It cannot
+     * be done when the renderer object is constructed: QVulkanWindow calls
+     * createRenderer() before initResources()/initSwapChainResources(), so at
+     * that point the renderer has no context and anything needing one -- the
+     * environment map above all -- would fail all over again.
+     */
+    void applyDeferredSettings();
+
+    /**
+     * @brief Whether the renderer exists yet
+     *
+     * QVulkanWindow builds it on first exposure, so there is a window in which
+     * this class exists and the renderer does not. Settings applied during it
+     * are queued, not lost -- see withRenderer().
+     */
+    [[nodiscard]] bool hasRenderer() const { return m_renderer != nullptr; }
 
     /**
      * @brief Reset camera to default position
@@ -352,7 +374,25 @@ private:
      */
     [[nodiscard]] QPointF toDevicePixels(const QPointF& logical) const;
 
+    /**
+     * @brief Apply a setting now, or record it until the renderer exists
+     *
+     * QVulkanWindow creates the renderer on first exposure. Every setter here
+     * used to be `if (m_renderer) ...`, which meant that a configuration
+     * applied before that moment was silently discarded -- the first scene
+     * opened after launch rendered with default lighting, no sensor model and
+     * no environment map, and only the second one looked right. The same hole
+     * swallowed settings across a minimize, which the pending scene path was
+     * already working around on its own.
+     *
+     * Recorded calls are replayed in order in createRenderer(). Every setter
+     * is idempotent, so replaying a value that was later overwritten is
+     * harmless.
+     */
+    void withRenderer(std::function<void(QuantiloomVulkanRenderer&)> call);
+
     QuantiloomVulkanRenderer* m_renderer = nullptr;
+    std::vector<std::function<void(QuantiloomVulkanRenderer&)>> m_deferredCalls;
     QString m_pendingScenePath;
 
     // Camera control state
