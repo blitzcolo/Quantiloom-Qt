@@ -308,6 +308,16 @@ signals:
     void cameraChanged();
 
     /**
+     * @brief A blocking operation is under way (first-run shader compilation)
+     *
+     * Reported rather than handled here: the renderer has no business owning
+     * an application-modal dialog, which is what it used to raise before the
+     * main window had appeared.
+     */
+    void longOperationStarted(const QString& description);
+    void longOperationFinished();
+
+    /**
      * @brief Emitted when the mouse moves over the viewport
      * @param x X coordinate in **device** pixels
      * @param y Y coordinate in **device** pixels

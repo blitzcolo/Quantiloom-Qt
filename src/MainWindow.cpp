@@ -29,6 +29,8 @@
 #include "i18n/LanguageManager.hpp"
 #include "ui/ModeCatalog.hpp"
 #include "ui/UiStyle.hpp"
+#include "ui/ViewportFrame.hpp"
+#include "ui/WorkspaceManager.hpp"
 
 #include <QApplication>
 #include <QGuiApplication>
@@ -121,6 +123,7 @@ MainWindow::MainWindow(QVulkanInstance* vulkanInstance, QWidget* parent)
     setupMenus();
     setupDockWidgets();
     setupToolBar();
+    setupWorkspaces();
     setupStatusBar();
     setupEditingSystem();
     setupConnections();
@@ -131,7 +134,10 @@ MainWindow::MainWindow(QVulkanInstance* vulkanInstance, QWidget* parent)
 
     retranslateUi();
     restoreWindowState();
+    m_workspaces->activateInitial();
     updateWindowTitle();
+
+    m_viewportFrame->setRecentFiles(recentFiles());
 }
 
 MainWindow::~MainWindow() = default;
@@ -171,7 +177,17 @@ void MainWindow::setupUi() {
     // owning a second copy of the logic.
     m_vulkanWindow->installEventFilter(this);
 
-    setCentralWidget(m_vulkanContainer);
+    m_viewportFrame = new ViewportFrame(m_vulkanContainer, this);
+    connect(m_viewportFrame, &ViewportFrame::openSceneRequested,
+            this, &MainWindow::onOpenScene);
+    connect(m_viewportFrame, &ViewportFrame::openRecentRequested,
+            this, [this](const QString& path) {
+                if (confirmDiscardChanges()) {
+                    openPath(path);
+                }
+            });
+
+    setCentralWidget(m_viewportFrame);
 }
 
 bool MainWindow::eventFilter(QObject* watched, QEvent* event) {
@@ -575,6 +591,7 @@ void MainWindow::applyDebugMode(quantiloom::DebugVisualizationMode mode) {
         m_debugCombo->setCurrentIndex(m_debugCombo->findData(static_cast<int>(mode)));
     }
     m_debugVisualizationPanel->setDebugMode(mode);
+    m_viewportFrame->setDebugMode(mode);
 
     showStatusMessage(tr("Debug mode: %1").arg(catalog::debugModeName(mode)));
 }
@@ -590,6 +607,7 @@ void MainWindow::applySpectralMode(quantiloom::SpectralMode mode) {
         m_spectralCombo->setCurrentIndex(m_spectralCombo->findData(static_cast<int>(mode)));
     }
     m_spectralConfigPanel->setSpectralMode(mode);
+    m_viewportFrame->setSpectralMode(mode);
 
     setSceneModified(true);
     showStatusMessage(tr("Spectral mode: %1").arg(catalog::spectralModeName(mode)));
@@ -674,8 +692,6 @@ void MainWindow::setupDockWidgets() {
     // export -- and wants width, so it takes the bottom edge. Floating it out
     // of the window is what the panel's own "Detach" button used to fake.
     createPanelDock(m_spectralMaterialGenPanel, Qt::BottomDockWidgetArea);
-
-    applyDefaultLayout();
 
     // Connect panel signals
     connect(m_sceneTreePanel, &SceneTreePanel::nodeSelected,
@@ -790,6 +806,53 @@ void MainWindow::setupDockWidgets() {
                     ? tr("Display enhancement on (CLAHE: clip %1, %2x%2 tiles)")
                         .arg(clipLimit, 0, 'f', 1).arg(tileSize)
                     : tr("Display enhancement off"));
+            });
+}
+
+void MainWindow::setupWorkspaces() {
+    m_workspaces = new WorkspaceManager(this, this);
+    for (auto it = m_docks.constBegin(); it != m_docks.constEnd(); ++it) {
+        m_workspaces->registerDock(it.key(), it.value());
+    }
+
+    // The tab bar rides in its own immovable toolbar above the main one, so it
+    // reads as part of the window chrome rather than as a floating widget.
+    auto* workspaceBar = new QToolBar(this);
+    workspaceBar->setObjectName(QStringLiteral("toolbar_workspaces"));
+    workspaceBar->setMovable(false);
+    workspaceBar->setFloatable(false);
+    workspaceBar->addWidget(m_workspaces->tabBar());
+    insertToolBar(m_mainToolBar, workspaceBar);
+    addToolBarBreak();
+
+    // Same switch from the View menu, with a shortcut each.
+    m_workspaceMenu = new QMenu(this);
+    auto* group = new QActionGroup(this);
+    group->setExclusive(true);
+    int index = 0;
+    for (const QString& id : WorkspaceManager::workspaceIds()) {
+        QAction* action = m_workspaceMenu->addAction(QString());
+        action->setCheckable(true);
+        action->setData(id);
+        action->setShortcut(QKeySequence(Qt::CTRL | static_cast<Qt::Key>(Qt::Key_1 + index)));
+        group->addAction(action);
+        connect(action, &QAction::triggered, this, [this, id]() {
+            m_workspaces->setCurrentWorkspace(id);
+        });
+        m_workspaceActions.append(action);
+        ++index;
+    }
+    // Placed above the panel list: choosing a workspace is the coarse move,
+    // toggling one panel the fine one.
+    m_viewMenu->insertMenu(m_panelsMenu->menuAction(), m_workspaceMenu);
+
+    connect(m_workspaces, &WorkspaceManager::workspaceChanged, this,
+            [this](const QString& id) {
+                for (QAction* action : std::as_const(m_workspaceActions)) {
+                    action->setChecked(action->data().toString() == id);
+                }
+                showStatusMessage(tr("Workspace: %1")
+                                      .arg(WorkspaceManager::workspaceTitle(id)));
             });
 }
 
@@ -911,6 +974,9 @@ void MainWindow::setupConnections() {
                     applyPendingMaterialConfigs();
                     showStatusMessage(message);
                 } else {
+                    // Back to the guidance page: an empty viewport with no
+                    // explanation is what the frame exists to avoid.
+                    m_viewportFrame->setSceneLoaded(false);
                     QMessageBox::warning(this, tr("Scene Load Failed"), message);
                     showStatusMessage(tr("Failed to load scene"));
                 }
@@ -927,6 +993,19 @@ void MainWindow::setupConnections() {
     // Keep the camera panel in step with orbit, pan, zoom and fly.
     connect(m_vulkanWindow, &QuantiloomVulkanWindow::cameraChanged,
             this, &MainWindow::onCameraChanged);
+
+    // First-run shader compilation used to be an application-modal dialog
+    // raised before the window appeared. It reports beside the viewport now.
+    connect(m_vulkanWindow, &QuantiloomVulkanWindow::longOperationStarted,
+            this, [this](const QString& description) {
+                m_viewportFrame->setBusyMessage(description);
+                showStatusMessage(description, 0);
+            });
+    connect(m_vulkanWindow, &QuantiloomVulkanWindow::longOperationFinished,
+            this, [this]() {
+                m_viewportFrame->setBusyMessage(QString());
+                showStatusMessage(tr("Ready"));
+            });
 }
 
 void MainWindow::setupEditingSystem() {
@@ -1038,6 +1117,16 @@ void MainWindow::retranslateUi() {
     m_preferencesAction->setText(tr("&Preferences..."));
 
     m_viewMenu->setTitle(tr("&View"));
+    if (m_workspaceMenu) {
+        m_workspaceMenu->setTitle(tr("&Workspace"));
+        for (QAction* action : std::as_const(m_workspaceActions)) {
+            action->setText(WorkspaceManager::workspaceTitle(action->data().toString()));
+        }
+        m_workspaces->retranslateUi();
+    }
+    if (m_viewportFrame) {
+        m_viewportFrame->retranslateUi();
+    }
     m_panelsMenu->setTitle(tr("&Panels"));
     m_resetLayoutAction->setText(tr("&Reset Layout"));
     m_cameraMenu->setTitle(tr("&Camera"));
@@ -1153,6 +1242,9 @@ void MainWindow::setCurrentDocument(const QString& filePath) {
         m_currentConfigFile = filePath;
     }
     rememberRecentFile(filePath);
+    if (m_viewportFrame) {
+        m_viewportFrame->setRecentFiles(recentFiles());
+    }
     updateWindowTitle();
 }
 
@@ -1246,8 +1338,11 @@ void MainWindow::rebuildRecentMenu() {
 void MainWindow::saveWindowState() const {
     QSettings settings;
     settings.setValue(kGeometryKey, saveGeometry());
-    settings.setValue(kStateKey, saveState(kWindowStateVersion));
     settings.setValue(kStateVersionKey, kWindowStateVersion);
+    // Dock arrangements are stored per workspace rather than as one blob, so
+    // a personal layout in one workspace does not follow the user into
+    // another.
+    m_workspaces->save(settings);
 }
 
 void MainWindow::restoreWindowState() {
@@ -1262,10 +1357,7 @@ void MainWindow::restoreWindowState() {
     if (!geometry.isEmpty()) {
         restoreGeometry(geometry);
     }
-    const QByteArray state = settings.value(kStateKey).toByteArray();
-    if (!state.isEmpty()) {
-        restoreState(state, kWindowStateVersion);
-    }
+    m_workspaces->restore(settings);
 }
 
 void MainWindow::closeEvent(QCloseEvent* event) {
@@ -1302,6 +1394,14 @@ void MainWindow::onOpenScene() {
     }
 }
 
+void MainWindow::openFromCommandLine(const QString& filePath) {
+    if (!QFileInfo::exists(filePath)) {
+        showStatusMessage(tr("No such file: %1").arg(filePath));
+        return;
+    }
+    openPath(filePath);
+}
+
 bool MainWindow::openPath(const QString& filePath) {
     if (filePath.endsWith(QLatin1String(".toml"), Qt::CaseInsensitive)) {
         SceneConfig config;
@@ -1322,6 +1422,11 @@ bool MainWindow::openPath(const QString& filePath) {
     // save over -- Save will ask for a destination the first time.
     m_currentSceneFile = filePath;
     m_currentConfigFile.clear();
+    // Show the render surface *before* asking for the load: the Vulkan window
+    // only creates its renderer once it is exposed, so keeping the guidance
+    // page up until the scene reports success would wait on a renderer that
+    // was itself waiting to be shown.
+    m_viewportFrame->setSceneLoaded(true);
     m_vulkanWindow->loadScene(filePath);
     setSceneModified(false);
     setCurrentDocument(filePath);
@@ -1432,8 +1537,11 @@ void MainWindow::onResetCamera() {
 }
 
 void MainWindow::onResetLayout() {
-    applyDefaultLayout();
-    showStatusMessage(tr("Layout reset"));
+    // Per workspace, not globally: a user who has rearranged the debug
+    // workspace should not lose their layout work everywhere else.
+    m_workspaces->resetCurrentToDefault();
+    showStatusMessage(tr("Layout reset for %1")
+                          .arg(WorkspaceManager::workspaceTitle(m_workspaces->currentWorkspace())));
 }
 
 void MainWindow::onTakeScreenshot() {
@@ -1749,6 +1857,7 @@ void MainWindow::applyConfig(const SceneConfig& config) {
 
     if (!scenePath.isEmpty()) {
         m_currentSceneFile = scenePath;
+        m_viewportFrame->setSceneLoaded(true);
         m_vulkanWindow->loadScene(scenePath);
     }
 

@@ -87,6 +87,14 @@ int main(int argc, char* argv[]) {
     MainWindow mainWindow(&vulkanInstance);
     mainWindow.show();
 
+    // A path on the command line opens like File ▸ Open. The window edits a
+    // document now, and a document-shaped application is expected to accept
+    // one this way.
+    const QStringList arguments = QApplication::arguments();
+    if (arguments.size() > 1) {
+        mainWindow.openFromCommandLine(arguments.at(1));
+    }
+
     int result = app.exec();
 
     // Cleanup libQuantiloom logging

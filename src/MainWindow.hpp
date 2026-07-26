@@ -55,6 +55,8 @@ class SensorPanel;
 class DisplayEnhancementPanel;
 class SpectralMaterialGenPanel;
 class ConfigManager;
+class ViewportFrame;
+class WorkspaceManager;
 class SelectionManager;
 class TransformGizmo;
 class UndoStack;
@@ -80,6 +82,9 @@ class MainWindow : public QMainWindow {
 public:
     explicit MainWindow(QVulkanInstance* vulkanInstance, QWidget* parent = nullptr);
     ~MainWindow() override;
+
+    /// Open a path given on the command line, exactly as File ▸ Open would.
+    void openFromCommandLine(const QString& filePath);
 
 protected:
     void closeEvent(QCloseEvent* event) override;
@@ -197,9 +202,17 @@ private:
     // Vulkan instance (owned by main())
     QVulkanInstance* m_vulkanInstance = nullptr;
 
-    // Vulkan viewport
+    // Vulkan viewport, wrapped in the frame that carries the mode strip, the
+    // empty state and the non-modal progress line.
     QuantiloomVulkanWindow* m_vulkanWindow = nullptr;
     QWidget* m_vulkanContainer = nullptr;
+    ViewportFrame* m_viewportFrame = nullptr;
+
+    // Workspaces: one preset dock arrangement per stage of the work.
+    WorkspaceManager* m_workspaces = nullptr;
+    QMenu* m_workspaceMenu = nullptr;
+    QList<QAction*> m_workspaceActions;
+    void setupWorkspaces();
 
     // One dock per panel, keyed by the panel's own id. The ten panels used to
     // be ten tabs of a single dock, so only one could ever be on screen and

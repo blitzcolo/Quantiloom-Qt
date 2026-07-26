@@ -22,7 +22,6 @@
 #include <QDir>
 #include <QObject>
 #include <QDebug>
-#include <QProgressDialog>
 #include <QApplication>
 #include <QTimer>
 #include <QStandardPaths>
@@ -232,36 +231,16 @@ void QuantiloomVulkanRenderer::loadScene(const QString& filePath) {
         return;
     }
 
-    // Check if this is the first run (no pipeline cache)
-    QProgressDialog* progressDialog = nullptr;
-    if (isFirstRun()) {
-        qDebug() << "  First run detected - showing shader compilation dialog";
-
-        // Create modal progress dialog
-        // Note: Using nullptr as parent since QVulkanWindow is not a QWidget
-        progressDialog = new QProgressDialog(
-            QObject::tr("Compiling and loading shaders...\nIt may take a few minutes."),
-            QString(),  // No cancel button
-            0, 0,       // Indeterminate progress
-            nullptr
-        );
-        progressDialog->setWindowTitle(QObject::tr("Initializing"));
-        progressDialog->setWindowModality(Qt::ApplicationModal);
-        progressDialog->setMinimumDuration(0);  // Show immediately
-        progressDialog->setCancelButton(nullptr);  // Remove cancel button
-        progressDialog->setAutoClose(true);
-        progressDialog->setAutoReset(true);
-        progressDialog->setMinimumWidth(350);
-
-        // Make dialog non-closable
-        progressDialog->setWindowFlags(
-            Qt::Dialog | Qt::CustomizeWindowHint | Qt::WindowTitleHint
-        );
-
-        // Show dialog and process events to ensure it's displayed
-        progressDialog->show();
-        progressDialog->raise();
-        progressDialog->activateWindow();
+    // First run compiles every pipeline, which takes minutes. This used to
+    // raise an application-modal dialog with no cancel button before the
+    // window had even appeared; it reports through the shell now, which shows
+    // it beside the viewport and stays interactive.
+    const bool compilingShaders = isFirstRun();
+    if (compilingShaders) {
+        qDebug() << "  First run detected - shaders will be compiled";
+        emit m_window->longOperationStarted(
+            QObject::tr("Compiling shaders — first run may take a few minutes"));
+        // One pass so the message is painted before the blocking load begins.
         QApplication::processEvents();
     }
 
@@ -280,10 +259,8 @@ void QuantiloomVulkanRenderer::loadScene(const QString& filePath) {
         result = m_renderContext->LoadSceneFromGltf(path);
     }
 
-    // Close progress dialog
-    if (progressDialog) {
-        progressDialog->close();
-        progressDialog->deleteLater();
+    if (compilingShaders) {
+        emit m_window->longOperationFinished();
     }
 
     qDebug() << "  Scene load returned";

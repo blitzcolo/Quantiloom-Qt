@@ -25,7 +25,6 @@ struct ComplexRefractiveIndex;
 }
 
 class QuantiloomVulkanWindow;
-class QProgressDialog;
 
 namespace quantiloom {
 class ExternalRenderContext;
@@ -237,9 +236,6 @@ private:
 
     // Check if this is the first run (no pipeline cache)
     bool isFirstRun() const;
-
-    // Show shader compilation progress dialog
-    void showShaderCompilationDialog();
 
     QuantiloomVulkanWindow* m_window;
 
