@@ -14,7 +14,7 @@
  * lie in place of the old one. What the panel does state is which parameter
  * block each group feeds.
  *
- * @author blitzccolo
+ * @author blitzcolo
  */
 
 #pragma once

@@ -2,7 +2,7 @@
  * @file QuantiloomVulkanWindow.cpp
  * @brief QVulkanWindow subclass implementation
  *
- * @author blitzccolo
+ * @author blitzcolo
  */
 
 #include "QuantiloomVulkanWindow.hpp"

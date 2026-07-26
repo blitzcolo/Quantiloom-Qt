@@ -2,7 +2,7 @@
  * @file QuantiloomVulkanWindow.hpp
  * @brief QVulkanWindow subclass for Quantiloom rendering
  *
- * @author blitzccolo
+ * @author blitzcolo
  */
 
 #pragma once

@@ -2,7 +2,7 @@
  * @file MainWindow.cpp
  * @brief Main application window implementation
  *
- * @author blitzccolo
+ * @author blitzcolo
  */
 
 #include "MainWindow.hpp"
@@ -1629,7 +1629,7 @@ void MainWindow::onAbout() {
            "<li>PBR materials with spectral extensions</li>"
            "<li>Atmospheric scattering</li>"
            "</ul>"
-           "<p>Copyright (c) 2025-2026 blitzccolo</p>"));
+           "<p>Copyright (c) 2025-2026 blitzcolo</p>"));
 }
 
 void MainWindow::onShowShortcuts() {

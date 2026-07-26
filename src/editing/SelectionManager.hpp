@@ -5,7 +5,7 @@
  * Core data structure: a set of selected node indices.
  * Simple, no special cases, just a container with signals.
  *
- * @author blitzccolo
+ * @author blitzcolo
  */
 
 #pragma once

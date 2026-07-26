@@ -2,7 +2,7 @@
  * @file QuantiloomVulkanRenderer.cpp
  * @brief QVulkanWindowRenderer adapter implementation
  *
- * @author blitzccolo
+ * @author blitzcolo
  */
 
 #include "QuantiloomVulkanRenderer.hpp"
@@ -606,7 +606,7 @@ bool QuantiloomVulkanRenderer::isFirstRun() const {
     // Ask the SDK where that file is rather than rebuilding the path here. The
     // reconstruction this replaced -- QStandardPaths::CacheLocation plus
     // "/Quantiloom/cache" -- double-counted the application name and produced
-    // .../Local/blitzccolo/Quantiloom/cache/Quantiloom/cache/pipeline_cache.bin,
+    // .../Local/blitzcolo/Quantiloom/cache/Quantiloom/cache/pipeline_cache.bin,
     // which cannot exist. isFirstRun() was therefore always true: every scene
     // load raised the "compiling shaders" banner and pumped the event loop,
     // however warm the cache actually was.

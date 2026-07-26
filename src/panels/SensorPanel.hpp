@@ -2,7 +2,7 @@
  * @file SensorPanel.hpp
  * @brief Panel for sensor simulation configuration
  *
- * @author blitzccolo
+ * @author blitzcolo
  */
 
 #pragma once

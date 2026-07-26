@@ -2,7 +2,7 @@
  * @file SensorPanel.cpp
  * @brief Panel for sensor simulation configuration - Implementation
  *
- * @author blitzccolo
+ * @author blitzcolo
  */
 
 #include "SensorPanel.hpp"
