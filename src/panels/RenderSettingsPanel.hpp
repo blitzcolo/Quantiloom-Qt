@@ -39,15 +39,15 @@ public:
 
 signals:
     void sppChanged(uint32_t spp);
-    void resolutionChanged(uint32_t width, uint32_t height);
-    void exportRequested(const QString& format);
+    /// Asks the shell to run its one image export path. The panel used to
+    /// raise its own save dialog and emit a format string that nothing
+    /// listened for, so choosing a file did nothing at all.
+    void exportRequested();
     void resetAccumulationRequested();
 
 private slots:
     void onSppPresetChanged(int index);
     void onCustomSppChanged(int value);
-    void onResolutionPresetChanged(int index);
-    void onExportClicked();
     void onResetClicked();
 
 private:
@@ -63,7 +63,6 @@ private:
     QLabel* m_sampleCountLabel = nullptr;
     QComboBox* m_sppPreset = nullptr;
     QSpinBox* m_customSpp = nullptr;
-    QComboBox* m_resolutionPreset = nullptr;
     QLabel* m_resolutionLabel = nullptr;
     QPushButton* m_exportBtn = nullptr;
     QPushButton* m_resetBtn = nullptr;

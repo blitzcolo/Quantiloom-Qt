@@ -161,7 +161,9 @@ void QuantiloomVulkanRenderer::startNextFrame() {
     if (!m_renderContext || !m_renderContext->HasScene()) {
         // No scene loaded yet, just present empty frame
         m_window->frameReady();
-        m_window->requestUpdate();
+        if (!m_paused) {
+            m_window->requestUpdate();
+        }
         return;
     }
 
@@ -196,9 +198,23 @@ void QuantiloomVulkanRenderer::startNextFrame() {
     // Emit frame rendered signal
     emit m_window->frameRendered(m_lastFrameTimeMs, m_sampleCount);
 
-    // Signal frame ready and request next frame
+    // Signal frame ready and request next frame. The frame in flight is always
+    // completed -- stopping before the render would present an undefined
+    // swapchain image -- so a pause takes effect from the next frame on.
     m_window->frameReady();
-    m_window->requestUpdate();
+    if (!m_paused) {
+        m_window->requestUpdate();
+    }
+}
+
+void QuantiloomVulkanRenderer::setPaused(bool paused) {
+    if (m_paused == paused) {
+        return;
+    }
+    m_paused = paused;
+    if (!m_paused) {
+        m_window->requestUpdate();
+    }
 }
 
 void QuantiloomVulkanRenderer::loadScene(const QString& filePath) {

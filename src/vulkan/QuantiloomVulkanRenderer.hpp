@@ -71,6 +71,18 @@ public:
     int addComplexRefractiveIndex(const quantiloom::ComplexRefractiveIndex& cri);
     void resetAccumulation();
     uint32_t currentSampleCount() const { return m_sampleCount; }
+    uint32_t targetSPP() const { return m_targetSPP; }
+
+    /**
+     * @brief Suspend or resume progressive accumulation
+     *
+     * Purely a GUI-side throttle: while paused the renderer finishes the
+     * frame in flight and then stops asking for another, so the last image
+     * stays on screen and the sample count stops climbing. Nothing about how
+     * a frame is rendered changes -- that all still belongs to the SDK.
+     */
+    void setPaused(bool paused);
+    bool isPaused() const { return m_paused; }
 
     // Camera setup from config
     void setCamera(const glm::vec3& position, const glm::vec3& lookAt,
@@ -231,6 +243,7 @@ private:
     // Accumulation state
     uint32_t m_sampleCount = 0;
     uint32_t m_targetSPP = 4;  // Default SPP for preview
+    bool m_paused = false;
 
     // Camera state
     glm::vec3 m_cameraPosition{0.0f, 1.0f, 5.0f};

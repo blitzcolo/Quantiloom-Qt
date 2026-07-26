@@ -168,6 +168,25 @@ uint32_t QuantiloomVulkanWindow::currentSampleCount() const {
     return m_renderer ? m_renderer->currentSampleCount() : 0;
 }
 
+uint32_t QuantiloomVulkanWindow::targetSPP() const {
+    return m_renderer ? m_renderer->targetSPP() : 0;
+}
+
+void QuantiloomVulkanWindow::setRenderPaused(bool paused) {
+    if (m_renderer) {
+        m_renderer->setPaused(paused);
+    }
+}
+
+bool QuantiloomVulkanWindow::isRenderPaused() const {
+    return m_renderer && m_renderer->isPaused();
+}
+
+QPointF QuantiloomVulkanWindow::toDevicePixels(const QPointF& logical) const {
+    const qreal ratio = devicePixelRatio();
+    return QPointF(logical.x() * ratio, logical.y() * ratio);
+}
+
 void QuantiloomVulkanWindow::setSpectralMode(quantiloom::SpectralMode mode) {
     if (m_renderer) {
         m_renderer->setSpectralMode(mode);
@@ -437,15 +456,15 @@ void QuantiloomVulkanWindow::keyReleaseEvent(QKeyEvent* event) {
 void QuantiloomVulkanWindow::mousePressEvent(QMouseEvent* event) {
     if (event->button() == Qt::LeftButton) {
         // Always emit for debug value display (regardless of edit mode)
-        QPointF pos = event->position();
-        emit mouseHovered(static_cast<int>(pos.x()), static_cast<int>(pos.y()));
+        const QPointF device = toDevicePixels(event->position());
+        emit mouseHovered(static_cast<int>(device.x()), static_cast<int>(device.y()));
 
         if (m_editMode) {
             // Edit mode: Left click for selection or transform start
             if (m_selection && m_selection->hasSelection() && m_gizmo) {
                 // Start transform drag
                 m_transformDragging = true;
-                m_transformDragStart = event->position();
+                m_transformDragStart = toDevicePixels(event->position());
 
                 qDebug() << "Starting transform drag - hasSelection:" << m_selection->hasSelection()
                          << "count:" << m_selection->selectionCount();
@@ -461,11 +480,11 @@ void QuantiloomVulkanWindow::mousePressEvent(QMouseEvent* event) {
                     qDebug() << "  Pivot:" << pivot.x << pivot.y << pivot.z;
                 }
 
-                m_gizmo->beginDrag(event->position(), camPos, camFwd, camRight, camUp);
+                m_gizmo->beginDrag(m_transformDragStart, camPos, camFwd, camRight, camUp);
             } else {
                 qDebug() << "No selection - emitting viewportClicked";
                 // Click for selection
-                emit viewportClicked(event->position());
+                emit viewportClicked(device);
             }
         }
         event->accept();
@@ -474,7 +493,7 @@ void QuantiloomVulkanWindow::mousePressEvent(QMouseEvent* event) {
 
     if (event->button() == Qt::RightButton || event->button() == Qt::MiddleButton) {
         m_mousePressed = true;
-        m_lastMousePos = event->position();
+        m_lastMousePos = toDevicePixels(event->position());
         event->accept();
     } else {
         QVulkanWindow::mousePressEvent(event);
@@ -503,14 +522,15 @@ void QuantiloomVulkanWindow::mouseReleaseEvent(QMouseEvent* event) {
 void QuantiloomVulkanWindow::mouseMoveEvent(QMouseEvent* event) {
     // Transform dragging has priority
     if (m_transformDragging && m_gizmo && m_gizmo->isDragging()) {
-        m_gizmo->updateDrag(event->position());
+        m_gizmo->updateDrag(toDevicePixels(event->position()));
         event->accept();
         return;
     }
 
     if (m_mousePressed && m_renderer) {
-        QPointF delta = event->position() - m_lastMousePos;
-        m_lastMousePos = event->position();
+        const QPointF device = toDevicePixels(event->position());
+        QPointF delta = device - m_lastMousePos;
+        m_lastMousePos = device;
 
         if (event->buttons() & Qt::RightButton) {
             // Right drag: orbit camera
@@ -545,8 +565,8 @@ void QuantiloomVulkanWindow::wheelEvent(QWheelEvent* event) {
 bool QuantiloomVulkanWindow::event(QEvent* event) {
     if (event->type() == QEvent::HoverMove) {
         auto* hoverEvent = static_cast<QHoverEvent*>(event);
-        QPointF pos = hoverEvent->position();
-        emit mouseHovered(static_cast<int>(pos.x()), static_cast<int>(pos.y()));
+        const QPointF device = toDevicePixels(hoverEvent->position());
+        emit mouseHovered(static_cast<int>(device.x()), static_cast<int>(device.y()));
         // Don't accept - let base class handle too
     }
     return QVulkanWindow::event(event);

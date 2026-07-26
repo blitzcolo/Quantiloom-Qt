@@ -9,14 +9,12 @@
 
 #include "MainWindow.hpp"
 #include "SdkGuard.hpp"
+#include "i18n/LanguageManager.hpp"
 
 #include <QApplication>
 #include <QVulkanInstance>
 #include <QLoggingCategory>
 #include <QMessageBox>
-#include <QTranslator>
-#include <QLocale>
-#include <QSettings>
 
 #include <core/Log.hpp>  // libQuantiloom logging
 
@@ -39,37 +37,10 @@ int main(int argc, char* argv[]) {
     app.setOrganizationName("wtflmao");
     app.setOrganizationDomain("github.com/wtflmao");
 
-    // Load translations
-    QTranslator translator;
-
-    // Check for saved language preference first
-    QSettings settings;
-    QString savedLocale = settings.value("language", "").toString();
-
-    bool translationLoaded = false;
-
-    if (!savedLocale.isEmpty()) {
-        // Use saved language preference
-        const QString baseName = "quantiloom_" + savedLocale;
-        if (translator.load(baseName, app.applicationDirPath())) {
-            app.installTranslator(&translator);
-            qDebug() << "Loaded translation:" << baseName << "(user preference)";
-            translationLoaded = true;
-        }
-    }
-
-    if (!translationLoaded) {
-        // Fall back to system locale
-        const QStringList uiLanguages = QLocale::system().uiLanguages();
-        for (const QString& locale : uiLanguages) {
-            const QString baseName = "quantiloom_" + QLocale(locale).name();
-            if (translator.load(baseName, app.applicationDirPath())) {
-                app.installTranslator(&translator);
-                qDebug() << "Loaded translation:" << baseName << "(system locale)";
-                break;
-            }
-        }
-    }
+    // Load translations. From here on the language can also be changed at
+    // runtime through Edit ▸ Preferences; LanguageManager swaps the translator
+    // and Qt notifies every widget, so nothing here is startup-only.
+    LanguageManager::instance().applyStoredPreference();
 
     // Verify this binary and the Quantiloom library it is about to load came
     // from the same SDK install. Placed after the translators so the message is

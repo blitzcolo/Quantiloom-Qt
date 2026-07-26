@@ -120,6 +120,17 @@ public:
     uint32_t currentSampleCount() const;
 
     /**
+     * @brief Target sample count the accumulation is working towards
+     */
+    uint32_t targetSPP() const;
+
+    /**
+     * @brief Suspend or resume progressive accumulation (Render ▸ Stop/Start)
+     */
+    void setRenderPaused(bool paused);
+    [[nodiscard]] bool isRenderPaused() const;
+
+    /**
      * @brief Get current scene (may be null)
      */
     const quantiloom::Scene* getScene() const;
@@ -276,9 +287,14 @@ signals:
     void editModeChanged(bool editMode);
 
     /**
-     * @brief Emitted when mouse hovers over viewport (for debug value display)
-     * @param x X coordinate in pixels
-     * @param y Y coordinate in pixels
+     * @brief Emitted when the mouse moves over the viewport
+     * @param x X coordinate in **device** pixels
+     * @param y Y coordinate in **device** pixels
+     *
+     * Device, not logical, pixels: the framebuffer these index into is
+     * allocated at the swapchain's physical size. The two agree only at 100%
+     * scaling, and the reading used to drift further off the cursor the
+     * further right and down it went on any scaled display.
      */
     void mouseHovered(int x, int y);
 
@@ -293,6 +309,17 @@ protected:
 
 private:
     friend class QuantiloomVulkanRenderer;
+
+    /**
+     * @brief Convert a Qt pointer position to device pixels
+     *
+     * The single crossing point between interface coordinates and renderer
+     * coordinates. Everything that hands a pointer position to the render
+     * side -- debug pixel readout, gizmo dragging, camera drag deltas -- goes
+     * through here, so a fractional scale factor cannot desynchronise one of
+     * them while the others stay correct.
+     */
+    [[nodiscard]] QPointF toDevicePixels(const QPointF& logical) const;
 
     QuantiloomVulkanRenderer* m_renderer = nullptr;
     QString m_pendingScenePath;

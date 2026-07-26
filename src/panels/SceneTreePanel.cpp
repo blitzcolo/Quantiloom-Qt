@@ -32,26 +32,10 @@ SceneTreePanel::SceneTreePanel(QWidget* parent)
 
     layout->addWidget(m_tree, 1);  // stretch factor 1
 
-    // Operation hints group
-    auto* hintsGroup = new QGroupBox(tr("Controls"));
-    auto* hintsLayout = new QVBoxLayout(hintsGroup);
-    hintsLayout->setContentsMargins(6, 6, 6, 6);
-    hintsLayout->setSpacing(2);
-
-    auto* hintsLabel = new QLabel();
-    hintsLabel->setWordWrap(true);
-    hintsLabel->setStyleSheet("QLabel { color: #888; font-size: 11px; }");
-    hintsLabel->setText(
-        tr("<b>Selection:</b> Click node above<br>"
-           "<b>Transform:</b> Select node, then Left-drag in viewport<br>"
-           "<b>Mode:</b> G=Move, R=Rotate, T=Scale<br>"
-           "<b>Axis:</b> X/Y/Z to constrain<br>"
-           "<b>Camera:</b> Right-drag=Orbit, Middle-drag=Pan, Wheel=Zoom<br>"
-           "<b>Undo:</b> Ctrl+Z / Ctrl+Y")
-    );
-
-    hintsLayout->addWidget(hintsLabel);
-    layout->addWidget(hintsGroup);
+    // The paragraph of grey 11px text that used to live here -- the only place
+    // the key bindings were written down -- has moved to Help ▸ Keyboard
+    // Shortcuts, where it is generated from the bindings that are actually
+    // registered instead of retyped and left to drift.
 
     connect(m_tree, &QTreeWidget::itemClicked, this, &SceneTreePanel::onItemClicked);
 }

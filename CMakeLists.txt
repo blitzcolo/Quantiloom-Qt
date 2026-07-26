@@ -171,6 +171,22 @@ set(GUI_SOURCES
     src/SdkGuard.hpp
     src/MainWindow.cpp
     src/MainWindow.hpp
+    # Shared UI infrastructure
+    src/ui/PanelBase.cpp
+    src/ui/PanelBase.hpp
+    src/ui/ModeCatalog.cpp
+    src/ui/ModeCatalog.hpp
+    src/ui/UiStyle.cpp
+    src/ui/UiStyle.hpp
+    src/ui/CollapsibleGroupBox.cpp
+    src/ui/CollapsibleGroupBox.hpp
+    src/ui/ViewportFrame.cpp
+    src/ui/ViewportFrame.hpp
+    src/ui/WorkspaceManager.cpp
+    src/ui/WorkspaceManager.hpp
+    # Runtime language switching
+    src/i18n/LanguageManager.cpp
+    src/i18n/LanguageManager.hpp
     src/vulkan/QuantiloomVulkanWindow.cpp
     src/vulkan/QuantiloomVulkanWindow.hpp
     src/vulkan/QuantiloomVulkanRenderer.cpp
@@ -209,8 +225,10 @@ set(GUI_SOURCES
     src/editing/TransformGizmo.cpp
     src/editing/TransformGizmo.hpp
     # Dialogs
-    src/dialogs/SettingsDialog.cpp
-    src/dialogs/SettingsDialog.hpp
+    src/dialogs/PreferencesDialog.cpp
+    src/dialogs/PreferencesDialog.hpp
+    src/dialogs/HelpDialog.cpp
+    src/dialogs/HelpDialog.hpp
 )
 
 # ============================================================================

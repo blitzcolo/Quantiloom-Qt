@@ -10,6 +10,7 @@
 #include <QMainWindow>
 #include <QVulkanInstance>
 #include <QSet>
+#include <QStringList>
 #include <memory>
 #include <vector>
 
@@ -24,6 +25,8 @@ class QStatusBar;
 class QProgressBar;
 class QLabel;
 class QAction;
+class QMenu;
+class QScrollArea;
 QT_END_NAMESPACE
 
 namespace quantiloom {
@@ -57,6 +60,11 @@ struct SceneConfig;
  * - Center: Vulkan 3D viewport (QuantiloomVulkanWindow)
  * - Left: Parameter panels in tabbed dock widget
  * - Bottom: Status bar with render info
+ *
+ * The document this window edits is the TOML scene configuration: File ▸ Open
+ * accepts a config or a bare model, and Save writes a config back. There is
+ * deliberately no second "import/export configuration" pair — two entries
+ * differing only in wording for the same file is what the previous menu had.
  */
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -67,15 +75,13 @@ public:
 
 protected:
     void closeEvent(QCloseEvent* event) override;
-    bool eventFilter(QObject* watched, QEvent* event) override;
+    void changeEvent(QEvent* event) override;
 
 private slots:
     // File menu actions
-    void onNewScene();
     void onOpenScene();
-    void onSaveScene();
-    void onImportConfig();
-    void onExportConfig();
+    bool onSaveScene();
+    bool onSaveSceneAs();
     void onExportImage();
 
     // Render menu actions
@@ -84,14 +90,16 @@ private slots:
 
     // View menu actions
     void onResetCamera();
+    void onResetLayout();
     void onTakeScreenshot();
 
     // Help menu actions
     void onAbout();
+    void onShowShortcuts();
+    void onShowDebugReference();
 
-    // Settings menu actions
-    void onLanguageChanged(const QString& locale);
-    void onSettings();
+    // Edit menu actions
+    void onPreferences();
 
     // Status updates
     void onFrameRendered(float frameTimeMs, uint32_t sampleCount);
@@ -126,7 +134,35 @@ private:
     void setupConnections();
     void setupEditingSystem();
     void updatePanelsFromScene();
-    void rememberConfigPath(const QString& filePath) const;
+    void retranslateUi();
+
+    // --- document state -------------------------------------------------
+    /// Load a config or a model file, whichever the extension says it is.
+    bool openPath(const QString& filePath);
+    /// Write the current parameter set to @p filePath as TOML.
+    bool writeConfig(const QString& filePath);
+    void setCurrentDocument(const QString& filePath);
+    void setSceneModified(bool modified);
+    /// Ask about unsaved work; false means the caller should abort.
+    bool confirmDiscardChanges();
+    void updateWindowTitle();
+
+    // --- recent files ----------------------------------------------------
+    void rememberRecentFile(const QString& filePath);
+    void rebuildRecentMenu();
+    [[nodiscard]] QStringList recentFiles() const;
+
+    // --- persistence -----------------------------------------------------
+    void saveWindowState() const;
+    void restoreWindowState();
+    /// Initial size and minimum size, clamped to what the screen can show.
+    void applyScreenAwareGeometry();
+
+    // --- status bar ------------------------------------------------------
+    /// Transient feedback: cleared automatically so a stale message cannot
+    /// masquerade as the current state.
+    void showStatusMessage(const QString& message, int timeoutMs = 6000);
+    void updateRenderProgress();
 
     // Vulkan instance (owned by main())
     QVulkanInstance* m_vulkanInstance = nullptr;
@@ -161,16 +197,48 @@ private:
     QLabel* m_statusLabel = nullptr;
     QLabel* m_fpsLabel = nullptr;
     QLabel* m_sampleCountLabel = nullptr;
-    QLabel* m_editModeLabel = nullptr;  // Shows current transform mode
+    QLabel* m_editModeLabel = nullptr;    // Shows current transform mode
     QLabel* m_debugValueLabel = nullptr;  // Shows debug value at mouse position
     QProgressBar* m_renderProgress = nullptr;
+    class QTimer* m_statusTimer = nullptr;
+
+    // Menus and actions kept as members: the Help ▸ Shortcuts page is built
+    // from them, and retranslateUi() has to reach every one of them.
+    QMenu* m_fileMenu = nullptr;
+    QMenu* m_recentMenu = nullptr;
+    QMenu* m_editMenu = nullptr;
+    QMenu* m_viewMenu = nullptr;
+    QMenu* m_panelsMenu = nullptr;
+    QMenu* m_renderMenu = nullptr;
+    QMenu* m_toolsMenu = nullptr;
+    QMenu* m_helpMenu = nullptr;
+
+    QAction* m_openAction = nullptr;
+    QAction* m_saveAction = nullptr;
+    QAction* m_saveAsAction = nullptr;
+    QAction* m_exportImageAction = nullptr;
+    QAction* m_screenshotAction = nullptr;
+    QAction* m_exitAction = nullptr;
+    QAction* m_undoAction = nullptr;
+    QAction* m_redoAction = nullptr;
+    QAction* m_preferencesAction = nullptr;
+    QAction* m_resetCameraAction = nullptr;
+    QAction* m_resetLayoutAction = nullptr;
+    QAction* m_startRenderAction = nullptr;
+    QAction* m_stopRenderAction = nullptr;
+    QAction* m_resetAccumulationAction = nullptr;
+    QAction* m_spectralGenAction = nullptr;
+    QAction* m_shortcutsAction = nullptr;
+    QAction* m_debugReferenceAction = nullptr;
+    QAction* m_aboutAction = nullptr;
+    QAction* m_aboutQtAction = nullptr;
 
     // Configuration manager
     ConfigManager* m_configManager = nullptr;
 
     // Current scene file
-    QString m_currentSceneFile;
-    QString m_currentConfigFile;
+    QString m_currentSceneFile;   ///< model actually loaded into the renderer
+    QString m_currentConfigFile;  ///< document being edited, written by Save
     bool m_sceneModified = false;
 
     // Helper methods
@@ -181,10 +249,6 @@ private:
     SelectionManager* m_selectionManager = nullptr;
     TransformGizmo* m_transformGizmo = nullptr;
     UndoStack* m_undoStack = nullptr;
-
-    // Menu actions for undo/redo
-    QAction* m_undoAction = nullptr;
-    QAction* m_redoAction = nullptr;
 
     // Transform state for undo
     struct TransformState {

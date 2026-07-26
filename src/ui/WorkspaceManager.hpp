@@ -1,0 +1,103 @@
+/**
+ * @file WorkspaceManager.hpp
+ * @brief Mode-based workspaces: one preset dock arrangement per work stage
+ *
+ * The application's use is naturally staged — lay the scene out, fix the band
+ * and the atmosphere, prepare spectral material data, verify what the renderer
+ * produced — and each stage wants a different set of panels open. A workspace
+ * is a named preset arrangement of the independent docks, with the viewport
+ * always in the centre.
+ *
+ * A workspace is a starting point, not a cage: inside one the user may open,
+ * close, float and drag anything, and those adjustments are remembered per
+ * workspace. "Reset layout" restores the preset for the current workspace
+ * only.
+ *
+ * Panels themselves are shared objects, so a panel that appears in two
+ * workspaces is the same widget with the same state — there is never a second,
+ * out-of-sync copy.
+ */
+
+#pragma once
+
+#include <QObject>
+#include <QMap>
+#include <QString>
+#include <QStringList>
+#include <QVector>
+
+QT_BEGIN_NAMESPACE
+class QDockWidget;
+class QMainWindow;
+class QSettings;
+class QTabBar;
+QT_END_NAMESPACE
+
+class WorkspaceManager : public QObject {
+    Q_OBJECT
+
+public:
+    /// Bumped whenever the set of docks or the preset arrangements change.
+    /// A stored layout carrying a different number is discarded rather than
+    /// restored, which is what keeps an upgrade from resurrecting a layout
+    /// that refers to docks this build no longer has.
+    static constexpr int kLayoutVersion = 3;
+
+    explicit WorkspaceManager(QMainWindow* window, QObject* parent = nullptr);
+
+    /// The tab bar to place at the top of the window. Owned by the caller
+    /// once it is added to a container.
+    [[nodiscard]] QTabBar* tabBar() const { return m_tabBar; }
+
+    /// Every dock that can take part in a workspace, keyed by its panel id.
+    void registerDock(const QString& panelId, QDockWidget* dock);
+
+    [[nodiscard]] QString currentWorkspace() const;
+    void setCurrentWorkspace(const QString& id);
+
+    /// Apply the built-in arrangement for the current workspace, discarding
+    /// the user's adjustments to it.
+    void resetCurrentToDefault();
+
+    /// Persist every workspace's arrangement, including the one on screen.
+    void save(QSettings& settings) const;
+
+    /// Restore arrangements written by save(). Layouts from an older
+    /// kLayoutVersion are ignored and the presets are used instead.
+    void restore(QSettings& settings);
+
+    /// Called after the docks are registered to put the first workspace up.
+    void activateInitial();
+
+    void retranslateUi();
+
+    /// Localised title of a workspace, for menu entries.
+    [[nodiscard]] static QString workspaceTitle(const QString& id);
+
+    /// Ids in display order.
+    [[nodiscard]] static QStringList workspaceIds();
+
+signals:
+    void workspaceChanged(const QString& id);
+
+private:
+    struct DockPlacement {
+        QString panelId;
+        Qt::DockWidgetArea area;
+        bool tabifyWithPrevious;   ///< stack onto the previously placed dock
+    };
+
+    [[nodiscard]] static QVector<DockPlacement> preset(const QString& workspaceId);
+
+    void captureCurrent();
+    void applyWorkspace(const QString& id);
+    void applyPreset(const QString& id);
+    void onTabChanged(int index);
+
+    QMainWindow* m_window = nullptr;
+    QTabBar* m_tabBar = nullptr;
+    QMap<QString, QDockWidget*> m_docks;
+    QMap<QString, QByteArray> m_states;   ///< workspace id -> saveState() blob
+    QString m_current;
+    bool m_switching = false;
+};

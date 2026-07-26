@@ -5,6 +5,8 @@
 
 #include "RenderSettingsPanel.hpp"
 
+#include "../ui/UiStyle.hpp"
+
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QGroupBox>
@@ -32,7 +34,7 @@ void RenderSettingsPanel::setupUi() {
     auto* statusLayout = new QFormLayout(statusGroup);
 
     m_sampleCountLabel = new QLabel("0");
-    m_sampleCountLabel->setStyleSheet("font-weight: bold; font-size: 14pt;");
+    uistyle::applyHeadingStyle(m_sampleCountLabel);
     statusLayout->addRow(tr("Accumulated Samples:"), m_sampleCountLabel);
 
     mainLayout->addWidget(statusGroup);
@@ -72,23 +74,19 @@ void RenderSettingsPanel::setupUi() {
 
     mainLayout->addWidget(qualityGroup);
 
-    // Resolution group
+    // Resolution group. Read-only on purpose: the viewport renders at the
+    // swapchain's size, so the preset list that used to sit here could not
+    // take effect. Rather than keep a control that silently does nothing, the
+    // panel reports the resolution the renderer is actually using.
     auto* resGroup = new QGroupBox(tr("Resolution"));
     auto* resLayout = new QFormLayout(resGroup);
 
-    m_resolutionPreset = new QComboBox();
-    m_resolutionPreset->addItem(tr("720p (1280x720)"), QSize(1280, 720));
-    m_resolutionPreset->addItem(tr("1080p (1920x1080)"), QSize(1920, 1080));
-    m_resolutionPreset->addItem(tr("1440p (2560x1440)"), QSize(2560, 1440));
-    m_resolutionPreset->addItem(tr("4K (3840x2160)"), QSize(3840, 2160));
-    m_resolutionPreset->addItem(tr("Window Size"), QSize(0, 0));
-    m_resolutionPreset->setCurrentIndex(4);  // Default: Window Size
-    connect(m_resolutionPreset, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this, &RenderSettingsPanel::onResolutionPresetChanged);
-    resLayout->addRow(tr("Preset:"), m_resolutionPreset);
-
     m_resolutionLabel = new QLabel("1280 x 720");
-    resLayout->addRow(tr("Current:"), m_resolutionLabel);
+    resLayout->addRow(tr("Render resolution:"), m_resolutionLabel);
+
+    auto* resNote = new QLabel(tr("Follows the viewport size."));
+    uistyle::applyHintStyle(resNote);
+    resLayout->addRow(resNote);
 
     mainLayout->addWidget(resGroup);
 
@@ -102,8 +100,8 @@ void RenderSettingsPanel::setupUi() {
     actionsLayout->addWidget(m_resetBtn);
 
     m_exportBtn = new QPushButton(tr("Export Image..."));
-    m_exportBtn->setToolTip(tr("Save current render to file"));
-    connect(m_exportBtn, &QPushButton::clicked, this, &RenderSettingsPanel::onExportClicked);
+    m_exportBtn->setToolTip(tr("Save the raw render, without display enhancement"));
+    connect(m_exportBtn, &QPushButton::clicked, this, &RenderSettingsPanel::exportRequested);
     actionsLayout->addWidget(m_exportBtn);
 
     mainLayout->addWidget(actionsGroup);
@@ -165,35 +163,6 @@ void RenderSettingsPanel::onCustomSppChanged(int value) {
     if (m_customSpp->isEnabled()) {
         m_targetSPP = static_cast<uint32_t>(value);
         emit sppChanged(m_targetSPP);
-    }
-}
-
-void RenderSettingsPanel::onResolutionPresetChanged(int index) {
-    QSize size = m_resolutionPreset->itemData(index).toSize();
-
-    if (size.width() > 0 && size.height() > 0) {
-        m_width = static_cast<uint32_t>(size.width());
-        m_height = static_cast<uint32_t>(size.height());
-        m_resolutionLabel->setText(QString("%1 x %2").arg(m_width).arg(m_height));
-        emit resolutionChanged(m_width, m_height);
-    }
-    // Window Size option (0,0) - no emit, use actual window size
-}
-
-void RenderSettingsPanel::onExportClicked() {
-    QString fileName = QFileDialog::getSaveFileName(
-        this,
-        tr("Export Image"),
-        QString(),
-        tr("EXR Image (*.exr);;PNG Image (*.png);;All Files (*)")
-    );
-
-    if (!fileName.isEmpty()) {
-        QString format = "exr";
-        if (fileName.endsWith(".png", Qt::CaseInsensitive)) {
-            format = "png";
-        }
-        emit exportRequested(format);
     }
 }
 

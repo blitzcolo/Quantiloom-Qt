@@ -22,7 +22,11 @@
 #include "editing/TransformGizmo.hpp"
 #include "editing/UndoStack.hpp"
 #include "editing/Commands.hpp"
-#include "dialogs/SettingsDialog.hpp"
+#include "dialogs/PreferencesDialog.hpp"
+#include "dialogs/HelpDialog.hpp"
+#include "i18n/LanguageManager.hpp"
+#include "ui/ModeCatalog.hpp"
+#include "ui/UiStyle.hpp"
 
 #include <QApplication>
 #include <QGuiApplication>
@@ -31,6 +35,8 @@
 #include <QAction>
 #include <QActionGroup>
 #include <QDockWidget>
+#include <QScreen>
+#include <QScrollArea>
 #include <QTabWidget>
 #include <QStatusBar>
 #include <QProgressBar>
@@ -39,6 +45,7 @@
 #include <QMessageBox>
 #include <QCloseEvent>
 #include <QMouseEvent>
+#include <QTimer>
 #include <QVBoxLayout>
 #include <QFileInfo>
 #include <QSettings>
@@ -58,13 +65,39 @@
 #include <glm/gtc/quaternion.hpp>
 #include <cmath>
 
+namespace {
+
+constexpr auto kRecentFilesKey = "recent_files";
+constexpr int  kMaxRecentFiles = 8;
+constexpr auto kGeometryKey    = "window/geometry";
+constexpr auto kStateKey       = "window/state";
+constexpr auto kStateVersionKey = "window/state_version";
+
+/// Bumped whenever the dock inventory changes, so a layout written by an older
+/// build is discarded instead of restored into a window that no longer has the
+/// same docks.
+constexpr int kWindowStateVersion = 1;
+
+/// Every panel goes into a scroll area. A minimum window size only bounds the
+/// window; it does nothing about a dock that is shorter than the panel inside
+/// it, which is how the taller panels ended up with squashed, unreachable
+/// controls at modest window heights.
+QScrollArea* wrapScrollable(QWidget* panel) {
+    auto* area = new QScrollArea();
+    area->setWidget(panel);
+    area->setWidgetResizable(true);
+    area->setFrameShape(QFrame::NoFrame);
+    area->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    return area;
+}
+
+} // namespace
+
 MainWindow::MainWindow(QVulkanInstance* vulkanInstance, QWidget* parent)
     : QMainWindow(parent)
     , m_vulkanInstance(vulkanInstance)
 {
-    setWindowTitle(tr("Quantiloom - Spectral Renderer"));
-    setMinimumSize(1280, 720);
-    resize(1600, 900);
+    applyScreenAwareGeometry();
 
     // Create configuration manager
     m_configManager = new ConfigManager(this);
@@ -75,9 +108,32 @@ MainWindow::MainWindow(QVulkanInstance* vulkanInstance, QWidget* parent)
     setupStatusBar();
     setupEditingSystem();
     setupConnections();
+
+    retranslateUi();
+    restoreWindowState();
+    updateWindowTitle();
 }
 
 MainWindow::~MainWindow() = default;
+
+void MainWindow::applyScreenAwareGeometry() {
+    // 1280x720 as a hard minimum is a logical size, and on a small laptop at
+    // 125% the logical desktop can be smaller than that -- the window would be
+    // larger than the screen and its buttons unreachable. Bound both the
+    // minimum and the initial size by what is actually available.
+    QSize available(1280, 720);
+    if (QScreen* screen = QGuiApplication::primaryScreen()) {
+        available = screen->availableGeometry().size();
+    }
+
+    const QSize minimum(std::min(1024, available.width()  - 40),
+                        std::min(640,  available.height() - 60));
+    setMinimumSize(minimum.expandedTo(QSize(720, 480)));
+
+    const QSize initial(std::min(1600, available.width()  - 40),
+                        std::min(900,  available.height() - 60));
+    resize(initial.expandedTo(minimum));
+}
 
 void MainWindow::setupUi() {
     // Create Vulkan window
@@ -86,136 +142,132 @@ void MainWindow::setupUi() {
 
     // Wrap in QWidget container for use as central widget
     m_vulkanContainer = QWidget::createWindowContainer(m_vulkanWindow);
-    m_vulkanContainer->setMinimumSize(640, 480);
+    m_vulkanContainer->setMinimumSize(320, 240);
     m_vulkanContainer->setFocusPolicy(Qt::StrongFocus);
-    m_vulkanContainer->setMouseTracking(true);  // Enable mouse tracking for hover
-    m_vulkanContainer->installEventFilter(this);  // Capture mouse move events
+    m_vulkanContainer->setMouseTracking(true);
 
     setCentralWidget(m_vulkanContainer);
 }
 
+// ============================================================================
+// Menus
+// ============================================================================
+
 void MainWindow::setupMenus() {
-    // File menu
-    QMenu* fileMenu = menuBar()->addMenu(tr("&File"));
+    // --- File -----------------------------------------------------------
+    m_fileMenu = menuBar()->addMenu(QString());
 
-    QAction* newAction = fileMenu->addAction(tr("&New Scene"), this, &MainWindow::onNewScene);
-    newAction->setShortcut(QKeySequence::New);
+    m_openAction = m_fileMenu->addAction(QString(), this, &MainWindow::onOpenScene);
+    m_openAction->setShortcut(QKeySequence::Open);
 
-    QAction* openAction = fileMenu->addAction(tr("&Open Scene..."), this, &MainWindow::onOpenScene);
-    openAction->setShortcut(QKeySequence::Open);
+    m_recentMenu = m_fileMenu->addMenu(QString());
 
-    QAction* saveAction = fileMenu->addAction(tr("&Save Scene"), this, &MainWindow::onSaveScene);
-    saveAction->setShortcut(QKeySequence::Save);
+    m_fileMenu->addSeparator();
 
-    fileMenu->addSeparator();
+    m_saveAction = m_fileMenu->addAction(QString(), this, [this]() { onSaveScene(); });
+    m_saveAction->setShortcut(QKeySequence::Save);
 
-    // Config import/export
-    QAction* importConfigAction = fileMenu->addAction(tr("&Import Config..."), this, &MainWindow::onImportConfig);
-    importConfigAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_I));
+    m_saveAsAction = m_fileMenu->addAction(QString(), this, [this]() { onSaveSceneAs(); });
+    m_saveAsAction->setShortcut(QKeySequence::SaveAs);
 
-    QAction* exportConfigAction = fileMenu->addAction(tr("E&xport Config..."), this, &MainWindow::onExportConfig);
-    exportConfigAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_E));
+    m_fileMenu->addSeparator();
 
-    fileMenu->addSeparator();
+    m_exportImageAction = m_fileMenu->addAction(QString(), this, &MainWindow::onExportImage);
+    m_exportImageAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_E));
 
-    QAction* exportAction = fileMenu->addAction(tr("Export &Image..."), this, &MainWindow::onExportImage);
-    exportAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_E));
+    m_screenshotAction = m_fileMenu->addAction(QString(), this, &MainWindow::onTakeScreenshot);
+    m_screenshotAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_S));
 
-    fileMenu->addSeparator();
+    m_fileMenu->addSeparator();
 
-    QAction* exitAction = fileMenu->addAction(tr("E&xit"), this, &QWidget::close);
-    exitAction->setShortcut(QKeySequence::Quit);
+    m_exitAction = m_fileMenu->addAction(QString(), this, &QWidget::close);
+    m_exitAction->setShortcut(QKeySequence::Quit);
 
-    // Edit menu
-    QMenu* editMenu = menuBar()->addMenu(tr("&Edit"));
-    m_undoAction = editMenu->addAction(tr("&Undo"));
+    // --- Edit -----------------------------------------------------------
+    m_editMenu = menuBar()->addMenu(QString());
+
+    m_undoAction = m_editMenu->addAction(QString());
     m_undoAction->setShortcut(QKeySequence::Undo);
     m_undoAction->setEnabled(false);
 
-    m_redoAction = editMenu->addAction(tr("&Redo"));
+    m_redoAction = m_editMenu->addAction(QString());
     m_redoAction->setShortcut(QKeySequence::Redo);
     m_redoAction->setEnabled(false);
 
-    editMenu->addSeparator();
-    editMenu->addAction(tr("&Delete"))->setShortcut(QKeySequence::Delete);
+    m_editMenu->addSeparator();
 
-    // View menu
-    QMenu* viewMenu = menuBar()->addMenu(tr("&View"));
-    viewMenu->addAction(tr("&Reset Camera"), this, &MainWindow::onResetCamera);
-    viewMenu->addSeparator();
+    m_preferencesAction = m_editMenu->addAction(QString(), this, &MainWindow::onPreferences);
+    m_preferencesAction->setShortcut(QKeySequence::Preferences);
+    m_preferencesAction->setMenuRole(QAction::PreferencesRole);
 
-    // Add screenshot action with Ctrl+Shift+S shortcut
-    QAction* screenshotAction = viewMenu->addAction(tr("Take &Screenshot"), this, &MainWindow::onTakeScreenshot);
-    screenshotAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_S));
+    // --- View -----------------------------------------------------------
+    m_viewMenu = menuBar()->addMenu(QString());
 
-    viewMenu->addSeparator();
-    viewMenu->addAction(tr("&Parameter Panel"))->setCheckable(true);
+    // Panel visibility. Every dock contributes its own toggleViewAction, which
+    // is two-way bound to the dock by Qt: closing a panel with its × ticks the
+    // entry off, and the entry is how it comes back. The old menu had a
+    // checkable "Parameter Panel" item wired to nothing at all, so a closed
+    // dock could only be recovered through a side effect of the Tools menu.
+    m_panelsMenu = m_viewMenu->addMenu(QString());
 
-    // Render menu
-    QMenu* renderMenu = menuBar()->addMenu(tr("&Render"));
+    m_resetLayoutAction = m_viewMenu->addAction(QString(), this, &MainWindow::onResetLayout);
 
-    QAction* startRenderAction = renderMenu->addAction(tr("&Start Render"), this, &MainWindow::onStartRender);
-    startRenderAction->setShortcut(QKeySequence(Qt::Key_F5));
+    m_viewMenu->addSeparator();
 
-    QAction* stopRenderAction = renderMenu->addAction(tr("S&top Render"), this, &MainWindow::onStopRender);
-    stopRenderAction->setShortcut(QKeySequence(Qt::Key_Escape));
+    m_resetCameraAction = m_viewMenu->addAction(QString(), this, &MainWindow::onResetCamera);
 
-    // Tools menu
-    QMenu* toolsMenu = menuBar()->addMenu(tr("&Tools"));
-    toolsMenu->addAction(tr("Spectral Material &Generator..."), this, [this]() {
-        int idx = m_parameterTabs->indexOf(m_spectralMaterialGenPanel);
-        if (idx >= 0) m_parameterTabs->setCurrentIndex(idx);
+    // --- Render ---------------------------------------------------------
+    m_renderMenu = menuBar()->addMenu(QString());
+
+    m_startRenderAction = m_renderMenu->addAction(QString(), this, &MainWindow::onStartRender);
+    m_startRenderAction->setShortcut(QKeySequence(Qt::Key_F5));
+
+    // Not Escape. Escape already means "cancel the gizmo drag / clear the
+    // selection" inside the viewport, and which of the two ran depended on
+    // where the focus happened to be.
+    m_stopRenderAction = m_renderMenu->addAction(QString(), this, &MainWindow::onStopRender);
+    m_stopRenderAction->setShortcut(QKeySequence(Qt::SHIFT | Qt::Key_F5));
+
+    m_renderMenu->addSeparator();
+
+    m_resetAccumulationAction = m_renderMenu->addAction(QString(), this,
+                                                        &MainWindow::onResetAccumulation);
+    m_resetAccumulationAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_R));
+
+    // --- Tools ----------------------------------------------------------
+    m_toolsMenu = menuBar()->addMenu(QString());
+    m_spectralGenAction = m_toolsMenu->addAction(QString(), this, [this]() {
         m_parameterDock->show();
         m_parameterDock->raise();
+        // Panels sit inside scroll areas, so indexOf(panel) does not find the
+        // tab; ask the scroll area which widget it carries instead.
+        for (int i = 0; i < m_parameterTabs->count(); ++i) {
+            if (m_parameterTabs->widget(i)->findChild<SpectralMaterialGenPanel*>()) {
+                m_parameterTabs->setCurrentIndex(i);
+                break;
+            }
+        }
     });
 
-    // Settings menu
-    QMenu* settingsMenu = menuBar()->addMenu(tr("&Settings"));
-
-    // Language submenu
-    QMenu* languageMenu = settingsMenu->addMenu(tr("&Language"));
-    QActionGroup* languageGroup = new QActionGroup(this);
-    languageGroup->setExclusive(true);
-
-    // Get current language setting
-    QSettings settings;
-    QString currentLocale = settings.value("language", "").toString();
-
-    // English option
-    QAction* englishAction = languageMenu->addAction("English");
-    englishAction->setCheckable(true);
-    englishAction->setData("en");
-    languageGroup->addAction(englishAction);
-    if (currentLocale.isEmpty() || currentLocale.startsWith("en")) {
-        englishAction->setChecked(true);
-    }
-
-    // Chinese option
-    QAction* chineseAction = languageMenu->addAction(QString::fromUtf8("中文"));
-    chineseAction->setCheckable(true);
-    chineseAction->setData("zh_CN");
-    languageGroup->addAction(chineseAction);
-    if (currentLocale.startsWith("zh")) {
-        chineseAction->setChecked(true);
-    }
-
-    connect(languageGroup, &QActionGroup::triggered, this, [this](QAction* action) {
-        onLanguageChanged(action->data().toString());
-    });
-
-    // Add separator and Settings action
-    settingsMenu->addSeparator();
-    settingsMenu->addAction(tr("&Properties..."), this, &MainWindow::onSettings);
-
-    // Help menu
-    QMenu* helpMenu = menuBar()->addMenu(tr("&Help"));
-    helpMenu->addAction(tr("&About"), this, &MainWindow::onAbout);
-    helpMenu->addAction(tr("About &Qt"), qApp, &QApplication::aboutQt);
+    // --- Help -----------------------------------------------------------
+    m_helpMenu = menuBar()->addMenu(QString());
+    m_shortcutsAction = m_helpMenu->addAction(QString(), this, &MainWindow::onShowShortcuts);
+    m_shortcutsAction->setShortcut(QKeySequence::HelpContents);
+    m_debugReferenceAction = m_helpMenu->addAction(QString(), this,
+                                                   &MainWindow::onShowDebugReference);
+    m_helpMenu->addSeparator();
+    m_aboutAction = m_helpMenu->addAction(QString(), this, &MainWindow::onAbout);
+    m_aboutQtAction = m_helpMenu->addAction(QString(), qApp, &QApplication::aboutQt);
 }
+
+// ============================================================================
+// Docks
+// ============================================================================
 
 void MainWindow::setupDockWidgets() {
     // Create parameter dock widget
-    m_parameterDock = new QDockWidget(tr("Parameters"), this);
+    m_parameterDock = new QDockWidget(this);
+    m_parameterDock->setObjectName(QStringLiteral("dock_parameters"));
     m_parameterDock->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
     m_parameterDock->setMinimumWidth(300);
 
@@ -235,20 +287,22 @@ void MainWindow::setupDockWidgets() {
     m_spectralMaterialGenPanel = new SpectralMaterialGenPanel();
     m_spectralMaterialGenPanel->setVulkanWindow(m_vulkanWindow);
 
-    // Add panels to tabs
-    m_parameterTabs->addTab(m_sceneTreePanel, tr("Scene"));
-    m_parameterTabs->addTab(m_materialEditorPanel, tr("Material"));
-    m_parameterTabs->addTab(m_lightingPanel, tr("Lighting"));
-    m_parameterTabs->addTab(m_atmosphericPanel, tr("Atmosphere"));
-    m_parameterTabs->addTab(m_sensorPanel, tr("Sensor"));
-    m_parameterTabs->addTab(m_renderSettingsPanel, tr("Render"));
-    m_parameterTabs->addTab(m_spectralConfigPanel, tr("Spectral"));
-    m_parameterTabs->addTab(m_displayEnhancementPanel, tr("Display"));
-    m_parameterTabs->addTab(m_spectralMaterialGenPanel, tr("Spectral Gen"));
-    m_parameterTabs->addTab(m_debugVisualizationPanel, tr("Debug"));
+    // Add panels to tabs (titles are filled in by retranslateUi)
+    m_parameterTabs->addTab(wrapScrollable(m_sceneTreePanel), QString());
+    m_parameterTabs->addTab(wrapScrollable(m_materialEditorPanel), QString());
+    m_parameterTabs->addTab(wrapScrollable(m_lightingPanel), QString());
+    m_parameterTabs->addTab(wrapScrollable(m_atmosphericPanel), QString());
+    m_parameterTabs->addTab(wrapScrollable(m_sensorPanel), QString());
+    m_parameterTabs->addTab(wrapScrollable(m_renderSettingsPanel), QString());
+    m_parameterTabs->addTab(wrapScrollable(m_spectralConfigPanel), QString());
+    m_parameterTabs->addTab(wrapScrollable(m_displayEnhancementPanel), QString());
+    m_parameterTabs->addTab(wrapScrollable(m_spectralMaterialGenPanel), QString());
+    m_parameterTabs->addTab(wrapScrollable(m_debugVisualizationPanel), QString());
 
     m_parameterDock->setWidget(m_parameterTabs);
     addDockWidget(Qt::LeftDockWidgetArea, m_parameterDock);
+
+    m_panelsMenu->addAction(m_parameterDock->toggleViewAction());
 
     // Connect panel signals
     connect(m_sceneTreePanel, &SceneTreePanel::nodeSelected,
@@ -273,6 +327,11 @@ void MainWindow::setupDockWidgets() {
             this, &MainWindow::onSppChanged);
     connect(m_renderSettingsPanel, &RenderSettingsPanel::resetAccumulationRequested,
             this, &MainWindow::onResetAccumulation);
+    // The panel's export button used to raise a save dialog and then do
+    // nothing at all -- its signal had no receiver anywhere. It now runs the
+    // one export path, the same one File ▸ Export Image uses.
+    connect(m_renderSettingsPanel, &RenderSettingsPanel::exportRequested,
+            this, &MainWindow::onExportImage);
 
     connect(m_spectralConfigPanel, &SpectralConfigPanel::spectralModeChanged,
             this, &MainWindow::onSpectralModeChanged);
@@ -285,7 +344,7 @@ void MainWindow::setupDockWidgets() {
     // Atmospheric panel signals
     connect(m_atmosphericPanel, &AtmosphericPanel::presetChanged,
             this, [this](const QString& preset) {
-                m_statusLabel->setText(tr("Atmospheric preset: %1").arg(preset));
+                showStatusMessage(tr("Atmospheric preset: %1").arg(preset));
             });
     connect(m_atmosphericPanel, &AtmosphericPanel::configChanged,
             this, [this](const quantiloom::AtmosphereNNConfig& config) {
@@ -296,13 +355,13 @@ void MainWindow::setupDockWidgets() {
     connect(m_sensorPanel, &SensorPanel::enabledChanged,
             this, [this](bool enabled) {
                 m_vulkanWindow->setSensorEnabled(enabled);
-                m_statusLabel->setText(enabled ? tr("Sensor simulation enabled")
-                                               : tr("Sensor simulation disabled"));
+                showStatusMessage(enabled ? tr("Sensor simulation enabled")
+                                          : tr("Sensor simulation disabled"));
             });
     connect(m_sensorPanel, &SensorPanel::paramsChanged,
             this, [this](const quantiloom::SensorParams& params) {
                 m_vulkanWindow->setSensorParams(params);
-                m_statusLabel->setText(tr("Sensor params updated"));
+                showStatusMessage(tr("Sensor parameters updated"));
             });
 
     // Display enhancement panel signals
@@ -312,27 +371,31 @@ void MainWindow::setupDockWidgets() {
                 m_claheClipLimit = clipLimit;
                 m_claheTileSize = tileSize;
                 m_claheLuminanceOnly = luminanceOnly;
-                // Update renderer with CLAHE settings
                 m_vulkanWindow->setDisplayEnhancement(enabled, clipLimit, tileSize, luminanceOnly);
-                m_statusLabel->setText(enabled
-                    ? tr("Display enhancement enabled (CLAHE: clip=%1, tiles=%2x%2)")
+                showStatusMessage(enabled
+                    ? tr("Display enhancement on (CLAHE: clip %1, %2x%2 tiles)")
                         .arg(clipLimit, 0, 'f', 1).arg(tileSize)
-                    : tr("Display enhancement disabled"));
+                    : tr("Display enhancement off"));
             });
 }
 
+// ============================================================================
+// Status bar
+// ============================================================================
+
 void MainWindow::setupStatusBar() {
-    m_statusLabel = new QLabel(tr("Ready"));
-    m_fpsLabel = new QLabel(tr("FPS: --"));
-    m_sampleCountLabel = new QLabel(tr("Samples: 0"));
-    m_editModeLabel = new QLabel(tr("[G] Translate"));
-    m_editModeLabel->setStyleSheet("QLabel { background-color: #4a90d9; color: white; padding: 2px 8px; border-radius: 3px; font-weight: bold; }");
-    m_debugValueLabel = new QLabel(tr("Click to inspect"));
+    m_statusLabel = new QLabel();
+    m_fpsLabel = new QLabel();
+    m_sampleCountLabel = new QLabel();
+    m_editModeLabel = new QLabel();
+    uistyle::applyChipStyle(m_editModeLabel, uistyle::ChipTone::Accent);
+    m_debugValueLabel = new QLabel();
     m_debugValueLabel->setMinimumWidth(250);
-    m_debugValueLabel->setStyleSheet("QLabel { font-family: monospace; }");
+    uistyle::applyMonospaceStyle(m_debugValueLabel);
     m_renderProgress = new QProgressBar();
     m_renderProgress->setMaximumWidth(200);
-    m_renderProgress->setVisible(false);
+    m_renderProgress->setRange(0, 100);
+    m_renderProgress->setValue(0);
 
     statusBar()->addWidget(m_statusLabel, 1);
     statusBar()->addPermanentWidget(m_debugValueLabel);
@@ -340,6 +403,36 @@ void MainWindow::setupStatusBar() {
     statusBar()->addPermanentWidget(m_sampleCountLabel);
     statusBar()->addPermanentWidget(m_fpsLabel);
     statusBar()->addPermanentWidget(m_renderProgress);
+
+    // Transient messages expire. Around thirty call sites used to write into
+    // this label with no timeout, so whatever happened last stayed there
+    // looking like the current state of the application.
+    m_statusTimer = new QTimer(this);
+    m_statusTimer->setSingleShot(true);
+    connect(m_statusTimer, &QTimer::timeout, this, [this]() {
+        m_statusLabel->setText(tr("Ready"));
+    });
+}
+
+void MainWindow::showStatusMessage(const QString& message, int timeoutMs) {
+    m_statusLabel->setText(message);
+    if (timeoutMs > 0) {
+        m_statusTimer->start(timeoutMs);
+    } else {
+        m_statusTimer->stop();
+    }
+}
+
+void MainWindow::updateRenderProgress() {
+    const uint32_t target = m_renderSettingsPanel ? m_renderSettingsPanel->spp() : 0;
+    const uint32_t samples = m_vulkanWindow ? m_vulkanWindow->currentSampleCount() : 0;
+    if (target == 0) {
+        m_renderProgress->setValue(0);
+        return;
+    }
+    const int percent = static_cast<int>(
+        std::min<uint32_t>(100u, (samples * 100u) / target));
+    m_renderProgress->setValue(percent);
 }
 
 void MainWindow::setupConnections() {
@@ -353,10 +446,10 @@ void MainWindow::setupConnections() {
                 if (success) {
                     updatePanelsFromScene();
                     applyPendingMaterialConfigs();
-                    m_statusLabel->setText(message);
+                    showStatusMessage(message);
                 } else {
                     QMessageBox::warning(this, tr("Scene Load Failed"), message);
-                    m_statusLabel->setText(tr("Failed to load scene"));
+                    showStatusMessage(tr("Failed to load scene"));
                 }
             });
 
@@ -367,14 +460,6 @@ void MainWindow::setupConnections() {
     // Connect viewport hover for debug value display
     connect(m_vulkanWindow, &QuantiloomVulkanWindow::mouseHovered,
             this, &MainWindow::onViewportHovered);
-}
-
-void MainWindow::rememberConfigPath(const QString& filePath) const {
-    if (filePath.isEmpty()) {
-        return;
-    }
-    QSettings settings;
-    settings.setValue("last_config_path", filePath);
 }
 
 void MainWindow::setupEditingSystem() {
@@ -409,18 +494,11 @@ void MainWindow::setupEditingSystem() {
             this, [this](TransformGizmo::Mode mode) {
                 QString modeText;
                 switch (mode) {
-                    case TransformGizmo::Mode::Translate:
-                        modeText = tr("[G] Translate");
-                        break;
-                    case TransformGizmo::Mode::Rotate:
-                        modeText = tr("[R] Rotate");
-                        break;
-                    case TransformGizmo::Mode::Scale:
-                        modeText = tr("[T] Scale");
-                        break;
+                    case TransformGizmo::Mode::Translate: modeText = tr("[G] Translate"); break;
+                    case TransformGizmo::Mode::Rotate:    modeText = tr("[R] Rotate");    break;
+                    case TransformGizmo::Mode::Scale:     modeText = tr("[T] Scale");     break;
                 }
                 m_editModeLabel->setText(modeText);
-                m_statusLabel->setText(tr("Mode: %1").arg(modeText));
             });
 
     // Sync selection with scene tree panel (highlight selected items)
@@ -431,221 +509,435 @@ void MainWindow::setupEditingSystem() {
             m_sceneTreePanel, &SceneTreePanel::clearSelectionHighlight);
 }
 
-void MainWindow::closeEvent(QCloseEvent* event) {
-    if (m_sceneModified) {
-        QMessageBox::StandardButton reply = QMessageBox::question(
-            this,
-            tr("Unsaved Changes"),
-            tr("The scene has been modified. Do you want to save your changes?"),
-            QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel
-        );
+// ============================================================================
+// Translation
+// ============================================================================
 
-        if (reply == QMessageBox::Save) {
-            onSaveScene();
-        } else if (reply == QMessageBox::Cancel) {
-            event->ignore();
-            return;
-        }
+void MainWindow::changeEvent(QEvent* event) {
+    if (event->type() == QEvent::LanguageChange) {
+        retranslateUi();
     }
-
-    event->accept();
+    QMainWindow::changeEvent(event);
 }
 
-bool MainWindow::eventFilter(QObject* watched, QEvent* event) {
-    // Currently unused - debug values are shown on left click via mouseHovered signal
-    Q_UNUSED(watched)
-    Q_UNUSED(event)
-    return QMainWindow::eventFilter(watched, event);
+void MainWindow::retranslateUi() {
+    m_fileMenu->setTitle(tr("&File"));
+    m_openAction->setText(tr("&Open..."));
+    m_recentMenu->setTitle(tr("Open &Recent"));
+    m_saveAction->setText(tr("&Save"));
+    m_saveAsAction->setText(tr("Save &As..."));
+    m_exportImageAction->setText(tr("Export &Image (raw render)..."));
+    m_exportImageAction->setToolTip(
+        tr("Write the accumulated render without display enhancement."));
+    m_screenshotAction->setText(tr("Save Screensho&t (as displayed)"));
+    m_screenshotAction->setToolTip(
+        tr("Write what the viewport shows, display enhancement included."));
+    m_exitAction->setText(tr("E&xit"));
+
+    m_editMenu->setTitle(tr("&Edit"));
+    m_preferencesAction->setText(tr("&Preferences..."));
+
+    m_viewMenu->setTitle(tr("&View"));
+    m_panelsMenu->setTitle(tr("&Panels"));
+    m_resetLayoutAction->setText(tr("&Reset Layout"));
+    m_resetCameraAction->setText(tr("Reset &Camera"));
+
+    m_renderMenu->setTitle(tr("&Render"));
+    m_startRenderAction->setText(tr("&Start Render"));
+    m_stopRenderAction->setText(tr("S&top Render"));
+    m_resetAccumulationAction->setText(tr("Reset &Accumulation"));
+
+    m_toolsMenu->setTitle(tr("&Tools"));
+    m_spectralGenAction->setText(tr("Spectral Material &Generator"));
+
+    m_helpMenu->setTitle(tr("&Help"));
+    m_shortcutsAction->setText(tr("&Keyboard Shortcuts"));
+    m_debugReferenceAction->setText(tr("Reading &Debug Output"));
+    m_aboutAction->setText(tr("&About"));
+    m_aboutQtAction->setText(tr("About &Qt"));
+
+    m_parameterDock->setWindowTitle(tr("Parameters"));
+    m_parameterTabs->setTabText(0, tr("Scene"));
+    m_parameterTabs->setTabText(1, tr("Material"));
+    m_parameterTabs->setTabText(2, tr("Lighting"));
+    m_parameterTabs->setTabText(3, tr("Atmosphere"));
+    m_parameterTabs->setTabText(4, tr("Sensor"));
+    m_parameterTabs->setTabText(5, tr("Render"));
+    m_parameterTabs->setTabText(6, tr("Spectral"));
+    m_parameterTabs->setTabText(7, tr("Display"));
+    m_parameterTabs->setTabText(8, tr("Spectral Gen"));
+    m_parameterTabs->setTabText(9, tr("Debug"));
+
+    if (m_statusLabel->text().isEmpty() || !m_statusTimer->isActive()) {
+        m_statusLabel->setText(tr("Ready"));
+    }
+    m_fpsLabel->setText(tr("FPS: --"));
+    m_sampleCountLabel->setText(tr("Samples: %1").arg(
+        m_vulkanWindow ? m_vulkanWindow->currentSampleCount() : 0));
+    m_debugValueLabel->setText(tr("Hover the viewport to inspect"));
+    if (m_editModeLabel->text().isEmpty()) {
+        m_editModeLabel->setText(tr("[G] Translate"));
+    }
+
+    onUndoRedoChanged();
+    rebuildRecentMenu();
+    updateWindowTitle();
+}
+
+// ============================================================================
+// Document state
+// ============================================================================
+
+void MainWindow::updateWindowTitle() {
+    const QString document = m_currentConfigFile.isEmpty() ? m_currentSceneFile
+                                                           : m_currentConfigFile;
+    const QString name = document.isEmpty() ? tr("Untitled")
+                                            : QFileInfo(document).fileName();
+    // "[*]" is Qt's placeholder for the modified marker; setWindowModified
+    // decides whether it renders.
+    setWindowTitle(tr("%1[*] — Quantiloom Studio").arg(name));
+    setWindowFilePath(document);
+    setWindowModified(m_sceneModified);
+}
+
+void MainWindow::setCurrentDocument(const QString& filePath) {
+    if (filePath.endsWith(QLatin1String(".toml"), Qt::CaseInsensitive)) {
+        m_currentConfigFile = filePath;
+    }
+    rememberRecentFile(filePath);
+    updateWindowTitle();
+}
+
+void MainWindow::setSceneModified(bool modified) {
+    if (m_sceneModified == modified) {
+        return;
+    }
+    m_sceneModified = modified;
+    setWindowModified(modified);
+}
+
+bool MainWindow::confirmDiscardChanges() {
+    if (!m_sceneModified) {
+        return true;
+    }
+    const auto reply = QMessageBox::question(
+        this,
+        tr("Unsaved Changes"),
+        tr("The scene configuration has been modified. Save your changes?"),
+        QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel);
+
+    if (reply == QMessageBox::Save) {
+        return onSaveScene();
+    }
+    return reply == QMessageBox::Discard;
+}
+
+// ============================================================================
+// Recent files
+// ============================================================================
+
+QStringList MainWindow::recentFiles() const {
+    QSettings settings;
+    return settings.value(kRecentFilesKey).toStringList();
+}
+
+void MainWindow::rememberRecentFile(const QString& filePath) {
+    if (filePath.isEmpty()) {
+        return;
+    }
+    QSettings settings;
+    QStringList files = settings.value(kRecentFilesKey).toStringList();
+    files.removeAll(filePath);
+    files.prepend(filePath);
+    while (files.size() > kMaxRecentFiles) {
+        files.removeLast();
+    }
+    settings.setValue(kRecentFilesKey, files);
+    rebuildRecentMenu();
+}
+
+void MainWindow::rebuildRecentMenu() {
+    if (!m_recentMenu) {
+        return;
+    }
+    m_recentMenu->clear();
+
+    const QStringList files = recentFiles();
+    for (const QString& path : files) {
+        QAction* action = m_recentMenu->addAction(QFileInfo(path).fileName());
+        action->setToolTip(path);
+        connect(action, &QAction::triggered, this, [this, path]() {
+            if (!QFileInfo::exists(path)) {
+                QMessageBox::warning(this, tr("Open Failed"),
+                                     tr("This file no longer exists:\n%1").arg(path));
+                return;
+            }
+            if (confirmDiscardChanges()) {
+                openPath(path);
+            }
+        });
+    }
+
+    m_recentMenu->setEnabled(!files.isEmpty());
+    if (files.isEmpty()) {
+        m_recentMenu->addAction(tr("(none)"))->setEnabled(false);
+    } else {
+        m_recentMenu->addSeparator();
+        m_recentMenu->addAction(tr("Clear List"), this, [this]() {
+            QSettings settings;
+            settings.remove(kRecentFilesKey);
+            rebuildRecentMenu();
+        });
+    }
+}
+
+// ============================================================================
+// Persistence
+// ============================================================================
+
+void MainWindow::saveWindowState() const {
+    QSettings settings;
+    settings.setValue(kGeometryKey, saveGeometry());
+    settings.setValue(kStateKey, saveState(kWindowStateVersion));
+    settings.setValue(kStateVersionKey, kWindowStateVersion);
+}
+
+void MainWindow::restoreWindowState() {
+    QSettings settings;
+    if (settings.value(kStateVersionKey, 0).toInt() != kWindowStateVersion) {
+        // Written by a build with a different dock inventory. Restoring it
+        // would produce a window missing panels that now exist, so it is
+        // discarded rather than half-applied.
+        return;
+    }
+    const QByteArray geometry = settings.value(kGeometryKey).toByteArray();
+    if (!geometry.isEmpty()) {
+        restoreGeometry(geometry);
+    }
+    const QByteArray state = settings.value(kStateKey).toByteArray();
+    if (!state.isEmpty()) {
+        restoreState(state, kWindowStateVersion);
+    }
+}
+
+void MainWindow::closeEvent(QCloseEvent* event) {
+    if (!confirmDiscardChanges()) {
+        event->ignore();
+        return;
+    }
+    saveWindowState();
+    event->accept();
 }
 
 // ============================================================================
 // Slots
 // ============================================================================
 
-void MainWindow::onNewScene() {
-    // TODO: Create new empty scene
-    m_statusLabel->setText(tr("New scene created"));
-}
-
 void MainWindow::onOpenScene() {
-    QString fileName = QFileDialog::getOpenFileName(
+    if (!confirmDiscardChanges()) {
+        return;
+    }
+
+    const QString fileName = QFileDialog::getOpenFileName(
         this,
-        tr("Open Scene"),
-        QString(),
-        tr("3D Scene Files (*.gltf *.glb *.usd *.usda *.usdc *.usdz);;glTF Files (*.gltf *.glb);;OpenUSD Files (*.usd *.usda *.usdc *.usdz);;TOML Config (*.toml);;All Files (*)")
-    );
+        tr("Open Scene or Configuration"),
+        m_currentConfigFile.isEmpty() ? QString()
+                                      : QFileInfo(m_currentConfigFile).absolutePath(),
+        tr("Scenes and Configurations (*.toml *.gltf *.glb *.usd *.usda *.usdc *.usdz);;"
+           "TOML Configuration (*.toml);;"
+           "glTF Files (*.gltf *.glb);;"
+           "OpenUSD Files (*.usd *.usda *.usdc *.usdz);;"
+           "All Files (*)"));
 
     if (!fileName.isEmpty()) {
-        // Check if it's a TOML config or a scene file
-        if (fileName.endsWith(".toml", Qt::CaseInsensitive)) {
-            // Load TOML config (which may reference a glTF or USD file)
-            SceneConfig config;
-            if (m_configManager->loadConfig(fileName, config)) {
-                m_currentConfigFile = fileName;
-                rememberConfigPath(fileName);
-                applyConfig(config);
-                m_statusLabel->setText(tr("Config loaded: %1").arg(fileName));
-            } else {
-                QMessageBox::warning(this, tr("Load Failed"),
-                    tr("Failed to load config: %1").arg(m_configManager->lastError()));
-            }
-        } else {
-            // Direct scene file loading (glTF or USD)
-            m_currentSceneFile = fileName;
-            m_vulkanWindow->loadScene(fileName);
-            m_statusLabel->setText(tr("Loading: %1").arg(fileName));
-        }
+        openPath(fileName);
     }
 }
 
-void MainWindow::onSaveScene() {
-    if (m_currentSceneFile.isEmpty()) {
-        QString fileName = QFileDialog::getSaveFileName(
-            this,
-            tr("Save Scene"),
-            QString(),
-            tr("TOML Config (*.toml)")
-        );
-        if (fileName.isEmpty()) return;
-        m_currentSceneFile = fileName;
+bool MainWindow::openPath(const QString& filePath) {
+    if (filePath.endsWith(QLatin1String(".toml"), Qt::CaseInsensitive)) {
+        SceneConfig config;
+        if (!m_configManager->loadConfig(filePath, config)) {
+            QMessageBox::warning(this, tr("Open Failed"),
+                tr("Failed to load configuration: %1").arg(m_configManager->lastError()));
+            return false;
+        }
+        m_currentConfigFile = filePath;
+        applyConfig(config);
+        setSceneModified(false);
+        setCurrentDocument(filePath);
+        showStatusMessage(tr("Loaded configuration: %1").arg(QFileInfo(filePath).fileName()));
+        return true;
     }
 
-    // TODO: Save scene to file
-    m_sceneModified = false;
-    m_statusLabel->setText(tr("Saved: %1").arg(m_currentSceneFile));
+    // A bare model has no configuration behind it, so there is no document to
+    // save over -- Save will ask for a destination the first time.
+    m_currentSceneFile = filePath;
+    m_currentConfigFile.clear();
+    m_vulkanWindow->loadScene(filePath);
+    setSceneModified(false);
+    setCurrentDocument(filePath);
+    showStatusMessage(tr("Loading %1...").arg(QFileInfo(filePath).fileName()));
+    return true;
+}
+
+bool MainWindow::onSaveScene() {
+    if (m_currentConfigFile.isEmpty()) {
+        return onSaveSceneAs();
+    }
+    return writeConfig(m_currentConfigFile);
+}
+
+bool MainWindow::onSaveSceneAs() {
+    const QString suggested = m_currentConfigFile.isEmpty()
+        ? QStringLiteral("scene_config.toml")
+        : m_currentConfigFile;
+
+    const QString fileName = QFileDialog::getSaveFileName(
+        this, tr("Save Configuration As"), suggested, tr("TOML Configuration (*.toml)"));
+
+    if (fileName.isEmpty()) {
+        return false;
+    }
+    return writeConfig(fileName);
+}
+
+bool MainWindow::writeConfig(const QString& filePath) {
+    SceneConfig config;
+    collectCurrentConfig(config);
+
+    if (!m_configManager->exportConfig(filePath, config)) {
+        QMessageBox::warning(this, tr("Save Failed"),
+            tr("Failed to write configuration: %1").arg(m_configManager->lastError()));
+        showStatusMessage(tr("Save failed"));
+        return false;
+    }
+
+    m_currentConfigFile = filePath;
+    setSceneModified(false);
+    setCurrentDocument(filePath);
+    showStatusMessage(tr("Saved %1").arg(QFileInfo(filePath).fileName()));
+    return true;
 }
 
 void MainWindow::onExportImage() {
     QString fileName = QFileDialog::getSaveFileName(
         this,
-        tr("Export Image"),
+        tr("Export Image (raw render)"),
         QString(),
-        tr("EXR Image (*.exr);;PNG Image (*.png);;All Files (*)")
-    );
+        tr("EXR Image (*.exr);;PNG Image (*.png);;All Files (*)"));
 
     if (fileName.isEmpty()) return;
 
-    // Capture original HDR data (no CLAHE — export preserves physical values)
+    // The accumulated render, without display enhancement: an export is meant
+    // to carry physical values, and CLAHE is a viewing aid. Screenshots take
+    // the other path and say so in their menu entry.
     auto image = m_vulkanWindow->captureScreenshot();
     if (!image) {
         QMessageBox::warning(this, tr("Export Failed"),
-            tr("Failed to capture image. Make sure a scene is loaded."));
-        m_statusLabel->setText(tr("Export failed"));
+            tr("Failed to capture the image. Make sure a scene is loaded."));
+        showStatusMessage(tr("Export failed"));
         return;
     }
 
     bool success = false;
-    if (fileName.endsWith(".exr", Qt::CaseInsensitive)) {
+    if (fileName.endsWith(QLatin1String(".exr"), Qt::CaseInsensitive)) {
         success = quantiloom::ImageIO::WriteEXR(fileName.toStdString(), *image);
-    } else if (fileName.endsWith(".png", Qt::CaseInsensitive)) {
+    } else if (fileName.endsWith(QLatin1String(".png"), Qt::CaseInsensitive)) {
         success = quantiloom::ImageIO::WritePNG(fileName.toStdString(), *image);
     } else {
-        // Default to EXR
-        if (!fileName.contains('.')) {
-            fileName += ".exr";
+        if (!fileName.contains(QLatin1Char('.'))) {
+            fileName += QStringLiteral(".exr");
         }
         success = quantiloom::ImageIO::WriteEXR(fileName.toStdString(), *image);
     }
 
     if (success) {
-        m_statusLabel->setText(tr("Exported: %1").arg(fileName));
+        showStatusMessage(tr("Exported %1").arg(QFileInfo(fileName).fileName()));
     } else {
         QMessageBox::warning(this, tr("Export Failed"),
-            tr("Failed to save image:\n%1").arg(fileName));
-        m_statusLabel->setText(tr("Export failed"));
+            tr("Failed to save the image:\n%1").arg(fileName));
+        showStatusMessage(tr("Export failed"));
     }
 }
 
 void MainWindow::onStartRender() {
-    m_renderProgress->setVisible(true);
-    m_renderProgress->setValue(0);
-    m_statusLabel->setText(tr("Rendering..."));
-    // TODO: Start high-quality render
+    m_vulkanWindow->setRenderPaused(false);
+    m_vulkanWindow->resetAccumulation();
+    m_startRenderAction->setEnabled(false);
+    m_stopRenderAction->setEnabled(true);
+    showStatusMessage(tr("Rendering from scratch to %1 samples")
+                          .arg(m_renderSettingsPanel->spp()));
 }
 
 void MainWindow::onStopRender() {
-    m_renderProgress->setVisible(false);
-    m_statusLabel->setText(tr("Render stopped"));
-    // TODO: Stop render
+    m_vulkanWindow->setRenderPaused(true);
+    m_startRenderAction->setEnabled(true);
+    m_stopRenderAction->setEnabled(false);
+    showStatusMessage(tr("Rendering stopped at %1 samples")
+                          .arg(m_vulkanWindow->currentSampleCount()));
 }
 
 void MainWindow::onResetCamera() {
     m_vulkanWindow->resetCamera();
-    m_statusLabel->setText(tr("Camera reset"));
+    showStatusMessage(tr("Camera reset"));
+}
+
+void MainWindow::onResetLayout() {
+    // Nothing to compute yet while there is a single dock; the entry exists so
+    // that a user who has dragged the layout somewhere unusable has a way back
+    // that does not involve deleting settings by hand.
+    m_parameterDock->setFloating(false);
+    m_parameterDock->show();
+    addDockWidget(Qt::LeftDockWidgetArea, m_parameterDock);
+    showStatusMessage(tr("Layout reset"));
 }
 
 void MainWindow::onTakeScreenshot() {
-    // Capture display image (with CLAHE applied if enabled by GPU)
+    // The image as displayed, display enhancement included.
     auto image = m_vulkanWindow->captureDisplayImage();
     if (!image) {
         QMessageBox::warning(this, tr("Screenshot Failed"),
-            tr("Failed to capture screenshot. Make sure a scene is loaded."));
-        m_statusLabel->setText(tr("Screenshot failed"));
+            tr("Failed to capture the screenshot. Make sure a scene is loaded."));
+        showStatusMessage(tr("Screenshot failed"));
         return;
     }
 
-    // Note: CLAHE is now applied on GPU in real-time
-    // captureDisplayImage() returns the image as displayed on screen
-    qDebug() << "Screenshot captured:" << image->width << "x" << image->height
-             << "CLAHE enabled:" << m_displayEnhancementEnabled;
-
-    // Get screenshot save path from settings
     QSettings settings;
-    QString screenshotDir = settings.value("screenshot_path", "").toString();
-
-    // Use default if not set
+    QString screenshotDir = settings.value("screenshot_path").toString();
     if (screenshotDir.isEmpty()) {
-#ifdef Q_OS_WIN
-        QString tempDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation);
-        screenshotDir = QDir(tempDir).filePath("Quantiloom/screenshots");
-#else
-        screenshotDir = "/tmp/Quantiloom/screenshots";
-#endif
+        screenshotDir = PreferencesDialog::defaultScreenshotPath();
     }
 
-    // Create directory if doesn't exist
     QDir dir(screenshotDir);
-    if (!dir.exists()) {
-        if (!dir.mkpath(".")) {
-            QMessageBox::warning(this, tr("Screenshot Failed"),
-                tr("Failed to create screenshot directory:\n%1").arg(screenshotDir));
-            m_statusLabel->setText(tr("Screenshot failed"));
-            return;
-        }
-    }
-
-    // Generate filename with millisecond timestamp
-    QDateTime now = QDateTime::currentDateTime();
-    QString timestamp = now.toString("yyyy-MM-dd_HH-mm-ss-zzz");
-    QString baseFilename = dir.filePath(timestamp);
-    QString exrPath = baseFilename + ".exr";
-    QString pngPath = baseFilename + ".png";
-
-    // Save EXR (HDR) — screenshot reflects display (includes CLAHE if enabled)
-    bool exrSuccess = quantiloom::ImageIO::WriteEXR(exrPath.toStdString(), *image);
-    if (!exrSuccess) {
+    if (!dir.exists() && !dir.mkpath(QStringLiteral("."))) {
         QMessageBox::warning(this, tr("Screenshot Failed"),
-            tr("Failed to save EXR file:\n%1").arg(exrPath));
-        m_statusLabel->setText(tr("Screenshot failed (EXR)"));
+            tr("Failed to create the screenshot directory:\n%1").arg(screenshotDir));
+        showStatusMessage(tr("Screenshot failed"));
         return;
     }
 
-    // Save PNG (LDR preview)
-    bool pngSuccess = quantiloom::ImageIO::WritePNG(pngPath.toStdString(), *image);
-    if (!pngSuccess) {
+    const QString timestamp =
+        QDateTime::currentDateTime().toString(QStringLiteral("yyyy-MM-dd_HH-mm-ss-zzz"));
+    const QString baseFilename = dir.filePath(timestamp);
+    const QString exrPath = baseFilename + QStringLiteral(".exr");
+    const QString pngPath = baseFilename + QStringLiteral(".png");
+
+    if (!quantiloom::ImageIO::WriteEXR(exrPath.toStdString(), *image)) {
+        QMessageBox::warning(this, tr("Screenshot Failed"),
+            tr("Failed to save the EXR file:\n%1").arg(exrPath));
+        showStatusMessage(tr("Screenshot failed (EXR)"));
+        return;
+    }
+
+    if (!quantiloom::ImageIO::WritePNG(pngPath.toStdString(), *image)) {
         QMessageBox::warning(this, tr("Screenshot Warning"),
-            tr("EXR saved successfully, but PNG save failed:\n%1").arg(pngPath));
-        m_statusLabel->setText(tr("Screenshot saved (EXR only): %1").arg(exrPath));
+            tr("The EXR was saved but the PNG failed:\n%1").arg(pngPath));
+        showStatusMessage(tr("Screenshot saved (EXR only): %1").arg(exrPath));
         return;
     }
 
-    // Success
-    m_statusLabel->setText(tr("Screenshot saved: %1.{exr,png}").arg(baseFilename));
-
-    // Optional: Show success message
-    QMessageBox::information(this, tr("Screenshot Saved"),
-        tr("Screenshot saved successfully:\n\nEXR: %1\nPNG: %2")
-        .arg(exrPath).arg(pngPath));
+    showStatusMessage(tr("Screenshot saved: %1.{exr,png}").arg(baseFilename));
 }
 
 void MainWindow::onAbout() {
@@ -662,53 +954,65 @@ void MainWindow::onAbout() {
            "<li>PBR materials with spectral extensions</li>"
            "<li>Atmospheric scattering</li>"
            "</ul>"
-           "<p>Copyright (c) 2025-2026 wtflmao</p>")
-    );
+           "<p>Copyright (c) 2025-2026 wtflmao</p>"));
 }
 
-void MainWindow::onLanguageChanged(const QString& locale) {
-    QSettings settings;
-    QString currentLocale = settings.value("language", "").toString();
-
-    // Only prompt if language actually changed
-    if (currentLocale != locale) {
-        settings.setValue("language", locale);
-
-        QMessageBox::information(
-            this,
-            tr("Language Changed"),
-            tr("The language setting has been changed.\n"
-               "Please restart the application for the changes to take effect.")
-        );
-    }
+void MainWindow::onShowShortcuts() {
+    auto* dialog = new HelpDialog(this, findChildren<QAction*>(), {
+        {tr("Right-drag"),   tr("Orbit the camera")},
+        {tr("Middle-drag"),  tr("Pan the camera")},
+        {tr("Wheel"),        tr("Zoom")},
+        {tr("W / A / S / D"), tr("Fly the camera")},
+        {tr("Q / E"),        tr("Move the camera down / up")},
+        {tr("Shift"),        tr("Fine control while dragging")},
+        {tr("G"),            tr("Translate mode")},
+        {tr("R"),            tr("Rotate mode")},
+        {tr("T"),            tr("Scale mode")},
+        {tr("X / Y / Z"),    tr("Constrain the transform to an axis")},
+        {tr("Space"),        tr("Toggle world / local space")},
+        {tr("Escape"),       tr("Cancel the drag, then clear the selection")},
+        {tr("Left-drag"),    tr("Transform the selection")},
+        {tr("Hover"),        tr("Read the pixel under the cursor in debug modes")},
+    });
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+    dialog->showPage(HelpDialog::Page::Shortcuts);
+    dialog->show();
 }
 
-void MainWindow::onSettings() {
-    SettingsDialog dialog(this);
+void MainWindow::onShowDebugReference() {
+    auto* dialog = new HelpDialog(this, findChildren<QAction*>(), {});
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+    dialog->showPage(HelpDialog::Page::DebugOutput);
+    dialog->show();
+}
 
-    // Load current settings
+void MainWindow::onPreferences() {
+    PreferencesDialog dialog(this);
+
     QSettings settings;
-    QString currentPath = settings.value("screenshot_path", "").toString();
-    dialog.setScreenshotPath(currentPath);
+    dialog.setScreenshotPath(settings.value("screenshot_path").toString());
+    dialog.setSelectedLocale(LanguageManager::instance().currentLocale());
 
-    // Show dialog
-    if (dialog.exec() == QDialog::Accepted) {
-        QString newPath = dialog.getScreenshotPath();
-
-        // Save to QSettings
-        settings.setValue("screenshot_path", newPath);
-
-        m_statusLabel->setText(tr("Settings saved"));
+    if (dialog.exec() != QDialog::Accepted) {
+        return;
     }
+
+    settings.setValue("screenshot_path", dialog.screenshotPath());
+
+    // Takes effect immediately: installing the translator makes Qt post a
+    // LanguageChange event to every widget, and each one re-applies its text.
+    LanguageManager::instance().switchTo(dialog.selectedLocale());
+
+    showStatusMessage(tr("Preferences saved"));
 }
 
 void MainWindow::onFrameRendered(float frameTimeMs, uint32_t sampleCount) {
-    float fps = (frameTimeMs > 0.0f) ? (1000.0f / frameTimeMs) : 0.0f;
+    const float fps = (frameTimeMs > 0.0f) ? (1000.0f / frameTimeMs) : 0.0f;
     m_fpsLabel->setText(tr("FPS: %1").arg(fps, 0, 'f', 1));
     m_sampleCountLabel->setText(tr("Samples: %1").arg(sampleCount));
 
-    // Update render settings panel
     m_renderSettingsPanel->setSampleCount(sampleCount);
+    updateRenderProgress();
 }
 
 // ============================================================================
@@ -716,181 +1020,75 @@ void MainWindow::onFrameRendered(float frameTimeMs, uint32_t sampleCount) {
 // ============================================================================
 
 void MainWindow::onMaterialSelected(int materialIndex) {
-    // Get scene from vulkan window
     const quantiloom::Scene* scene = m_vulkanWindow->getScene();
-    if (scene && materialIndex >= 0 && static_cast<size_t>(materialIndex) < scene->materials.size()) {
+    if (scene && materialIndex >= 0 &&
+        static_cast<size_t>(materialIndex) < scene->materials.size()) {
         const auto& material = scene->materials[static_cast<size_t>(materialIndex)];
         m_materialEditorPanel->setMaterial(materialIndex, &material);
-        m_parameterTabs->setCurrentWidget(m_materialEditorPanel);
-        m_statusLabel->setText(tr("Material '%1' selected").arg(
-            QString::fromStdString(material.name)));
+        m_parameterTabs->setCurrentIndex(1);
+        showStatusMessage(tr("Material '%1' selected")
+                              .arg(QString::fromStdString(material.name)));
     }
 }
 
 void MainWindow::onMaterialChanged(int index, const quantiloom::Material& material) {
     m_vulkanWindow->updateMaterial(index, material);
-    m_sceneModified = true;
-    m_statusLabel->setText(tr("Material modified"));
+    setSceneModified(true);
+    showStatusMessage(tr("Material modified"));
 }
 
 void MainWindow::onLightingChanged(const quantiloom::LightingParams& params) {
     m_vulkanWindow->setLightingParams(params);
-    m_statusLabel->setText(tr("Lighting updated"));
+    setSceneModified(true);
+    showStatusMessage(tr("Lighting updated"));
 }
 
 void MainWindow::onSppChanged(uint32_t spp) {
     m_vulkanWindow->setSPP(spp);
-    m_statusLabel->setText(tr("SPP set to %1").arg(spp));
+    setSceneModified(true);
+    updateRenderProgress();
+    showStatusMessage(tr("Target samples: %1").arg(spp));
 }
 
 void MainWindow::onSpectralModeChanged(quantiloom::SpectralMode mode) {
     m_vulkanWindow->setSpectralMode(mode);
-    QString modeName;
-    switch (mode) {
-        case quantiloom::SpectralMode::RGB: modeName = "RGB"; break;
-        case quantiloom::SpectralMode::VIS_Fused: modeName = "VIS Fused"; break;
-        case quantiloom::SpectralMode::Single: modeName = "Single"; break;
-        case quantiloom::SpectralMode::NIR_Fused: modeName = "NIR"; break;
-        case quantiloom::SpectralMode::SWIR_Fused: modeName = "SWIR"; break;
-        case quantiloom::SpectralMode::MWIR_Fused: modeName = "MWIR"; break;
-        case quantiloom::SpectralMode::LWIR_Fused: modeName = "LWIR"; break;
-        default: modeName = "Unknown"; break;
-    }
-    m_statusLabel->setText(tr("Spectral mode: %1").arg(modeName));
+    setSceneModified(true);
+    showStatusMessage(tr("Spectral mode: %1").arg(catalog::spectralModeName(mode)));
 }
 
 void MainWindow::onWavelengthChanged(float wavelength_nm) {
     m_vulkanWindow->setWavelength(wavelength_nm);
-    m_statusLabel->setText(tr("Wavelength: %1 nm").arg(wavelength_nm, 0, 'f', 0));
+    setSceneModified(true);
+    showStatusMessage(tr("Wavelength: %1 nm").arg(wavelength_nm, 0, 'f', 0));
 }
 
 void MainWindow::onDebugModeChanged(quantiloom::DebugVisualizationMode mode) {
     m_vulkanWindow->setDebugMode(mode);
-    QString modeName;
-    switch (mode) {
-        case quantiloom::DebugVisualizationMode::None: modeName = "None"; break;
-        // Geometry
-        case quantiloom::DebugVisualizationMode::WorldPosition: modeName = "World Position"; break;
-        case quantiloom::DebugVisualizationMode::GeometricNormal: modeName = "Geometric Normal"; break;
-        case quantiloom::DebugVisualizationMode::ShadedNormal: modeName = "Shaded Normal"; break;
-        case quantiloom::DebugVisualizationMode::Tangent: modeName = "Tangent"; break;
-        case quantiloom::DebugVisualizationMode::UV: modeName = "UV"; break;
-        case quantiloom::DebugVisualizationMode::MaterialID: modeName = "Material ID"; break;
-        case quantiloom::DebugVisualizationMode::TriangleID: modeName = "Triangle ID"; break;
-        case quantiloom::DebugVisualizationMode::Barycentric: modeName = "Barycentric"; break;
-        // Material
-        case quantiloom::DebugVisualizationMode::BaseColor: modeName = "Base Color"; break;
-        case quantiloom::DebugVisualizationMode::Metallic: modeName = "Metallic"; break;
-        case quantiloom::DebugVisualizationMode::Roughness: modeName = "Roughness"; break;
-        case quantiloom::DebugVisualizationMode::NormalMapDelta: modeName = "Normal Map Delta"; break;
-        case quantiloom::DebugVisualizationMode::Emissive: modeName = "Emissive"; break;
-        case quantiloom::DebugVisualizationMode::Alpha: modeName = "Alpha"; break;
-        // Lighting
-        case quantiloom::DebugVisualizationMode::NdotL: modeName = "NdotL"; break;
-        case quantiloom::DebugVisualizationMode::NdotV: modeName = "NdotV"; break;
-        case quantiloom::DebugVisualizationMode::DirectSun: modeName = "Direct Sun"; break;
-        case quantiloom::DebugVisualizationMode::Diffuse: modeName = "Diffuse"; break;
-        case quantiloom::DebugVisualizationMode::AtmosphericTransmittance: modeName = "Atmospheric Transmittance"; break;
-        // BRDF
-        case quantiloom::DebugVisualizationMode::FresnelF0: modeName = "Fresnel F0"; break;
-        case quantiloom::DebugVisualizationMode::Fresnel: modeName = "Fresnel"; break;
-        case quantiloom::DebugVisualizationMode::BRDF_Full: modeName = "BRDF Full"; break;
-        case quantiloom::DebugVisualizationMode::SpecularD: modeName = "Specular D"; break;
-        case quantiloom::DebugVisualizationMode::SpecularG: modeName = "Specular G"; break;
-        // IBL
-        case quantiloom::DebugVisualizationMode::ReflectionDir: modeName = "Reflection Dir"; break;
-        case quantiloom::DebugVisualizationMode::PrefilteredEnv: modeName = "Prefiltered Env"; break;
-        case quantiloom::DebugVisualizationMode::BrdfLut: modeName = "BRDF LUT"; break;
-        case quantiloom::DebugVisualizationMode::IblSpecular: modeName = "IBL Specular"; break;
-        case quantiloom::DebugVisualizationMode::SkyAmbient: modeName = "Sky Ambient"; break;
-        // Spectral
-        case quantiloom::DebugVisualizationMode::XYZ_Tristimulus: modeName = "XYZ Tristimulus"; break;
-        case quantiloom::DebugVisualizationMode::BeforeChromaCorrection: modeName = "Before Chroma Correction"; break;
-        case quantiloom::DebugVisualizationMode::SpectralReflectance550: modeName = "Spectral Reflectance @550nm"; break;
-        // IR
-        case quantiloom::DebugVisualizationMode::Temperature: modeName = "Temperature"; break;
-        case quantiloom::DebugVisualizationMode::IREmissivity: modeName = "IR Emissivity"; break;
-        case quantiloom::DebugVisualizationMode::IREmission: modeName = "IR Emission"; break;
-        case quantiloom::DebugVisualizationMode::IRReflection: modeName = "IR Reflection"; break;
-        default: modeName = "Unknown"; break;
-    }
-    m_statusLabel->setText(tr("Debug mode: %1").arg(modeName));
+    showStatusMessage(tr("Debug mode: %1").arg(catalog::debugModeName(mode)));
 }
 
 void MainWindow::onResetAccumulation() {
     m_vulkanWindow->resetAccumulation();
-    m_statusLabel->setText(tr("Accumulation reset"));
+    updateRenderProgress();
+    showStatusMessage(tr("Accumulation reset"));
 }
 
 void MainWindow::updatePanelsFromScene() {
     const quantiloom::Scene* scene = m_vulkanWindow->getScene();
 
-    // Update scene tree
     m_sceneTreePanel->setScene(scene);
-
-    // Clear material editor
     m_materialEditorPanel->clear();
 
-    // Update lighting panel with current params
     if (scene) {
         m_lightingPanel->setLightingParams(quantiloom::CreateDefaultLightingParams());
-
-        // Update spectral config
         m_spectralConfigPanel->setWavelengthRange(
             scene->lambda_min, scene->lambda_max, scene->delta_lambda);
-
-        // Show helpful hint in status bar
-        m_statusLabel->setText(tr("Scene loaded - Click a node in Scene panel to select, use G/R/T keys to change transform mode"));
     }
 }
 
 // ============================================================================
-// Config Import/Export
+// Config round trip
 // ============================================================================
-
-void MainWindow::onImportConfig() {
-    QString fileName = QFileDialog::getOpenFileName(
-        this,
-        tr("Import Configuration"),
-        QString(),
-        tr("TOML Config (*.toml);;All Files (*)")
-    );
-
-    if (!fileName.isEmpty()) {
-        SceneConfig config;
-        if (m_configManager->loadConfig(fileName, config)) {
-            m_currentConfigFile = fileName;
-            rememberConfigPath(fileName);
-            applyConfig(config);
-            m_statusLabel->setText(tr("Config imported: %1").arg(fileName));
-        } else {
-            QMessageBox::warning(this, tr("Import Failed"),
-                tr("Failed to import config: %1").arg(m_configManager->lastError()));
-        }
-    }
-}
-
-void MainWindow::onExportConfig() {
-    QString fileName = QFileDialog::getSaveFileName(
-        this,
-        tr("Export Configuration"),
-        m_currentConfigFile.isEmpty() ? "scene_config.toml" : m_currentConfigFile,
-        tr("TOML Config (*.toml)")
-    );
-
-    if (!fileName.isEmpty()) {
-        SceneConfig config;
-        collectCurrentConfig(config);
-
-        if (m_configManager->exportConfig(fileName, config)) {
-            m_currentConfigFile = fileName;
-            m_statusLabel->setText(tr("Config exported: %1").arg(fileName));
-        } else {
-            QMessageBox::warning(this, tr("Export Failed"),
-                tr("Failed to export config: %1").arg(m_configManager->lastError()));
-        }
-    }
-}
 
 void MainWindow::applyConfig(const SceneConfig& config) {
     // Remember the whole config, not just the parts the panels can show. Export
@@ -918,29 +1116,21 @@ void MainWindow::applyConfig(const SceneConfig& config) {
     // Apply atmospheric configuration
     m_atmosphericPanel->setPreset(config.atmosphericPreset);
     m_vulkanWindow->setAtmosphericPreset(config.atmosphericPreset);
-    if (config.atmosphericEnabled) {
-        qDebug() << "Atmospheric preset applied:" << config.atmosphericPreset;
-    }
 
     // Apply sensor configuration
     m_sensorPanel->setSensorParams(config.sensorParams);  // Always set params first
     m_sensorPanel->setSensorEnabled(config.sensorEnabled); // Then set enabled state
     m_vulkanWindow->setSensorParams(config.sensorParams);
     m_vulkanWindow->setSensorEnabled(config.sensorEnabled);
-    if (config.sensorEnabled) {
-        qDebug() << "Sensor simulation enabled with custom params";
-    }
 
     // Load scene file (glTF or USD)
     QString scenePath;
     if (!config.usdPath.isEmpty()) {
-        // USD file specified
         scenePath = config.usdPath;
         if (!QFileInfo(scenePath).isAbsolute() && !config.baseDir.isEmpty()) {
             scenePath = config.baseDir + "/" + config.usdPath;
         }
     } else if (!config.gltfPath.isEmpty()) {
-        // glTF file specified
         scenePath = config.gltfPath;
         if (!QFileInfo(scenePath).isAbsolute() && !config.baseDir.isEmpty()) {
             scenePath = config.baseDir + "/" + config.gltfPath;
@@ -958,9 +1148,6 @@ void MainWindow::applyConfig(const SceneConfig& config) {
         if (!QFileInfo(envPath).isAbsolute() && !config.baseDir.isEmpty()) {
             envPath = config.baseDir + "/" + config.environmentMap;
         }
-        // Note: loadEnvironmentMap will be called after scene is loaded
-        // For now, store the path and attempt loading
-        qDebug() << "Environment map path:" << envPath;
         if (!m_vulkanWindow->loadEnvironmentMap(envPath)) {
             qWarning() << "Failed to load environment map:" << envPath;
         }
@@ -991,9 +1178,6 @@ void MainWindow::collectCurrentConfig(SceneConfig& config) {
     config.width = m_renderSettingsPanel->renderWidth();
     config.height = m_renderSettingsPanel->renderHeight();
     config.spp = m_renderSettingsPanel->spp();
-
-    // Collect spectral settings from panel
-    // These are tracked in the panel's internal state
 
     // Record the loaded scene under the right key. Only one of the two is
     // written, or a USD scene would be exported as both `gltf` and `usd` now
@@ -1026,25 +1210,19 @@ void MainWindow::collectCurrentConfig(SceneConfig& config) {
 
 void MainWindow::applyPendingMaterialConfigs() {
     if (m_pendingMaterialConfigs.isEmpty()) {
-        qDebug() << "applyPendingMaterialConfigs: no pending configs";
         return;
     }
-
-    qDebug() << "applyPendingMaterialConfigs: applying" << m_pendingMaterialConfigs.size() << "configs";
 
     const auto* scene = m_vulkanWindow->getScene();
     if (!scene) {
         return;
     }
 
-    qDebug() << "Applying" << m_pendingMaterialConfigs.size() << "material IR configs";
-
     for (const auto& matConfig : m_pendingMaterialConfigs) {
         // Find material by name
         for (size_t i = 0; i < scene->materials.size(); ++i) {
             const auto& material = scene->materials[i];
             if (QString::fromStdString(material.name) == matConfig.name) {
-                // Create modified material with IR properties
                 quantiloom::Material modified = material;
 
                 // Set IR curves with constant values across IR bands
@@ -1073,18 +1251,12 @@ void MainWindow::applyPendingMaterialConfigs() {
 
                 modified.irTemperature_K = matConfig.irTemperature_K;
 
-                // Apply the modified material
                 m_vulkanWindow->updateMaterial(static_cast<int>(i), modified);
-
-                qDebug() << "  Applied IR config to material" << matConfig.name
-                         << "emissivity=" << matConfig.irEmissivity
-                         << "temp=" << matConfig.irTemperature_K << "K";
                 break;
             }
         }
     }
 
-    // Clear pending configs after applying
     m_pendingMaterialConfigs.clear();
 }
 
@@ -1093,30 +1265,22 @@ void MainWindow::applyPendingMaterialConfigs() {
 // ============================================================================
 
 void MainWindow::onViewportClicked(const QPointF& screenPos) {
-    // Simple selection: for now, cycle through nodes based on click
-    // A proper implementation would do ray casting
-    // For MVP, we select from scene tree instead
-
+    // Proper picking would cast a ray; selection currently goes through the
+    // scene tree.
     Q_UNUSED(screenPos);
-
-    // Clear selection on empty click
-    // Note: Real picking would cast a ray and find intersecting geometry
-    // For now, users select via the scene tree panel
-    m_statusLabel->setText(tr("Click in Scene panel to select objects"));
 }
 
 void MainWindow::onSelectionChanged(const QSet<int>& selectedNodes) {
-    qDebug() << "Selection changed:" << selectedNodes.size() << "nodes";
-
     if (selectedNodes.isEmpty()) {
-        m_statusLabel->setText(tr("Selection cleared - click a node in Scene panel to select"));
         m_transformStartStates.clear();
-    } else if (selectedNodes.size() == 1) {
-        int nodeIndex = *selectedNodes.constBegin();
+        return;
+    }
 
-        // Get node name for display
-        QString nodeName = QString("Node %1").arg(nodeIndex);
-        const auto* scene = m_vulkanWindow->getScene();
+    const auto* scene = m_vulkanWindow->getScene();
+    if (selectedNodes.size() == 1) {
+        const int nodeIndex = *selectedNodes.constBegin();
+
+        QString nodeName = tr("Node %1").arg(nodeIndex);
         if (scene && nodeIndex >= 0 && static_cast<size_t>(nodeIndex) < scene->nodes.size()) {
             const auto& node = scene->nodes[static_cast<size_t>(nodeIndex)];
             if (node.meshIndex < scene->meshes.size()) {
@@ -1127,9 +1291,8 @@ void MainWindow::onSelectionChanged(const QSet<int>& selectedNodes) {
             }
         }
 
-        m_statusLabel->setText(tr("'%1' selected - Left-drag in viewport to transform").arg(nodeName));
+        showStatusMessage(tr("'%1' selected").arg(nodeName));
 
-        // Store original transform for undo
         if (scene && nodeIndex >= 0 && static_cast<size_t>(nodeIndex) < scene->nodes.size()) {
             m_transformStartStates.clear();
             m_transformStartStates.push_back({
@@ -1137,20 +1300,19 @@ void MainWindow::onSelectionChanged(const QSet<int>& selectedNodes) {
                 scene->nodes[static_cast<size_t>(nodeIndex)].transform
             });
         }
-    } else {
-        m_statusLabel->setText(tr("%1 objects selected - Left-drag in viewport to transform").arg(selectedNodes.size()));
+        return;
+    }
 
-        // Store all original transforms
-        const auto* scene = m_vulkanWindow->getScene();
-        if (scene) {
-            m_transformStartStates.clear();
-            for (int nodeIndex : selectedNodes) {
-                if (nodeIndex >= 0 && static_cast<size_t>(nodeIndex) < scene->nodes.size()) {
-                    m_transformStartStates.push_back({
-                        nodeIndex,
-                        scene->nodes[static_cast<size_t>(nodeIndex)].transform
-                    });
-                }
+    showStatusMessage(tr("%1 objects selected").arg(selectedNodes.size()));
+
+    if (scene) {
+        m_transformStartStates.clear();
+        for (int nodeIndex : selectedNodes) {
+            if (nodeIndex >= 0 && static_cast<size_t>(nodeIndex) < scene->nodes.size()) {
+                m_transformStartStates.push_back({
+                    nodeIndex,
+                    scene->nodes[static_cast<size_t>(nodeIndex)].transform
+                });
             }
         }
     }
@@ -1159,98 +1321,83 @@ void MainWindow::onSelectionChanged(const QSet<int>& selectedNodes) {
 void MainWindow::onGizmoTransformChanged(const glm::vec3& translation,
                                           const glm::quat& rotation,
                                           const glm::vec3& scale) {
+    Q_UNUSED(translation);
     Q_UNUSED(rotation);
     Q_UNUSED(scale);
 
-    // Apply transform delta to all selected nodes
     const auto* scene = m_vulkanWindow->getScene();
     if (!scene || m_transformStartStates.empty()) {
         return;
     }
 
-    qDebug() << "Transform delta:" << translation.x << translation.y << translation.z;
-
     for (const auto& state : m_transformStartStates) {
         glm::mat4 newTransform = m_transformGizmo->applyDelta(state.originalTransform);
         m_vulkanWindow->setNodeTransform(state.nodeIndex, newTransform);
-        qDebug() << "  Applied transform to node" << state.nodeIndex;
     }
 
-    m_sceneModified = true;
+    setSceneModified(true);
 }
 
 void MainWindow::onGizmoTransformFinished() {
-    // Create undo command for the transform
     const auto* scene = m_vulkanWindow->getScene();
     if (!scene || m_transformStartStates.empty()) {
         return;
     }
 
     if (m_transformStartStates.size() == 1) {
-        // Single node transform
         const auto& state = m_transformStartStates[0];
         if (state.nodeIndex >= 0 && static_cast<size_t>(state.nodeIndex) < scene->nodes.size()) {
             glm::mat4 newTransform = scene->nodes[static_cast<size_t>(state.nodeIndex)].transform;
-
-            // Only push command if transform actually changed
             if (newTransform != state.originalTransform) {
                 auto cmd = std::make_unique<TransformNodeCommand>(
-                    m_vulkanWindow,
-                    state.nodeIndex,
-                    state.originalTransform,
-                    newTransform
-                );
+                    m_vulkanWindow, state.nodeIndex, state.originalTransform, newTransform);
                 m_undoStack->push(std::move(cmd));
             }
         }
     } else {
-        // Multi-node transform
         std::vector<MultiTransformCommand::NodeTransform> transforms;
-
         for (const auto& state : m_transformStartStates) {
             if (state.nodeIndex >= 0 && static_cast<size_t>(state.nodeIndex) < scene->nodes.size()) {
                 glm::mat4 newTransform = scene->nodes[static_cast<size_t>(state.nodeIndex)].transform;
                 if (newTransform != state.originalTransform) {
-                    transforms.push_back({
-                        state.nodeIndex,
-                        state.originalTransform,
-                        newTransform
-                    });
+                    transforms.push_back({state.nodeIndex, state.originalTransform, newTransform});
                 }
             }
         }
-
         if (!transforms.empty()) {
             auto cmd = std::make_unique<MultiTransformCommand>(m_vulkanWindow, transforms);
             m_undoStack->push(std::move(cmd));
         }
     }
 
-    // Update start states for next transform
     onSelectionChanged(m_selectionManager->selectedNodes());
 }
 
 void MainWindow::onUndoRedoChanged() {
     m_undoAction->setEnabled(m_undoStack->canUndo());
     m_redoAction->setEnabled(m_undoStack->canRedo());
-    m_undoAction->setText(m_undoStack->undoText());
-    m_redoAction->setText(m_undoStack->redoText());
+
+    // The action description goes *into* the label rather than replacing it.
+    // Overwriting the text with the stack's own description dropped the
+    // mnemonic and pulled the wording into a different translation context.
+    const QString undoWhat = m_undoStack->canUndo() ? m_undoStack->undoText() : QString();
+    const QString redoWhat = m_undoStack->canRedo() ? m_undoStack->redoText() : QString();
+    m_undoAction->setText(undoWhat.isEmpty() ? tr("&Undo") : tr("&Undo %1").arg(undoWhat));
+    m_redoAction->setText(redoWhat.isEmpty() ? tr("&Redo") : tr("&Redo %1").arg(redoWhat));
 }
 
 void MainWindow::onViewportHovered(int x, int y) {
-    // Only show debug values when debug mode is active
-    auto debugMode = m_vulkanWindow->getDebugMode();
+    const auto debugMode = m_vulkanWindow->getDebugMode();
     if (debugMode == quantiloom::DebugVisualizationMode::None) {
-        m_debugValueLabel->setText(tr("Click to inspect (select debug mode first)"));
+        m_debugValueLabel->setText(tr("Select a debug mode to inspect pixels"));
         return;
     }
 
-    // Read pixel value from render output
     glm::vec4 pixelValue;
     if (m_vulkanWindow->readDebugPixel(x, y, pixelValue)) {
-        QString formatted = m_vulkanWindow->formatDebugValue(pixelValue);
-        m_debugValueLabel->setText(QString("(%1,%2) %3").arg(x).arg(y).arg(formatted));
+        const QString formatted = m_vulkanWindow->formatDebugValue(pixelValue);
+        m_debugValueLabel->setText(tr("(%1,%2) %3").arg(x).arg(y).arg(formatted));
     } else {
-        m_debugValueLabel->setText(QString("(%1,%2) read failed").arg(x).arg(y));
+        m_debugValueLabel->setText(tr("(%1,%2) read failed").arg(x).arg(y));
     }
 }
