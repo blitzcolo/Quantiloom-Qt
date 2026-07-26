@@ -164,6 +164,34 @@ void ConfigManager::extractSceneConfig(const quantiloom::Config& config, SceneCo
     }
     out.atmosphericEnabled = (out.atmosphericPreset != "disabled");
 
+    // The nine weather features, each overridable on its own. Reading them
+    // back is half of making the round trip lossless; exportConfig() writes
+    // the same keys.
+    out.atmosphere.ApplyPreset(out.atmosphericPreset.toStdString());
+    out.atmosphere.modelPackDir = config.GetString("atmosphere.model_pack", "");
+    out.atmosphere.preset = out.atmosphericPreset.toStdString();
+    // The core enables the NN atmosphere only when a model pack is named.
+    out.atmosphere.enabled = out.atmosphericEnabled && !out.atmosphere.modelPackDir.empty();
+
+    out.atmosphere.atmosModel = config.GetFloat("atmosphere.atmos_model",
+        static_cast<quantiloom::f32>(out.atmosphere.atmosModel));
+    out.atmosphere.ihaze = config.GetFloat("atmosphere.ihaze",
+        static_cast<quantiloom::f32>(out.atmosphere.ihaze));
+    out.atmosphere.icld = config.GetFloat("atmosphere.icld",
+        static_cast<quantiloom::f32>(out.atmosphere.icld));
+    out.atmosphere.visKm = config.GetFloat("atmosphere.vis_km",
+        static_cast<quantiloom::f32>(out.atmosphere.visKm));
+    out.atmosphere.rainrtMmH = config.GetFloat("atmosphere.rainrt_mm_h",
+        static_cast<quantiloom::f32>(out.atmosphere.rainrtMmH));
+    out.atmosphere.tGroundK = config.GetFloat("atmosphere.t_ground_K",
+        static_cast<quantiloom::f32>(out.atmosphere.tGroundK));
+    out.atmosphere.rh = config.GetFloat("atmosphere.rh",
+        static_cast<quantiloom::f32>(out.atmosphere.rh));
+    out.atmosphere.pHPa = config.GetFloat("atmosphere.p_hPa",
+        static_cast<quantiloom::f32>(out.atmosphere.pHPa));
+    out.atmosphere.h2oScale = config.GetFloat("atmosphere.h2o_scale",
+        static_cast<quantiloom::f32>(out.atmosphere.h2oScale));
+
     // [sensor]
     out.sensorEnabled = config.Get<bool>("sensor.enabled", false);
     // Always parse sensor params so they're available if user enables later
@@ -324,13 +352,30 @@ bool ConfigManager::exportConfig(const QString& filePath, const SceneConfig& con
                               << config.lighting.skyRadiance_rgb.g << ", "
                               << config.lighting.skyRadiance_rgb.b << "]\n";
     out << "atmosphere_temperature_k = " << config.lighting.atmosphereTemperature_K << "\n";
+    // Read back by extractSceneConfig, so leaving it out was one more value
+    // that silently reverted to its default on every save. The core logs it as
+    // deprecated -- view-path transmittance comes from the NN atmosphere now --
+    // but a config the GUI wrote should still say what the GUI was holding.
+    out << "transmittance = " << config.lighting.transmittance << "\n";
     out << "\n";
 
-    // [atmosphere] - the NN preset. extractSceneConfig reads this section (and
-    // maps the legacy [atmospheric] names onto it), so it has to be written
-    // back or the preset reverts to "disabled" on the next load.
+    // [atmosphere] - preset plus the nine weather features. extractSceneConfig
+    // reads all of them (and maps the legacy [atmospheric] names onto the
+    // preset), so anything omitted here reverts on the next load.
     out << "[atmosphere]\n";
     out << "preset = \"" << config.atmosphericPreset << "\"\n";
+    if (!config.atmosphere.modelPackDir.empty()) {
+        out << "model_pack = \"" << QString::fromStdString(config.atmosphere.modelPackDir) << "\"\n";
+    }
+    out << "atmos_model = " << config.atmosphere.atmosModel << "\n";
+    out << "ihaze = " << config.atmosphere.ihaze << "\n";
+    out << "icld = " << config.atmosphere.icld << "\n";
+    out << "vis_km = " << config.atmosphere.visKm << "\n";
+    out << "rainrt_mm_h = " << config.atmosphere.rainrtMmH << "\n";
+    out << "t_ground_K = " << config.atmosphere.tGroundK << "\n";
+    out << "rh = " << config.atmosphere.rh << "\n";
+    out << "p_hPa = " << config.atmosphere.pHPa << "\n";
+    out << "h2o_scale = " << config.atmosphere.h2oScale << "\n";
     out << "\n";
 
     // [quality] - VIS_Fused chromaticity correction (only if non-default)

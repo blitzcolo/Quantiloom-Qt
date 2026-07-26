@@ -5,6 +5,8 @@
 
 #include "SceneTreePanel.hpp"
 
+#include "../ui/UiStyle.hpp"
+
 #include <QTreeWidget>
 #include <QVBoxLayout>
 #include <QHeaderView>
@@ -18,19 +20,31 @@
 #include <scene/Material.hpp>
 
 SceneTreePanel::SceneTreePanel(QWidget* parent)
-    : QWidget(parent)
+    : PanelBase(parent)
 {
+    setObjectName(panelId());
+
     auto* layout = new QVBoxLayout(this);
     layout->setContentsMargins(4, 4, 4, 4);
     layout->setSpacing(4);
 
     m_tree = new QTreeWidget();
-    m_tree->setHeaderLabels({tr("Name"), tr("Type")});
     m_tree->header()->setStretchLastSection(true);
     m_tree->setAlternatingRowColors(true);
     m_tree->setSelectionMode(QAbstractItemView::SingleSelection);
+    bindText([this] {
+        m_tree->setHeaderLabels({tr("Name"), tr("Type")});
+    });
 
     layout->addWidget(m_tree, 1);  // stretch factor 1
+
+    // Empty state. The tree used to return early with no scene, leaving a
+    // blank rectangle that gave no hint whether anything was wrong.
+    m_emptyLabel = new QLabel(this);
+    m_emptyLabel->setAlignment(Qt::AlignCenter);
+    uistyle::applyHintStyle(m_emptyLabel);
+    bindText([this] { m_emptyLabel->setText(tr("Open a scene to see its contents.")); });
+    layout->addWidget(m_emptyLabel);
 
     // The paragraph of grey 11px text that used to live here -- the only place
     // the key bindings were written down -- has moved to Help ▸ Keyboard
@@ -38,6 +52,17 @@ SceneTreePanel::SceneTreePanel(QWidget* parent)
     // registered instead of retyped and left to drift.
 
     connect(m_tree, &QTreeWidget::itemClicked, this, &SceneTreePanel::onItemClicked);
+
+    populateTree();
+}
+
+QString SceneTreePanel::panelTitle() const {
+    return tr("Scene");
+}
+
+void SceneTreePanel::retranslateUi() {
+    PanelBase::retranslateUi();
+    populateTree();   // node and material headings are translated too
 }
 
 void SceneTreePanel::setScene(const quantiloom::Scene* scene) {
@@ -51,6 +76,9 @@ void SceneTreePanel::refresh() {
 
 void SceneTreePanel::populateTree() {
     m_tree->clear();
+
+    m_emptyLabel->setVisible(m_scene == nullptr);
+    m_tree->setVisible(m_scene != nullptr);
 
     if (!m_scene) {
         return;

@@ -8,6 +8,7 @@
 #include <QString>
 #include <QObject>
 
+#include <atmos/AtmosphereNNConfig.hpp>
 #include <core/Config.hpp>
 #include <core/Types.hpp>
 #include <renderer/LightingParams.hpp>
@@ -60,9 +61,13 @@ struct SceneConfig {
     // [lighting]
     quantiloom::LightingParams lighting;
 
-    // [atmospheric]
+    // [atmosphere]
     QString atmosphericPreset = "disabled";  // Preset name
     bool atmosphericEnabled = false;
+    /// The full NN configuration, not just the preset. The nine weather
+    /// features are overridable per key in the TOML, so carrying only the
+    /// preset meant every override the GUI could set was dropped on save.
+    quantiloom::AtmosphereNNConfig atmosphere;
 
     // [sensor]
     bool sensorEnabled = false;

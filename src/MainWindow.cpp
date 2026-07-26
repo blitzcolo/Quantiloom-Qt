@@ -17,6 +17,8 @@
 #include "panels/SensorPanel.hpp"
 #include "panels/DisplayEnhancementPanel.hpp"
 #include "panels/SpectralMaterialGenPanel.hpp"
+#include "panels/PropertiesPanel.hpp"
+#include "panels/CameraPanel.hpp"
 #include "config/ConfigManager.hpp"
 #include "editing/SelectionManager.hpp"
 #include "editing/TransformGizmo.hpp"
@@ -106,6 +108,8 @@ MainWindow::MainWindow(QVulkanInstance* vulkanInstance, QWidget* parent)
 
     // Create configuration manager
     m_configManager = new ConfigManager(this);
+    m_lightingParams = std::make_unique<quantiloom::LightingParams>(
+        quantiloom::CreateDefaultLightingParams());
 
     // The editing objects come first: the Edit ▸ Transform actions built in
     // setupMenus() drive the gizmo directly.
@@ -322,16 +326,12 @@ void MainWindow::setupMenus() {
     // --- Tools ----------------------------------------------------------
     m_toolsMenu = menuBar()->addMenu(QString());
     m_spectralGenAction = m_toolsMenu->addAction(QString(), this, [this]() {
-        m_parameterDock->show();
-        m_parameterDock->raise();
-        // Panels sit inside scroll areas, so indexOf(panel) does not find the
-        // tab; ask the scroll area which widget it carries instead.
-        for (int i = 0; i < m_parameterTabs->count(); ++i) {
-            if (m_parameterTabs->widget(i)->findChild<SpectralMaterialGenPanel*>()) {
-                m_parameterTabs->setCurrentIndex(i);
-                break;
-            }
+        QDockWidget* dock = m_docks.value(QStringLiteral("spectralgen"), nullptr);
+        if (!dock) {
+            return;
         }
+        dock->show();
+        dock->raise();
     });
 
     // --- Help -----------------------------------------------------------
@@ -620,19 +620,34 @@ void MainWindow::applyDisplayEnhancementEnabled(bool enabled) {
 // Docks
 // ============================================================================
 
+QDockWidget* MainWindow::createPanelDock(PanelBase* panel, Qt::DockWidgetArea area) {
+    auto* dock = new QDockWidget(this);
+    // The object name is what QMainWindow::saveState keys the layout on, so it
+    // has to be stable and language-independent -- hence the panel's id rather
+    // than its title.
+    dock->setObjectName(QStringLiteral("dock_") + panel->panelId());
+    dock->setWidget(wrapScrollable(panel));
+    dock->setWindowTitle(panel->panelTitle());
+    addDockWidget(area, dock);
+
+    // The panel names itself, so the dock title and the View ▸ Panels entry
+    // follow its language automatically. This is the fix for panels whose
+    // contents were fully translated while their tab label stayed English.
+    connect(panel, &PanelBase::panelTitleChanged, dock, [dock, panel]() {
+        dock->setWindowTitle(panel->panelTitle());
+    });
+
+    m_docks.insert(panel->panelId(), dock);
+    m_panelsMenu->addAction(dock->toggleViewAction());
+    return dock;
+}
+
 void MainWindow::setupDockWidgets() {
-    // Create parameter dock widget
-    m_parameterDock = new QDockWidget(this);
-    m_parameterDock->setObjectName(QStringLiteral("dock_parameters"));
-    m_parameterDock->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
-    m_parameterDock->setMinimumWidth(300);
-
-    // Create tabbed widget for different parameter categories
-    m_parameterTabs = new QTabWidget();
-
     // Create panel instances
     m_sceneTreePanel = new SceneTreePanel();
     m_materialEditorPanel = new MaterialEditorPanel();
+    m_propertiesPanel = new PropertiesPanel(m_materialEditorPanel);
+    m_cameraPanel = new CameraPanel();
     m_lightingPanel = new LightingPanel();
     m_renderSettingsPanel = new RenderSettingsPanel();
     m_spectralConfigPanel = new SpectralConfigPanel();
@@ -641,24 +656,26 @@ void MainWindow::setupDockWidgets() {
     m_sensorPanel = new SensorPanel();
     m_displayEnhancementPanel = new DisplayEnhancementPanel();
     m_spectralMaterialGenPanel = new SpectralMaterialGenPanel();
-    m_spectralMaterialGenPanel->setVulkanWindow(m_vulkanWindow);
 
-    // Add panels to tabs (titles are filled in by retranslateUi)
-    m_parameterTabs->addTab(wrapScrollable(m_sceneTreePanel), QString());
-    m_parameterTabs->addTab(wrapScrollable(m_materialEditorPanel), QString());
-    m_parameterTabs->addTab(wrapScrollable(m_lightingPanel), QString());
-    m_parameterTabs->addTab(wrapScrollable(m_atmosphericPanel), QString());
-    m_parameterTabs->addTab(wrapScrollable(m_sensorPanel), QString());
-    m_parameterTabs->addTab(wrapScrollable(m_renderSettingsPanel), QString());
-    m_parameterTabs->addTab(wrapScrollable(m_spectralConfigPanel), QString());
-    m_parameterTabs->addTab(wrapScrollable(m_displayEnhancementPanel), QString());
-    m_parameterTabs->addTab(wrapScrollable(m_spectralMaterialGenPanel), QString());
-    m_parameterTabs->addTab(wrapScrollable(m_debugVisualizationPanel), QString());
+    // Display enhancement is one checkbox and three parameters; it is a group
+    // inside the render panel rather than a top-level dock of its own.
+    m_renderSettingsPanel->setDisplayEnhancementWidget(m_displayEnhancementPanel);
 
-    m_parameterDock->setWidget(m_parameterTabs);
-    addDockWidget(Qt::LeftDockWidgetArea, m_parameterDock);
+    createPanelDock(m_sceneTreePanel, Qt::LeftDockWidgetArea);
+    createPanelDock(m_cameraPanel, Qt::LeftDockWidgetArea);
+    createPanelDock(m_propertiesPanel, Qt::RightDockWidgetArea);
+    createPanelDock(m_lightingPanel, Qt::RightDockWidgetArea);
+    createPanelDock(m_atmosphericPanel, Qt::RightDockWidgetArea);
+    createPanelDock(m_sensorPanel, Qt::RightDockWidgetArea);
+    createPanelDock(m_renderSettingsPanel, Qt::RightDockWidgetArea);
+    createPanelDock(m_spectralConfigPanel, Qt::RightDockWidgetArea);
+    createPanelDock(m_debugVisualizationPanel, Qt::RightDockWidgetArea);
+    // The generator is a full offline workflow -- table, chart, file import and
+    // export -- and wants width, so it takes the bottom edge. Floating it out
+    // of the window is what the panel's own "Detach" button used to fake.
+    createPanelDock(m_spectralMaterialGenPanel, Qt::BottomDockWidgetArea);
 
-    m_panelsMenu->addAction(m_parameterDock->toggleViewAction());
+    applyDefaultLayout();
 
     // Connect panel signals
     connect(m_sceneTreePanel, &SceneTreePanel::nodeSelected,
@@ -673,8 +690,35 @@ void MainWindow::setupDockWidgets() {
     connect(m_materialEditorPanel, &MaterialEditorPanel::materialChanged,
             this, &MainWindow::onMaterialChanged);
 
+    // Typed transforms take the same route as a gizmo drag, down to the undo
+    // command, so Ctrl+Z means one thing regardless of how the node was moved.
+    connect(m_propertiesPanel, &PropertiesPanel::nodeTransformEdited,
+            this, &MainWindow::onNodeTransformEdited);
+    connect(m_propertiesPanel, &PropertiesPanel::materialRequested,
+            this, &MainWindow::onMaterialSelected);
+
+    connect(m_cameraPanel, &CameraPanel::cameraEdited,
+            this, [this](const glm::vec3& position, const glm::vec3& target) {
+                glm::vec3 currentPosition, currentTarget, up;
+                float fovY = 45.0f;
+                m_vulkanWindow->getCameraState(currentPosition, currentTarget, up, fovY);
+                m_vulkanWindow->setCamera(position, target, up, fovY);
+                setSceneModified(true);
+            });
+    connect(m_cameraPanel, &CameraPanel::fovEdited, this, [this](float fovY) {
+        m_vulkanWindow->setCameraFovY(fovY);
+        setSceneModified(true);
+    });
+    connect(m_cameraPanel, &CameraPanel::resetRequested, this, &MainWindow::onResetCamera);
+    connect(m_cameraPanel, &CameraPanel::viewDirectionRequested,
+            this, [this](const glm::vec3& direction) {
+                m_vulkanWindow->setViewDirection(direction);
+            });
+
     connect(m_spectralMaterialGenPanel, &SpectralMaterialGenPanel::materialChanged,
             this, &MainWindow::onMaterialChanged);
+    connect(m_spectralMaterialGenPanel, &SpectralMaterialGenPanel::materialWithCriChanged,
+            this, &MainWindow::onMaterialWithCriChanged);
 
     connect(m_lightingPanel, &LightingPanel::lightingChanged,
             this, &MainWindow::onLightingChanged);
@@ -705,6 +749,16 @@ void MainWindow::setupDockWidgets() {
     connect(m_atmosphericPanel, &AtmosphericPanel::configChanged,
             this, [this](const quantiloom::AtmosphereNNConfig& config) {
                 m_vulkanWindow->setAtmosphericConfig(config);
+                setSceneModified(true);
+            });
+    // The two analytic terms moved here from the lighting panel; they still
+    // belong to LightingParams, so they are merged into the copy the shell
+    // holds rather than sent on their own.
+    connect(m_atmosphericPanel, &AtmosphericPanel::analyticTermsChanged,
+            this, [this](float transmittance, float temperatureK) {
+                m_lightingParams->transmittance = transmittance;
+                m_lightingParams->atmosphereTemperature_K = temperatureK;
+                pushLightingParams();
             });
 
     // Sensor panel signals
@@ -737,6 +791,55 @@ void MainWindow::setupDockWidgets() {
                         .arg(clipLimit, 0, 'f', 1).arg(tileSize)
                     : tr("Display enhancement off"));
             });
+}
+
+void MainWindow::applyDefaultLayout() {
+    // Structure on the left, what-is-selected and the environment on the
+    // right, the generator across the bottom, viewport in the middle.
+    for (QDockWidget* dock : std::as_const(m_docks)) {
+        dock->setFloating(false);
+        removeDockWidget(dock);
+    }
+
+    auto place = [this](const char* id, Qt::DockWidgetArea area) -> QDockWidget* {
+        QDockWidget* dock = m_docks.value(QString::fromLatin1(id), nullptr);
+        if (dock) {
+            addDockWidget(area, dock);
+            dock->show();
+        }
+        return dock;
+    };
+
+    place("scene", Qt::LeftDockWidgetArea);
+    place("camera", Qt::LeftDockWidgetArea);
+
+    QDockWidget* properties = place("properties", Qt::RightDockWidgetArea);
+    place("lighting", Qt::RightDockWidgetArea);
+    QDockWidget* atmosphere = place("atmosphere", Qt::RightDockWidgetArea);
+    QDockWidget* sensor = place("sensor", Qt::RightDockWidgetArea);
+    QDockWidget* render = place("render", Qt::RightDockWidgetArea);
+    QDockWidget* spectral = place("spectral", Qt::RightDockWidgetArea);
+    QDockWidget* debug = place("debug", Qt::RightDockWidgetArea);
+
+    // Stack the calibrate-once panels behind the ones in constant use instead
+    // of stretching the right column over seven docks.
+    if (atmosphere && sensor)   tabifyDockWidget(atmosphere, sensor);
+    if (render && spectral)     tabifyDockWidget(render, spectral);
+    if (render && debug)        tabifyDockWidget(render, debug);
+    if (atmosphere)             atmosphere->raise();
+    if (render)                 render->raise();
+
+    // The generator is hidden by default: it is an occasional offline task,
+    // not something the viewport should share the window with all day. Tools ▸
+    // Spectral Material Generator brings it up.
+    if (QDockWidget* generator = m_docks.value(QStringLiteral("spectralgen"), nullptr)) {
+        addDockWidget(Qt::BottomDockWidgetArea, generator);
+        generator->hide();
+    }
+
+    if (properties) {
+        resizeDocks({properties}, {360}, Qt::Horizontal);
+    }
 }
 
 // ============================================================================
@@ -820,6 +923,10 @@ void MainWindow::setupConnections() {
     // Connect viewport hover for debug value display
     connect(m_vulkanWindow, &QuantiloomVulkanWindow::mouseHovered,
             this, &MainWindow::onViewportHovered);
+
+    // Keep the camera panel in step with orbit, pan, zoom and fly.
+    connect(m_vulkanWindow, &QuantiloomVulkanWindow::cameraChanged,
+            this, &MainWindow::onCameraChanged);
 }
 
 void MainWindow::setupEditingSystem() {
@@ -1005,17 +1112,9 @@ void MainWindow::retranslateUi() {
     m_aboutAction->setText(tr("&About"));
     m_aboutQtAction->setText(tr("About &Qt"));
 
-    m_parameterDock->setWindowTitle(tr("Parameters"));
-    m_parameterTabs->setTabText(0, tr("Scene"));
-    m_parameterTabs->setTabText(1, tr("Material"));
-    m_parameterTabs->setTabText(2, tr("Lighting"));
-    m_parameterTabs->setTabText(3, tr("Atmosphere"));
-    m_parameterTabs->setTabText(4, tr("Sensor"));
-    m_parameterTabs->setTabText(5, tr("Render"));
-    m_parameterTabs->setTabText(6, tr("Spectral"));
-    m_parameterTabs->setTabText(7, tr("Display"));
-    m_parameterTabs->setTabText(8, tr("Spectral Gen"));
-    m_parameterTabs->setTabText(9, tr("Debug"));
+    // Dock titles are not set here: each panel names itself and the dock
+    // follows, which is what stopped a fully translated panel from sitting
+    // under an English label.
 
     if (m_statusLabel->text().isEmpty() || !m_statusTimer->isActive()) {
         m_statusLabel->setText(tr("Ready"));
@@ -1333,12 +1432,7 @@ void MainWindow::onResetCamera() {
 }
 
 void MainWindow::onResetLayout() {
-    // Nothing to compute yet while there is a single dock; the entry exists so
-    // that a user who has dragged the layout somewhere unusable has a way back
-    // that does not involve deleting settings by hand.
-    m_parameterDock->setFloating(false);
-    m_parameterDock->show();
-    addDockWidget(Qt::LeftDockWidgetArea, m_parameterDock);
+    applyDefaultLayout();
     showStatusMessage(tr("Layout reset"));
 }
 
@@ -1474,7 +1568,12 @@ void MainWindow::onMaterialSelected(int materialIndex) {
         static_cast<size_t>(materialIndex) < scene->materials.size()) {
         const auto& material = scene->materials[static_cast<size_t>(materialIndex)];
         m_materialEditorPanel->setMaterial(materialIndex, &material);
-        m_parameterTabs->setCurrentIndex(1);
+        m_propertiesPanel->showMaterial();
+        m_spectralMaterialGenPanel->setCurrentMaterialIndex(materialIndex);
+        if (QDockWidget* dock = m_docks.value(QStringLiteral("properties"), nullptr)) {
+            dock->show();
+            dock->raise();
+        }
         showStatusMessage(tr("Material '%1' selected")
                               .arg(QString::fromStdString(material.name)));
     }
@@ -1487,9 +1586,68 @@ void MainWindow::onMaterialChanged(int index, const quantiloom::Material& materi
 }
 
 void MainWindow::onLightingChanged(const quantiloom::LightingParams& params) {
-    m_vulkanWindow->setLightingParams(params);
-    setSceneModified(true);
+    // Take only what the lighting panel owns. The atmospheric transmittance
+    // and temperature belong to the atmosphere panel now, and copying the
+    // whole struct here would reset them to that panel's defaults on every
+    // slider move.
+    m_lightingParams->sunDirection = params.sunDirection;
+    m_lightingParams->sunRadiance_spectral = params.sunRadiance_spectral;
+    m_lightingParams->sunRadiance_rgb = params.sunRadiance_rgb;
+    m_lightingParams->skyRadiance_spectral = params.skyRadiance_spectral;
+    m_lightingParams->skyRadiance_rgb = params.skyRadiance_rgb;
+    m_lightingParams->chromaR_correction = params.chromaR_correction;
+    m_lightingParams->chromaB_correction = params.chromaB_correction;
+    m_lightingParams->enableShadowRays = params.enableShadowRays;
+
+    pushLightingParams();
     showStatusMessage(tr("Lighting updated"));
+}
+
+void MainWindow::pushLightingParams() {
+    m_vulkanWindow->setLightingParams(*m_lightingParams);
+    setSceneModified(true);
+}
+
+void MainWindow::onNodeTransformEdited(int nodeIndex, const glm::mat4& transform) {
+    const auto* scene = m_vulkanWindow->getScene();
+    if (!scene || nodeIndex < 0 || static_cast<size_t>(nodeIndex) >= scene->nodes.size()) {
+        return;
+    }
+
+    const glm::mat4 previous = scene->nodes[static_cast<size_t>(nodeIndex)].transform;
+    if (previous == transform) {
+        return;
+    }
+
+    // Same command the gizmo pushes, so the undo history does not care which
+    // way the node was moved.
+    auto command = std::make_unique<TransformNodeCommand>(
+        m_vulkanWindow, nodeIndex, previous, transform);
+    command->execute();
+    m_undoStack->push(std::move(command));
+
+    setSceneModified(true);
+}
+
+void MainWindow::onMaterialWithCriChanged(int index, const quantiloom::Material& material,
+                                          const quantiloom::ComplexRefractiveIndex& cri) {
+    // The generator has no route to the GPU; uploading its (n,k) curves and
+    // filling in the index is the shell's job.
+    quantiloom::Material updated = material;
+    const int criIndex = m_vulkanWindow->addComplexRefractiveIndex(cri);
+    if (criIndex >= 0) {
+        updated.complexRefractiveIndexIndex = criIndex;
+    }
+    onMaterialChanged(index, updated);
+}
+
+void MainWindow::onCameraChanged() {
+    glm::vec3 position;
+    glm::vec3 target;
+    glm::vec3 up;
+    float fovY = 45.0f;
+    m_vulkanWindow->getCameraState(position, target, up, fovY);
+    m_cameraPanel->setCameraState(position, target, fovY);
 }
 
 // The panel-side entry points delegate to the same apply* functions the menu
@@ -1522,7 +1680,9 @@ void MainWindow::updatePanelsFromScene() {
     const quantiloom::Scene* scene = m_vulkanWindow->getScene();
 
     m_sceneTreePanel->setScene(scene);
+    m_spectralMaterialGenPanel->setScene(scene);
     m_materialEditorPanel->clear();
+    m_propertiesPanel->showEmptyState();
 
     if (scene) {
         m_lightingPanel->setLightingParams(quantiloom::CreateDefaultLightingParams());
@@ -1554,12 +1714,17 @@ void MainWindow::applyConfig(const SceneConfig& config) {
     m_vulkanWindow->setSpectralMode(config.spectralMode);
     m_vulkanWindow->setWavelength(config.wavelength_nm);
 
-    // Apply lighting settings
+    // Apply lighting settings. The shell holds the merged struct; the panels
+    // each get the half they own.
+    *m_lightingParams = config.lighting;
     m_lightingPanel->setLightingParams(config.lighting);
     m_vulkanWindow->setLightingParams(config.lighting);
 
     // Apply atmospheric configuration
     m_atmosphericPanel->setPreset(config.atmosphericPreset);
+    m_atmosphericPanel->setAtmosphericConfig(config.atmosphere);
+    m_atmosphericPanel->setAnalyticTerms(config.lighting.transmittance,
+                                         config.lighting.atmosphereTemperature_K);
     m_vulkanWindow->setAtmosphericPreset(config.atmosphericPreset);
 
     // Apply sensor configuration
@@ -1609,6 +1774,12 @@ void MainWindow::applyConfig(const SceneConfig& config) {
 }
 
 void MainWindow::collectCurrentConfig(SceneConfig& config) {
+    // Load feeds five panels; export used to read back two, so "export
+    // configuration" produced something that was not what the window showed.
+    // Everything a panel owns is collected here, and everything that is
+    // deliberately session-only -- debug mode, display enhancement, the
+    // generator's working state -- is listed in src/config/CLAUDE.md rather
+    // than left ambiguous.
     // Start from the last config we were given rather than from a default
     // SceneConfig, then let the panels overwrite what they own. The panels do
     // not cover every field -- renderer.seed, the hyperspectral range, the USD
@@ -1619,10 +1790,42 @@ void MainWindow::collectCurrentConfig(SceneConfig& config) {
         config = *m_lastConfig;
     }
 
-    // Collect render settings
+    // Render
     config.width = m_renderSettingsPanel->renderWidth();
     config.height = m_renderSettingsPanel->renderHeight();
     config.spp = m_renderSettingsPanel->spp();
+
+    // Spectral. The panel used to be described as "tracking these internally",
+    // which meant nothing read them back and a mode change never reached the
+    // exported file.
+    config.spectralMode = m_spectralConfigPanel->spectralMode();
+    config.wavelength_nm = m_spectralConfigPanel->wavelength();
+    config.lambda_min = m_spectralConfigPanel->lambdaMin();
+    config.lambda_max = m_spectralConfigPanel->lambdaMax();
+    config.delta_lambda = m_spectralConfigPanel->deltaLambda();
+
+    // Camera, read from the renderer so that orbiting with the mouse is
+    // exported too -- previously the camera in the file was whatever the
+    // config said at load time.
+    {
+        glm::vec3 position;
+        glm::vec3 target;
+        glm::vec3 up;
+        float fovY = 45.0f;
+        m_vulkanWindow->getCameraState(position, target, up, fovY);
+        for (int axis = 0; axis < 3; ++axis) {
+            config.cameraPosition[axis] = position[axis];
+            config.cameraLookAt[axis] = target[axis];
+            config.cameraUp[axis] = up[axis];
+        }
+        config.cameraFovY = fovY;
+    }
+
+    // Atmosphere: preset, the nine weather features, and the two analytic
+    // terms that live in LightingParams.
+    config.atmosphericPreset = m_atmosphericPanel->preset();
+    config.atmosphere = m_atmosphericPanel->getAtmosphericConfig();
+    config.atmosphericEnabled = config.atmosphericPreset != QLatin1String("disabled");
 
     // Record the loaded scene under the right key. Only one of the two is
     // written, or a USD scene would be exported as both `gltf` and `usd` now
@@ -1641,12 +1844,9 @@ void MainWindow::collectCurrentConfig(SceneConfig& config) {
         }
     }
 
-    // Lighting is populated via the panel's emit signals; keep whatever came in
-    // with the config rather than overwriting it, and only fall back to the
-    // defaults when there was no config to start from.
-    if (!m_lastConfig) {
-        config.lighting = quantiloom::CreateDefaultLightingParams();
-    }
+    // Lighting: the merged struct the shell maintains, which is the same one
+    // the renderer is running on.
+    config.lighting = *m_lightingParams;
 
     // Collect sensor settings
     config.sensorEnabled = m_sensorPanel->isSensorEnabled();
@@ -1718,6 +1918,7 @@ void MainWindow::onViewportClicked(const QPointF& screenPos) {
 void MainWindow::onSelectionChanged(const QSet<int>& selectedNodes) {
     if (selectedNodes.isEmpty()) {
         m_transformStartStates.clear();
+        m_propertiesPanel->showEmptyState();
         return;
     }
 
@@ -1739,16 +1940,29 @@ void MainWindow::onSelectionChanged(const QSet<int>& selectedNodes) {
         showStatusMessage(tr("'%1' selected").arg(nodeName));
 
         if (scene && nodeIndex >= 0 && static_cast<size_t>(nodeIndex) < scene->nodes.size()) {
+            const auto& node = scene->nodes[static_cast<size_t>(nodeIndex)];
             m_transformStartStates.clear();
-            m_transformStartStates.push_back({
-                nodeIndex,
-                scene->nodes[static_cast<size_t>(nodeIndex)].transform
-            });
+            m_transformStartStates.push_back({nodeIndex, node.transform});
+
+            // Selecting a node now fills the properties dock instead of
+            // leaving the user to find the material tab by hand.
+            // A mesh may carry several primitives with different materials;
+            // the first one is what "edit this node's material" opens.
+            int materialIndex = -1;
+            if (node.meshIndex < scene->meshes.size()) {
+                const auto& mesh = scene->meshes[node.meshIndex];
+                if (!mesh.primitives.empty() &&
+                    mesh.primitives.front().materialId < scene->materials.size()) {
+                    materialIndex = static_cast<int>(mesh.primitives.front().materialId);
+                }
+            }
+            m_propertiesPanel->showNode(nodeIndex, nodeName, node.transform, materialIndex);
         }
         return;
     }
 
     showStatusMessage(tr("%1 objects selected").arg(selectedNodes.size()));
+    m_propertiesPanel->showMultipleSelection(selectedNodes.size());
 
     if (scene) {
         m_transformStartStates.clear();
@@ -1778,6 +1992,9 @@ void MainWindow::onGizmoTransformChanged(const glm::vec3& translation,
     for (const auto& state : m_transformStartStates) {
         glm::mat4 newTransform = m_transformGizmo->applyDelta(state.originalTransform);
         m_vulkanWindow->setNodeTransform(state.nodeIndex, newTransform);
+        if (m_transformStartStates.size() == 1) {
+            m_propertiesPanel->updateNodeTransform(newTransform);
+        }
     }
 
     setSceneModified(true);
@@ -1842,7 +2059,9 @@ void MainWindow::onViewportHovered(int x, int y) {
     if (m_vulkanWindow->readDebugPixel(x, y, pixelValue)) {
         const QString formatted = m_vulkanWindow->formatDebugValue(pixelValue);
         m_debugValueLabel->setText(tr("(%1,%2) %3").arg(x).arg(y).arg(formatted));
+        m_debugVisualizationPanel->setPixelReading(x, y, formatted);
     } else {
         m_debugValueLabel->setText(tr("(%1,%2) read failed").arg(x).arg(y));
+        m_debugVisualizationPanel->setPixelReadFailed(x, y);
     }
 }

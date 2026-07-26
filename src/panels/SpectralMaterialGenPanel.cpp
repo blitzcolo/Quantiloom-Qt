@@ -4,7 +4,6 @@
  */
 
 #include "SpectralMaterialGenPanel.hpp"
-#include "../vulkan/QuantiloomVulkanWindow.hpp"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -19,8 +18,6 @@
 #include <QHeaderView>
 #include <QPushButton>
 #include <QFormLayout>
-#include <QDialog>
-#include <QScrollArea>
 #include <QFileDialog>
 #include <QMessageBox>
 #include <QTextEdit>
@@ -42,8 +39,9 @@
 #include <cmath>
 
 SpectralMaterialGenPanel::SpectralMaterialGenPanel(QWidget* parent)
-    : QWidget(parent)
+    : PanelBase(parent)
 {
+    setObjectName(panelId());
     setupUi();
     // Load default preset
     onMaterialTypeChanged(0);
@@ -55,8 +53,16 @@ void SpectralMaterialGenPanel::setCurrentMaterialIndex(int index) {
         m_targetMaterialSpin->setValue(index);
 }
 
-void SpectralMaterialGenPanel::setVulkanWindow(QuantiloomVulkanWindow* window) {
-    m_vulkanWindow = window;
+void SpectralMaterialGenPanel::setScene(const quantiloom::Scene* scene) {
+    m_scene = scene;
+}
+
+QString SpectralMaterialGenPanel::panelTitle() const {
+    return tr("Spectral Material Generator");
+}
+
+void SpectralMaterialGenPanel::retranslateUi() {
+    PanelBase::retranslateUi();
 }
 
 // ============================================================================
@@ -64,19 +70,9 @@ void SpectralMaterialGenPanel::setVulkanWindow(QuantiloomVulkanWindow* window) {
 // ============================================================================
 
 void SpectralMaterialGenPanel::setupUi() {
-    // Outer layout holds scroll area
-    auto* outerLayout = new QVBoxLayout(this);
-    outerLayout->setContentsMargins(0, 0, 0, 0);
-
-    auto* scrollArea = new QScrollArea();
-    scrollArea->setWidgetResizable(true);
-    scrollArea->setFrameShape(QFrame::NoFrame);
-    outerLayout->addWidget(scrollArea);
-
-    auto* scrollContent = new QWidget();
-    scrollArea->setWidget(scrollContent);
-
-    auto* mainLayout = new QVBoxLayout(scrollContent);
+    // No scroll area of its own any more: the shell puts every panel inside
+    // one, and two nested scroll areas produce two sets of scrollbars.
+    auto* mainLayout = new QVBoxLayout(this);
     mainLayout->setContentsMargins(6, 6, 6, 6);
     mainLayout->setSpacing(4);
 
@@ -107,8 +103,9 @@ void SpectralMaterialGenPanel::setupUi() {
         m_temperatureSpin->setRange(100.0, 5000.0);
         m_temperatureSpin->setValue(300.0);
         m_temperatureSpin->setSuffix(" K");
-        m_temperatureSpin->setToolTip(tr("Surface temperature for thermal emission"));
-        form->addRow(tr("Temperature:"), m_temperatureSpin);
+        m_temperatureSpin->setToolTip(
+            tr("Surface temperature assigned to the materials generated from each cluster"));
+        form->addRow(tr("Cluster temperature:"), m_temperatureSpin);
 
         // Overwrite existing
         m_overwriteCheck = new QCheckBox(tr("Overwrite existing IR data"));
@@ -240,17 +237,8 @@ void SpectralMaterialGenPanel::setupUi() {
         auto* vlay = new QVBoxLayout(m_previewGroup);
         vlay->setContentsMargins(2, 10, 2, 2);
 
-        // Detach button in a header row
-        auto* headerRow = new QHBoxLayout();
-        headerRow->addStretch();
-        m_detachBtn = new QPushButton(tr("Detach"));
-        m_detachBtn->setFixedSize(60, 20);
-        m_detachBtn->setToolTip(tr("Open preview in a separate window"));
-        headerRow->addWidget(m_detachBtn);
-        vlay->addLayout(headerRow);
-
         auto* chart = new QChart();
-        chart->setTitle(tr("Spectral Curves"));
+        bindText([chart] { chart->setTitle(tr("Spectral Curves")); });
         chart->setAnimationOptions(QChart::NoAnimation);
         chart->legend()->setVisible(true);
 
@@ -259,10 +247,7 @@ void SpectralMaterialGenPanel::setupUi() {
         m_chartView->setMinimumHeight(200);
         vlay->addWidget(m_chartView);
 
-        mainLayout->addWidget(m_previewGroup);
-
-        connect(m_detachBtn, &QPushButton::clicked,
-                this, &SpectralMaterialGenPanel::onDetachPreview);
+        mainLayout->addWidget(m_previewGroup, 1);
     }
 
     // --- Actions group ---
@@ -296,12 +281,7 @@ void SpectralMaterialGenPanel::setupUi() {
 // ============================================================================
 
 void SpectralMaterialGenPanel::onAutoIRGenerate() {
-    if (!m_vulkanWindow) {
-        QMessageBox::warning(this, tr("Error"), tr("No renderer available."));
-        return;
-    }
-
-    const auto* scene = m_vulkanWindow->getScene();
+    const auto* scene = m_scene;
     if (!scene || scene->materials.empty()) {
         QMessageBox::warning(this, tr("Error"), tr("No scene loaded or no materials in scene."));
         return;
@@ -618,16 +598,19 @@ void SpectralMaterialGenPanel::updateChart() {
 
     if (!m_interpolatedCRI.IsValid()) return;
 
+    // R0, n and k are the conventional symbols for these quantities in every
+    // language; they are kept verbatim by decision, and the glossary records
+    // that. Only the descriptive axis titles are translated.
     auto* seriesR0 = new QLineSeries();
-    seriesR0->setName("R0");
+    seriesR0->setName(QStringLiteral("R0"));
     seriesR0->setColor(Qt::red);
 
     auto* seriesN = new QLineSeries();
-    seriesN->setName("n");
+    seriesN->setName(QStringLiteral("n"));
     seriesN->setColor(Qt::blue);
 
     auto* seriesK = new QLineSeries();
-    seriesK->setName("k");
+    seriesK->setName(QStringLiteral("k"));
     seriesK->setColor(Qt::darkGreen);
 
     float nMax = 0, kMax = 0;
@@ -664,7 +647,7 @@ void SpectralMaterialGenPanel::updateChart() {
 
     // Y axis left (R0 and n)
     auto* axisYLeft = new QValueAxis();
-    axisYLeft->setTitleText("R0 / n");
+    axisYLeft->setTitleText(QStringLiteral("R0 / n"));
     axisYLeft->setRange(0.0, std::max(1.0f, nMax * 1.1f));
     chart->addAxis(axisYLeft, Qt::AlignLeft);
     seriesR0->attachAxis(axisYLeft);
@@ -672,7 +655,7 @@ void SpectralMaterialGenPanel::updateChart() {
 
     // Y axis right (k)
     auto* axisYRight = new QValueAxis();
-    axisYRight->setTitleText("k");
+    axisYRight->setTitleText(QStringLiteral("k"));
     axisYRight->setRange(0.0, std::max(0.1f, kMax * 1.1f));
     chart->addAxis(axisYRight, Qt::AlignRight);
     seriesK->attachAxis(axisYRight);
@@ -850,15 +833,9 @@ void SpectralMaterialGenPanel::onApplyToMaterial() {
     quantiloom::Material mat{};
     applyToMaterialStruct(mat);
 
-    // Upload CRI to GPU and get buffer index for physical Fresnel
-    if (m_vulkanWindow) {
-        int criIndex = m_vulkanWindow->addComplexRefractiveIndex(m_interpolatedCRI);
-        if (criIndex >= 0) {
-            mat.complexRefractiveIndexIndex = criIndex;
-        }
-    }
-
-    emit materialChanged(m_targetMaterialSpin->value(), mat);
+    // The (n,k) curves have to reach the GPU before the material can point at
+    // them, and that upload belongs to the shell.
+    emit materialWithCriChanged(m_targetMaterialSpin->value(), mat, m_interpolatedCRI);
 }
 
 void SpectralMaterialGenPanel::applyToMaterialStruct(quantiloom::Material& mat) {
@@ -877,53 +854,3 @@ void SpectralMaterialGenPanel::applyToMaterialStruct(quantiloom::Material& mat) 
     mat.spectralSource = quantiloom::Material::SpectralSource::Procedural;
 }
 
-// ============================================================================
-// Preview Detach / Attach
-// ============================================================================
-
-void SpectralMaterialGenPanel::onDetachPreview() {
-    if (m_previewDialog) {
-        // Already detached — activate existing window
-        m_previewDialog->raise();
-        m_previewDialog->activateWindow();
-        return;
-    }
-
-    // 1. Remove chartView from group layout
-    m_previewGroup->layout()->removeWidget(m_chartView);
-
-    // 2. Hide group (reclaim sidebar space)
-    m_previewGroup->hide();
-
-    // 3. Create pop-out dialog
-    m_previewDialog = new QDialog(this);
-    m_previewDialog->setWindowTitle(tr("Spectral Curves Preview"));
-    m_previewDialog->resize(800, 500);
-    m_previewDialog->setAttribute(Qt::WA_DeleteOnClose, false);
-
-    auto* dlgLayout = new QVBoxLayout(m_previewDialog);
-    dlgLayout->setContentsMargins(4, 4, 4, 4);
-    dlgLayout->addWidget(m_chartView);
-
-    connect(m_previewDialog, &QDialog::finished,
-            this, &SpectralMaterialGenPanel::onPreviewDialogClosed);
-
-    m_previewDialog->show();
-}
-
-void SpectralMaterialGenPanel::onPreviewDialogClosed() {
-    if (!m_previewDialog) return;
-
-    // 1. Remove chartView from dialog layout
-    m_previewDialog->layout()->removeWidget(m_chartView);
-
-    // 2. Put chartView back into the group layout
-    m_previewGroup->layout()->addWidget(m_chartView);
-
-    // 3. Restore group visibility
-    m_previewGroup->show();
-
-    // 4. Clean up dialog
-    m_previewDialog->deleteLater();
-    m_previewDialog = nullptr;
-}

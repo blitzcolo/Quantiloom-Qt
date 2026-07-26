@@ -1,14 +1,18 @@
 /**
  * @file DebugVisualizationPanel.hpp
- * @brief Debug visualization mode selection panel for pipeline debugging
+ * @brief Debug visualization mode selection and pixel inspection
  *
- * Provides UI for selecting debug visualization modes to inspect
- * intermediate rendering data at each pipeline stage.
+ * Much smaller than it was. The 45-entry combo box grouped by "-- Geometry --"
+ * pseudo-entries is now a proper set of submenus under View, and the page of
+ * static "how to read this output" documentation is in Help. What is left is
+ * the two things that belong beside the image: which mode is active, and what
+ * the pixel under the cursor actually reads.
  */
 
 #pragma once
 
-#include <QWidget>
+#include "../ui/PanelBase.hpp"
+
 #include <core/Types.hpp>
 
 QT_BEGIN_NAMESPACE
@@ -17,27 +21,22 @@ class QLabel;
 class QGroupBox;
 QT_END_NAMESPACE
 
-/**
- * @class DebugVisualizationPanel
- * @brief Panel for selecting debug visualization modes
- *
- * Groups debug modes by pipeline stage:
- * - Geometry: normals, UVs, positions, material IDs
- * - Material: albedo, metallic, roughness, emissive
- * - Lighting: NdotL, NdotV, direct sun, diffuse
- * - BRDF: Fresnel F0, full BRDF
- * - IBL: prefiltered env, BRDF LUT, specular
- * - Spectral: XYZ tristimulus, pre-correction RGB
- * - IR: temperature, emissivity, emission/reflection
- */
-class DebugVisualizationPanel : public QWidget {
+class DebugVisualizationPanel : public PanelBase {
     Q_OBJECT
 
 public:
     explicit DebugVisualizationPanel(QWidget* parent = nullptr);
 
+    [[nodiscard]] QString panelTitle() const override;
+    [[nodiscard]] QString panelId() const override { return QStringLiteral("debug"); }
+    void retranslateUi() override;
+
     void setDebugMode(quantiloom::DebugVisualizationMode mode);
     [[nodiscard]] quantiloom::DebugVisualizationMode debugMode() const { return m_mode; }
+
+    /// Report the value read under the cursor, in device pixels.
+    void setPixelReading(int x, int y, const QString& formatted);
+    void setPixelReadFailed(int x, int y);
 
 signals:
     void debugModeChanged(quantiloom::DebugVisualizationMode mode);
@@ -54,4 +53,9 @@ private:
     QComboBox* m_modeCombo = nullptr;
     QLabel* m_description = nullptr;
     QLabel* m_categoryLabel = nullptr;
+
+    QGroupBox* m_pixelGroup = nullptr;
+    QLabel* m_pixelPosition = nullptr;
+    QLabel* m_pixelValue = nullptr;
+    QLabel* m_pixelHint = nullptr;
 };

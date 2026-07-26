@@ -5,7 +5,8 @@
 
 #pragma once
 
-#include <QWidget>
+#include "../ui/PanelBase.hpp"
+
 #include <core/Types.hpp>
 
 QT_BEGIN_NAMESPACE
@@ -21,15 +22,28 @@ QT_END_NAMESPACE
  * @class SpectralConfigPanel
  * @brief Editor for spectral rendering mode and wavelength settings
  */
-class SpectralConfigPanel : public QWidget {
+class SpectralConfigPanel : public PanelBase {
     Q_OBJECT
 
 public:
     explicit SpectralConfigPanel(QWidget* parent = nullptr);
 
+    [[nodiscard]] QString panelTitle() const override;
+    [[nodiscard]] QString panelId() const override { return QStringLiteral("spectral"); }
+    void retranslateUi() override;
+
     void setSpectralMode(quantiloom::SpectralMode mode);
     void setWavelength(float wavelength_nm);
     void setWavelengthRange(float min_nm, float max_nm, float delta_nm);
+
+    // Read-back, so that exporting a configuration writes what the panel
+    // shows. Without these the spectral section of an exported file carried
+    // whatever had been loaded, never what the user had since selected.
+    [[nodiscard]] quantiloom::SpectralMode spectralMode() const { return m_mode; }
+    [[nodiscard]] float wavelength() const { return m_wavelength; }
+    [[nodiscard]] float lambdaMin() const { return m_lambdaMin; }
+    [[nodiscard]] float lambdaMax() const { return m_lambdaMax; }
+    [[nodiscard]] float deltaLambda() const { return m_deltaLambda; }
 
 signals:
     void spectralModeChanged(quantiloom::SpectralMode mode);
@@ -45,6 +59,8 @@ private slots:
 private:
     void setupUi();
     void updateModeDescription(quantiloom::SpectralMode mode);
+    void updateBandCount();
+    void applyModePage(quantiloom::SpectralMode mode);
 
     // Current settings
     quantiloom::SpectralMode m_mode = quantiloom::SpectralMode::RGB;
@@ -57,6 +73,9 @@ private:
     QComboBox* m_modeCombo = nullptr;
     QLabel* m_modeDescription = nullptr;
     QStackedWidget* m_settingsStack = nullptr;
+    QLabel* m_rgbPageLabel = nullptr;
+    QLabel* m_mwirPageLabel = nullptr;
+    QLabel* m_lwirPageLabel = nullptr;
 
     // Single wavelength controls
     QSlider* m_wavelengthSlider = nullptr;

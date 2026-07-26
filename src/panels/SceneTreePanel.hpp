@@ -5,7 +5,8 @@
 
 #pragma once
 
-#include <QWidget>
+#include "../ui/PanelBase.hpp"
+
 #include <QSet>
 
 QT_BEGIN_NAMESPACE
@@ -21,11 +22,15 @@ class Scene;
  * @class SceneTreePanel
  * @brief Displays scene hierarchy (meshes, nodes, materials)
  */
-class SceneTreePanel : public QWidget {
+class SceneTreePanel : public PanelBase {
     Q_OBJECT
 
 public:
     explicit SceneTreePanel(QWidget* parent = nullptr);
+
+    [[nodiscard]] QString panelTitle() const override;
+    [[nodiscard]] QString panelId() const override { return QStringLiteral("scene"); }
+    void retranslateUi() override;
 
     void setScene(const quantiloom::Scene* scene);
     void refresh();
@@ -53,6 +58,7 @@ private:
     QTreeWidgetItem* findNodeItem(int nodeIndex);
 
     QTreeWidget* m_tree = nullptr;
+    class QLabel* m_emptyLabel = nullptr;
     const quantiloom::Scene* m_scene = nullptr;
     QSet<int> m_highlightedNodes;
 };

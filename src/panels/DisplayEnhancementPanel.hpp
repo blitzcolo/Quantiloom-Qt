@@ -5,10 +5,11 @@
 
 #pragma once
 
-#include <QWidget>
+#include "../ui/PanelBase.hpp"
 
 QT_BEGIN_NAMESPACE
 class QCheckBox;
+class QLabel;
 class QDoubleSpinBox;
 class QComboBox;
 class QGroupBox;
@@ -23,15 +24,23 @@ QT_END_NAMESPACE
  * of low-dynamic-range infrared images. Enhancement only affects display
  * and screenshots, not exported EXR files.
  */
-class DisplayEnhancementPanel : public QWidget {
+class DisplayEnhancementPanel : public PanelBase {
     Q_OBJECT
 
 public:
     explicit DisplayEnhancementPanel(QWidget* parent = nullptr);
 
+    [[nodiscard]] QString panelTitle() const override;
+    [[nodiscard]] QString panelId() const override { return QStringLiteral("display"); }
+    void retranslateUi() override;
+
     /// Not named setEnabled: that is a non-virtual QWidget method meaning "make
     /// this widget interactive", and a QWidget* handle would reach it instead.
     void setEnhancementEnabled(bool enabled);
+
+    /// Like setEnhancementEnabled, but reports the change. Used by the View
+    /// menu toggle, which has to reach the renderer as a panel click would.
+    void requestEnhancementEnabled(bool enabled);
     void setClipLimit(float clipLimit);
     void setTileSize(int tileSize);
     void setLuminanceOnly(bool luminanceOnly);
@@ -57,6 +66,7 @@ private:
 
     // UI elements
     QCheckBox* m_enableCheckbox = nullptr;
+    QLabel* m_infoLabel = nullptr;
     QGroupBox* m_settingsGroup = nullptr;
     QDoubleSpinBox* m_clipLimitSpin = nullptr;
     QComboBox* m_tileSizeCombo = nullptr;

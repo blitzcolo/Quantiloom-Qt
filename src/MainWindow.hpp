@@ -9,6 +9,7 @@
 
 #include <QMainWindow>
 #include <QVulkanInstance>
+#include <QMap>
 #include <QSet>
 #include <QStringList>
 #include <memory>
@@ -36,9 +37,13 @@ namespace quantiloom {
 class ExternalRenderContext;
 struct LightingParams;
 struct Material;
+struct ComplexRefractiveIndex;
 }
 
 class QuantiloomVulkanWindow;
+class PanelBase;
+class PropertiesPanel;
+class CameraPanel;
 class SceneTreePanel;
 class MaterialEditorPanel;
 class LightingPanel;
@@ -121,6 +126,10 @@ private slots:
     void onResetAccumulation();
 
     // Editing slots
+    void onNodeTransformEdited(int nodeIndex, const glm::mat4& transform);
+    void onMaterialWithCriChanged(int index, const quantiloom::Material& material,
+                                  const quantiloom::ComplexRefractiveIndex& cri);
+    void onCameraChanged();
     void onViewportClicked(const QPointF& screenPos);
     void onSelectionChanged(const QSet<int>& selectedNodes);
     void onGizmoTransformChanged(const glm::vec3& translation,
@@ -192,11 +201,17 @@ private:
     QuantiloomVulkanWindow* m_vulkanWindow = nullptr;
     QWidget* m_vulkanContainer = nullptr;
 
-    // Parameter dock
-    QDockWidget* m_parameterDock = nullptr;
-    QTabWidget* m_parameterTabs = nullptr;
+    // One dock per panel, keyed by the panel's own id. The ten panels used to
+    // be ten tabs of a single dock, so only one could ever be on screen and
+    // "select a node, adjust its material, look at the result" meant cycling
+    // through tabs.
+    QMap<QString, QDockWidget*> m_docks;
+    QDockWidget* createPanelDock(PanelBase* panel, Qt::DockWidgetArea area);
+    void applyDefaultLayout();
 
     // Parameter panels
+    PropertiesPanel* m_propertiesPanel = nullptr;
+    CameraPanel* m_cameraPanel = nullptr;
     SceneTreePanel* m_sceneTreePanel = nullptr;
     MaterialEditorPanel* m_materialEditorPanel = nullptr;
     LightingPanel* m_lightingPanel = nullptr;
@@ -291,6 +306,13 @@ private:
 
     // Configuration manager
     ConfigManager* m_configManager = nullptr;
+
+    /// The authoritative lighting parameters. The lighting panel owns the sun
+    /// and sky halves and the atmosphere panel owns the two atmospheric terms;
+    /// merging them here is what stops one panel's emit from resetting the
+    /// other panel's values, and gives config export something to read back.
+    std::unique_ptr<quantiloom::LightingParams> m_lightingParams;
+    void pushLightingParams();
 
     // Current scene file
     QString m_currentSceneFile;   ///< model actually loaded into the renderer

@@ -7,6 +7,8 @@
 
 #include "SensorPanel.hpp"
 
+#include "../ui/CollapsibleGroupBox.hpp"
+
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QFormLayout>
@@ -16,25 +18,64 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QLabel>
+#include <utility>
 
 SensorPanel::SensorPanel(QWidget* parent)
-    : QWidget(parent)
+    : PanelBase(parent)
 {
+    setObjectName(panelId());
     setupUi();
+    retranslateUi();
+}
+
+QString SensorPanel::panelTitle() const {
+    return tr("Sensor");
+}
+
+QLabel* SensorPanel::addRow(QFormLayout* layout, const char* source, QWidget* field) {
+    auto* label = new QLabel();
+    m_captions.append({label, source});
+    layout->addRow(label, field);
+    return label;
+}
+
+void SensorPanel::retranslateUi() {
+    PanelBase::retranslateUi();
+
+    // Every source string here is byte-identical to the one it replaced: this
+    // panel's Chinese was already complete, and rewording a caption would have
+    // thrown that translation away for no gain.
+    m_opticsGroup->setTitle(tr("Optics"));
+    m_detectorGroup->setTitle(tr("Detector"));
+    m_adcGroup->setTitle(tr("ADC"));
+    m_noiseGroup->setTitle(tr("Noise Model"));
+    m_fpnGroup->setTitle(tr("FPN Parameters"));
+    m_irGroup->setTitle(tr("IR Detector"));
+
+    m_enabledCheck->setText(tr("Enable Sensor Simulation"));
+    m_poissonNoise->setText(tr("Photon Shot Noise (Poisson)"));
+    m_readNoiseEnable->setText(tr("Enable Read Noise"));
+    m_darkCurrentEnable->setText(tr("Enable Dark Current"));
+    m_fpnNoise->setText(tr("Fixed Pattern Noise (FPN)"));
+    m_nucEnable->setText(tr("Enable NUC"));
+
+    for (const Caption& caption : std::as_const(m_captions)) {
+        caption.label->setText(tr(caption.source));
+    }
 }
 
 void SensorPanel::setupUi() {
     auto* mainLayout = new QVBoxLayout(this);
 
     // Enable checkbox
-    m_enabledCheck = new QCheckBox(tr("Enable Sensor Simulation"));
+    m_enabledCheck = new QCheckBox();
     m_enabledCheck->setChecked(false);
     mainLayout->addWidget(m_enabledCheck);
 
     // ========================================================================
     // Optics Group
     // ========================================================================
-    m_opticsGroup = new QGroupBox(tr("Optics"));
+    m_opticsGroup = new QGroupBox();
     auto* opticsLayout = new QFormLayout(m_opticsGroup);
 
     m_focalLength = new QDoubleSpinBox();
@@ -43,7 +84,7 @@ void SensorPanel::setupUi() {
     m_focalLength->setSingleStep(1.0);
     m_focalLength->setSuffix(" mm");
     m_focalLength->setValue(50.0);
-    opticsLayout->addRow(tr("Focal Length:"), m_focalLength);
+    addRow(opticsLayout, QT_TR_NOOP("Focal Length:"), m_focalLength);
 
     m_fNumber = new QDoubleSpinBox();
     m_fNumber->setRange(0.5, 64.0);
@@ -51,14 +92,14 @@ void SensorPanel::setupUi() {
     m_fNumber->setSingleStep(0.1);
     m_fNumber->setPrefix("f/");
     m_fNumber->setValue(2.8);
-    opticsLayout->addRow(tr("Aperture:"), m_fNumber);
+    addRow(opticsLayout, QT_TR_NOOP("Aperture:"), m_fNumber);
 
     mainLayout->addWidget(m_opticsGroup);
 
     // ========================================================================
     // Detector Group
     // ========================================================================
-    m_detectorGroup = new QGroupBox(tr("Detector"));
+    m_detectorGroup = new QGroupBox();
     auto* detectorLayout = new QFormLayout(m_detectorGroup);
 
     m_pixelPitch = new QDoubleSpinBox();
@@ -67,14 +108,14 @@ void SensorPanel::setupUi() {
     m_pixelPitch->setSingleStep(0.1);
     m_pixelPitch->setSuffix(QString::fromUtf8(" \u03BCm"));  // μm
     m_pixelPitch->setValue(5.0);
-    detectorLayout->addRow(tr("Pixel Pitch:"), m_pixelPitch);
+    addRow(detectorLayout, QT_TR_NOOP("Pixel Pitch:"), m_pixelPitch);
 
     m_quantumEfficiency = new QDoubleSpinBox();
     m_quantumEfficiency->setRange(0.0, 1.0);
     m_quantumEfficiency->setDecimals(2);
     m_quantumEfficiency->setSingleStep(0.01);
     m_quantumEfficiency->setValue(0.8);
-    detectorLayout->addRow(tr("Quantum Efficiency:"), m_quantumEfficiency);
+    addRow(detectorLayout, QT_TR_NOOP("Quantum Efficiency:"), m_quantumEfficiency);
 
     m_wellCapacity = new QDoubleSpinBox();
     m_wellCapacity->setRange(100, 1e9);
@@ -82,13 +123,13 @@ void SensorPanel::setupUi() {
     m_wellCapacity->setSingleStep(1000);
     m_wellCapacity->setSuffix(" e-");
     m_wellCapacity->setValue(50000);
-    detectorLayout->addRow(tr("Well Capacity:"), m_wellCapacity);
+    addRow(detectorLayout, QT_TR_NOOP("Well Capacity:"), m_wellCapacity);
 
     m_bitDepth = new QSpinBox();
     m_bitDepth->setRange(8, 32);
     m_bitDepth->setValue(14);
     m_bitDepth->setSuffix(" bit");
-    detectorLayout->addRow(tr("Bit Depth:"), m_bitDepth);
+    addRow(detectorLayout, QT_TR_NOOP("Bit Depth:"), m_bitDepth);
 
     m_integrationTime = new QDoubleSpinBox();
     m_integrationTime->setRange(0.0001, 10.0);
@@ -96,14 +137,14 @@ void SensorPanel::setupUi() {
     m_integrationTime->setSingleStep(0.001);
     m_integrationTime->setSuffix(" s");
     m_integrationTime->setValue(0.01);
-    detectorLayout->addRow(tr("Integration Time:"), m_integrationTime);
+    addRow(detectorLayout, QT_TR_NOOP("Integration Time:"), m_integrationTime);
 
     mainLayout->addWidget(m_detectorGroup);
 
     // ========================================================================
     // ADC Group
     // ========================================================================
-    m_adcGroup = new QGroupBox(tr("ADC"));
+    m_adcGroup = new QGroupBox();
     auto* adcLayout = new QFormLayout(m_adcGroup);
 
     m_gain = new QDoubleSpinBox();
@@ -112,15 +153,15 @@ void SensorPanel::setupUi() {
     m_gain->setSingleStep(0.1);
     m_gain->setSuffix(" e-/DN");
     m_gain->setValue(3.0);
-    adcLayout->addRow(tr("Gain:"), m_gain);
+    addRow(adcLayout, QT_TR_NOOP("Gain:"), m_gain);
 
     mainLayout->addWidget(m_adcGroup);
 
     // ========================================================================
     // Noise Group
     // ========================================================================
-    m_noiseGroup = new QGroupBox(tr("Noise Model"));
-    auto* noiseLayout = new QFormLayout(m_noiseGroup);
+    m_noiseGroup = new CollapsibleGroupBox();
+    auto* noiseLayout = new QFormLayout();
 
     m_readNoise = new QDoubleSpinBox();
     m_readNoise->setRange(0.0, 1000.0);
@@ -128,7 +169,7 @@ void SensorPanel::setupUi() {
     m_readNoise->setSingleStep(0.1);
     m_readNoise->setSuffix(" e- RMS");
     m_readNoise->setValue(10.0);
-    noiseLayout->addRow(tr("Read Noise:"), m_readNoise);
+    addRow(noiseLayout, QT_TR_NOOP("Read Noise:"), m_readNoise);
 
     m_darkCurrent = new QDoubleSpinBox();
     m_darkCurrent->setRange(0.0, 10000.0);
@@ -136,38 +177,39 @@ void SensorPanel::setupUi() {
     m_darkCurrent->setSingleStep(1.0);
     m_darkCurrent->setSuffix(" e-/s");
     m_darkCurrent->setValue(50.0);
-    noiseLayout->addRow(tr("Dark Current:"), m_darkCurrent);
+    addRow(noiseLayout, QT_TR_NOOP("Dark Current:"), m_darkCurrent);
 
-    m_poissonNoise = new QCheckBox(tr("Photon Shot Noise (Poisson)"));
+    m_poissonNoise = new QCheckBox();
     m_poissonNoise->setChecked(true);
     noiseLayout->addRow(m_poissonNoise);
 
-    m_readNoiseEnable = new QCheckBox(tr("Enable Read Noise"));
+    m_readNoiseEnable = new QCheckBox();
     m_readNoiseEnable->setChecked(true);
     noiseLayout->addRow(m_readNoiseEnable);
 
-    m_darkCurrentEnable = new QCheckBox(tr("Enable Dark Current"));
+    m_darkCurrentEnable = new QCheckBox();
     m_darkCurrentEnable->setChecked(true);
     noiseLayout->addRow(m_darkCurrentEnable);
 
-    m_fpnNoise = new QCheckBox(tr("Fixed Pattern Noise (FPN)"));
+    m_fpnNoise = new QCheckBox();
     m_fpnNoise->setChecked(false);
     noiseLayout->addRow(m_fpnNoise);
 
+    m_noiseGroup->setContentLayout(noiseLayout);
     mainLayout->addWidget(m_noiseGroup);
 
     // ========================================================================
     // FPN Parameters Group (enabled when FPN is checked)
     // ========================================================================
-    m_fpnGroup = new QGroupBox(tr("FPN Parameters"));
-    auto* fpnLayout = new QFormLayout(m_fpnGroup);
+    m_fpnGroup = new CollapsibleGroupBox();
+    auto* fpnLayout = new QFormLayout();
 
     m_prnuSigma = new QDoubleSpinBox();
     m_prnuSigma->setRange(0.001, 0.5);
     m_prnuSigma->setDecimals(3);
     m_prnuSigma->setSingleStep(0.001);
     m_prnuSigma->setValue(0.01);
-    fpnLayout->addRow(tr("PRNU Sigma:"), m_prnuSigma);
+    addRow(fpnLayout, QT_TR_NOOP("PRNU Sigma:"), m_prnuSigma);
 
     m_dsnuSigma = new QDoubleSpinBox();
     m_dsnuSigma->setRange(0.1, 1000.0);
@@ -175,9 +217,9 @@ void SensorPanel::setupUi() {
     m_dsnuSigma->setSingleStep(1.0);
     m_dsnuSigma->setSuffix(" e-");
     m_dsnuSigma->setValue(5.0);
-    fpnLayout->addRow(tr("DSNU Sigma:"), m_dsnuSigma);
+    addRow(fpnLayout, QT_TR_NOOP("DSNU Sigma:"), m_dsnuSigma);
 
-    m_nucEnable = new QCheckBox(tr("Enable NUC"));
+    m_nucEnable = new QCheckBox();
     m_nucEnable->setChecked(false);
     fpnLayout->addRow(m_nucEnable);
 
@@ -187,15 +229,16 @@ void SensorPanel::setupUi() {
     m_nucEfficiency->setSingleStep(0.01);
     m_nucEfficiency->setValue(0.98);
     m_nucEfficiency->setEnabled(false);  // Disabled until NUC is enabled
-    fpnLayout->addRow(tr("NUC Efficiency:"), m_nucEfficiency);
+    addRow(fpnLayout, QT_TR_NOOP("NUC Efficiency:"), m_nucEfficiency);
 
+    m_fpnGroup->setContentLayout(fpnLayout);
     m_fpnGroup->setEnabled(false);  // Disabled until FPN is enabled
     mainLayout->addWidget(m_fpnGroup);
 
     // ========================================================================
     // IR Detector Group
     // ========================================================================
-    m_irGroup = new QGroupBox(tr("IR Detector"));
+    m_irGroup = new QGroupBox();
     auto* irLayout = new QFormLayout(m_irGroup);
 
     m_detectorTemp = new QDoubleSpinBox();
@@ -204,7 +247,7 @@ void SensorPanel::setupUi() {
     m_detectorTemp->setSingleStep(1.0);
     m_detectorTemp->setSuffix(" K");
     m_detectorTemp->setValue(77.0);
-    irLayout->addRow(tr("Detector Temperature:"), m_detectorTemp);
+    addRow(irLayout, QT_TR_NOOP("Detector Temperature:"), m_detectorTemp);
 
     mainLayout->addWidget(m_irGroup);
 
@@ -265,6 +308,12 @@ void SensorPanel::setupUi() {
     // IR params
     connect(m_detectorTemp, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &SensorPanel::onParamChanged);
+
+    // Fold the two calibrate-once groups away by default. The panel is the
+    // tallest in the application and every value inside them is set once and
+    // then left alone.
+    m_noiseGroup->setCollapsed(true);
+    m_fpnGroup->setCollapsed(true);
 
     // Update enabled state of groups
     m_opticsGroup->setEnabled(false);

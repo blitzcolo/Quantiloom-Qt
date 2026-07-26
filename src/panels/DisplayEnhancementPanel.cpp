@@ -5,6 +5,8 @@
 
 #include "DisplayEnhancementPanel.hpp"
 
+#include "../ui/UiStyle.hpp"
+
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QGroupBox>
@@ -17,9 +19,14 @@
 #include <QFormLayout>
 
 DisplayEnhancementPanel::DisplayEnhancementPanel(QWidget* parent)
-    : QWidget(parent)
+    : PanelBase(parent)
 {
+    setObjectName(panelId());
     setupUi();
+}
+
+QString DisplayEnhancementPanel::panelTitle() const {
+    return tr("Display Enhancement");
 }
 
 void DisplayEnhancementPanel::setupUi() {
@@ -27,66 +34,86 @@ void DisplayEnhancementPanel::setupUi() {
     mainLayout->setContentsMargins(4, 4, 4, 4);
     mainLayout->setSpacing(8);
 
-    // Enable checkbox
-    m_enableCheckbox = new QCheckBox(tr("Enable Display Enhancement"));
-    connect(m_enableCheckbox, &QCheckBox::stateChanged,
-            this, &DisplayEnhancementPanel::onEnableChanged);
+    m_enableCheckbox = new QCheckBox(this);
+    bindText([this] { m_enableCheckbox->setText(tr("Enable display enhancement")); });
+    connect(m_enableCheckbox, &QCheckBox::checkStateChanged,
+            this, [this](Qt::CheckState state) { onEnableChanged(static_cast<int>(state)); });
     mainLayout->addWidget(m_enableCheckbox);
 
-    // Info label
-    auto* infoLabel = new QLabel(
-        tr("CLAHE enhances contrast for low-dynamic-range images "
-           "(e.g. infrared). Only affects display and screenshots."));
-    infoLabel->setWordWrap(true);
-    infoLabel->setStyleSheet("color: gray; font-size: 9pt;");
-    mainLayout->addWidget(infoLabel);
+    m_infoLabel = new QLabel(this);
+    uistyle::applyHintStyle(m_infoLabel);
+    bindText([this] {
+        // Spelling out the scope here and in the export menu entries is the
+        // whole point: users could not tell which of the two images they were
+        // getting.
+        m_infoLabel->setText(tr(
+            "CLAHE lifts contrast in low-dynamic-range images such as infrared. "
+            "It changes the viewport and saved screenshots; exported images keep "
+            "their raw values."));
+    });
+    mainLayout->addWidget(m_infoLabel);
 
-    // Settings group
-    m_settingsGroup = new QGroupBox(tr("CLAHE Settings"));
+    m_settingsGroup = new QGroupBox(this);
+    bindText([this] { m_settingsGroup->setTitle(tr("CLAHE Settings")); });
     m_settingsGroup->setEnabled(false);
     auto* settingsLayout = new QFormLayout(m_settingsGroup);
 
-    // Clip limit
     m_clipLimitSpin = new QDoubleSpinBox();
     m_clipLimitSpin->setRange(1.0, 100.0);
     m_clipLimitSpin->setSingleStep(0.5);
     m_clipLimitSpin->setValue(2.0);
     m_clipLimitSpin->setDecimals(1);
-    m_clipLimitSpin->setToolTip(tr("Higher values allow more contrast enhancement.\n"
-                                    "1.0 = no clipping (full equalization)\n"
-                                    "2.0-4.0 = typical range for infrared"));
     connect(m_clipLimitSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &DisplayEnhancementPanel::onClipLimitChanged);
-    settingsLayout->addRow(tr("Clip Limit:"), m_clipLimitSpin);
+    auto* clipCaption = new QLabel(m_settingsGroup);
+    bindText([this, clipCaption] {
+        clipCaption->setText(tr("Clip limit:"));
+        m_clipLimitSpin->setToolTip(tr("Higher values allow more contrast enhancement.\n"
+                                       "1.0 = no clipping (full equalization)\n"
+                                       "2.0-4.0 = typical range for infrared"));
+    });
+    settingsLayout->addRow(clipCaption, m_clipLimitSpin);
 
-    // Tile size
     m_tileSizeCombo = new QComboBox();
-    m_tileSizeCombo->addItem(tr("4x4"), 4);
-    m_tileSizeCombo->addItem(tr("8x8 (Default)"), 8);
-    m_tileSizeCombo->addItem(tr("16x16"), 16);
-    m_tileSizeCombo->addItem(tr("32x32"), 32);
+    m_tileSizeCombo->addItem(QString(), 4);
+    m_tileSizeCombo->addItem(QString(), 8);
+    m_tileSizeCombo->addItem(QString(), 16);
+    m_tileSizeCombo->addItem(QString(), 32);
     m_tileSizeCombo->setCurrentIndex(1);  // 8x8 default
-    m_tileSizeCombo->setToolTip(tr("Number of contextual tiles.\n"
-                                    "Smaller tiles = more local contrast.\n"
-                                    "Larger tiles = more global contrast."));
     connect(m_tileSizeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &DisplayEnhancementPanel::onTileSizeChanged);
-    settingsLayout->addRow(tr("Tile Size:"), m_tileSizeCombo);
+    auto* tileCaption = new QLabel(m_settingsGroup);
+    bindText([this, tileCaption] {
+        tileCaption->setText(tr("Tile size:"));
+        m_tileSizeCombo->setItemText(0, tr("4x4"));
+        m_tileSizeCombo->setItemText(1, tr("8x8 (default)"));
+        m_tileSizeCombo->setItemText(2, tr("16x16"));
+        m_tileSizeCombo->setItemText(3, tr("32x32"));
+        m_tileSizeCombo->setToolTip(tr("Number of contextual tiles.\n"
+                                       "Smaller tiles = more local contrast.\n"
+                                       "Larger tiles = more global contrast."));
+    });
+    settingsLayout->addRow(tileCaption, m_tileSizeCombo);
 
-    // Processing mode
-    auto* modeGroup = new QGroupBox(tr("Processing Mode"));
+    auto* modeGroup = new QGroupBox(m_settingsGroup);
     auto* modeLayout = new QVBoxLayout(modeGroup);
 
-    m_luminanceOnlyRadio = new QRadioButton(tr("Luminance Only (Recommended)"));
-    m_luminanceOnlyRadio->setToolTip(tr("Apply CLAHE only to luminance channel,\n"
-                                         "preserving color information."));
+    m_luminanceOnlyRadio = new QRadioButton(modeGroup);
     m_luminanceOnlyRadio->setChecked(true);
     connect(m_luminanceOnlyRadio, &QRadioButton::toggled,
             this, &DisplayEnhancementPanel::onProcessingModeChanged);
 
-    m_allChannelsRadio = new QRadioButton(tr("All Channels"));
-    m_allChannelsRadio->setToolTip(tr("Apply CLAHE independently to each RGB channel.\n"
-                                       "May cause color shifts."));
+    m_allChannelsRadio = new QRadioButton(modeGroup);
+
+    bindText([this, modeGroup] {
+        modeGroup->setTitle(tr("Processing mode"));
+        m_luminanceOnlyRadio->setText(tr("Luminance only (recommended)"));
+        m_luminanceOnlyRadio->setToolTip(tr("Apply CLAHE only to the luminance channel,\n"
+                                            "preserving colour information."));
+        m_allChannelsRadio->setText(tr("All channels"));
+        m_allChannelsRadio->setToolTip(tr("Apply CLAHE independently to each RGB channel.\n"
+                                          "May cause colour shifts."));
+    });
 
     auto* buttonGroup = new QButtonGroup(this);
     buttonGroup->addButton(m_luminanceOnlyRadio);
@@ -100,28 +127,37 @@ void DisplayEnhancementPanel::setupUi() {
     mainLayout->addStretch();
 }
 
+void DisplayEnhancementPanel::retranslateUi() {
+    PanelBase::retranslateUi();
+}
+
 void DisplayEnhancementPanel::setEnhancementEnabled(bool enabled) {
     m_enabled = enabled;
-    m_enableCheckbox->blockSignals(true);
+    const QSignalBlocker blocker(m_enableCheckbox);
     m_enableCheckbox->setChecked(enabled);
-    m_enableCheckbox->blockSignals(false);
     m_settingsGroup->setEnabled(enabled);
+}
+
+void DisplayEnhancementPanel::requestEnhancementEnabled(bool enabled) {
+    if (m_enabled == enabled) {
+        return;
+    }
+    setEnhancementEnabled(enabled);
+    emitSettings();
 }
 
 void DisplayEnhancementPanel::setClipLimit(float clipLimit) {
     m_clipLimit = clipLimit;
-    m_clipLimitSpin->blockSignals(true);
+    const QSignalBlocker blocker(m_clipLimitSpin);
     m_clipLimitSpin->setValue(clipLimit);
-    m_clipLimitSpin->blockSignals(false);
 }
 
 void DisplayEnhancementPanel::setTileSize(int tileSize) {
     m_tileSize = tileSize;
     for (int i = 0; i < m_tileSizeCombo->count(); ++i) {
         if (m_tileSizeCombo->itemData(i).toInt() == tileSize) {
-            m_tileSizeCombo->blockSignals(true);
+            const QSignalBlocker blocker(m_tileSizeCombo);
             m_tileSizeCombo->setCurrentIndex(i);
-            m_tileSizeCombo->blockSignals(false);
             break;
         }
     }
@@ -129,12 +165,10 @@ void DisplayEnhancementPanel::setTileSize(int tileSize) {
 
 void DisplayEnhancementPanel::setLuminanceOnly(bool luminanceOnly) {
     m_luminanceOnly = luminanceOnly;
-    m_luminanceOnlyRadio->blockSignals(true);
-    m_allChannelsRadio->blockSignals(true);
+    const QSignalBlocker lum(m_luminanceOnlyRadio);
+    const QSignalBlocker all(m_allChannelsRadio);
     m_luminanceOnlyRadio->setChecked(luminanceOnly);
     m_allChannelsRadio->setChecked(!luminanceOnly);
-    m_luminanceOnlyRadio->blockSignals(false);
-    m_allChannelsRadio->blockSignals(false);
 }
 
 void DisplayEnhancementPanel::onEnableChanged(int state) {

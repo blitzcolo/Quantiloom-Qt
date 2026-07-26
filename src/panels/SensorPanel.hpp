@@ -7,7 +7,9 @@
 
 #pragma once
 
-#include <QWidget>
+#include "../ui/PanelBase.hpp"
+
+#include <QVector>
 #include <postprocess/SensorModel.hpp>
 
 QT_BEGIN_NAMESPACE
@@ -17,7 +19,10 @@ class QGroupBox;
 class QCheckBox;
 class QComboBox;
 class QLabel;
+class QFormLayout;
 QT_END_NAMESPACE
+
+class CollapsibleGroupBox;
 
 /**
  * @class SensorPanel
@@ -26,12 +31,16 @@ QT_END_NAMESPACE
  * Provides controls for optical parameters (focal length, f-number),
  * detector parameters (pixel pitch, QE, well capacity), and noise models.
  */
-class SensorPanel : public QWidget {
+class SensorPanel : public PanelBase {
     Q_OBJECT
 
 public:
     explicit SensorPanel(QWidget* parent = nullptr);
     ~SensorPanel() override = default;
+
+    [[nodiscard]] QString panelTitle() const override;
+    [[nodiscard]] QString panelId() const override { return QStringLiteral("sensor"); }
+    void retranslateUi() override;
 
     /**
      * @brief Set sensor enabled state
@@ -99,8 +108,8 @@ private:
     QGroupBox* m_adcGroup = nullptr;
     QDoubleSpinBox* m_gain = nullptr;
 
-    // Noise group
-    QGroupBox* m_noiseGroup = nullptr;
+    // Noise group (collapsible)
+    CollapsibleGroupBox* m_noiseGroup = nullptr;
     QDoubleSpinBox* m_readNoise = nullptr;
     QDoubleSpinBox* m_darkCurrent = nullptr;
     QCheckBox* m_poissonNoise = nullptr;
@@ -108,8 +117,10 @@ private:
     QCheckBox* m_darkCurrentEnable = nullptr;
     QCheckBox* m_fpnNoise = nullptr;
 
-    // FPN sub-group
-    QGroupBox* m_fpnGroup = nullptr;
+    // FPN sub-group. Collapsible and folded away by default: every value in
+    // it is calibrated once and then left alone, and this is the tallest panel
+    // in the application.
+    CollapsibleGroupBox* m_fpnGroup = nullptr;
     QDoubleSpinBox* m_prnuSigma = nullptr;
     QDoubleSpinBox* m_dsnuSigma = nullptr;
     QCheckBox* m_nucEnable = nullptr;
@@ -120,6 +131,16 @@ private:
     QDoubleSpinBox* m_detectorTemp = nullptr;
 
     // Current params
+    /// Form captions, kept with their untranslated source so that a language
+    /// change can re-apply them. QT_TR_NOOP marks the literal for lupdate; the
+    /// tr() call happens in retranslateUi().
+    struct Caption {
+        QLabel* label;
+        const char* source;
+    };
+    QVector<Caption> m_captions;
+    QLabel* addRow(class QFormLayout* layout, const char* source, QWidget* field);
+
     quantiloom::SensorParams m_params;
     bool m_updatingUi = false;
 };

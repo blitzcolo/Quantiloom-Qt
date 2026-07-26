@@ -11,7 +11,8 @@
 
 #pragma once
 
-#include <QWidget>
+#include "../ui/PanelBase.hpp"
+
 #include <vector>
 
 #include <core/SpectralData.hpp>
@@ -32,21 +33,35 @@ QT_END_NAMESPACE
 
 namespace quantiloom {
 struct Material;
+class Scene;
 }
 
-class QuantiloomVulkanWindow;
-
-class SpectralMaterialGenPanel : public QWidget {
+class SpectralMaterialGenPanel : public PanelBase {
     Q_OBJECT
 
 public:
     explicit SpectralMaterialGenPanel(QWidget* parent = nullptr);
 
+    [[nodiscard]] QString panelTitle() const override;
+    [[nodiscard]] QString panelId() const override { return QStringLiteral("spectralgen"); }
+    void retranslateUi() override;
+
     void setCurrentMaterialIndex(int index);
-    void setVulkanWindow(QuantiloomVulkanWindow* window);
+
+    /// Scene data to analyse. This panel used to hold a pointer to the render
+    /// window -- the only panel that did -- and read the scene through it. It
+    /// is handed the scene the same way the scene tree is now, and touches the
+    /// renderer nowhere.
+    void setScene(const quantiloom::Scene* scene);
 
 signals:
     void materialChanged(int index, const quantiloom::Material& material);
+
+    /// The material also carries fresh (n,k) data that has to be uploaded
+    /// before it can be referenced. The shell performs the upload and fills in
+    /// complexRefractiveIndexIndex; the panel has no route to the GPU.
+    void materialWithCriChanged(int index, const quantiloom::Material& material,
+                                const quantiloom::ComplexRefractiveIndex& cri);
 
 private slots:
     // Auto IR generation
@@ -61,8 +76,6 @@ private slots:
     void onSaveCSV();
     void onLoadYAML();
     void onApplyToMaterial();
-    void onDetachPreview();
-    void onPreviewDialogClosed();
 
 private:
     void setupUi();
@@ -94,15 +107,13 @@ private:
     QChartView*     m_chartView          = nullptr;
     QSpinBox*       m_targetMaterialSpin = nullptr;
 
-    // Preview pop-out
-    QGroupBox*   m_previewGroup  = nullptr;
-    QPushButton* m_detachBtn     = nullptr;
-    QDialog*     m_previewDialog = nullptr;
+    // Preview. There is no detach button any more: the panel is a dock, and
+    // dragging it out of the window is the same gesture with none of the
+    // widget-reparenting this class used to do by hand.
+    QGroupBox* m_previewGroup = nullptr;
 
     // Interpolated data
     quantiloom::ComplexRefractiveIndex m_interpolatedCRI;
     int m_currentMaterialIndex = -1;
-
-    // Vulkan window for CRI upload
-    QuantiloomVulkanWindow* m_vulkanWindow = nullptr;
+    const quantiloom::Scene* m_scene = nullptr;
 };

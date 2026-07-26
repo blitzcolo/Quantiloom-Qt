@@ -212,6 +212,10 @@ set(GUI_SOURCES
     src/panels/DisplayEnhancementPanel.hpp
     src/panels/SpectralMaterialGenPanel.cpp
     src/panels/SpectralMaterialGenPanel.hpp
+    src/panels/PropertiesPanel.cpp
+    src/panels/PropertiesPanel.hpp
+    src/panels/CameraPanel.cpp
+    src/panels/CameraPanel.hpp
     # Configuration management
     src/config/ConfigManager.cpp
     src/config/ConfigManager.hpp
