@@ -43,7 +43,7 @@ has the refresh flow and the failure modes.
 |---|---|
 | `src/panels/` | 12 dockable parameter panels — most feature work lands here |
 | `src/ui/` | Shell infrastructure: `PanelBase`, the debug/spectral `ModeCatalog`, workspaces, the viewport frame, shared styling |
-| `src/ui/theme/` | The three themes as data (`Theme`) and the runtime switcher (`ThemeManager`) |
+| `src/ui/theme/` | The nine themes as data (`Theme`) and the runtime switcher (`ThemeManager`). A theme is a style key, a palette, a few accent colours and an optional style sheet — adding one is a function returning a `Theme`, not code |
 | `src/dialogs/` | Preferences and the generated help pages |
 | `src/vulkan/` | Qt↔SDK render bridge and orbit camera; the only `ExternalRenderContext` caller |
 | `src/config/` | TOML load/save (`ConfigManager`) |

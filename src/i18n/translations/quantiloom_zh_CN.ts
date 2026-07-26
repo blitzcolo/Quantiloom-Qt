@@ -2558,6 +2558,30 @@ Not suitable for quantitative analysis. Load measured spectral materials for acc
         <source>Windows 11</source>
         <translation>Windows 11</translation>
     </message>
+    <message>
+        <source>Windows XP</source>
+        <translation>Windows XP</translation>
+    </message>
+    <message>
+        <source>Windows 7</source>
+        <translation>Windows 7</translation>
+    </message>
+    <message>
+        <source>Neutral Grey</source>
+        <translation>中性灰</translation>
+    </message>
+    <message>
+        <source>High Contrast</source>
+        <translation>高对比度</translation>
+    </message>
+    <message>
+        <source>Solarized Light</source>
+        <translation>Solarized 浅色</translation>
+    </message>
+    <message>
+        <source>Green Phosphor</source>
+        <translation>绿色荧光</translation>
+    </message>
 </context>
 <context>
     <name>UndoStack</name>

@@ -350,6 +350,30 @@ if(WIN32)
         COMMENT "Copying Qt6 platform plugin..."
     )
 
+    # Copy Qt style plugin (qmodernwindowsstyle.dll)
+    #
+    # This is where the "windows11" and "windowsvista" style keys live -- they
+    # are not built into Qt6Widgets, unlike "Fusion" and "Windows". Without the
+    # plugin beside the executable, QStyleFactory::create() returns null for
+    # both and ThemeManager quietly falls back to Fusion: the Windows 11 theme
+    # loses the one thing that makes it Windows 11, and says nothing about it.
+    # It only appeared to work here because Qt6Core's compiled-in plugin path
+    # still finds C:/Qt/.../plugins on a machine with Qt installed.
+    if(TARGET Qt6::QModernWindowsStylePlugin)
+        add_custom_command(TARGET QuantiloomQt POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E make_directory
+                "$<TARGET_FILE_DIR:QuantiloomQt>/styles"
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "$<TARGET_FILE:Qt6::QModernWindowsStylePlugin>"
+                "$<TARGET_FILE_DIR:QuantiloomQt>/styles/"
+            COMMENT "Copying Qt6 style plugin..."
+        )
+    else()
+        message(WARNING
+            "Qt6::QModernWindowsStylePlugin not found — the Windows 11 and "
+            "Windows 7 themes will fall back to Fusion.")
+    endif()
+
     # Copy libQuantiloom DLL from SDK
     add_custom_command(TARGET QuantiloomQt POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different

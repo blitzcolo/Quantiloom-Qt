@@ -2,7 +2,7 @@
  * @file Theme.hpp
  * @brief One theme, as data
  *
- * A theme is three things stacked, in the order Qt applies them:
+ * A theme is four things stacked, in the order Qt applies them:
  *
  *  1. a **style** — the drawing algorithm, named by a QStyleFactory key. This
  *     is what decides whether a button has a Win9x bevel or a Windows 11
@@ -15,6 +15,9 @@
  *     role: the status chips and the notice box. These used to be hex literals
  *     chosen by a dark/light branch, which is exactly as far as that approach
  *     goes.
+ *  4. an optional **style sheet** — shape, for the one thing a palette cannot
+ *     express. Only the XP theme uses it, because Luna's look *is* gradients
+ *     and rounded corners and no style key on this Qt draws them any more.
  *
  * Adding a theme means adding one of these, not writing code.
  */
@@ -65,6 +68,17 @@ struct Theme {
 
     QPalette palette;
     Accents accents;
+
+    /// Application-wide style sheet, or empty for none.
+    ///
+    /// Applied last so it wins, and *cleared* when a theme does not define one
+    /// -- otherwise switching away from a themed style sheet would leave it
+    /// painted over the next theme. Note that touching any border property in
+    /// QSS opts the widget out of the style's native drawing entirely, so this
+    /// is all-or-nothing per widget class: it is the right tool for a look no
+    /// style provides and the wrong one for nudging a look that a style
+    /// already gets right.
+    QString styleSheet;
 };
 
 }  // namespace theming

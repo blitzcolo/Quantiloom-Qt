@@ -43,6 +43,12 @@ public:
     static const QString kBlenderDark;
     static const QString kClassic;
     static const QString kWindows11;
+    static const QString kWindowsXp;
+    static const QString kWindows7;
+    static const QString kNeutralGrey;
+    static const QString kHighContrast;
+    static const QString kSolarizedLight;
+    static const QString kPhosphor;
 
     static ThemeManager& instance();
 
