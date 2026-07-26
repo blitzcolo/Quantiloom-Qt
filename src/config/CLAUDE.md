@@ -46,3 +46,9 @@ used (view-path transmittance comes from the NN atmosphere) and that
 `lighting.atmosphere_temperature_k` survives only as the thermal-sky fallback when that
 atmosphere is disabled. Both are still written, because a config this GUI produced
 should describe what the GUI was holding; the atmosphere panel says which is which.
+
+## Commits
+
+**No Claude Code session link in a commit message.** No `Claude-Session:` trailer,
+no `https://claude.ai/code/...` URL, in the subject, the body or a trailer. Same for
+PR descriptions.

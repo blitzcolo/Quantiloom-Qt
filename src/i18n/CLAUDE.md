@@ -111,3 +111,9 @@ override `retranslateUi()`. Two traps:
   recomputed on a language change, not merely re-labelled;
 - when refilling a combo box, restore the selection **by value**, never by index.
   Otherwise switching language quietly changes the user's spectral mode.
+
+## Commits
+
+**No Claude Code session link in a commit message.** No `Claude-Session:` trailer,
+no `https://claude.ai/code/...` URL, in the subject, the body or a trailer. Same for
+PR descriptions.

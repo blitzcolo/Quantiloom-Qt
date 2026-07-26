@@ -27,3 +27,9 @@ rather than as a bug.
 `glm::half_pi<float>()`, fed straight into `cos`/`sin`. Their declarations are commented
 only "Horizontal angle" / "Vertical angle". Writing degrees into them has already
 shipped once as a bug: the camera jumped on the first drag after loading a scene.
+
+## Commits
+
+**No Claude Code session link in a commit message.** No `Claude-Session:` trailer,
+no `https://claude.ai/code/...` URL, in the subject, the body or a trailer. Same for
+PR descriptions.

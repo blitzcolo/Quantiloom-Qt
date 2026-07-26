@@ -83,6 +83,9 @@ Four rules the shell keeps, and that new work should not break:
 ## Conventions
 
 - Commits: Conventional Commits — `feat:`, `fix:`, `docs:`, `chore:`.
+- **No Claude Code session link in a commit message.** No `Claude-Session:` trailer,
+  no `https://claude.ai/code/...` URL, in the subject, the body or a trailer. Same for
+  PR descriptions.
 - Physics and algorithms belong in the SDK, not here (SRS CON-02).
 - User-visible strings: `tr()`, plus the Chinese in the same commit. The Chinese
   translation carries no backlog; keep it that way (`src/i18n/CLAUDE.md`).

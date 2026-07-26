@@ -60,3 +60,9 @@ in Latin script by decision (RGB, LWIR, n, k, R0, unit symbols).
 
 Qualify every temperature. Five panels once labelled five different physical quantities
 "Temperature": atmosphere, ground, object, detector and cluster.
+
+## Commits
+
+**No Claude Code session link in a commit message.** No `Claude-Session:` trailer,
+no `https://claude.ai/code/...` URL, in the subject, the body or a trailer. Same for
+PR descriptions.
