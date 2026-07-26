@@ -41,18 +41,40 @@ has the refresh flow and the failure modes.
 
 | Path | What |
 |---|---|
-| `src/panels/` | 10 dockable parameter panels — most feature work lands here |
+| `src/panels/` | 12 dockable parameter panels — most feature work lands here |
+| `src/ui/` | Shell infrastructure: `PanelBase`, the debug/spectral `ModeCatalog`, workspaces, the viewport frame, shared styling |
+| `src/dialogs/` | Preferences and the generated help pages |
 | `src/vulkan/` | Qt↔SDK render bridge and orbit camera; the only `ExternalRenderContext` caller |
 | `src/config/` | TOML load/save (`ConfigManager`) |
 | `src/editing/` | Selection, undo stack, transform gizmo |
-| `src/i18n/` | Qt Linguist `.ts` (en + zh_CN) |
+| `src/i18n/` | Qt Linguist `.ts` (en + zh_CN) and the runtime `LanguageManager` |
 | `assets/configs/` | Hand-written TOML scene configs; also the core CLI's input format |
 | `assets/spectral/` | Baked copies from Quantiloom-dev. CMake warns at configure time when they drift; `scripts/sync_spectral_assets.sh --sync` re-copies and re-pins |
 
 `src/panels/`, `src/vulkan/`, `src/config/` and `src/i18n/` each have their own
 `CLAUDE.md` with the constraints that apply there.
 
+## Shell shape
+
+The window is a document editor for a TOML scene configuration: File ▸ Open takes a
+config or a bare model, Save writes a config. Above the toolbar sits a row of
+**workspaces** — Layout, Environment & Spectral, Material Prep, Debug — each a preset
+arrangement of the independent panel docks, with the viewport always in the centre.
+
+Three rules the shell keeps, and that new work should not break:
+
+- **The menu bar is the complete catalogue.** Anything a panel button does, a menu entry
+  does too, and shows its shortcut. A panel is a shortcut, never the only route.
+- **One dispatcher per setting.** Debug mode, spectral mode, target samples and display
+  enhancement each have a single `MainWindow::apply*` function; the menu, the toolbar
+  control and the panel widget all call it. Two paths that do slightly different things
+  is the bug class this replaced.
+- **No user-visible string is set once.** Everything goes through `bindText()` or a
+  `retranslateUi()`, because language switches at runtime.
+
 ## Conventions
 
 - Commits: Conventional Commits — `feat:`, `fix:`, `docs:`, `chore:`.
 - Physics and algorithms belong in the SDK, not here (SRS CON-02).
+- User-visible strings: `tr()`, plus the Chinese in the same commit. The Chinese
+  translation carries no backlog; keep it that way (`src/i18n/CLAUDE.md`).

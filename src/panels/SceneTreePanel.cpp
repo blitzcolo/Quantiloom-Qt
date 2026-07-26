@@ -100,7 +100,7 @@ void SceneTreePanel::populateTree() {
         const auto& node = m_scene->nodes[i];
         auto* nodeItem = new QTreeWidgetItem(nodesRoot);
 
-        QString nodeName = QString("Node %1").arg(i);
+        QString nodeName = tr("Node %1").arg(i);
         if (node.meshIndex < m_scene->meshes.size()) {
             const auto& mesh = m_scene->meshes[node.meshIndex];
             if (!mesh.name.empty()) {
@@ -111,7 +111,7 @@ void SceneTreePanel::populateTree() {
         nodeItem->setText(0, nodeName);
         nodeItem->setText(1, tr("Node"));
         nodeItem->setData(0, Qt::UserRole, static_cast<int>(i));
-        nodeItem->setData(0, Qt::UserRole + 1, QString("node"));
+        nodeItem->setData(0, Qt::UserRole + 1, QStringLiteral("node"));
     }
 
     // Materials section
@@ -125,13 +125,13 @@ void SceneTreePanel::populateTree() {
         auto* matItem = new QTreeWidgetItem(materialsRoot);
 
         QString matName = mat.name.empty()
-            ? QString("Material %1").arg(i)
+            ? tr("Material %1").arg(i)
             : QString::fromStdString(mat.name);
 
         matItem->setText(0, matName);
         matItem->setText(1, tr("Material"));
         matItem->setData(0, Qt::UserRole, static_cast<int>(i));
-        matItem->setData(0, Qt::UserRole + 1, QString("material"));
+        matItem->setData(0, Qt::UserRole + 1, QStringLiteral("material"));
     }
 
     // Textures section
@@ -144,11 +144,11 @@ void SceneTreePanel::populateTree() {
         auto* texItem = new QTreeWidgetItem(texturesRoot);
 
         QString texName = tex.name.empty()
-            ? QString("Texture %1").arg(i)
+            ? tr("Texture %1").arg(i)
             : QString::fromStdString(tex.name);
 
         texItem->setText(0, texName);
-        texItem->setText(1, QString("%1x%2").arg(tex.width).arg(tex.height));
+        texItem->setText(1, QStringLiteral("%1×%2").arg(tex.width).arg(tex.height));
     }
 
     // Statistics

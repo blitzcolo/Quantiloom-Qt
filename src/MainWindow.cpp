@@ -2166,7 +2166,11 @@ void MainWindow::onViewportHovered(int x, int y) {
 
     glm::vec4 pixelValue;
     if (m_vulkanWindow->readDebugPixel(x, y, pixelValue)) {
-        const QString formatted = m_vulkanWindow->formatDebugValue(pixelValue);
+        // The name comes from the catalogue and the numbers from the renderer,
+        // so the label is translated once and formatted once.
+        const QString formatted = tr("%1 %2")
+            .arg(catalog::debugModeName(debugMode),
+                 m_vulkanWindow->formatDebugValue(pixelValue));
         m_debugValueLabel->setText(tr("(%1,%2) %3").arg(x).arg(y).arg(formatted));
         m_debugVisualizationPanel->setPixelReading(x, y, formatted);
     } else {

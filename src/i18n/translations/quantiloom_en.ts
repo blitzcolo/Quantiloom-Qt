@@ -4,10 +4,6 @@
 <context>
     <name>AtmosphericPanel</name>
     <message>
-        <source>Enable NN Atmosphere</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Preset:</source>
         <translation type="unfinished">Preset:</translation>
     </message>
@@ -48,10 +44,6 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Model Pack:</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>(auto-detect)</source>
         <translation type="unfinished"></translation>
     </message>
@@ -74,10 +66,6 @@ Leave empty to auto-detect.</source>
     </message>
     <message>
         <source>Mid-Latitude Winter (3)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Atmosphere Model:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -105,6 +93,58 @@ Leave empty to auto-detect.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Atmosphere</source>
+        <translation type="unfinished">Atmosphere</translation>
+    </message>
+    <message>
+        <source>Analytic terms (legacy)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Transmittance:</source>
+        <translation type="unfinished">Transmittance:</translation>
+    </message>
+    <message>
+        <source>Atmosphere temperature:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source> K</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Superseded: view-path transmittance comes from the network model. Kept because it is still part of the lighting parameters uploaded each frame.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Thermal-sky fallback for infrared downwelling, used when the network model is off.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Both values live in the lighting parameters. The network model below supersedes the transmittance; the temperature remains the fallback sky for infrared when that model is disabled.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Neural network model (MODTRAN surrogate)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Use the network model</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Transmittance and path radiance come from the baked network lookup tables. A model pack must be available; without one the renderer falls back to the analytic terms above.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Model pack:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Atmosphere model:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>None (0)</source>
         <translation type="unfinished"></translation>
     </message>
@@ -117,6 +157,38 @@ Leave empty to auto-detect.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source> km</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Rain rate:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source> mm/h</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ground temperature:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Relative humidity:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source> hPa</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>H₂O scale:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Select the atmosphere model pack directory</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Cloud (ICLD):</source>
         <translation type="unfinished"></translation>
     </message>
@@ -125,27 +197,78 @@ Leave empty to auto-detect.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Rain Rate:</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Ground Temperature:</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Relative Humidity:</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Pressure:</source>
         <translation type="unfinished"></translation>
     </message>
+</context>
+<context>
+    <name>CameraPanel</name>
     <message>
-        <source>H2O Scale:</source>
+        <source>Camera</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Select Atmosphere Model Pack Directory</source>
+        <source>Pose</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Position:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Look at:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Distance:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Lens</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Vertical field of view:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>°</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Views</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Reset View</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Front</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Back</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Right</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Left</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Top</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Bottom</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Right-drag orbits, middle-drag pans, the wheel zooms. W/A/S/D fly the camera, Q/E move it down and up.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -181,227 +304,36 @@ Leave empty to auto-detect.</source>
 <context>
     <name>DebugVisualizationPanel</name>
     <message>
+        <source>Debug</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Debug Mode</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>None (Normal Rendering)</source>
+        <source>Pixel Inspection</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>-- Geometry --</source>
+        <source>Position:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>World Position</source>
+        <source>Value:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Geometric Normal</source>
+        <source>Hover or click the viewport with a debug mode active. Coordinates are device pixels, matching the render target.
+Help ▸ Reading Debug Output explains the colour encodings.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Shaded Normal</source>
+        <source>%1, %2 px</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Tangent</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>UV Coordinates</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Material ID</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Triangle ID</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Barycentric Coords</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>-- Material --</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Base Color (Albedo)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Metallic</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Roughness</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Normal Map Delta</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Emissive</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Alpha</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>-- Lighting --</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>N dot L</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>N dot V</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Direct Sun</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Diffuse</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Atmospheric Transmittance</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>-- BRDF --</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Fresnel F0</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Fresnel</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Full BRDF</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Specular D (GGX)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Specular G (Smith)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>-- IBL --</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Reflection Direction</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Prefiltered Environment</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>BRDF LUT</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>IBL Specular</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Sky Ambient</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>-- Spectral --</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>XYZ Tristimulus</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Before Chroma Correction</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Spectral Reflectance @550nm</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>-- Infrared --</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Temperature</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>IR Emissivity</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>IR Emission</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>IR Reflection</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>-- Geometry Diagnostics --</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Vertex Positions (Hash)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Index Values</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Instance ID</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Primitive ID</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Index Buffer Position</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>V0 Position</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Raw idx0</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>V0 Raw (clamped)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Output Interpretation</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>&lt;b&gt;Color Encoding:&lt;/b&gt;&lt;br&gt;- Vectors: (V+1)/2 maps [-1,1] to [0,1] RGB&lt;br&gt;- Scalars: Grayscale intensity&lt;br&gt;- IDs: Hash to distinct colors&lt;br&gt;- Temperature: Blue (cold) to Red (hot)&lt;br&gt;&lt;br&gt;&lt;b&gt;Tips:&lt;/b&gt;&lt;br&gt;- Use &apos;Shaded Normal&apos; to check normal mapping&lt;br&gt;- Use &apos;Material ID&apos; to verify material assignment&lt;br&gt;- Use &apos;XYZ Tristimulus&apos; to debug spectral integration</source>
+        <source>read failed</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -409,236 +341,20 @@ Leave empty to auto-detect.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Standard rendering output. No debug visualization.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Geometry</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>World-space hit position. RGB = fractional XYZ coordinates.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Raw geometric normal from triangle vertices (before normal mapping).</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Final shading normal after interpolation and normal map application.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Tangent vector for normal mapping. Used for TBN matrix construction.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Texture coordinates. RG = fractional UV, useful for texture mapping debug.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Material index visualized as distinct colors. Each material gets unique color.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Primitive (triangle) index. Useful for mesh topology inspection.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Barycentric coordinates within triangle. RGB = weights at 3 vertices.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Material</source>
-        <translation type="unfinished">Material</translation>
-    </message>
-    <message>
-        <source>Albedo/base color from texture or material parameters.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Metallic parameter. 0 = dielectric, 1 = metal.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Roughness parameter. 0 = mirror smooth, 1 = fully rough.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Normal map perturbation from surface normal.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Emissive color/intensity. Self-illumination without external lighting.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Alpha/opacity value. 1 = opaque, 0 = transparent.</source>
-        <translation type="unfinished"></translation>
+        <translation type="obsolete">Material</translation>
     </message>
     <message>
         <source>Lighting</source>
-        <translation type="unfinished">Lighting</translation>
-    </message>
-    <message>
-        <source>Dot product of normal and light direction. Basic diffuse term.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Dot product of normal and view direction. Affects Fresnel and specular.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Direct sunlight contribution after shadowing and attenuation.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Diffuse lighting term: kD * albedo * NdotL.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Atmospheric transmittance factor from scattering/absorption LUT.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>BRDF</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Base reflectivity at normal incidence. Depends on metallic and IOR.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Fresnel reflectance at current viewing angle (Schlick approximation).</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Complete Cook-Torrance BRDF evaluation: D * G * F / (4 * NdotL * NdotV).</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>GGX/Trowbridge-Reitz normal distribution function.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Smith geometry/masking-shadowing function.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>IBL</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Mirror reflection direction for environment map sampling.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Pre-filtered environment map sample at current roughness level.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>BRDF integration LUT sample. RG = scale and bias for split-sum.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Final IBL specular contribution: prefiltered * (F * scale + bias).</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Ambient sky lighting contribution (diffuse IBL).</source>
-        <translation type="unfinished"></translation>
+        <translation type="obsolete">Lighting</translation>
     </message>
     <message>
         <source>Spectral</source>
-        <translation type="unfinished">Spectral</translation>
-    </message>
-    <message>
-        <source>CIE XYZ tristimulus values from spectral integration. Before RGB conversion.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Linear RGB before chromaticity correction. May show color shifts.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Material spectral reflectance sampled at 550nm (green reference).</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Infrared</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Surface temperature in Kelvin. Blue = cold, Red = hot (colormap).</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>IR emissivity factor. 1 = perfect blackbody, 0 = perfect reflector.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Thermal emission contribution: emissivity * Planck(T, lambda).</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>IR reflection of ambient thermal radiation.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Diagnostics</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Hash of 3 vertex positions. Same face should show similar colors. Different colors on same face = index corruption.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Triangle vertex indices as RGB (normalized by 32). For cube: idx0-23.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>TLAS instance index. Verifies instance-to-geometry mapping.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>PrimitiveIndex() value. R=id/12 (gradient), G=alternating, B=even/odd. For cube: should see 12 distinct triangles with smooth R gradient.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Index buffer read position. R=basePos/36, G=offset/36, B=primID/12. For single BLAS: G should be 0.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>First vertex (v0) position mapped to 0-1 using frac(). For ±1 cube: shows 0 for both +1 and -1. Shows 0.5 for 0.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Raw idx0 value. R=idx0/32, G=readAddr/32, B=offset/32. For cube: R should be 0-0.72 (idx 0-23). G=R if offset=0.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>v0 position clamped (not frac). -1→0, 0→0.5, +1→1. For cube: should see 0 or 1 only (no 0.5).</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Unknown</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Unknown debug mode.</source>
-        <translation type="unfinished"></translation>
+        <translation type="obsolete">Spectral</translation>
     </message>
 </context>
 <context>
     <name>DisplayEnhancementPanel</name>
-    <message>
-        <source>Enable Display Enhancement</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>CLAHE enhances contrast for low-dynamic-range images (e.g. infrared). Only affects display and screenshots.</source>
-        <translation type="unfinished"></translation>
-    </message>
     <message>
         <source>CLAHE Settings</source>
         <translation type="unfinished"></translation>
@@ -650,15 +366,31 @@ Leave empty to auto-detect.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Clip Limit:</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>4x4</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>8x8 (Default)</source>
+        <source>Display Enhancement</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enable display enhancement</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>CLAHE lifts contrast in low-dynamic-range images such as infrared. It changes the viewport and saved screenshots; exported images keep their raw values.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Clip limit:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Tile size:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>8x8 (default)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -676,34 +408,61 @@ Larger tiles = more global contrast.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Tile Size:</source>
+        <source>Processing mode</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Processing Mode</source>
+        <source>Luminance only (recommended)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Luminance Only (Recommended)</source>
+        <source>Apply CLAHE only to the luminance channel,
+preserving colour information.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Apply CLAHE only to luminance channel,
-preserving color information.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>All Channels</source>
+        <source>All channels</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Apply CLAHE independently to each RGB channel.
-May cause color shifts.</source>
+May cause colour shifts.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>HelpDialog</name>
+    <message>
+        <source>Quantiloom Help</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Keyboard Shortcuts</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Debug Output</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Menu and toolbar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Viewport</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This page is generated from the shortcuts the application actually registers, so it cannot drift out of date.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
     <name>LightingPanel</name>
+    <message>
+        <source>Lighting</source>
+        <translation type="unfinished">Lighting</translation>
+    </message>
     <message>
         <source>Sun Direction</source>
         <translation>Sun Direction</translation>
@@ -729,23 +488,31 @@ May cause color shifts.</source>
         <translation>Sky:</translation>
     </message>
     <message>
+        <source> W/m²/sr</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1°</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Atmosphere</source>
-        <translation>Atmosphere</translation>
+        <translation type="vanished">Atmosphere</translation>
     </message>
     <message>
         <source>Transmittance:</source>
-        <translation>Transmittance:</translation>
+        <translation type="vanished">Transmittance:</translation>
     </message>
     <message>
         <source>Temperature:</source>
-        <translation>Temperature:</translation>
+        <translation type="vanished">Temperature:</translation>
     </message>
 </context>
 <context>
     <name>MainWindow</name>
     <message>
         <source>Quantiloom - Spectral Renderer</source>
-        <translation>Quantiloom - Spectral Renderer</translation>
+        <translation type="vanished">Quantiloom - Spectral Renderer</translation>
     </message>
     <message>
         <source>&amp;File</source>
@@ -753,27 +520,27 @@ May cause color shifts.</source>
     </message>
     <message>
         <source>&amp;New Scene</source>
-        <translation>&amp;New Scene</translation>
+        <translation type="vanished">&amp;New Scene</translation>
     </message>
     <message>
         <source>&amp;Open Scene...</source>
-        <translation>&amp;Open Scene...</translation>
+        <translation type="vanished">&amp;Open Scene...</translation>
     </message>
     <message>
         <source>&amp;Save Scene</source>
-        <translation>&amp;Save Scene</translation>
+        <translation type="vanished">&amp;Save Scene</translation>
     </message>
     <message>
         <source>&amp;Import Config...</source>
-        <translation>&amp;Import Config...</translation>
+        <translation type="vanished">&amp;Import Config...</translation>
     </message>
     <message>
         <source>E&amp;xport Config...</source>
-        <translation>E&amp;xport Config...</translation>
+        <translation type="vanished">E&amp;xport Config...</translation>
     </message>
     <message>
         <source>Export &amp;Image...</source>
-        <translation>Export &amp;Image...</translation>
+        <translation type="vanished">Export &amp;Image...</translation>
     </message>
     <message>
         <source>E&amp;xit</source>
@@ -784,8 +551,20 @@ May cause color shifts.</source>
         <translation>&amp;Edit</translation>
     </message>
     <message>
+        <source>Node %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&apos;%1&apos; selected</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>&amp;Undo</source>
         <translation>&amp;Undo</translation>
+    </message>
+    <message>
+        <source>&amp;Undo %1</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>&amp;Redo</source>
@@ -793,7 +572,7 @@ May cause color shifts.</source>
     </message>
     <message>
         <source>&amp;Delete</source>
-        <translation>&amp;Delete</translation>
+        <translation type="vanished">&amp;Delete</translation>
     </message>
     <message>
         <source>&amp;View</source>
@@ -801,11 +580,11 @@ May cause color shifts.</source>
     </message>
     <message>
         <source>&amp;Reset Camera</source>
-        <translation>&amp;Reset Camera</translation>
+        <translation type="vanished">&amp;Reset Camera</translation>
     </message>
     <message>
         <source>&amp;Parameter Panel</source>
-        <translation>&amp;Parameter Panel</translation>
+        <translation type="vanished">&amp;Parameter Panel</translation>
     </message>
     <message>
         <source>&amp;Render</source>
@@ -825,11 +604,11 @@ May cause color shifts.</source>
     </message>
     <message>
         <source>Spectral Material &amp;Generator...</source>
-        <translation>Spectral Material &amp;Generator...</translation>
+        <translation type="vanished">Spectral Material &amp;Generator...</translation>
     </message>
     <message>
         <source>Spectral Gen</source>
-        <translation>Spectral Gen</translation>
+        <translation type="vanished">Spectral Gen</translation>
     </message>
     <message>
         <source>&amp;Help</source>
@@ -845,43 +624,31 @@ May cause color shifts.</source>
     </message>
     <message>
         <source>Parameters</source>
-        <translation>Parameters</translation>
+        <translation type="vanished">Parameters</translation>
     </message>
     <message>
         <source>Scene</source>
-        <translation>Scene</translation>
+        <translation type="vanished">Scene</translation>
     </message>
     <message>
         <source>Material</source>
-        <translation>Material</translation>
+        <translation type="vanished">Material</translation>
     </message>
     <message>
         <source>Lighting</source>
-        <translation>Lighting</translation>
+        <translation type="vanished">Lighting</translation>
     </message>
     <message>
         <source>Atmosphere</source>
-        <translation type="unfinished">Atmosphere</translation>
-    </message>
-    <message>
-        <source>Sensor</source>
-        <translation type="unfinished"></translation>
+        <translation type="obsolete">Atmosphere</translation>
     </message>
     <message>
         <source>Render</source>
-        <translation>Render</translation>
+        <translation type="vanished">Render</translation>
     </message>
     <message>
         <source>Spectral</source>
-        <translation>Spectral</translation>
-    </message>
-    <message>
-        <source>Display</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Debug</source>
-        <translation type="unfinished"></translation>
+        <translation type="vanished">Spectral</translation>
     </message>
     <message>
         <source>Atmospheric preset: %1</source>
@@ -896,18 +663,6 @@ May cause color shifts.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Sensor params updated</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Display enhancement enabled (CLAHE: clip=%1, tiles=%2x%2)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Display enhancement disabled</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Ready</source>
         <translation>Ready</translation>
     </message>
@@ -917,11 +672,7 @@ May cause color shifts.</source>
     </message>
     <message>
         <source>Samples: 0</source>
-        <translation>Samples: 0</translation>
-    </message>
-    <message>
-        <source>Click to inspect</source>
-        <translation type="unfinished"></translation>
+        <translation type="vanished">Samples: 0</translation>
     </message>
     <message>
         <source>Unsaved Changes</source>
@@ -929,59 +680,50 @@ May cause color shifts.</source>
     </message>
     <message>
         <source>The scene has been modified. Do you want to save your changes?</source>
-        <translation>The scene has been modified. Do you want to save your changes?</translation>
+        <translation type="vanished">The scene has been modified. Do you want to save your changes?</translation>
     </message>
     <message>
         <source>New scene created</source>
-        <translation>New scene created</translation>
+        <translation type="vanished">New scene created</translation>
     </message>
     <message>
         <source>Open Scene</source>
-        <translation>Open Scene</translation>
+        <translation type="vanished">Open Scene</translation>
     </message>
     <message>
         <source>3D Scene Files (*.gltf *.glb *.usd *.usda *.usdc *.usdz);;glTF Files (*.gltf *.glb);;OpenUSD Files (*.usd *.usda *.usdc *.usdz);;TOML Config (*.toml);;All Files (*)</source>
-        <translation>3D Scene Files (*.gltf *.glb *.usd *.usda *.usdc *.usdz);;glTF Files (*.gltf *.glb);;OpenUSD Files (*.usd *.usda *.usdc *.usdz);;TOML Config (*.toml);;All Files (*)</translation>
+        <translation type="vanished">3D Scene Files (*.gltf *.glb *.usd *.usda *.usdc *.usdz);;glTF Files (*.gltf *.glb);;OpenUSD Files (*.usd *.usda *.usdc *.usdz);;TOML Config (*.toml);;All Files (*)</translation>
     </message>
     <message>
         <source>Config loaded: %1</source>
-        <translation>Config loaded: %1</translation>
+        <translation type="vanished">Config loaded: %1</translation>
     </message>
     <message>
         <source>Load Failed</source>
-        <translation>Load Failed</translation>
+        <translation type="vanished">Load Failed</translation>
     </message>
     <message>
         <source>Failed to load config: %1</source>
-        <translation>Failed to load config: %1</translation>
+        <translation type="vanished">Failed to load config: %1</translation>
     </message>
     <message>
         <source>Loading: %1</source>
-        <translation>Loading: %1</translation>
+        <translation type="vanished">Loading: %1</translation>
     </message>
     <message>
         <source>Save Scene</source>
-        <translation>Save Scene</translation>
+        <translation type="vanished">Save Scene</translation>
     </message>
     <message>
         <source>TOML Config (*.toml)</source>
-        <translation>TOML Config (*.toml)</translation>
+        <translation type="vanished">TOML Config (*.toml)</translation>
     </message>
     <message>
         <source>Saved: %1</source>
-        <translation>Saved: %1</translation>
-    </message>
-    <message>
-        <source>Failed to capture image. Make sure a scene is loaded.</source>
-        <translation type="unfinished"></translation>
+        <translation type="vanished">Saved: %1</translation>
     </message>
     <message>
         <source>Export failed</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Failed to save image:
-%1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -990,35 +732,31 @@ May cause color shifts.</source>
     </message>
     <message>
         <source>Import Configuration</source>
-        <translation>Import Configuration</translation>
+        <translation type="vanished">Import Configuration</translation>
     </message>
     <message>
         <source>TOML Config (*.toml);;All Files (*)</source>
-        <translation>TOML Config (*.toml);;All Files (*)</translation>
+        <translation type="vanished">TOML Config (*.toml);;All Files (*)</translation>
     </message>
     <message>
         <source>Config imported: %1</source>
-        <translation>Config imported: %1</translation>
+        <translation type="vanished">Config imported: %1</translation>
     </message>
     <message>
         <source>Import Failed</source>
-        <translation>Import Failed</translation>
+        <translation type="vanished">Import Failed</translation>
     </message>
     <message>
         <source>Failed to import config: %1</source>
-        <translation>Failed to import config: %1</translation>
+        <translation type="vanished">Failed to import config: %1</translation>
     </message>
     <message>
         <source>Export Configuration</source>
-        <translation>Export Configuration</translation>
+        <translation type="vanished">Export Configuration</translation>
     </message>
     <message>
         <source>Config exported: %1</source>
-        <translation>Config exported: %1</translation>
-    </message>
-    <message>
-        <source>Click to inspect (select debug mode first)</source>
-        <translation type="unfinished"></translation>
+        <translation type="vanished">Config exported: %1</translation>
     </message>
     <message>
         <source>Export Failed</source>
@@ -1026,11 +764,11 @@ May cause color shifts.</source>
     </message>
     <message>
         <source>Failed to export config: %1</source>
-        <translation>Failed to export config: %1</translation>
+        <translation type="vanished">Failed to export config: %1</translation>
     </message>
     <message>
         <source>Export Image</source>
-        <translation>Export Image</translation>
+        <translation type="vanished">Export Image</translation>
     </message>
     <message>
         <source>EXR Image (*.exr);;PNG Image (*.png);;All Files (*)</source>
@@ -1038,15 +776,15 @@ May cause color shifts.</source>
     </message>
     <message>
         <source>Exported: %1</source>
-        <translation>Exported: %1</translation>
+        <translation type="vanished">Exported: %1</translation>
     </message>
     <message>
         <source>Rendering...</source>
-        <translation>Rendering...</translation>
+        <translation type="vanished">Rendering...</translation>
     </message>
     <message>
         <source>Render stopped</source>
-        <translation>Render stopped</translation>
+        <translation type="vanished">Render stopped</translation>
     </message>
     <message>
         <source>Camera reset</source>
@@ -1082,11 +820,448 @@ May cause color shifts.</source>
     </message>
     <message>
         <source>SPP set to %1</source>
-        <translation>SPP set to %1</translation>
+        <translation type="vanished">SPP set to %1</translation>
     </message>
     <message>
         <source>Spectral mode: %1</source>
         <translation>Spectral mode: %1</translation>
+    </message>
+    <message>
+        <source>Target samples: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sensor parameters updated</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Display enhancement on (CLAHE: clip %1, %2x%2 tiles)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Display enhancement off</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Workspace: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Local space</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>World space</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Open...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open &amp;Recent</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Save</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save &amp;As...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Export &amp;Image (raw render)...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Write the accumulated render without display enhancement.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save Screensho&amp;t (as displayed)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Write what the viewport shows, display enhancement included.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Transform</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Translate</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Rotate</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Scale</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Constrain to &amp;X</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Constrain to &amp;Y</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Constrain to &amp;Z</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Local Space</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Transform along the object&apos;s own axes instead of the world&apos;s</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Preferences...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Workspace</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Panels</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Reset Layout</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Camera</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Reset View</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Front</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Back</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ri&amp;ght</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Left</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Top</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Botto&amp;m</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Debug Visualization</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Display &amp;Enhancement (CLAHE)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Affects the viewport and screenshots only; exported images keep their raw values.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Reset &amp;Accumulation</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Quality</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Spectral Mode</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Main Toolbar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source> Spectral: </source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source> Debug: </source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Spectral Material &amp;Generator</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Keyboard Shortcuts</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Reading &amp;Debug Output</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Hover the viewport to inspect</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Untitled</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1[*] — Quantiloom Studio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The scene configuration has been modified. Save your changes?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open Failed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This file no longer exists:
+%1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>(none)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Clear List</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open Scene or Configuration</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Scenes and Configurations (*.toml *.gltf *.glb *.usd *.usda *.usdc *.usdz);;TOML Configuration (*.toml);;glTF Files (*.gltf *.glb);;OpenUSD Files (*.usd *.usda *.usdc *.usdz);;All Files (*)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No such file: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Failed to load configuration: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Loaded configuration: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Loading %1...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save Configuration As</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>TOML Configuration (*.toml)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save Failed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Failed to write configuration: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save failed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Saved %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Export Image (raw render)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Failed to capture the image. Make sure a scene is loaded.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Exported %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Failed to save the image:
+%1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Rendering from scratch to %1 samples</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Rendering stopped at %1 samples</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Layout reset for %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Failed to capture the screenshot. Make sure a scene is loaded.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Failed to create the screenshot directory:
+%1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Failed to save the EXR file:
+%1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The EXR was saved but the PNG failed:
+%1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Right-drag</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Orbit the camera</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Middle-drag</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Pan the camera</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Wheel</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Zoom</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>W / A / S / D</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Fly the camera</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Q / E</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Move the camera down / up</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Shift</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Fine control while dragging</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>G</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Translate mode</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>R</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Rotate mode</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>T</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Scale mode</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>X / Y / Z</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Constrain the transform to an axis</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Space</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Toggle world / local space</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Escape</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cancel the drag, then clear the selection</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Left-drag</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Transform the selection</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Hover</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Read the pixel under the cursor in debug modes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Preferences saved</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Wavelength: %1 nm</source>
@@ -1095,6 +1270,26 @@ May cause color shifts.</source>
     <message>
         <source>Accumulation reset</source>
         <translation>Accumulation reset</translation>
+    </message>
+    <message>
+        <source>&amp;Redo %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Select a debug mode to inspect pixels</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>(%1,%2) %3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>(%1,%2) read failed</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Scene Load Failed</source>
@@ -1106,7 +1301,7 @@ May cause color shifts.</source>
     </message>
     <message>
         <source>Click in Scene panel to select objects</source>
-        <translation>Click in Scene panel to select objects</translation>
+        <translation type="vanished">Click in Scene panel to select objects</translation>
     </message>
     <message>
         <source>Selection cleared</source>
@@ -1114,23 +1309,23 @@ May cause color shifts.</source>
     </message>
     <message>
         <source>%1 objects selected</source>
-        <translation type="vanished">%1 objects selected</translation>
+        <translation>%1 objects selected</translation>
     </message>
     <message>
         <source>Selection cleared - click a node in Scene panel to select</source>
-        <translation>Selection cleared - click a node in Scene panel to select</translation>
+        <translation type="vanished">Selection cleared - click a node in Scene panel to select</translation>
     </message>
     <message>
         <source>&apos;%1&apos; selected - Left-drag in viewport to transform</source>
-        <translation>&apos;%1&apos; selected - Left-drag in viewport to transform</translation>
+        <translation type="vanished">&apos;%1&apos; selected - Left-drag in viewport to transform</translation>
     </message>
     <message>
         <source>%1 objects selected - Left-drag in viewport to transform</source>
-        <translation>%1 objects selected - Left-drag in viewport to transform</translation>
+        <translation type="vanished">%1 objects selected - Left-drag in viewport to transform</translation>
     </message>
     <message>
         <source>Scene loaded - Click a node in Scene panel to select, use G/R/T keys to change transform mode</source>
-        <translation>Scene loaded - Click a node in Scene panel to select, use G/R/T keys to change transform mode</translation>
+        <translation type="vanished">Scene loaded - Click a node in Scene panel to select, use G/R/T keys to change transform mode</translation>
     </message>
     <message>
         <source>[G] Translate</source>
@@ -1146,33 +1341,33 @@ May cause color shifts.</source>
     </message>
     <message>
         <source>Mode: %1</source>
-        <translation>Mode: %1</translation>
+        <translation type="vanished">Mode: %1</translation>
     </message>
     <message>
         <source>&amp;Settings</source>
-        <translation>&amp;Settings</translation>
+        <translation type="vanished">&amp;Settings</translation>
     </message>
     <message>
         <source>&amp;Language</source>
-        <translation>&amp;Language</translation>
+        <translation type="vanished">&amp;Language</translation>
     </message>
     <message>
         <source>Language Changed</source>
-        <translation>Language Changed</translation>
+        <translation type="vanished">Language Changed</translation>
     </message>
     <message>
         <source>The language setting has been changed.
 Please restart the application for the changes to take effect.</source>
-        <translation>The language setting has been changed.
+        <translation type="vanished">The language setting has been changed.
 Please restart the application for the changes to take effect.</translation>
     </message>
     <message>
         <source>Take &amp;Screenshot</source>
-        <translation>Take &amp;Screenshot</translation>
+        <translation type="vanished">Take &amp;Screenshot</translation>
     </message>
     <message>
         <source>&amp;Properties...</source>
-        <translation>&amp;Properties...</translation>
+        <translation type="vanished">&amp;Properties...</translation>
     </message>
     <message>
         <source>Screenshot Failed</source>
@@ -1180,7 +1375,7 @@ Please restart the application for the changes to take effect.</translation>
     </message>
     <message>
         <source>Failed to capture screenshot. Make sure a scene is loaded.</source>
-        <translation>Failed to capture screenshot. Make sure a scene is loaded.</translation>
+        <translation type="vanished">Failed to capture screenshot. Make sure a scene is loaded.</translation>
     </message>
     <message>
         <source>Screenshot failed</source>
@@ -1189,13 +1384,13 @@ Please restart the application for the changes to take effect.</translation>
     <message>
         <source>Failed to create screenshot directory:
 %1</source>
-        <translation>Failed to create screenshot directory:
+        <translation type="vanished">Failed to create screenshot directory:
 %1</translation>
     </message>
     <message>
         <source>Failed to save EXR file:
 %1</source>
-        <translation>Failed to save EXR file:
+        <translation type="vanished">Failed to save EXR file:
 %1</translation>
     </message>
     <message>
@@ -1209,7 +1404,7 @@ Please restart the application for the changes to take effect.</translation>
     <message>
         <source>EXR saved successfully, but PNG save failed:
 %1</source>
-        <translation>EXR saved successfully, but PNG save failed:
+        <translation type="vanished">EXR saved successfully, but PNG save failed:
 %1</translation>
     </message>
     <message>
@@ -1222,14 +1417,14 @@ Please restart the application for the changes to take effect.</translation>
     </message>
     <message>
         <source>Screenshot Saved</source>
-        <translation>Screenshot Saved</translation>
+        <translation type="vanished">Screenshot Saved</translation>
     </message>
     <message>
         <source>Screenshot saved successfully:
 
 EXR: %1
 PNG: %2</source>
-        <translation>Screenshot saved successfully:
+        <translation type="vanished">Screenshot saved successfully:
 
 EXR: %1
 PNG: %2</translation>
@@ -1240,7 +1435,7 @@ PNG: %2</translation>
     </message>
     <message>
         <source>Settings saved</source>
-        <translation>Settings saved</translation>
+        <translation type="vanished">Settings saved</translation>
     </message>
 </context>
 <context>
@@ -1248,6 +1443,10 @@ PNG: %2</translation>
     <message>
         <source>Material Properties</source>
         <translation type="vanished">Material Properties</translation>
+    </message>
+    <message>
+        <source>Material</source>
+        <translation type="unfinished">Material</translation>
     </message>
     <message>
         <source>No material selected</source>
@@ -1270,7 +1469,49 @@ PNG: %2</translation>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Fraction of blackbody radiation emitted (0=reflective, 1=perfect emitter)</source>
+        <source>Fraction of blackbody radiation emitted (0 = reflective, 1 = perfect emitter)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Fraction of radiation transmitted through the material (0 = opaque)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Object temperature:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source> K</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Surface temperature of this material. 0 uses the scene ambient; roughly 293 K is room temperature and 310 K is human skin.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Material %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This material carries full spectral IR curves from the material generator. The three values below are a two-point summary of them; editing one replaces the curves.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Replace spectral curves?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This material&apos;s infrared response is stored as full spectral curves. Editing this value replaces them with two constant sample points.
+
+Replace the curves?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Warning: ε + τ &gt; 1 (violates energy conservation)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Reflectance ρ = %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1278,31 +1519,15 @@ PNG: %2</translation>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Fraction of radiation transmitted through material (0=opaque)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Transmittance:</source>
         <translation type="unfinished">Transmittance:</translation>
     </message>
     <message>
-        <source>Surface temperature in Kelvin (0 = use scene ambient, ~293K = room temp, ~310K = human)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Temperature:</source>
-        <translation type="unfinished">Temperature:</translation>
+        <translation type="obsolete">Temperature:</translation>
     </message>
     <message>
         <source>Select Base Color</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Warning: epsilon + tau &gt; 1 (violates energy conservation)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Reflectance (rho) = %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1359,6 +1584,87 @@ PNG: %2</translation>
     </message>
 </context>
 <context>
+    <name>PreferencesDialog</name>
+    <message>
+        <source>Preferences</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Language</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Interface language:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Screenshots and image export</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save location:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Browse...</source>
+        <translation type="unfinished">Browse...</translation>
+    </message>
+    <message>
+        <source>Restore Defaults</source>
+        <translation type="unfinished">Restore Defaults</translation>
+    </message>
+    <message>
+        <source>Screenshots are written as a matching pair, named YYYY-MM-DD_HH-MM-SS-mmm:
+• EXR — the displayed image at full precision, including display enhancement
+• PNG — an 8-bit sRGB preview
+File → Export Image writes the unenhanced render instead.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Select screenshot save location</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>PropertiesPanel</name>
+    <message>
+        <source>Properties</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Nothing selected.
+Pick a node or a material in the scene tree.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Transform</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Position:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Rotation (°):</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Scale:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Edit Material</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>%n nodes selected. Drag in the viewport to transform them together.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+</context>
+<context>
     <name>QObject</name>
     <message>
         <source>Quantiloom SDK mismatch</source>
@@ -1369,12 +1675,7 @@ PNG: %2</translation>
         <translation type="unfinished">Render context not initialized</translation>
     </message>
     <message>
-        <source>Compiling and loading shaders...
-It may take a few minutes.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Initializing</source>
+        <source>Compiling shaders — first run may take a few minutes</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1410,6 +1711,22 @@ This may take a few minutes.</source>
         <translation type="vanished">First-time shader compilation in progress...
 This may take a few minutes.</translation>
     </message>
+    <message>
+        <source>scale %1, bias %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>fractional part only — original value not recoverable</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>hashed — original value not recoverable</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>colour-mapped — read against the colour bar</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>RenderSettingsPanel</name>
@@ -1418,51 +1735,11 @@ This may take a few minutes.</translation>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Accumulated Samples:</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Quality</source>
         <translation>Quality</translation>
     </message>
     <message>
-        <source>Preview (1 SPP)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Fast (4 SPP)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Medium (16 SPP)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>High (64 SPP)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Ultra (256 SPP)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Production (1024 SPP)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Custom...</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Target SPP:</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Custom SPP:</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Progressive Rendering</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1470,28 +1747,40 @@ This may take a few minutes.</translation>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>720p (1280x720)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>1080p (1920x1080)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>1440p (2560x1440)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>4K (3840x2160)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Window Size</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Preset:</source>
-        <translation>Preset:</translation>
+        <translation type="vanished">Preset:</translation>
+    </message>
+    <message>
+        <source>Render</source>
+        <translation type="unfinished">Render</translation>
+    </message>
+    <message>
+        <source>Accumulated samples:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Target samples:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Custom samples:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Progressive rendering</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Render resolution:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Follows the viewport size.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Display Enhancement</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Actions</source>
@@ -1510,16 +1799,20 @@ This may take a few minutes.</translation>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Save current render to file</source>
+        <source>Save the raw render, without display enhancement</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 x %2</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Export Image</source>
-        <translation type="unfinished">Export Image</translation>
+        <translation type="obsolete">Export Image</translation>
     </message>
     <message>
         <source>EXR Image (*.exr);;PNG Image (*.png);;All Files (*)</source>
-        <translation type="unfinished">EXR Image (*.exr);;PNG Image (*.png);;All Files (*)</translation>
+        <translation type="obsolete">EXR Image (*.exr);;PNG Image (*.png);;All Files (*)</translation>
     </message>
     <message>
         <source>Preview (4 SPP)</source>
@@ -1551,7 +1844,7 @@ This may take a few minutes.</translation>
     </message>
     <message>
         <source>Current:</source>
-        <translation>Current:</translation>
+        <translation type="vanished">Current:</translation>
     </message>
     <message>
         <source>%1 / %2</source>
@@ -1626,11 +1919,11 @@ This may take a few minutes.</translation>
     </message>
     <message>
         <source>Controls</source>
-        <translation>Controls</translation>
+        <translation type="vanished">Controls</translation>
     </message>
     <message>
         <source>&lt;b&gt;Selection:&lt;/b&gt; Click node above&lt;br&gt;&lt;b&gt;Transform:&lt;/b&gt; Select node, then Left-drag in viewport&lt;br&gt;&lt;b&gt;Mode:&lt;/b&gt; G=Move, R=Rotate, T=Scale&lt;br&gt;&lt;b&gt;Axis:&lt;/b&gt; X/Y/Z to constrain&lt;br&gt;&lt;b&gt;Camera:&lt;/b&gt; Right-drag=Orbit, Middle-drag=Pan, Wheel=Zoom&lt;br&gt;&lt;b&gt;Undo:&lt;/b&gt; Ctrl+Z / Ctrl+Y</source>
-        <translation>&lt;b&gt;Selection:&lt;/b&gt; Click node above&lt;br&gt;&lt;b&gt;Transform:&lt;/b&gt; Select node, then Left-drag in viewport&lt;br&gt;&lt;b&gt;Mode:&lt;/b&gt; G=Move, R=Rotate, T=Scale&lt;br&gt;&lt;b&gt;Axis:&lt;/b&gt; X/Y/Z to constrain&lt;br&gt;&lt;b&gt;Camera:&lt;/b&gt; Right-drag=Orbit, Middle-drag=Pan, Wheel=Zoom&lt;br&gt;&lt;b&gt;Undo:&lt;/b&gt; Ctrl+Z / Ctrl+Y</translation>
+        <translation type="vanished">&lt;b&gt;Selection:&lt;/b&gt; Click node above&lt;br&gt;&lt;b&gt;Transform:&lt;/b&gt; Select node, then Left-drag in viewport&lt;br&gt;&lt;b&gt;Mode:&lt;/b&gt; G=Move, R=Rotate, T=Scale&lt;br&gt;&lt;b&gt;Axis:&lt;/b&gt; X/Y/Z to constrain&lt;br&gt;&lt;b&gt;Camera:&lt;/b&gt; Right-drag=Orbit, Middle-drag=Pan, Wheel=Zoom&lt;br&gt;&lt;b&gt;Undo:&lt;/b&gt; Ctrl+Z / Ctrl+Y</translation>
     </message>
     <message>
         <source>Name</source>
@@ -1665,8 +1958,24 @@ This may take a few minutes.</translation>
         <translation>Node</translation>
     </message>
     <message>
+        <source>Open a scene to see its contents.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Node %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Material %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Material</source>
         <translation>Material</translation>
+    </message>
+    <message>
+        <source>Texture %1</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Statistics</source>
@@ -1727,6 +2036,10 @@ Rebuild with:
     <message>
         <source>Detector</source>
         <translation>Detector</translation>
+    </message>
+    <message>
+        <source>Sensor</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Pixel Pitch:</source>
@@ -1817,93 +2130,55 @@ Rebuild with:
     <name>SettingsDialog</name>
     <message>
         <source>Settings</source>
-        <translation>Settings</translation>
+        <translation type="vanished">Settings</translation>
     </message>
     <message>
         <source>Screenshot Settings</source>
-        <translation>Screenshot Settings</translation>
+        <translation type="vanished">Screenshot Settings</translation>
     </message>
     <message>
         <source>Save Location:</source>
-        <translation>Save Location:</translation>
+        <translation type="vanished">Save Location:</translation>
     </message>
     <message>
         <source>Browse...</source>
-        <translation>Browse...</translation>
+        <translation type="vanished">Browse...</translation>
     </message>
     <message>
         <source>Screenshots are saved as:
 • EXR format (HDR, full precision)
 • PNG format (8-bit, sRGB preview)
 Filename: YYYY-MM-DD_HH-MM-SS-mmm</source>
-        <translation>Screenshots are saved as:
+        <translation type="vanished">Screenshots are saved as:
 • EXR format (HDR, full precision)
 • PNG format (8-bit, sRGB preview)
 Filename: YYYY-MM-DD_HH-MM-SS-mmm</translation>
     </message>
     <message>
         <source>Restore Defaults</source>
-        <translation>Restore Defaults</translation>
+        <translation type="vanished">Restore Defaults</translation>
     </message>
     <message>
         <source>Select Screenshot Save Location</source>
-        <translation>Select Screenshot Save Location</translation>
+        <translation type="vanished">Select Screenshot Save Location</translation>
     </message>
 </context>
 <context>
     <name>SpectralConfigPanel</name>
     <message>
-        <source>%1-%2 μm</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>%1-%2 nm</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Spectral Mode</source>
         <translation>Spectral Mode</translation>
-    </message>
-    <message>
-        <source>RGB (Default)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>VIS Fused (32-band Spectral)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>NIR (%1)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>SWIR (%1)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>MWIR (%1)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>LWIR (%1)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Standard RGB rendering with 3-band color.</source>
-        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Wavelength:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Mid-Wave Infrared (%1)
-Thermal imaging mode.</source>
-        <translation type="unfinished"></translation>
+        <source>Spectral</source>
+        <translation type="unfinished">Spectral</translation>
     </message>
     <message>
-        <source>Long-Wave Infrared (%1)
-Thermal imaging mode.</source>
+        <source> nm</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1927,42 +2202,16 @@ Thermal imaging mode.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Preview mode: Using RGB-averaged spectral albedo.
-NOT suitable for quantitative analysis.
-For accurate IR rendering, use measured spectral materials.</source>
+        <source>Preview mode: rendering from RGB-averaged spectral albedo.
+Not suitable for quantitative analysis. Load measured spectral materials for accurate infrared work.</source>
         <translation type="unfinished"></translation>
     </message>
-    <message>
-        <source>Fast RGB rendering, no spectral integration. Best for real-time preview.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>32-wavelength spectral integration with CIE XYZ color matching. Physically accurate but slower.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Monochromatic rendering at a single wavelength. Useful for spectral analysis and wavelength-specific effects.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Mid-Wave Infrared (%1). Thermal imaging for hot objects, engine exhaust, and fire detection.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Long-Wave Infrared (%1). Thermal imaging for room-temperature objects, people, and buildings.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Short-Wave Infrared (%1). Moisture detection, material identification, and imaging through haze.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Near-Infrared (%1). Reflected solar radiation, vegetation analysis, and night vision.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Unknown spectral mode.</source>
-        <translation type="unfinished"></translation>
+    <message numerus="yes">
+        <source>%n band(s)</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
     </message>
     <message>
         <source>Mode:</source>
@@ -1974,7 +2223,7 @@ For accurate IR rendering, use measured spectral materials.</source>
     </message>
     <message>
         <source>Single Wavelength</source>
-        <translation>Single Wavelength</translation>
+        <translation type="vanished">Single Wavelength</translation>
     </message>
     <message>
         <source>SWIR Fused</source>
@@ -2048,6 +2297,10 @@ For accurate IR rendering, use measured spectral materials.</source>
         <translation>Conductor</translation>
     </message>
     <message>
+        <source>Spectral Material Generator</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Auto IR Generation (SpectraForge)</source>
         <translation type="unfinished"></translation>
     </message>
@@ -2072,12 +2325,8 @@ For accurate IR rendering, use measured spectral materials.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Surface temperature for thermal emission</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Temperature:</source>
-        <translation type="unfinished">Temperature:</translation>
+        <translation type="obsolete">Temperature:</translation>
     </message>
     <message>
         <source>Overwrite existing IR data</source>
@@ -2148,20 +2397,8 @@ For accurate IR rendering, use measured spectral materials.</source>
         <translation>Preview</translation>
     </message>
     <message>
-        <source>Detach</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Open preview in a separate window</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Spectral Curves</source>
         <translation>Spectral Curves</translation>
-    </message>
-    <message>
-        <source>No renderer available.</source>
-        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>No scene loaded or no materials in scene.</source>
@@ -2190,10 +2427,6 @@ For accurate IR rendering, use measured spectral materials.</source>
     <message>
         <source>Wavelength (nm)</source>
         <translation>Wavelength (nm)</translation>
-    </message>
-    <message>
-        <source>Spectral Curves Preview</source>
-        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Actions</source>
@@ -2244,6 +2477,14 @@ For accurate IR rendering, use measured spectral materials.</source>
         <translation>Error</translation>
     </message>
     <message>
+        <source>Surface temperature assigned to the materials generated from each cluster</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cluster temperature:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Info</source>
         <translation>Info</translation>
     </message>
@@ -2281,6 +2522,552 @@ For accurate IR rendering, use measured spectral materials.</source>
     <message>
         <source>Redo %1</source>
         <translation>Redo %1</translation>
+    </message>
+</context>
+<context>
+    <name>ViewportFrame</name>
+    <message>
+        <source>Spectral: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Debug: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Preview only — not quantitative</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This band renders from RGB-averaged spectral albedo. Load measured spectral materials for quantitative work.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No scene loaded</source>
+        <translation type="unfinished">No scene loaded</translation>
+    </message>
+    <message>
+        <source>Open a glTF, USD or TOML scene to start rendering.
+Right-drag orbits the camera, middle-drag pans, the wheel zooms; G/R/T switch transform mode once a node is selected.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open Scene...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Recent scenes</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>WorkspaceManager</name>
+    <message>
+        <source>Layout</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Environment &amp;&amp; Spectral</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Material Prep</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Debug</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>catalog</name>
+    <message>
+        <source>Geometry</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Material</source>
+        <translation type="unfinished">Material</translation>
+    </message>
+    <message>
+        <source>Lighting</source>
+        <translation type="unfinished">Lighting</translation>
+    </message>
+    <message>
+        <source>BRDF</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>IBL</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Spectral</source>
+        <translation type="unfinished">Spectral</translation>
+    </message>
+    <message>
+        <source>Infrared</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Geometry Diagnostics</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>None (Normal Rendering)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>World Position</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Geometric Normal</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Shaded Normal</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Tangent</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>UV Coordinates</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Material ID</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Triangle ID</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Barycentric Coords</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Base Color (Albedo)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Metallic</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Roughness</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Normal Map Delta</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Emissive</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Alpha</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>N dot L</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>N dot V</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Direct Sun</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Diffuse</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Atmospheric Transmittance</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Fresnel F0</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Fresnel</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Full BRDF</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Specular D (GGX)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Specular G (Smith)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Reflection Direction</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Prefiltered Environment</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>BRDF LUT</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>IBL Specular</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sky Ambient</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>XYZ Tristimulus</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Before Chroma Correction</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Spectral Reflectance @550nm</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Surface Temperature</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>IR Emissivity</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>IR Emission</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>IR Reflection</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Vertex Positions (Hash)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Index Values</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Instance ID</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Primitive ID</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Index Buffer Position</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>V0 Position</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Raw idx0</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>V0 Raw (clamped)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unknown</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Standard rendering output. No debug visualization.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>World-space hit position. RGB = fractional XYZ coordinates.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Raw geometric normal from triangle vertices (before normal mapping).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Final shading normal after interpolation and normal map application.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Tangent vector for normal mapping. Used for TBN matrix construction.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Texture coordinates. RG = fractional UV, useful for texture mapping debug.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Material index visualized as distinct colors. Each material gets unique color.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Primitive (triangle) index. Useful for mesh topology inspection.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Barycentric coordinates within triangle. RGB = weights at 3 vertices.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Albedo/base color from texture or material parameters.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Metallic parameter. 0 = dielectric, 1 = metal.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Roughness parameter. 0 = mirror smooth, 1 = fully rough.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Normal map perturbation from surface normal.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Emissive color/intensity. Self-illumination without external lighting.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Alpha/opacity value. 1 = opaque, 0 = transparent.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Dot product of normal and light direction. Basic diffuse term.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Dot product of normal and view direction. Affects Fresnel and specular.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Direct sunlight contribution after shadowing and attenuation.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Diffuse lighting term: kD * albedo * NdotL.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Atmospheric transmittance factor from scattering/absorption LUT.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Base reflectivity at normal incidence. Depends on metallic and IOR.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Fresnel reflectance at current viewing angle (Schlick approximation).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Complete Cook-Torrance BRDF evaluation: D * G * F / (4 * NdotL * NdotV).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>GGX/Trowbridge-Reitz normal distribution function.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Smith geometry/masking-shadowing function.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Mirror reflection direction for environment map sampling.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Pre-filtered environment map sample at current roughness level.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>BRDF integration LUT sample. RG = scale and bias for split-sum.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Final IBL specular contribution: prefiltered * (F * scale + bias).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ambient sky lighting contribution (diffuse IBL).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>CIE XYZ tristimulus values from spectral integration. Before RGB conversion.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Linear RGB before chromaticity correction. May show color shifts.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Material spectral reflectance sampled at 550 nm (green reference).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Surface temperature in Kelvin. Blue = cold, red = hot (colormap).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>IR emissivity factor. 1 = perfect blackbody, 0 = perfect reflector.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Thermal emission contribution: emissivity * Planck(T, lambda).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>IR reflection of ambient thermal radiation.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Hash of 3 vertex positions. The same face should show similar colors. Different colors on one face mean index corruption.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Triangle vertex indices as RGB (normalized by 32). For a cube: idx 0-23.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>TLAS instance index. Verifies instance-to-geometry mapping.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>PrimitiveIndex() value. R = id/12 (gradient), G = alternating, B = even/odd. For a cube: 12 distinct triangles with a smooth R gradient.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Index buffer read position. R = basePos/36, G = offset/36, B = primID/12. For a single BLAS, G should be 0.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>First vertex (v0) position mapped to 0-1 using frac(). For a ±1 cube: 0 for both +1 and -1, 0.5 for 0.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Raw idx0 value. R = idx0/32, G = readAddr/32, B = offset/32. For a cube: R should be 0-0.72 (idx 0-23). G = R when offset is 0.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>v0 position clamped (not frac). -1 maps to 0, 0 to 0.5, +1 to 1. For a cube: only 0 or 1, never 0.5.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unknown debug mode.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;h3&gt;Reading a debug image&lt;/h3&gt;&lt;p&gt;&lt;b&gt;Color encoding&lt;/b&gt;&lt;/p&gt;&lt;ul&gt;&lt;li&gt;&lt;b&gt;Vectors&lt;/b&gt; — (V+1)/2 maps the [-1,1] range onto [0,1] RGB.&lt;/li&gt;&lt;li&gt;&lt;b&gt;Scalars&lt;/b&gt; — grayscale intensity.&lt;/li&gt;&lt;li&gt;&lt;b&gt;Identifiers&lt;/b&gt; — hashed to distinct colors.&lt;/li&gt;&lt;li&gt;&lt;b&gt;Temperature&lt;/b&gt; — blue (cold) through red (hot).&lt;/li&gt;&lt;/ul&gt;&lt;p&gt;&lt;b&gt;Where to start&lt;/b&gt;&lt;/p&gt;&lt;ul&gt;&lt;li&gt;&lt;b&gt;Shaded Normal&lt;/b&gt; — check that normal mapping is applied.&lt;/li&gt;&lt;li&gt;&lt;b&gt;Material ID&lt;/b&gt; — verify which material each surface resolved to.&lt;/li&gt;&lt;li&gt;&lt;b&gt;XYZ Tristimulus&lt;/b&gt; — debug spectral integration before RGB conversion.&lt;/li&gt;&lt;li&gt;&lt;b&gt;Geometry Diagnostics&lt;/b&gt; — only useful when a mesh renders as noise; they expose index and vertex buffer addressing directly.&lt;/li&gt;&lt;/ul&gt;&lt;p&gt;Hover the viewport with a debug mode active to read the raw value under the cursor in the status bar.&lt;/p&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1-%2 μm</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1-%2 nm</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Single Wavelength</source>
+        <translation type="unfinished">Single Wavelength</translation>
+    </message>
+    <message>
+        <source>RGB (Default)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>VIS Fused (32-band Spectral)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 (%2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Fast RGB rendering, no spectral integration. Best for real-time preview.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>32-wavelength spectral integration with CIE XYZ color matching. Physically accurate but slower.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Monochromatic rendering at a single wavelength. Useful for spectral analysis and wavelength-specific effects.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Near-Infrared (%1). Reflected solar radiation, vegetation analysis, and night vision.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Short-Wave Infrared (%1). Moisture detection, material identification, and imaging through haze.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Mid-Wave Infrared (%1). Thermal imaging for hot objects, engine exhaust, and fire detection.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Long-Wave Infrared (%1). Thermal imaging for room-temperature objects, people, and buildings.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unknown spectral mode.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Preview</source>
+        <translation type="unfinished">Preview</translation>
+    </message>
+    <message>
+        <source>Draft</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Medium</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>High</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Very High</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Production</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 (%2 spp)</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 </TS>

@@ -8,6 +8,7 @@
 #pragma once
 
 #include <QVulkanWindowRenderer>
+#include <QCoreApplication>
 #include <QString>
 #include <QFuture>
 #include <memory>
@@ -42,6 +43,10 @@ struct Image;
  * It bridges Qt-managed Vulkan handles with the library's rendering pipeline.
  */
 class QuantiloomVulkanRenderer : public QVulkanWindowRenderer {
+    // Not a QObject, but it still produces a few user-visible strings; this
+    // gives them a translation context lupdate can see.
+    Q_DECLARE_TR_FUNCTIONS(QuantiloomVulkanRenderer)
+
 public:
     explicit QuantiloomVulkanRenderer(QuantiloomVulkanWindow* window);
     ~QuantiloomVulkanRenderer() override;

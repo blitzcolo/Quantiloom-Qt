@@ -633,103 +633,77 @@ bool QuantiloomVulkanRenderer::readDebugPixel(int x, int y, glm::vec4& outValue)
 QString QuantiloomVulkanRenderer::formatDebugValue(const glm::vec4& v) const {
     using quantiloom::DebugVisualizationMode;
 
+    // Numbers only. The label used to be baked in here -- "Metallic: 0.42",
+    // "NdotL: 0.42" -- which duplicated the mode names in ModeCatalog in
+    // English, in a class with no translation context. Callers prepend the
+    // catalogue's (translated) name, so there is one list of mode names again.
+    auto vec3 = [&v](int precision) {
+        return QStringLiteral("(%1, %2, %3)")
+            .arg(v.r, 0, 'f', precision)
+            .arg(v.g, 0, 'f', precision)
+            .arg(v.b, 0, 'f', precision);
+    };
+    auto scalar = [&v]() { return QStringLiteral("%1").arg(v.r, 0, 'f', 3); };
+
     switch (m_debugMode) {
         // Vector types: inverse mapping from [0,1] -> [-1,1]
         case DebugVisualizationMode::GeometricNormal:
         case DebugVisualizationMode::ShadedNormal:
         case DebugVisualizationMode::Tangent:
         case DebugVisualizationMode::ReflectionDir:
-            return QString("Vec(%1, %2, %3)")
+            return QStringLiteral("(%1, %2, %3)")
                 .arg((v.r - 0.5f) * 2.0f, 0, 'f', 3)
                 .arg((v.g - 0.5f) * 2.0f, 0, 'f', 3)
                 .arg((v.b - 0.5f) * 2.0f, 0, 'f', 3);
 
         // Scalar types: direct R channel
         case DebugVisualizationMode::Metallic:
-            return QString("Metallic: %1").arg(v.r, 0, 'f', 3);
         case DebugVisualizationMode::Roughness:
-            return QString("Roughness: %1").arg(v.r, 0, 'f', 3);
         case DebugVisualizationMode::Alpha:
-            return QString("Alpha: %1").arg(v.r, 0, 'f', 3);
         case DebugVisualizationMode::NdotL:
-            return QString("NdotL: %1").arg(v.r, 0, 'f', 3);
         case DebugVisualizationMode::NdotV:
-            return QString("NdotV: %1").arg(v.r, 0, 'f', 3);
         case DebugVisualizationMode::AtmosphericTransmittance:
-            return QString("Transmittance: %1").arg(v.r, 0, 'f', 3);
+        case DebugVisualizationMode::IREmissivity:
+            return scalar();
 
         // RGB types: direct display
         case DebugVisualizationMode::BaseColor:
-            return QString("BaseColor(%1, %2, %3)")
-                .arg(v.r, 0, 'f', 3).arg(v.g, 0, 'f', 3).arg(v.b, 0, 'f', 3);
         case DebugVisualizationMode::Emissive:
-            return QString("Emissive(%1, %2, %3)")
-                .arg(v.r, 0, 'f', 3).arg(v.g, 0, 'f', 3).arg(v.b, 0, 'f', 3);
         case DebugVisualizationMode::DirectSun:
-            return QString("DirectSun(%1, %2, %3)")
-                .arg(v.r, 0, 'f', 3).arg(v.g, 0, 'f', 3).arg(v.b, 0, 'f', 3);
         case DebugVisualizationMode::Diffuse:
-            return QString("Diffuse(%1, %2, %3)")
-                .arg(v.r, 0, 'f', 3).arg(v.g, 0, 'f', 3).arg(v.b, 0, 'f', 3);
         case DebugVisualizationMode::FresnelF0:
-            return QString("F0(%1, %2, %3)")
-                .arg(v.r, 0, 'f', 3).arg(v.g, 0, 'f', 3).arg(v.b, 0, 'f', 3);
         case DebugVisualizationMode::Fresnel:
-            return QString("Fresnel(%1, %2, %3)")
-                .arg(v.r, 0, 'f', 3).arg(v.g, 0, 'f', 3).arg(v.b, 0, 'f', 3);
         case DebugVisualizationMode::BRDF_Full:
-            return QString("BRDF(%1, %2, %3)")
-                .arg(v.r, 0, 'f', 3).arg(v.g, 0, 'f', 3).arg(v.b, 0, 'f', 3);
         case DebugVisualizationMode::PrefilteredEnv:
-            return QString("PrefilteredEnv(%1, %2, %3)")
-                .arg(v.r, 0, 'f', 3).arg(v.g, 0, 'f', 3).arg(v.b, 0, 'f', 3);
         case DebugVisualizationMode::IblSpecular:
-            return QString("IBL_Specular(%1, %2, %3)")
-                .arg(v.r, 0, 'f', 3).arg(v.g, 0, 'f', 3).arg(v.b, 0, 'f', 3);
         case DebugVisualizationMode::SkyAmbient:
-            return QString("SkyAmbient(%1, %2, %3)")
-                .arg(v.r, 0, 'f', 3).arg(v.g, 0, 'f', 3).arg(v.b, 0, 'f', 3);
-        case DebugVisualizationMode::XYZ_Tristimulus:
-            return QString("XYZ(%1, %2, %3)")
-                .arg(v.r, 0, 'f', 4).arg(v.g, 0, 'f', 4).arg(v.b, 0, 'f', 4);
-
-        // UV type
-        case DebugVisualizationMode::UV:
-            return QString("UV(%1, %2)").arg(v.r, 0, 'f', 4).arg(v.g, 0, 'f', 4);
-
-        // BRDF LUT: scale and bias
-        case DebugVisualizationMode::BrdfLut:
-            return QString("BRDF_LUT(scale=%1, bias=%2)")
-                .arg(v.r, 0, 'f', 3).arg(v.g, 0, 'f', 3);
-
-        // Non-invertible (hash/frac)
-        case DebugVisualizationMode::WorldPosition:
-            return QString("WorldPos(frac) - original lost");
-        case DebugVisualizationMode::MaterialID:
-            return QString("MaterialID(hash) - original lost");
-        case DebugVisualizationMode::TriangleID:
-            return QString("TriangleID(hash) - original lost");
         case DebugVisualizationMode::Barycentric:
-            return QString("Bary(%1, %2, %3)")
-                .arg(v.r, 0, 'f', 3).arg(v.g, 0, 'f', 3).arg(v.b, 0, 'f', 3);
-
-        // IR modes
-        case DebugVisualizationMode::Temperature:
-            return QString("Temperature(mapped) - use colorbar");
-        case DebugVisualizationMode::IREmissivity:
-            return QString("IREmissivity: %1").arg(v.r, 0, 'f', 3);
         case DebugVisualizationMode::IREmission:
-            return QString("IREmission(%1, %2, %3)")
-                .arg(v.r, 0, 'f', 3).arg(v.g, 0, 'f', 3).arg(v.b, 0, 'f', 3);
         case DebugVisualizationMode::IRReflection:
-            return QString("IRReflection(%1, %2, %3)")
-                .arg(v.r, 0, 'f', 3).arg(v.g, 0, 'f', 3).arg(v.b, 0, 'f', 3);
+            return vec3(3);
+
+        case DebugVisualizationMode::XYZ_Tristimulus:
+            return vec3(4);
+
+        case DebugVisualizationMode::UV:
+            return QStringLiteral("(%1, %2)").arg(v.r, 0, 'f', 4).arg(v.g, 0, 'f', 4);
+
+        case DebugVisualizationMode::BrdfLut:
+            return tr("scale %1, bias %2").arg(v.r, 0, 'f', 3).arg(v.g, 0, 'f', 3);
+
+        // Encodings that discard the original value
+        case DebugVisualizationMode::WorldPosition:
+            return tr("fractional part only — original value not recoverable");
+        case DebugVisualizationMode::MaterialID:
+        case DebugVisualizationMode::TriangleID:
+            return tr("hashed — original value not recoverable");
+        case DebugVisualizationMode::Temperature:
+            return tr("colour-mapped — read against the colour bar");
 
         // None or unknown
         case DebugVisualizationMode::None:
         default:
-            return QString("RGB(%1, %2, %3)")
-                .arg(v.r, 0, 'f', 3).arg(v.g, 0, 'f', 3).arg(v.b, 0, 'f', 3);
+            return vec3(3);
     }
 }
 
