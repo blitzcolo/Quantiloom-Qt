@@ -6,6 +6,7 @@
 
 #include <QDockWidget>
 #include <QMainWindow>
+#include <QSet>
 #include <QSettings>
 #include <QTabBar>
 
@@ -60,12 +61,14 @@ QVector<WorkspaceManager::DockPlacement> WorkspaceManager::preset(const QString&
         };
     }
     if (id == QLatin1String("material")) {
-        // Offline data preparation: the generator wants width, so it takes the
-        // whole bottom edge instead of a 300 px column.
+        // The scene and material context the generator is used against. The
+        // generator itself is deliberately absent: it is a wide, occasional,
+        // offline tool and it opens as a floating window from the Tools menu.
+        // Docked along the bottom edge it spent the whole session competing
+        // for vertical space with the panels it is meant to be used beside.
         return {
-            {QStringLiteral("scene"),      Qt::LeftDockWidgetArea,   false},
-            {QStringLiteral("properties"), Qt::RightDockWidgetArea,  false},
-            {QStringLiteral("spectralgen"), Qt::BottomDockWidgetArea, false},
+            {QStringLiteral("scene"),      Qt::LeftDockWidgetArea,  false},
+            {QStringLiteral("properties"), Qt::RightDockWidgetArea, false},
         };
     }
     if (id == QLatin1String("debug")) {
@@ -153,9 +156,24 @@ void WorkspaceManager::captureCurrent() {
 }
 
 void WorkspaceManager::applyPreset(const QString& id) {
+    const QVector<DockPlacement> placements = preset(id);
+
+    QSet<QString> mentioned;
+    for (const DockPlacement& placement : placements) {
+        mentioned.insert(placement.panelId);
+    }
+
     // Take every dock out of the layout first; whatever the preset does not
     // mention stays hidden rather than lingering from the previous workspace.
-    for (QDockWidget* dock : std::as_const(m_docks)) {
+    //
+    // A floating dock the preset says nothing about is left alone: that is the
+    // spectral generator standing open as a tool window, and switching
+    // workspace to look something up should not slam it shut.
+    for (auto it = m_docks.constBegin(); it != m_docks.constEnd(); ++it) {
+        QDockWidget* dock = it.value();
+        if (!mentioned.contains(it.key()) && dock->isFloating()) {
+            continue;
+        }
         dock->setFloating(false);
         m_window->removeDockWidget(dock);
     }
@@ -163,7 +181,7 @@ void WorkspaceManager::applyPreset(const QString& id) {
     QDockWidget* previous = nullptr;
     QList<QDockWidget*> placed;
     QList<QDockWidget*> stackLeaders;
-    for (const DockPlacement& placement : preset(id)) {
+    for (const DockPlacement& placement : placements) {
         QDockWidget* dock = m_docks.value(placement.panelId, nullptr);
         if (!dock) {
             continue;
@@ -184,12 +202,10 @@ void WorkspaceManager::applyPreset(const QString& id) {
     // resizeDocks works on the visible layout, so it has to come after the
     // docks are shown.
     if (!stackLeaders.isEmpty()) {
-        QList<int> widths;
-        widths.reserve(stackLeaders.size());
-        for (QDockWidget* dock : std::as_const(stackLeaders)) {
-            widths.append(dock->objectName() == QLatin1String("dock_spectralgen")
-                              ? 900 : kSideColumnWidth);
-        }
+        // Every docked column starts at the same width; the viewport keeps the
+        // rest. (The one dock that wanted a width of its own, the spectral
+        // generator, is a floating tool window now.)
+        const QList<int> widths(stackLeaders.size(), kSideColumnWidth);
         m_window->resizeDocks(stackLeaders, widths, Qt::Horizontal);
     }
 

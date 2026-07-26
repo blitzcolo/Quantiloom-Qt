@@ -350,8 +350,12 @@ void MainWindow::setupMenus() {
         if (!dock) {
             return;
         }
+        // Reopen where it was left; a first use gets the floating window.
         dock->show();
         dock->raise();
+        if (dock->isFloating()) {
+            dock->activateWindow();
+        }
     });
 
     // --- Help -----------------------------------------------------------
@@ -694,10 +698,18 @@ void MainWindow::setupDockWidgets() {
     createPanelDock(m_renderSettingsPanel, Qt::RightDockWidgetArea);
     createPanelDock(m_spectralConfigPanel, Qt::RightDockWidgetArea);
     createPanelDock(m_debugVisualizationPanel, Qt::RightDockWidgetArea);
+
     // The generator is a full offline workflow -- table, chart, file import and
-    // export -- and wants width, so it takes the bottom edge. Floating it out
-    // of the window is what the panel's own "Detach" button used to fake.
-    createPanelDock(m_spectralMaterialGenPanel, Qt::BottomDockWidgetArea);
+    // export -- and wants width. It lives as a floating tool window opened from
+    // the Tools menu rather than as a docked panel: along the bottom edge it
+    // spent every session taking vertical space from the panels it is used
+    // beside. Floating a dock is also what its old hand-rolled "Detach" button
+    // was imitating, so nothing is lost. It can still be docked by dragging.
+    QDockWidget* generatorDock =
+        createPanelDock(m_spectralMaterialGenPanel, Qt::BottomDockWidgetArea);
+    generatorDock->setFloating(true);
+    generatorDock->resize(920, 620);
+    generatorDock->hide();
 
     // Connect panel signals
     connect(m_sceneTreePanel, &SceneTreePanel::nodeSelected,
