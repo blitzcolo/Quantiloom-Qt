@@ -68,6 +68,22 @@ public:
                    const glm::vec3& up, float fovY);
 
     /**
+     * @brief Read the current camera pose
+     */
+    void getCameraState(glm::vec3& position, glm::vec3& target,
+                        glm::vec3& up, float& fovY) const;
+
+    /**
+     * @brief Set the vertical field of view in degrees
+     */
+    void setCameraFovY(float fovY);
+
+    /**
+     * @brief Look at the current target from a given direction (view presets)
+     */
+    void setViewDirection(const glm::vec3& direction);
+
+    /**
      * @brief Set render samples per pixel
      */
     void setSPP(uint32_t spp);
@@ -285,6 +301,11 @@ signals:
      * @brief Emitted when edit mode changes
      */
     void editModeChanged(bool editMode);
+
+    /**
+     * @brief Emitted whenever the camera pose changes, from any source
+     */
+    void cameraChanged();
 
     /**
      * @brief Emitted when the mouse moves over the viewport

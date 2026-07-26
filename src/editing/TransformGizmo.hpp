@@ -5,10 +5,11 @@
  * Handles translate/rotate/scale operations via mouse dragging.
  * Supports axis constraints and coordinate space switching.
  *
- * UX Design:
- * - W: Translate mode
- * - E: Rotate mode
- * - R: Scale mode
+ * UX Design (the bindings are registered as QActions by MainWindow; this list
+ * used to say W/E/R, which is not what the code has ever dispatched):
+ * - G: Translate mode
+ * - R: Rotate mode
+ * - T: Scale mode
  * - X/Y/Z: Constrain to axis (toggle)
  * - Shift: Fine control (10x slower)
  * - Space: Toggle world/local coordinates
@@ -120,6 +121,10 @@ signals:
 
     // Emitted when space changes
     void spaceChanged(Space space);
+
+    // Emitted when the axis constraint changes, so the Edit ▸ Transform
+    // entries and the toolbar buttons can show which one is active
+    void axisConstraintChanged(Axis axis);
 
     // Emitted during drag with current delta
     void transformChanged(const glm::vec3& translation,

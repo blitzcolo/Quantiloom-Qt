@@ -88,6 +88,16 @@ public:
     void setCamera(const glm::vec3& position, const glm::vec3& lookAt,
                    const glm::vec3& up, float fovY);
 
+    /// Current pose, for the camera panel and for config export.
+    void getCameraState(glm::vec3& position, glm::vec3& target,
+                        glm::vec3& up, float& fovY) const;
+
+    void setCameraFovY(float fovY);
+
+    /// Look at the current target from @p direction, keeping the orbit
+    /// distance. Used by the standard view presets (front, top, ...).
+    void setViewDirection(const glm::vec3& direction);
+
     // Scene access
     const quantiloom::Scene* getScene() const;
 

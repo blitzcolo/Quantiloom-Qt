@@ -19,6 +19,8 @@
 #include <glm/gtc/quaternion.hpp>
 
 QT_BEGIN_NAMESPACE
+class QActionGroup;
+class QComboBox;
 class QDockWidget;
 class QTabWidget;
 class QStatusBar;
@@ -27,6 +29,7 @@ class QLabel;
 class QAction;
 class QMenu;
 class QScrollArea;
+class QToolBar;
 QT_END_NAMESPACE
 
 namespace quantiloom {
@@ -76,6 +79,9 @@ public:
 protected:
     void closeEvent(QCloseEvent* event) override;
     void changeEvent(QEvent* event) override;
+    /// Routes the viewport's transform keys into the same QActions the menu
+    /// uses, so there is one dispatcher rather than two.
+    bool eventFilter(QObject* watched, QEvent* event) override;
 
 private slots:
     // File menu actions
@@ -129,12 +135,27 @@ private slots:
 private:
     void setupUi();
     void setupMenus();
+    void setupToolBar();
     void setupDockWidgets();
     void setupStatusBar();
     void setupConnections();
     void setupEditingSystem();
     void updatePanelsFromScene();
     void retranslateUi();
+
+    // --- single application points --------------------------------------
+    // Menu entry, toolbar control and panel widget all funnel through these,
+    // so a mode can never be switched by two paths that do different things.
+    void applyDebugMode(quantiloom::DebugVisualizationMode mode);
+    void applySpectralMode(quantiloom::SpectralMode mode);
+    void applyTargetSpp(uint32_t spp);
+    void applyDisplayEnhancementEnabled(bool enabled);
+
+    void buildDebugMenu(QMenu* menu, QComboBox* combo);
+    void buildSpectralMenu(QMenu* menu, QComboBox* combo);
+    void buildQualityMenu(QMenu* menu);
+    void buildCameraMenu(QMenu* menu);
+    void buildTransformMenu(QMenu* menu);
 
     // --- document state -------------------------------------------------
     /// Load a config or a model file, whichever the extension says it is.
@@ -232,6 +253,41 @@ private:
     QAction* m_debugReferenceAction = nullptr;
     QAction* m_aboutAction = nullptr;
     QAction* m_aboutQtAction = nullptr;
+    QAction* m_displayEnhancementAction = nullptr;
+
+    // Mode submenus. Each holds one exclusive action group, and each group is
+    // mirrored by a toolbar combo box showing the same selection.
+    QMenu* m_cameraMenu = nullptr;
+    QMenu* m_transformMenu = nullptr;
+    QMenu* m_debugMenu = nullptr;
+    QMenu* m_spectralMenu = nullptr;
+    QMenu* m_qualityMenu = nullptr;
+
+    QActionGroup* m_debugGroup = nullptr;
+    QActionGroup* m_spectralGroup = nullptr;
+    QActionGroup* m_qualityGroup = nullptr;
+    QActionGroup* m_transformModeGroup = nullptr;
+
+    QHash<int, QAction*> m_debugActions;      ///< keyed by DebugVisualizationMode
+    QHash<int, QAction*> m_spectralActions;   ///< keyed by SpectralMode
+    QList<QMenu*> m_debugCategoryMenus;       ///< retranslated as a set
+
+    QAction* m_translateAction = nullptr;
+    QAction* m_rotateAction = nullptr;
+    QAction* m_scaleAction = nullptr;
+    QAction* m_axisXAction = nullptr;
+    QAction* m_axisYAction = nullptr;
+    QAction* m_axisZAction = nullptr;
+    QAction* m_localSpaceAction = nullptr;
+
+    QList<QAction*> m_viewPresetActions;      ///< front/back/left/right/top/bottom
+
+    // Toolbar
+    QToolBar* m_mainToolBar = nullptr;
+    QComboBox* m_spectralCombo = nullptr;
+    QComboBox* m_debugCombo = nullptr;
+    QLabel* m_spectralComboLabel = nullptr;
+    QLabel* m_debugComboLabel = nullptr;
 
     // Configuration manager
     ConfigManager* m_configManager = nullptr;

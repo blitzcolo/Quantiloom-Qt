@@ -34,6 +34,10 @@
 #include <QMenu>
 #include <QAction>
 #include <QActionGroup>
+#include <QComboBox>
+#include <QKeyEvent>
+#include <QToolBar>
+#include <QStyle>
 #include <QDockWidget>
 #include <QScreen>
 #include <QScrollArea>
@@ -64,6 +68,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <cmath>
+#include <utility>
 
 namespace {
 
@@ -102,12 +107,23 @@ MainWindow::MainWindow(QVulkanInstance* vulkanInstance, QWidget* parent)
     // Create configuration manager
     m_configManager = new ConfigManager(this);
 
+    // The editing objects come first: the Edit ▸ Transform actions built in
+    // setupMenus() drive the gizmo directly.
+    m_selectionManager = new SelectionManager(this);
+    m_transformGizmo = new TransformGizmo(this);
+    m_undoStack = new UndoStack(this);
+
     setupUi();
     setupMenus();
     setupDockWidgets();
+    setupToolBar();
     setupStatusBar();
     setupEditingSystem();
     setupConnections();
+
+    // Progressive accumulation is already running when the window opens, so
+    // "start" is the entry that has nothing to do yet.
+    m_startRenderAction->setEnabled(false);
 
     retranslateUi();
     restoreWindowState();
@@ -146,7 +162,46 @@ void MainWindow::setupUi() {
     m_vulkanContainer->setFocusPolicy(Qt::StrongFocus);
     m_vulkanContainer->setMouseTracking(true);
 
+    // The transform keys are QActions now; this filter is what lets them keep
+    // working while the native render surface has focus, without the viewport
+    // owning a second copy of the logic.
+    m_vulkanWindow->installEventFilter(this);
+
     setCentralWidget(m_vulkanContainer);
+}
+
+bool MainWindow::eventFilter(QObject* watched, QEvent* event) {
+    if (watched != m_vulkanWindow || event->type() != QEvent::KeyPress) {
+        return QMainWindow::eventFilter(watched, event);
+    }
+
+    auto* keyEvent = static_cast<QKeyEvent*>(event);
+    if (keyEvent->modifiers() & (Qt::ControlModifier | Qt::AltModifier | Qt::MetaModifier)) {
+        return QMainWindow::eventFilter(watched, event);
+    }
+
+    QAction* action = nullptr;
+    switch (keyEvent->key()) {
+        case Qt::Key_G:     action = m_translateAction;  break;
+        case Qt::Key_R:     action = m_rotateAction;     break;
+        case Qt::Key_T:     action = m_scaleAction;      break;
+        case Qt::Key_X:     action = m_axisXAction;      break;
+        case Qt::Key_Y:     action = m_axisYAction;      break;
+        case Qt::Key_Z:     action = m_axisZAction;      break;
+        case Qt::Key_Space: action = m_localSpaceAction; break;
+        default: break;
+    }
+
+    if (!action) {
+        return QMainWindow::eventFilter(watched, event);
+    }
+
+    // Reached only when Qt's shortcut system did not already consume the key
+    // (it does when a widget outside the render surface has focus), so the
+    // action runs exactly once either way. trigger() flips a checkable action
+    // itself, which is why the check state is not touched here.
+    action->trigger();
+    return true;
 }
 
 // ============================================================================
@@ -196,6 +251,13 @@ void MainWindow::setupMenus() {
 
     m_editMenu->addSeparator();
 
+    // The transform vocabulary — mode, axis constraint, coordinate space —
+    // was the most used part of the editor and appeared in no menu at all.
+    m_transformMenu = m_editMenu->addMenu(QString());
+    buildTransformMenu(m_transformMenu);
+
+    m_editMenu->addSeparator();
+
     m_preferencesAction = m_editMenu->addAction(QString(), this, &MainWindow::onPreferences);
     m_preferencesAction->setShortcut(QKeySequence::Preferences);
     m_preferencesAction->setMenuRole(QAction::PreferencesRole);
@@ -214,7 +276,21 @@ void MainWindow::setupMenus() {
 
     m_viewMenu->addSeparator();
 
-    m_resetCameraAction = m_viewMenu->addAction(QString(), this, &MainWindow::onResetCamera);
+    m_cameraMenu = m_viewMenu->addMenu(QString());
+    buildCameraMenu(m_cameraMenu);
+
+    m_viewMenu->addSeparator();
+
+    // 45 debug modes used to live in a single combo box inside one panel,
+    // grouped by fake "-- Geometry --" entries that had to be skipped over in
+    // code when selected. They are real submenus now, exclusive, and reachable
+    // without hunting for the panel that owned them.
+    m_debugMenu = m_viewMenu->addMenu(QString());
+
+    m_displayEnhancementAction = m_viewMenu->addAction(QString());
+    m_displayEnhancementAction->setCheckable(true);
+    connect(m_displayEnhancementAction, &QAction::triggered,
+            this, &MainWindow::applyDisplayEnhancementEnabled);
 
     // --- Render ---------------------------------------------------------
     m_renderMenu = menuBar()->addMenu(QString());
@@ -233,6 +309,15 @@ void MainWindow::setupMenus() {
     m_resetAccumulationAction = m_renderMenu->addAction(QString(), this,
                                                         &MainWindow::onResetAccumulation);
     m_resetAccumulationAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_R));
+
+    m_renderMenu->addSeparator();
+
+    m_qualityMenu = m_renderMenu->addMenu(QString());
+    buildQualityMenu(m_qualityMenu);
+
+    // The spectral mode decides what the rendered numbers physically are, and
+    // reaching it meant finding one panel among ten.
+    m_spectralMenu = m_renderMenu->addMenu(QString());
 
     // --- Tools ----------------------------------------------------------
     m_toolsMenu = menuBar()->addMenu(QString());
@@ -258,6 +343,277 @@ void MainWindow::setupMenus() {
     m_helpMenu->addSeparator();
     m_aboutAction = m_helpMenu->addAction(QString(), this, &MainWindow::onAbout);
     m_aboutQtAction = m_helpMenu->addAction(QString(), qApp, &QApplication::aboutQt);
+}
+
+void MainWindow::buildCameraMenu(QMenu* menu) {
+    m_resetCameraAction = menu->addAction(QString(), this, &MainWindow::onResetCamera);
+    menu->addSeparator();
+
+    // Direction the camera sits in relative to its target. Y is up.
+    struct Preset { const char* id; glm::vec3 direction; };
+    static const Preset presets[] = {
+        {"front",  { 0.0f,  0.0f,  1.0f}},
+        {"back",   { 0.0f,  0.0f, -1.0f}},
+        {"right",  { 1.0f,  0.0f,  0.0f}},
+        {"left",   {-1.0f,  0.0f,  0.0f}},
+        {"top",    { 0.0f,  1.0f,  0.0f}},
+        {"bottom", { 0.0f, -1.0f,  0.0f}},
+    };
+
+    m_viewPresetActions.clear();
+    for (const Preset& preset : presets) {
+        QAction* action = menu->addAction(QString());
+        action->setData(QString::fromLatin1(preset.id));
+        const glm::vec3 direction = preset.direction;
+        connect(action, &QAction::triggered, this, [this, direction]() {
+            m_vulkanWindow->setViewDirection(direction);
+        });
+        m_viewPresetActions.append(action);
+    }
+}
+
+void MainWindow::buildTransformMenu(QMenu* menu) {
+    m_transformModeGroup = new QActionGroup(this);
+    m_transformModeGroup->setExclusive(true);
+
+    auto addMode = [&](TransformGizmo::Mode mode, const QKeySequence& shortcut) {
+        QAction* action = menu->addAction(QString());
+        action->setCheckable(true);
+        action->setShortcut(shortcut);
+        m_transformModeGroup->addAction(action);
+        connect(action, &QAction::triggered, this, [this, mode]() {
+            m_transformGizmo->setMode(mode);
+        });
+        return action;
+    };
+
+    m_translateAction = addMode(TransformGizmo::Mode::Translate, QKeySequence(Qt::Key_G));
+    m_rotateAction    = addMode(TransformGizmo::Mode::Rotate,    QKeySequence(Qt::Key_R));
+    m_scaleAction     = addMode(TransformGizmo::Mode::Scale,     QKeySequence(Qt::Key_T));
+    m_translateAction->setChecked(true);
+
+    menu->addSeparator();
+
+    auto addAxis = [&](TransformGizmo::Axis axis, const QKeySequence& shortcut) {
+        QAction* action = menu->addAction(QString());
+        action->setCheckable(true);
+        action->setShortcut(shortcut);
+        connect(action, &QAction::triggered, this, [this, axis]() {
+            m_transformGizmo->toggleAxisConstraint(axis);
+        });
+        return action;
+    };
+
+    m_axisXAction = addAxis(TransformGizmo::Axis::X, QKeySequence(Qt::Key_X));
+    m_axisYAction = addAxis(TransformGizmo::Axis::Y, QKeySequence(Qt::Key_Y));
+    m_axisZAction = addAxis(TransformGizmo::Axis::Z, QKeySequence(Qt::Key_Z));
+
+    menu->addSeparator();
+
+    m_localSpaceAction = menu->addAction(QString());
+    m_localSpaceAction->setCheckable(true);
+    m_localSpaceAction->setShortcut(QKeySequence(Qt::Key_Space));
+    connect(m_localSpaceAction, &QAction::triggered, this, [this](bool local) {
+        m_transformGizmo->setSpace(local ? TransformGizmo::Space::Local
+                                         : TransformGizmo::Space::World);
+    });
+}
+
+void MainWindow::buildQualityMenu(QMenu* menu) {
+    m_qualityGroup = new QActionGroup(this);
+    m_qualityGroup->setExclusive(true);
+
+    for (const catalog::QualityPreset& preset : catalog::qualityPresets()) {
+        QAction* action = menu->addAction(QString());
+        action->setCheckable(true);
+        action->setData(preset.spp);
+        m_qualityGroup->addAction(action);
+        const uint32_t spp = preset.spp;
+        connect(action, &QAction::triggered, this, [this, spp]() { applyTargetSpp(spp); });
+    }
+}
+
+void MainWindow::buildSpectralMenu(QMenu* menu, QComboBox* combo) {
+    m_spectralGroup = new QActionGroup(this);
+    m_spectralGroup->setExclusive(true);
+
+    for (quantiloom::SpectralMode mode : catalog::spectralModes()) {
+        QAction* action = menu->addAction(QString());
+        action->setCheckable(true);
+        action->setData(static_cast<int>(mode));
+        m_spectralGroup->addAction(action);
+        m_spectralActions.insert(static_cast<int>(mode), action);
+        connect(action, &QAction::triggered, this, [this, mode]() { applySpectralMode(mode); });
+
+        combo->addItem(QString(), static_cast<int>(mode));
+    }
+
+    connect(combo, &QComboBox::currentIndexChanged, this, [this, combo](int index) {
+        if (index < 0) return;
+        applySpectralMode(static_cast<quantiloom::SpectralMode>(combo->itemData(index).toInt()));
+    });
+
+    m_spectralActions.value(static_cast<int>(quantiloom::SpectralMode::RGB))->setChecked(true);
+}
+
+void MainWindow::buildDebugMenu(QMenu* menu, QComboBox* combo) {
+    m_debugGroup = new QActionGroup(this);
+    m_debugGroup->setExclusive(true);
+
+    auto addMode = [&](QMenu* target, quantiloom::DebugVisualizationMode mode) {
+        QAction* action = target->addAction(QString());
+        action->setCheckable(true);
+        action->setData(static_cast<int>(mode));
+        m_debugGroup->addAction(action);
+        m_debugActions.insert(static_cast<int>(mode), action);
+        connect(action, &QAction::triggered, this, [this, mode]() { applyDebugMode(mode); });
+        combo->addItem(QString(), static_cast<int>(mode));
+    };
+
+    addMode(menu, quantiloom::DebugVisualizationMode::None);
+    menu->addSeparator();
+
+    m_debugCategoryMenus.clear();
+    for (catalog::DebugCategory category : catalog::debugCategories()) {
+        QMenu* categoryMenu = menu->addMenu(QString());
+        categoryMenu->setProperty("debugCategory", static_cast<int>(category));
+        m_debugCategoryMenus.append(categoryMenu);
+        combo->insertSeparator(combo->count());
+        for (quantiloom::DebugVisualizationMode mode : catalog::debugModesIn(category)) {
+            addMode(categoryMenu, mode);
+        }
+    }
+
+    connect(combo, &QComboBox::currentIndexChanged, this, [this, combo](int index) {
+        if (index < 0) return;
+        const QVariant data = combo->itemData(index);
+        if (!data.isValid()) return;   // separator
+        applyDebugMode(static_cast<quantiloom::DebugVisualizationMode>(data.toInt()));
+    });
+
+    m_debugActions.value(static_cast<int>(quantiloom::DebugVisualizationMode::None))
+        ->setChecked(true);
+}
+
+// ============================================================================
+// Toolbar
+// ============================================================================
+
+void MainWindow::setupToolBar() {
+    m_mainToolBar = addToolBar(QString());
+    m_mainToolBar->setObjectName(QStringLiteral("toolbar_main"));
+    m_mainToolBar->setMovable(true);
+    // Icon-only, but a QToolButton falls back to the action's text when the
+    // action has no icon -- which is how the transform buttons read as G/R/T
+    // without inventing glyphs for them. The icons that are used come from the
+    // active style, so they stay legible under both light and dark themes
+    // instead of being one fixed bitmap set.
+    m_mainToolBar->setToolButtonStyle(Qt::ToolButtonIconOnly);
+
+    QStyle* s = style();
+    m_openAction->setIcon(s->standardIcon(QStyle::SP_DialogOpenButton));
+    m_saveAction->setIcon(s->standardIcon(QStyle::SP_DialogSaveButton));
+    m_undoAction->setIcon(s->standardIcon(QStyle::SP_ArrowBack));
+    m_redoAction->setIcon(s->standardIcon(QStyle::SP_ArrowForward));
+    m_startRenderAction->setIcon(s->standardIcon(QStyle::SP_MediaPlay));
+    m_stopRenderAction->setIcon(s->standardIcon(QStyle::SP_MediaStop));
+    m_resetAccumulationAction->setIcon(s->standardIcon(QStyle::SP_BrowserReload));
+    m_screenshotAction->setIcon(s->standardIcon(QStyle::SP_DialogSaveAllButton));
+
+    m_mainToolBar->addAction(m_openAction);
+    m_mainToolBar->addAction(m_saveAction);
+    m_mainToolBar->addSeparator();
+    m_mainToolBar->addAction(m_undoAction);
+    m_mainToolBar->addAction(m_redoAction);
+    m_mainToolBar->addSeparator();
+    m_mainToolBar->addAction(m_translateAction);
+    m_mainToolBar->addAction(m_rotateAction);
+    m_mainToolBar->addAction(m_scaleAction);
+    m_mainToolBar->addAction(m_localSpaceAction);
+    m_mainToolBar->addSeparator();
+    m_mainToolBar->addAction(m_startRenderAction);
+    m_mainToolBar->addAction(m_stopRenderAction);
+    m_mainToolBar->addAction(m_resetAccumulationAction);
+    m_mainToolBar->addSeparator();
+
+    m_spectralComboLabel = new QLabel(this);
+    m_spectralCombo = new QComboBox(this);
+    m_spectralCombo->setMinimumContentsLength(14);
+    m_mainToolBar->addWidget(m_spectralComboLabel);
+    m_mainToolBar->addWidget(m_spectralCombo);
+
+    m_debugComboLabel = new QLabel(this);
+    m_debugCombo = new QComboBox(this);
+    m_debugCombo->setMinimumContentsLength(18);
+    m_mainToolBar->addWidget(m_debugComboLabel);
+    m_mainToolBar->addWidget(m_debugCombo);
+
+    m_mainToolBar->addSeparator();
+    m_mainToolBar->addAction(m_screenshotAction);
+
+    // The submenus are filled here so that each mode is registered once, into
+    // the menu action group and the combo box together.
+    buildSpectralMenu(m_spectralMenu, m_spectralCombo);
+    buildDebugMenu(m_debugMenu, m_debugCombo);
+
+    m_panelsMenu->addSeparator();
+    m_panelsMenu->addAction(m_mainToolBar->toggleViewAction());
+}
+
+// ============================================================================
+// Single application points for the shared modes
+// ============================================================================
+
+void MainWindow::applyDebugMode(quantiloom::DebugVisualizationMode mode) {
+    m_vulkanWindow->setDebugMode(mode);
+
+    if (QAction* action = m_debugActions.value(static_cast<int>(mode), nullptr)) {
+        action->setChecked(true);
+    }
+    if (m_debugCombo) {
+        const QSignalBlocker blocker(m_debugCombo);
+        m_debugCombo->setCurrentIndex(m_debugCombo->findData(static_cast<int>(mode)));
+    }
+    m_debugVisualizationPanel->setDebugMode(mode);
+
+    showStatusMessage(tr("Debug mode: %1").arg(catalog::debugModeName(mode)));
+}
+
+void MainWindow::applySpectralMode(quantiloom::SpectralMode mode) {
+    m_vulkanWindow->setSpectralMode(mode);
+
+    if (QAction* action = m_spectralActions.value(static_cast<int>(mode), nullptr)) {
+        action->setChecked(true);
+    }
+    if (m_spectralCombo) {
+        const QSignalBlocker blocker(m_spectralCombo);
+        m_spectralCombo->setCurrentIndex(m_spectralCombo->findData(static_cast<int>(mode)));
+    }
+    m_spectralConfigPanel->setSpectralMode(mode);
+
+    setSceneModified(true);
+    showStatusMessage(tr("Spectral mode: %1").arg(catalog::spectralModeName(mode)));
+}
+
+void MainWindow::applyTargetSpp(uint32_t spp) {
+    m_vulkanWindow->setSPP(spp);
+    m_renderSettingsPanel->setTargetSPP(spp);
+
+    if (m_qualityGroup) {
+        for (QAction* action : m_qualityGroup->actions()) {
+            action->setChecked(action->data().toUInt() == spp);
+        }
+    }
+
+    setSceneModified(true);
+    updateRenderProgress();
+    showStatusMessage(tr("Target samples: %1").arg(spp));
+}
+
+void MainWindow::applyDisplayEnhancementEnabled(bool enabled) {
+    // Route through the panel so the checkbox, the menu entry and the renderer
+    // cannot disagree; the panel's own signal carries the current parameters.
+    m_displayEnhancementPanel->setEnhancementEnabled(enabled);
 }
 
 // ============================================================================
@@ -372,6 +728,10 @@ void MainWindow::setupDockWidgets() {
                 m_claheTileSize = tileSize;
                 m_claheLuminanceOnly = luminanceOnly;
                 m_vulkanWindow->setDisplayEnhancement(enabled, clipLimit, tileSize, luminanceOnly);
+                if (m_displayEnhancementAction) {
+                    const QSignalBlocker blocker(m_displayEnhancementAction);
+                    m_displayEnhancementAction->setChecked(enabled);
+                }
                 showStatusMessage(enabled
                     ? tr("Display enhancement on (CLAHE: clip %1, %2x%2 tiles)")
                         .arg(clipLimit, 0, 'f', 1).arg(tileSize)
@@ -463,11 +823,6 @@ void MainWindow::setupConnections() {
 }
 
 void MainWindow::setupEditingSystem() {
-    // Create editing components
-    m_selectionManager = new SelectionManager(this);
-    m_transformGizmo = new TransformGizmo(this);
-    m_undoStack = new UndoStack(this);
-
     // Pass to Vulkan window
     m_vulkanWindow->setEditingComponents(m_selectionManager, m_transformGizmo, m_undoStack);
 
@@ -489,16 +844,45 @@ void MainWindow::setupEditingSystem() {
     connect(m_transformGizmo, &TransformGizmo::transformFinished,
             this, &MainWindow::onGizmoTransformFinished);
 
-    // Update status bar when gizmo mode changes
+    // Keep the status chip, the Edit ▸ Transform entries and the toolbar
+    // buttons showing the gizmo's actual state, whichever of them changed it.
     connect(m_transformGizmo, &TransformGizmo::modeChanged,
             this, [this](TransformGizmo::Mode mode) {
                 QString modeText;
                 switch (mode) {
-                    case TransformGizmo::Mode::Translate: modeText = tr("[G] Translate"); break;
-                    case TransformGizmo::Mode::Rotate:    modeText = tr("[R] Rotate");    break;
-                    case TransformGizmo::Mode::Scale:     modeText = tr("[T] Scale");     break;
+                    case TransformGizmo::Mode::Translate:
+                        modeText = tr("[G] Translate");
+                        m_translateAction->setChecked(true);
+                        break;
+                    case TransformGizmo::Mode::Rotate:
+                        modeText = tr("[R] Rotate");
+                        m_rotateAction->setChecked(true);
+                        break;
+                    case TransformGizmo::Mode::Scale:
+                        modeText = tr("[T] Scale");
+                        m_scaleAction->setChecked(true);
+                        break;
                 }
                 m_editModeLabel->setText(modeText);
+            });
+
+    connect(m_transformGizmo, &TransformGizmo::spaceChanged,
+            this, [this](TransformGizmo::Space space) {
+                const bool local = space == TransformGizmo::Space::Local;
+                const QSignalBlocker blocker(m_localSpaceAction);
+                m_localSpaceAction->setChecked(local);
+                showStatusMessage(local ? tr("Local space") : tr("World space"));
+            });
+
+    connect(m_transformGizmo, &TransformGizmo::axisConstraintChanged,
+            this, [this](TransformGizmo::Axis axis) {
+                const QSignalBlocker bx(m_axisXAction);
+                const QSignalBlocker by(m_axisYAction);
+                const QSignalBlocker bz(m_axisZAction);
+                // XYZ means unconstrained, so none of the three is ticked.
+                m_axisXAction->setChecked(axis == TransformGizmo::Axis::X);
+                m_axisYAction->setChecked(axis == TransformGizmo::Axis::Y);
+                m_axisZAction->setChecked(axis == TransformGizmo::Axis::Z);
             });
 
     // Sync selection with scene tree panel (highlight selected items)
@@ -535,17 +919,82 @@ void MainWindow::retranslateUi() {
     m_exitAction->setText(tr("E&xit"));
 
     m_editMenu->setTitle(tr("&Edit"));
+    m_transformMenu->setTitle(tr("&Transform"));
+    m_translateAction->setText(tr("&Translate"));
+    m_rotateAction->setText(tr("&Rotate"));
+    m_scaleAction->setText(tr("&Scale"));
+    m_axisXAction->setText(tr("Constrain to &X"));
+    m_axisYAction->setText(tr("Constrain to &Y"));
+    m_axisZAction->setText(tr("Constrain to &Z"));
+    m_localSpaceAction->setText(tr("&Local Space"));
+    m_localSpaceAction->setToolTip(tr("Transform along the object's own axes instead of the world's"));
     m_preferencesAction->setText(tr("&Preferences..."));
 
     m_viewMenu->setTitle(tr("&View"));
     m_panelsMenu->setTitle(tr("&Panels"));
     m_resetLayoutAction->setText(tr("&Reset Layout"));
-    m_resetCameraAction->setText(tr("Reset &Camera"));
+    m_cameraMenu->setTitle(tr("&Camera"));
+    m_resetCameraAction->setText(tr("&Reset View"));
+    for (QAction* action : std::as_const(m_viewPresetActions)) {
+        const QString id = action->data().toString();
+        if (id == QLatin1String("front"))       action->setText(tr("&Front"));
+        else if (id == QLatin1String("back"))   action->setText(tr("&Back"));
+        else if (id == QLatin1String("right"))  action->setText(tr("Ri&ght"));
+        else if (id == QLatin1String("left"))   action->setText(tr("&Left"));
+        else if (id == QLatin1String("top"))    action->setText(tr("&Top"));
+        else if (id == QLatin1String("bottom")) action->setText(tr("Botto&m"));
+    }
+
+    m_debugMenu->setTitle(tr("&Debug Visualization"));
+    for (QMenu* categoryMenu : std::as_const(m_debugCategoryMenus)) {
+        const auto category =
+            static_cast<catalog::DebugCategory>(categoryMenu->property("debugCategory").toInt());
+        categoryMenu->setTitle(catalog::debugCategoryName(category));
+    }
+    for (auto it = m_debugActions.constBegin(); it != m_debugActions.constEnd(); ++it) {
+        const auto mode = static_cast<quantiloom::DebugVisualizationMode>(it.key());
+        it.value()->setText(catalog::debugModeName(mode));
+        it.value()->setToolTip(catalog::debugModeDescription(mode));
+    }
+    m_displayEnhancementAction->setText(tr("Display &Enhancement (CLAHE)"));
+    m_displayEnhancementAction->setToolTip(
+        tr("Affects the viewport and screenshots only; exported images keep their raw values."));
 
     m_renderMenu->setTitle(tr("&Render"));
     m_startRenderAction->setText(tr("&Start Render"));
     m_stopRenderAction->setText(tr("S&top Render"));
     m_resetAccumulationAction->setText(tr("Reset &Accumulation"));
+    m_qualityMenu->setTitle(tr("&Quality"));
+    {
+        const auto presets = catalog::qualityPresets();
+        const auto actions = m_qualityGroup->actions();
+        for (int i = 0; i < actions.size() && i < presets.size(); ++i) {
+            actions.at(i)->setText(catalog::qualityPresetLabel(presets.at(i)));
+        }
+    }
+    m_spectralMenu->setTitle(tr("&Spectral Mode"));
+    for (auto it = m_spectralActions.constBegin(); it != m_spectralActions.constEnd(); ++it) {
+        const auto mode = static_cast<quantiloom::SpectralMode>(it.key());
+        it.value()->setText(catalog::spectralModeLabel(mode));
+        it.value()->setToolTip(catalog::spectralModeDescription(mode));
+    }
+
+    // Toolbar. Combo boxes are refilled by value, never by position, so the
+    // current selection survives the language change instead of being reset
+    // to whatever now sits at the old index.
+    m_mainToolBar->setWindowTitle(tr("Main Toolbar"));
+    m_spectralComboLabel->setText(tr(" Spectral: "));
+    m_debugComboLabel->setText(tr(" Debug: "));
+    for (int i = 0; i < m_spectralCombo->count(); ++i) {
+        const auto mode = static_cast<quantiloom::SpectralMode>(m_spectralCombo->itemData(i).toInt());
+        m_spectralCombo->setItemText(i, catalog::spectralModeLabel(mode));
+    }
+    for (int i = 0; i < m_debugCombo->count(); ++i) {
+        const QVariant data = m_debugCombo->itemData(i);
+        if (!data.isValid()) continue;   // separator
+        const auto mode = static_cast<quantiloom::DebugVisualizationMode>(data.toInt());
+        m_debugCombo->setItemText(i, catalog::debugModeName(mode));
+    }
 
     m_toolsMenu->setTitle(tr("&Tools"));
     m_spectralGenAction->setText(tr("Spectral Material &Generator"));
@@ -1043,17 +1492,14 @@ void MainWindow::onLightingChanged(const quantiloom::LightingParams& params) {
     showStatusMessage(tr("Lighting updated"));
 }
 
+// The panel-side entry points delegate to the same apply* functions the menu
+// and the toolbar use, so all three routes are literally one code path.
 void MainWindow::onSppChanged(uint32_t spp) {
-    m_vulkanWindow->setSPP(spp);
-    setSceneModified(true);
-    updateRenderProgress();
-    showStatusMessage(tr("Target samples: %1").arg(spp));
+    applyTargetSpp(spp);
 }
 
 void MainWindow::onSpectralModeChanged(quantiloom::SpectralMode mode) {
-    m_vulkanWindow->setSpectralMode(mode);
-    setSceneModified(true);
-    showStatusMessage(tr("Spectral mode: %1").arg(catalog::spectralModeName(mode)));
+    applySpectralMode(mode);
 }
 
 void MainWindow::onWavelengthChanged(float wavelength_nm) {
@@ -1063,8 +1509,7 @@ void MainWindow::onWavelengthChanged(float wavelength_nm) {
 }
 
 void MainWindow::onDebugModeChanged(quantiloom::DebugVisualizationMode mode) {
-    m_vulkanWindow->setDebugMode(mode);
-    showStatusMessage(tr("Debug mode: %1").arg(catalog::debugModeName(mode)));
+    applyDebugMode(mode);
 }
 
 void MainWindow::onResetAccumulation() {

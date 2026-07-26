@@ -146,6 +146,30 @@ void QuantiloomVulkanWindow::setCamera(const glm::vec3& position, const glm::vec
     }
 }
 
+void QuantiloomVulkanWindow::getCameraState(glm::vec3& position, glm::vec3& target,
+                                            glm::vec3& up, float& fovY) const {
+    if (m_renderer) {
+        m_renderer->getCameraState(position, target, up, fovY);
+    } else {
+        position = glm::vec3(0.0f, 1.0f, 5.0f);
+        target = glm::vec3(0.0f);
+        up = glm::vec3(0.0f, 1.0f, 0.0f);
+        fovY = 45.0f;
+    }
+}
+
+void QuantiloomVulkanWindow::setCameraFovY(float fovY) {
+    if (m_renderer) {
+        m_renderer->setCameraFovY(fovY);
+    }
+}
+
+void QuantiloomVulkanWindow::setViewDirection(const glm::vec3& direction) {
+    if (m_renderer) {
+        m_renderer->setViewDirection(direction);
+    }
+}
+
 void QuantiloomVulkanWindow::setSPP(uint32_t spp) {
     if (m_renderer) {
         m_renderer->setSPP(spp);
@@ -342,55 +366,27 @@ void QuantiloomVulkanWindow::setEditMode(bool edit) {
 // ============================================================================
 
 void QuantiloomVulkanWindow::keyPressEvent(QKeyEvent* event) {
-    // Edit mode hotkeys (always active)
-    if (m_editMode && m_gizmo) {
-        switch (event->key()) {
-            case Qt::Key_G:  // Grab/Translate
-                m_gizmo->setMode(TransformGizmo::Mode::Translate);
-                event->accept();
-                return;
-            case Qt::Key_R:  // Rotate (not camera rotate)
-                if (!(event->modifiers() & Qt::ControlModifier)) {
-                    m_gizmo->setMode(TransformGizmo::Mode::Rotate);
-                    event->accept();
-                    return;
-                }
-                break;
-            case Qt::Key_T:  // Transform/Scale
-                m_gizmo->setMode(TransformGizmo::Mode::Scale);
-                event->accept();
-                return;
-            case Qt::Key_X:
-                m_gizmo->toggleAxisConstraint(TransformGizmo::Axis::X);
-                event->accept();
-                return;
-            case Qt::Key_Y:
-                m_gizmo->toggleAxisConstraint(TransformGizmo::Axis::Y);
-                event->accept();
-                return;
-            case Qt::Key_Z:
-                if (!(event->modifiers() & Qt::ControlModifier)) {
-                    m_gizmo->toggleAxisConstraint(TransformGizmo::Axis::Z);
-                    event->accept();
-                    return;
-                }
-                break;
-            case Qt::Key_Space:
-                m_gizmo->toggleSpace();
-                event->accept();
-                return;
-            case Qt::Key_Escape:
-                if (m_transformDragging && m_gizmo->isDragging()) {
-                    m_gizmo->endDrag();
-                    m_transformDragging = false;
-                    // TODO: Revert transform
-                }
-                if (m_selection) {
-                    m_selection->clearSelection();
-                }
-                event->accept();
-                return;
+    // G/R/T, the axis constraints and world/local space used to be decoded
+    // here, in parallel with nothing: they existed in no menu at all. They are
+    // QActions now, owned by MainWindow, which both puts them in the Edit menu
+    // where they can be discovered and leaves exactly one implementation of
+    // each. MainWindow filters this window's key events and triggers those
+    // actions, so a key pressed over the viewport and a menu entry chosen with
+    // the mouse follow the same path.
+    //
+    // Escape stays here: it means "cancel this drag, then clear the
+    // selection", which is about the state of this window and has no menu
+    // equivalent.
+    if (m_editMode && event->key() == Qt::Key_Escape) {
+        if (m_transformDragging && m_gizmo && m_gizmo->isDragging()) {
+            m_gizmo->endDrag();
+            m_transformDragging = false;
         }
+        if (m_selection) {
+            m_selection->clearSelection();
+        }
+        event->accept();
+        return;
     }
 
     // Undo/Redo

@@ -329,6 +329,7 @@ void QuantiloomVulkanRenderer::resetCamera() {
         m_renderContext->SetCameraLookAt(m_cameraPosition, m_cameraTarget, m_cameraUp);
         resetAccumulation();
     }
+    emit m_window->cameraChanged();
 }
 
 void QuantiloomVulkanRenderer::setCamera(const glm::vec3& position, const glm::vec3& lookAt,
@@ -363,6 +364,45 @@ void QuantiloomVulkanRenderer::setCamera(const glm::vec3& position, const glm::v
     qDebug() << "Camera set: pos=(" << position.x << "," << position.y << "," << position.z
              << ") lookAt=(" << lookAt.x << "," << lookAt.y << "," << lookAt.z
              << ") fov=" << fovY;
+
+    emit m_window->cameraChanged();
+}
+
+void QuantiloomVulkanRenderer::getCameraState(glm::vec3& position, glm::vec3& target,
+                                              glm::vec3& up, float& fovY) const {
+    position = m_cameraPosition;
+    target = m_cameraTarget;
+    up = m_cameraUp;
+    fovY = m_cameraFovY;
+}
+
+void QuantiloomVulkanRenderer::setCameraFovY(float fovY) {
+    m_cameraFovY = fovY;
+    if (m_renderContext) {
+        m_renderContext->SetCameraFOV(fovY);
+        resetAccumulation();
+    }
+    emit m_window->cameraChanged();
+}
+
+void QuantiloomVulkanRenderer::setViewDirection(const glm::vec3& direction) {
+    const float length = glm::length(direction);
+    if (length < 1e-6f) {
+        return;
+    }
+    const glm::vec3 dir = direction / length;
+
+    // Same radians-everywhere convention as orbitCamera(): these two feed
+    // sin/cos directly and are clamped against half_pi.
+    m_orbitPitch = std::asin(glm::clamp(dir.y, -1.0f, 1.0f));
+    m_orbitYaw = std::atan2(dir.x, dir.z);
+    m_cameraPosition = m_cameraTarget + dir * m_orbitDistance;
+
+    if (m_renderContext) {
+        m_renderContext->SetCameraLookAt(m_cameraPosition, m_cameraTarget, m_cameraUp);
+        resetAccumulation();
+    }
+    emit m_window->cameraChanged();
 }
 
 void QuantiloomVulkanRenderer::setSPP(uint32_t spp) {
@@ -478,6 +518,7 @@ void QuantiloomVulkanRenderer::orbitCamera(float deltaX, float deltaY) {
         m_renderContext->SetCameraLookAt(m_cameraPosition, m_cameraTarget, m_cameraUp);
         resetAccumulation();
     }
+    emit m_window->cameraChanged();
 }
 
 void QuantiloomVulkanRenderer::panCamera(float deltaX, float deltaY) {
@@ -512,6 +553,7 @@ void QuantiloomVulkanRenderer::panCamera(float deltaX, float deltaY) {
         m_renderContext->SetCameraLookAt(m_cameraPosition, m_cameraTarget, m_cameraUp);
         resetAccumulation();
     }
+    emit m_window->cameraChanged();
 }
 
 void QuantiloomVulkanRenderer::zoomCamera(float delta) {
@@ -531,6 +573,7 @@ void QuantiloomVulkanRenderer::zoomCamera(float delta) {
         m_renderContext->SetCameraLookAt(m_cameraPosition, m_cameraTarget, m_cameraUp);
         resetAccumulation();
     }
+    emit m_window->cameraChanged();
 }
 
 void QuantiloomVulkanRenderer::updateCamera(float deltaTime) {
@@ -562,6 +605,7 @@ void QuantiloomVulkanRenderer::updateCamera(float deltaTime) {
             m_renderContext->SetCameraLookAt(m_cameraPosition, m_cameraTarget, m_cameraUp);
             resetAccumulation();
         }
+        emit m_window->cameraChanged();
     }
 }
 
