@@ -79,7 +79,6 @@ namespace {
 constexpr auto kRecentFilesKey = "recent_files";
 constexpr int  kMaxRecentFiles = 8;
 constexpr auto kGeometryKey    = "window/geometry";
-constexpr auto kStateKey       = "window/state";
 constexpr auto kStateVersionKey = "window/state_version";
 
 /// Bumped whenever the dock inventory changes, so a layout written by an older
@@ -502,9 +501,9 @@ void MainWindow::buildDebugMenu(QMenu* menu, QComboBox* combo) {
 
     connect(combo, &QComboBox::currentIndexChanged, this, [this, combo](int index) {
         if (index < 0) return;
-        const QVariant data = combo->itemData(index);
-        if (!data.isValid()) return;   // separator
-        applyDebugMode(static_cast<quantiloom::DebugVisualizationMode>(data.toInt()));
+        const QVariant itemData = combo->itemData(index);
+        if (!itemData.isValid()) return;   // separator
+        applyDebugMode(static_cast<quantiloom::DebugVisualizationMode>(itemData.toInt()));
     });
 
     m_debugActions.value(static_cast<int>(quantiloom::DebugVisualizationMode::None))
@@ -856,54 +855,6 @@ void MainWindow::setupWorkspaces() {
             });
 }
 
-void MainWindow::applyDefaultLayout() {
-    // Structure on the left, what-is-selected and the environment on the
-    // right, the generator across the bottom, viewport in the middle.
-    for (QDockWidget* dock : std::as_const(m_docks)) {
-        dock->setFloating(false);
-        removeDockWidget(dock);
-    }
-
-    auto place = [this](const char* id, Qt::DockWidgetArea area) -> QDockWidget* {
-        QDockWidget* dock = m_docks.value(QString::fromLatin1(id), nullptr);
-        if (dock) {
-            addDockWidget(area, dock);
-            dock->show();
-        }
-        return dock;
-    };
-
-    place("scene", Qt::LeftDockWidgetArea);
-    place("camera", Qt::LeftDockWidgetArea);
-
-    QDockWidget* properties = place("properties", Qt::RightDockWidgetArea);
-    place("lighting", Qt::RightDockWidgetArea);
-    QDockWidget* atmosphere = place("atmosphere", Qt::RightDockWidgetArea);
-    QDockWidget* sensor = place("sensor", Qt::RightDockWidgetArea);
-    QDockWidget* render = place("render", Qt::RightDockWidgetArea);
-    QDockWidget* spectral = place("spectral", Qt::RightDockWidgetArea);
-    QDockWidget* debug = place("debug", Qt::RightDockWidgetArea);
-
-    // Stack the calibrate-once panels behind the ones in constant use instead
-    // of stretching the right column over seven docks.
-    if (atmosphere && sensor)   tabifyDockWidget(atmosphere, sensor);
-    if (render && spectral)     tabifyDockWidget(render, spectral);
-    if (render && debug)        tabifyDockWidget(render, debug);
-    if (atmosphere)             atmosphere->raise();
-    if (render)                 render->raise();
-
-    // The generator is hidden by default: it is an occasional offline task,
-    // not something the viewport should share the window with all day. Tools ▸
-    // Spectral Material Generator brings it up.
-    if (QDockWidget* generator = m_docks.value(QStringLiteral("spectralgen"), nullptr)) {
-        addDockWidget(Qt::BottomDockWidgetArea, generator);
-        generator->hide();
-    }
-
-    if (properties) {
-        resizeDocks({properties}, {360}, Qt::Horizontal);
-    }
-}
 
 // ============================================================================
 // Status bar
@@ -1186,9 +1137,9 @@ void MainWindow::retranslateUi() {
         m_spectralCombo->setItemText(i, catalog::spectralModeLabel(mode));
     }
     for (int i = 0; i < m_debugCombo->count(); ++i) {
-        const QVariant data = m_debugCombo->itemData(i);
-        if (!data.isValid()) continue;   // separator
-        const auto mode = static_cast<quantiloom::DebugVisualizationMode>(data.toInt());
+        const QVariant itemData = m_debugCombo->itemData(i);
+        if (!itemData.isValid()) continue;   // separator
+        const auto mode = static_cast<quantiloom::DebugVisualizationMode>(itemData.toInt());
         m_debugCombo->setItemText(i, catalog::debugModeName(mode));
     }
 

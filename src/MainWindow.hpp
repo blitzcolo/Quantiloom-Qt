@@ -220,7 +220,6 @@ private:
     // through tabs.
     QMap<QString, QDockWidget*> m_docks;
     QDockWidget* createPanelDock(PanelBase* panel, Qt::DockWidgetArea area);
-    void applyDefaultLayout();
 
     // Parameter panels
     PropertiesPanel* m_propertiesPanel = nullptr;

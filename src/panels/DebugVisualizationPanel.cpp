@@ -62,9 +62,9 @@ void DebugVisualizationPanel::setupUi() {
     bindText([this, modeGroup] {
         modeGroup->setTitle(tr("Debug Mode"));
         for (int i = 0; i < m_modeCombo->count(); ++i) {
-            const QVariant data = m_modeCombo->itemData(i);
-            if (!data.isValid()) continue;   // separator
-            const auto mode = static_cast<quantiloom::DebugVisualizationMode>(data.toInt());
+            const QVariant itemData = m_modeCombo->itemData(i);
+            if (!itemData.isValid()) continue;   // separator
+            const auto mode = static_cast<quantiloom::DebugVisualizationMode>(itemData.toInt());
             m_modeCombo->setItemText(i, catalog::debugModeName(mode));
         }
     });
@@ -124,12 +124,12 @@ void DebugVisualizationPanel::setDebugMode(quantiloom::DebugVisualizationMode mo
 }
 
 void DebugVisualizationPanel::onModeChanged(int index) {
-    const QVariant data = m_modeCombo->itemData(index);
-    if (!data.isValid()) {
+    const QVariant itemData = m_modeCombo->itemData(index);
+    if (!itemData.isValid()) {
         return;   // separator; not selectable through the popup anyway
     }
 
-    m_mode = static_cast<quantiloom::DebugVisualizationMode>(data.toInt());
+    m_mode = static_cast<quantiloom::DebugVisualizationMode>(itemData.toInt());
     updateDescription(m_mode);
     emit debugModeChanged(m_mode);
 }
