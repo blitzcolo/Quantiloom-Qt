@@ -24,7 +24,6 @@
 #include <QDebug>
 #include <QApplication>
 #include <QTimer>
-#include <QStandardPaths>
 #include <cmath>
 
 #include <glm/gtc/matrix_transform.hpp>
@@ -601,22 +600,21 @@ void QuantiloomVulkanRenderer::resetAccumulation() {
 }
 
 bool QuantiloomVulkanRenderer::isFirstRun() const {
-    // Check if pipeline cache file exists
-    // If it doesn't exist, this is the first run and shader compilation will be slow
+    // No cache file means no pipeline has ever been compiled on this machine,
+    // so the next load pays for all of them.
     //
-    // Cache location follows platform conventions:
-    //   Windows: %LOCALAPPDATA%/Quantiloom/cache/pipeline_cache.bin
-    //   Linux:   ~/.cache/Quantiloom/pipeline_cache.bin
-    //   macOS:   ~/Library/Caches/Quantiloom/pipeline_cache.bin
-    QString cacheDir = QStandardPaths::writableLocation(QStandardPaths::CacheLocation);
-#ifdef Q_OS_WIN
-    // Windows: QStandardPaths returns %LOCALAPPDATA%, add /Quantiloom/cache
-    QString cachePath = cacheDir + "/Quantiloom/cache/pipeline_cache.bin";
-#else
-    // Linux/macOS: QStandardPaths returns ~/.cache or ~/Library/Caches
-    QString cachePath = cacheDir + "/Quantiloom/pipeline_cache.bin";
-#endif
-    return !QFileInfo::exists(cachePath);
+    // Ask the SDK where that file is rather than rebuilding the path here. The
+    // reconstruction this replaced -- QStandardPaths::CacheLocation plus
+    // "/Quantiloom/cache" -- double-counted the application name and produced
+    // .../Local/blitzccolo/Quantiloom/cache/Quantiloom/cache/pipeline_cache.bin,
+    // which cannot exist. isFirstRun() was therefore always true: every scene
+    // load raised the "compiling shaders" banner and pumped the event loop,
+    // however warm the cache actually was.
+    if (!m_renderContext) {
+        // Nothing has been created yet, so nothing can be cached.
+        return true;
+    }
+    return !QFileInfo::exists(QString::fromStdString(m_renderContext->GetPipelineCachePath()));
 }
 
 bool QuantiloomVulkanRenderer::readDebugPixel(int x, int y, glm::vec4& outValue) {
