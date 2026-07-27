@@ -505,7 +505,25 @@ void QuantiloomVulkanRenderer::orbitCamera(float deltaX, float deltaY) {
 }
 
 void QuantiloomVulkanRenderer::panCamera(float deltaX, float deltaY) {
-    const float sensitivity = 0.01f;
+    // How far one pixel of drag moves the world, derived rather than tuned. The
+    // 0.01 world units per pixel that used to be here was a constant, so it was
+    // only ever right at one distance: framing a 0.2-unit part of a model threw
+    // it off screen in twenty pixels, and a landscape at distance 300 barely
+    // shifted. Solving for the plane through the orbit target instead makes a
+    // drag across the viewport pan exactly one viewport, at every distance and
+    // every field of view -- the object stays under the cursor.
+    //
+    // deltaX/deltaY arrive in logical pixels (QuantiloomVulkanWindow::
+    // m_lastMousePos), so the height must be logical too: QWindow::height(),
+    // not swapChainImageSize(), which is device pixels and would divide the
+    // scale factor back out of the result.
+    const int viewportHeight = m_window ? m_window->height() : 0;
+    if (viewportHeight <= 0) {
+        return;  // No viewport yet; a drag cannot have come from one either.
+    }
+    const float halfFov = glm::radians(m_cameraFovY) * 0.5f;
+    const float sensitivity =
+        2.0f * m_orbitDistance * std::tan(halfFov) / static_cast<float>(viewportHeight);
 
     glm::vec3 forward = glm::normalize(m_cameraTarget - m_cameraPosition);
 

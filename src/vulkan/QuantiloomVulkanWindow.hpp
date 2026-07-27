@@ -397,6 +397,18 @@ private:
 
     // Camera control state
     bool m_mousePressed = false;
+
+    /**
+     * @brief Previous pointer position of a camera drag, in *logical* pixels
+     *
+     * Deliberately not `toDevicePixels()`d, unlike every other position that
+     * crosses into the render side. Those are positions -- a debug readout or a
+     * gizmo pick has to name one framebuffer pixel, so it must carry the scale
+     * factor. A camera drag consumes only the *difference* between two
+     * positions, which names no pixel; scaling it just makes the same hand
+     * movement orbit further on a higher-DPI display. At the 175% this was
+     * found on, orbit ran at 0.5 deg per pixel of real mouse travel.
+     */
     QPointF m_lastMousePos;
     bool m_keyW = false;
     bool m_keyA = false;

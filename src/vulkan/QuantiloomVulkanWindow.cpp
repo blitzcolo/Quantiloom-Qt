@@ -492,7 +492,7 @@ void QuantiloomVulkanWindow::mousePressEvent(QMouseEvent* event) {
 
     if (event->button() == Qt::RightButton || event->button() == Qt::MiddleButton) {
         m_mousePressed = true;
-        m_lastMousePos = toDevicePixels(event->position());
+        m_lastMousePos = event->position();  // logical px -- see the declaration
         event->accept();
     } else {
         QVulkanWindow::mousePressEvent(event);
@@ -527,9 +527,9 @@ void QuantiloomVulkanWindow::mouseMoveEvent(QMouseEvent* event) {
     }
 
     if (m_mousePressed && m_renderer) {
-        const QPointF device = toDevicePixels(event->position());
-        QPointF delta = device - m_lastMousePos;
-        m_lastMousePos = device;
+        const QPointF logical = event->position();
+        const QPointF delta = logical - m_lastMousePos;
+        m_lastMousePos = logical;
 
         if (event->buttons() & Qt::RightButton) {
             // Right drag: orbit camera
