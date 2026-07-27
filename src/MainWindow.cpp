@@ -1036,8 +1036,19 @@ void MainWindow::setupConnections() {
                     // Back to the guidance page: an empty viewport with no
                     // explanation is what the frame exists to avoid.
                     m_viewportFrame->setSceneLoaded(false);
-                    QMessageBox::warning(this, tr("Scene Load Failed"), message);
                     showStatusMessage(tr("Failed to load scene"));
+
+                    // Queued, because this signal is not always emitted from
+                    // somewhere a modal dialog can be opened. A scene named on
+                    // the command line is loaded from the renderer's
+                    // initResources(), and exec()ing a dialog there starts a
+                    // nested event loop *inside* the Vulkan render callback:
+                    // the window cannot paint, so the box came up empty and
+                    // the application froze with it. One turn later the
+                    // callback has returned and it is an ordinary dialog.
+                    QMetaObject::invokeMethod(this, [this, message]() {
+                        QMessageBox::warning(this, tr("Scene Load Failed"), message);
+                    }, Qt::QueuedConnection);
                 }
             });
 

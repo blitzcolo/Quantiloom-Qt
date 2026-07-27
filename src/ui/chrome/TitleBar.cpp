@@ -160,6 +160,12 @@ bool TitleBar::isCaptionAt(const QPoint& pos) const {
     return childAt(pos) == nullptr;
 }
 
+void TitleBar::setDialogMode(bool dialog) {
+    m_minimise->setVisible(!dialog);
+    m_maximise->setVisible(!dialog);
+    update();
+}
+
 void TitleBar::setWindowMaximized(bool maximized) {
     m_maximise->setGlyph(maximized ? Glyph::Restore : Glyph::Maximise);
     retranslateUi();
@@ -203,7 +209,7 @@ int TitleBar::buttonStripWidth() const {
     for (const QWidget* b : {static_cast<const QWidget*>(m_minimise),
                              static_cast<const QWidget*>(m_maximise),
                              static_cast<const QWidget*>(m_close)}) {
-        if (b) {
+        if (b && b->isVisible()) {
             w += b->width();
         }
     }

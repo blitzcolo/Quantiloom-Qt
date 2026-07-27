@@ -144,7 +144,13 @@ bool WindowChrome::handleNativeEvent(void* message, qintptr* result) {
                                   ? m_window->devicePixelRatioF() : 1.0;
             const QPoint local(qRound(px / dpr), qRound(py / dpr));
 
-            if (!IsZoomed(hwnd)) {
+            // A fixed-size window -- which most dialogs are -- has no
+            // WS_THICKFRAME, and DefWindowProc reports no resize edges for it.
+            // Offering one along the top would be this code inventing a
+            // capability the window does not have.
+            const bool resizable =
+                (GetWindowLongPtr(hwnd, GWL_STYLE) & WS_THICKFRAME) != 0;
+            if (!IsZoomed(hwnd) && resizable) {
                 // The top edge and its corners: the one strip the caption
                 // removal moved out of the system's reach.
                 if (local.y() < kTopResizeBorder) {

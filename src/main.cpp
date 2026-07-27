@@ -11,6 +11,7 @@
 #include "SdkGuard.hpp"
 #include "i18n/LanguageManager.hpp"
 #include "ui/theme/ThemeManager.hpp"
+#include "ui/chrome/DialogChrome.hpp"
 
 #include <QApplication>
 #include <QVulkanInstance>
@@ -49,6 +50,10 @@ int main(int argc, char* argv[]) {
     // Windows older than 10, Blender Dark under a dark system scheme, Windows
     // 11 otherwise. Changeable at runtime from View ▸ Theme.
     ThemeManager::instance().applyStoredPreference();
+
+    // Dialogs draw their own caption too, from here on. After the theme, so
+    // the first one to open is already in its colours.
+    DialogChrome::install();
 
     // Verify this binary and the Quantiloom library it is about to load came
     // from the same SDK install. Placed after the translators so the message is

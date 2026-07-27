@@ -44,6 +44,10 @@ public:
     /// "maximise" and "restore".
     void setWindowMaximized(bool maximized);
 
+    /// Leave only Close. A dialog is neither minimised nor maximised, so the
+    /// other two buttons would be decoration that does nothing when clicked.
+    void setDialogMode(bool dialog);
+
     void retranslateUi();
 
 signals:

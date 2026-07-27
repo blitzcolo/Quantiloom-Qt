@@ -188,6 +188,8 @@ set(GUI_SOURCES
     src/ui/chrome/TitleBar.hpp
     src/ui/chrome/WindowChrome.cpp
     src/ui/chrome/WindowChrome.hpp
+    src/ui/chrome/DialogChrome.cpp
+    src/ui/chrome/DialogChrome.hpp
     src/ui/theme/Theme.hpp
     src/ui/theme/ThemeManager.cpp
     src/ui/theme/ThemeManager.hpp

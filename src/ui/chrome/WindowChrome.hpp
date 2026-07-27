@@ -32,6 +32,7 @@
 
 #pragma once
 
+#include <QPointer>
 #include <QtGlobal>
 
 QT_BEGIN_NAMESPACE
@@ -58,7 +59,10 @@ public:
     bool handleNativeEvent(void* message, qintptr* result);
 
 private:
-    QWidget* m_window = nullptr;
-    TitleBar* m_titleBar = nullptr;
+    // Guarded, not raw: a dialog outlives neither its own close nor this
+    // object's place in DialogChrome's map by any guarantee worth relying on,
+    // and a native message arriving in between would dereference it.
+    QPointer<QWidget> m_window;
+    QPointer<TitleBar> m_titleBar;
     bool m_installed = false;
 };
