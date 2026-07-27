@@ -1730,7 +1730,7 @@ void MainWindow::onAbout() {
         this,
         tr("About Quantiloom"),
         tr("<h3>Quantiloom</h3>"
-           "<p>Version 0.1.1</p>"
+           "<p>Version 0.1.2</p>"
            "<p>A spectral renderer with hardware ray tracing support.</p>"
            "<p>Features:</p>"
            "<ul>"

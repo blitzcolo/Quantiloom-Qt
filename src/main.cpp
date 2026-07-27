@@ -35,7 +35,7 @@ int main(int argc, char* argv[]) {
 
     // Set application metadata
     app.setApplicationName("Quantiloom");
-    app.setApplicationVersion("0.1.1");
+    app.setApplicationVersion("0.1.2");
     app.setOrganizationName("blitzcolo");
     app.setOrganizationDomain("github.com/blitzcolo");
 
