@@ -91,6 +91,10 @@ private:
 
     void captureCurrent();
     void applyWorkspace(const QString& id);
+    /// Take every dock out of the layout so a placement starts from nothing.
+    /// Docks named in @p keepPlaced are un-floated first because they are
+    /// about to be docked again; unnamed floating ones are left as they are.
+    void detachDocks(const QSet<QString>& keepPlaced);
     void applyPreset(const QString& id);
     void onTabChanged(int index);
 

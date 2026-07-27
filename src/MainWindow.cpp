@@ -117,6 +117,8 @@ MainWindow::MainWindow(QVulkanInstance* vulkanInstance, QWidget* parent)
 
     // The editing objects come first: the Edit ▸ Transform actions built in
     // setupMenus() drive the gizmo directly.
+    m_styling.attach(this);
+
     m_selectionManager = new SelectionManager(this);
     m_transformGizmo = new TransformGizmo(this);
     m_undoStack = new UndoStack(this);

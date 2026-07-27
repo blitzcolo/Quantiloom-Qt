@@ -25,6 +25,7 @@
 PreferencesDialog::PreferencesDialog(QWidget* parent)
     : QDialog(parent)
 {
+    m_styling.attach(this);
     setMinimumWidth(520);
     setupUi();
     retranslateUi();

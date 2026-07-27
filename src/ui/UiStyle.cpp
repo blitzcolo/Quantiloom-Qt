@@ -172,6 +172,12 @@ void applyHeadingStyle(QLabel* label) {
     label->setFont(f);
 }
 
+void StyleBindings::attach(QObject* owner) {
+    if (!owner) return;
+    QObject::connect(&ThemeManager::instance(), &ThemeManager::themeChanged,
+                     owner, [this]() { reapply(); });
+}
+
 void StyleBindings::bind(std::function<void()> setter) {
     setter();
     m_setters.push_back(std::move(setter));

@@ -18,7 +18,11 @@ constexpr auto kCurrentKey   = "layout/workspace";
 /// Width a docked column starts at. Wide enough for a form row with a label
 /// and a spin box without the label eliding, narrow enough to leave the
 /// viewport the bulk of a 1600 px window.
-constexpr int kSideColumnWidth = 330;
+///
+/// 330 was measured against a label and a spin box and nothing else; the panels
+/// that pair a label with a spin box *and* a unit suffix, or a three-field
+/// vector row, were eliding at that width.
+constexpr int kSideColumnWidth = 400;
 } // namespace
 
 QStringList WorkspaceManager::workspaceIds() {
@@ -137,9 +141,19 @@ void WorkspaceManager::applyWorkspace(const QString& id) {
     m_current = id;
 
     const auto it = m_states.constFind(id);
-    if (it != m_states.constEnd() && !it->isEmpty() &&
-        m_window->restoreState(*it, kLayoutVersion)) {
-        // restoreState brings back visibility and geometry together.
+    if (it != m_states.constEnd() && !it->isEmpty()) {
+        // Clear the layout first. restoreState only describes the docks that
+        // were in the layout when the state was captured, and it leaves any
+        // other dock exactly where it is -- so a panel that a *different*
+        // workspace added since then survives into this one, and the columns
+        // fill up a little more with every switch. applyPreset never had the
+        // problem because it detaches everything up front; this is the same
+        // step, and the reason resetting a layout looked so much tidier than
+        // returning to it.
+        detachDocks({});
+        if (!m_window->restoreState(*it, kLayoutVersion)) {
+            applyPreset(id);
+        }
     } else {
         applyPreset(id);
     }
@@ -155,6 +169,21 @@ void WorkspaceManager::captureCurrent() {
     m_states.insert(m_current, m_window->saveState(kLayoutVersion));
 }
 
+void WorkspaceManager::detachDocks(const QSet<QString>& keepPlaced) {
+    // A floating dock nobody asked about is left alone: that is the spectral
+    // generator standing open as a tool window, and switching workspace to
+    // look something up should not slam it shut. One that *is* wanted gets
+    // docked back, so it has to be un-floated first.
+    for (auto it = m_docks.constBegin(); it != m_docks.constEnd(); ++it) {
+        QDockWidget* dock = it.value();
+        if (!keepPlaced.contains(it.key()) && dock->isFloating()) {
+            continue;
+        }
+        dock->setFloating(false);
+        m_window->removeDockWidget(dock);
+    }
+}
+
 void WorkspaceManager::applyPreset(const QString& id) {
     const QVector<DockPlacement> placements = preset(id);
 
@@ -165,18 +194,7 @@ void WorkspaceManager::applyPreset(const QString& id) {
 
     // Take every dock out of the layout first; whatever the preset does not
     // mention stays hidden rather than lingering from the previous workspace.
-    //
-    // A floating dock the preset says nothing about is left alone: that is the
-    // spectral generator standing open as a tool window, and switching
-    // workspace to look something up should not slam it shut.
-    for (auto it = m_docks.constBegin(); it != m_docks.constEnd(); ++it) {
-        QDockWidget* dock = it.value();
-        if (!mentioned.contains(it.key()) && dock->isFloating()) {
-            continue;
-        }
-        dock->setFloating(false);
-        m_window->removeDockWidget(dock);
-    }
+    detachDocks(mentioned);
 
     QDockWidget* previous = nullptr;
     QList<QDockWidget*> placed;

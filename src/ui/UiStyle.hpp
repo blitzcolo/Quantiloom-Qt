@@ -32,6 +32,7 @@
 
 QT_BEGIN_NAMESPACE
 class QEvent;
+class QObject;
 class QLabel;
 class QWidget;
 QT_END_NAMESPACE
@@ -88,6 +89,20 @@ void applyHeadingStyle(QLabel* label);
 /// @endcode
 class StyleBindings {
 public:
+    /// Re-run the setters whenever the theme changes, for as long as @p owner
+    /// lives. Call once, from the owning widget's constructor.
+    ///
+    /// This is what actually drives a restyle. Relying on Qt to deliver
+    /// QEvent::PaletteChange does not survive contact: a widget carrying an
+    /// explicitly set palette — which every helper in this file gives it — may
+    /// see no change to its *resolved* palette and so get no event, and a
+    /// widget on a hidden QStackedWidget page is easier still to miss. One
+    /// label kept a previous theme's green for exactly that reason. The signal
+    /// fires once, after the style, palette and style sheet are all in place,
+    /// which also removes the question of what a setter would compute if it ran
+    /// between them.
+    void attach(QObject* owner);
+
     /// Run @p setter now, and again on every reapply().
     void bind(std::function<void()> setter);
 

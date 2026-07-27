@@ -56,7 +56,9 @@ class PanelBase : public QWidget {
     Q_OBJECT
 
 public:
-    explicit PanelBase(QWidget* parent = nullptr) : QWidget(parent) {}
+    explicit PanelBase(QWidget* parent = nullptr) : QWidget(parent) {
+        m_styling.attach(this);
+    }
 
     /// Display name of this panel in the current language.
     [[nodiscard]] virtual QString panelTitle() const = 0;

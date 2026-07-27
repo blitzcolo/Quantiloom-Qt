@@ -27,10 +27,6 @@
 
 #include <QWidget>
 
-QT_BEGIN_NAMESPACE
-class QLabel;
-QT_END_NAMESPACE
-
 class CaptionButton;
 
 class TitleBar : public QWidget {
@@ -62,8 +58,11 @@ protected:
 
 private:
     void restyleUi();
+    /// Width the three buttons occupy, so the title can be elided before it
+    /// reaches them.
+    [[nodiscard]] int buttonStripWidth() const;
 
-    QLabel* m_title = nullptr;
+    QString m_titleText;
     CaptionButton* m_minimise = nullptr;
     CaptionButton* m_maximise = nullptr;
     CaptionButton* m_close = nullptr;

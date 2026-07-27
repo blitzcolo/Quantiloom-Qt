@@ -11,7 +11,6 @@
 #include <QEvent>
 #include <QFontMetrics>
 #include <QHBoxLayout>
-#include <QLabel>
 #include <QPainter>
 #include <QPainterPath>
 #include <QStyle>
@@ -130,12 +129,8 @@ TitleBar::TitleBar(QWidget* parent) : QWidget(parent) {
     setAutoFillBackground(false);
 
     auto* layout = new QHBoxLayout(this);
-    layout->setContentsMargins(10, 0, 0, 0);
+    layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(0);
-
-    m_title = new QLabel(this);
-    m_title->setAttribute(Qt::WA_TransparentForMouseEvents, true);
-    layout->addWidget(m_title);
     layout->addStretch();
 
     m_minimise = new CaptionButton(Glyph::Minimise, this);
@@ -149,25 +144,20 @@ TitleBar::TitleBar(QWidget* parent) : QWidget(parent) {
     connect(m_maximise, &QAbstractButton::clicked, this, &TitleBar::maximiseRequested);
     connect(m_close,    &QAbstractButton::clicked, this, &TitleBar::closeRequested);
 
+    m_styling.attach(this);
     m_styling.bind([this] {
-        const theming::Caption& c = ThemeManager::instance().currentTheme().caption;
-        QPalette pal = m_title->palette();
-        pal.setColor(QPalette::WindowText, c.text);
-        m_title->setPalette(pal);
-
-        QFont f = QApplication::font();
-        m_title->setFont(f);
-        setFixedHeight(QFontMetrics(f).height() * 2);
+        setFont(QApplication::font());
+        setFixedHeight(QFontMetrics(font()).height() * 2);
+        update();
     });
 
     retranslateUi();
 }
 
 bool TitleBar::isCaptionAt(const QPoint& pos) const {
-    const QWidget* child = childAt(pos);
-    // The title label is transparent for mouse events, so childAt() already
-    // returns nullptr over it -- only the buttons come back here.
-    return child == nullptr;
+    // The buttons are the only children; the title is painted, not a widget.
+    // So anything that is not over a button is draggable caption.
+    return childAt(pos) == nullptr;
 }
 
 void TitleBar::setWindowMaximized(bool maximized) {
@@ -177,7 +167,8 @@ void TitleBar::setWindowMaximized(bool maximized) {
 
 void TitleBar::retranslateUi() {
     if (window()) {
-        m_title->setText(window()->windowTitle());
+        m_titleText = window()->windowTitle();
+        update();
     }
     m_minimise->setToolTip(tr("Minimise"));
     m_maximise->setToolTip(window() && window()->isMaximized() ? tr("Restore Down")
@@ -186,8 +177,39 @@ void TitleBar::retranslateUi() {
 }
 
 void TitleBar::paintEvent(QPaintEvent*) {
+    const theming::Caption& c = ThemeManager::instance().currentTheme().caption;
+
     QPainter p(this);
-    p.fillRect(rect(), ThemeManager::instance().currentTheme().caption.background);
+    p.fillRect(rect(), c.background);
+
+    // The title is painted rather than carried by a QLabel. A label's colour
+    // has to come from its palette, and Qt's own guidance is that a palette
+    // set on a widget is not reliable once a style sheet is in play -- which
+    // it is for the themes that carry one, and QStyleSheetStyle stays involved
+    // for the rest of the session once any theme has installed one. The result
+    // was a caption whose background was the theme's and whose text was not,
+    // in whatever contrast that happened to leave.
+    p.setPen(c.text);
+    const QRect textRect = rect().adjusted(10, 0, -buttonStripWidth(), 0);
+    if (textRect.width() > 0) {
+        const QString shown = QFontMetrics(font()).elidedText(
+            m_titleText, Qt::ElideRight, textRect.width());
+        p.drawText(textRect, Qt::AlignVCenter | Qt::AlignLeft, shown);
+    }
+}
+
+int TitleBar::buttonStripWidth() const {
+    int w = 0;
+    for (const QWidget* b : {static_cast<const QWidget*>(m_minimise),
+                             static_cast<const QWidget*>(m_maximise),
+                             static_cast<const QWidget*>(m_close)}) {
+        if (b) {
+            w += b->width();
+        }
+    }
+    // A gap so a long document name stops short of the buttons rather than
+    // running up against them.
+    return w + 12;
 }
 
 void TitleBar::restyleUi() {

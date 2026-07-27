@@ -32,6 +32,8 @@ ViewportFrame::ViewportFrame(QWidget* viewport, QWidget* parent)
     stripLayout->setContentsMargins(6, 3, 6, 3);
     stripLayout->setSpacing(6);
 
+    m_styling.attach(this);
+
     m_spectralChip = new QLabel(strip);
     m_styling.bind([this] { uistyle::applyChipStyle(m_spectralChip, uistyle::ChipTone::Accent); });
     stripLayout->addWidget(m_spectralChip);

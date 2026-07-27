@@ -571,9 +571,12 @@ theming::Theme neutralGrey() {
     // The one deliberate exception: an error that reads as grey is not an
     // error. It is a thin strip of text, far from the image.
     t.accents.errorText        = QColor(0x8c, 0x00, 0x00);
-    t.caption.background    = QColor(0x6e, 0x6e, 0x6e);
-    t.caption.text          = QColor(0xf0, 0xf0, 0xf0);
-    t.caption.buttonHover   = QColor(0x86, 0x86, 0x86);
+    // Darker than the window rather than lighter, so the title clears 6:1
+    // against it. The obvious mid-grey caption left the text at 4.4:1, which is
+    // the sort of number that looks fine in a table and unreadable on screen.
+    t.caption.background    = QColor(0x5a, 0x5a, 0x5a);
+    t.caption.text          = QColor(0xf5, 0xf5, 0xf5);
+    t.caption.buttonHover   = QColor(0x74, 0x74, 0x74);
     t.caption.closeHover    = QColor(0x8c, 0x00, 0x00);
     t.caption.closeHoverText= QColor(0xff, 0xff, 0xff);
     return t;
