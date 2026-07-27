@@ -59,13 +59,22 @@ void WindowChrome::install() {
         return;
     }
 
+    // Before the SetWindowPos below, and that order is the whole of it.
+    // SWP_FRAMECHANGED delivers WM_NCCALCSIZE *synchronously*, so the message
+    // this call exists to provoke arrives while install() is still on the
+    // stack. Setting the flag afterwards meant handleNativeEvent() rejected
+    // that first message and Windows kept its caption -- leaving the window
+    // wearing two title bars until the next frame recalculation, which is to
+    // say until the user maximised it, after which it was correct forever and
+    // the bug looked like a first-run mystery.
+    m_installed = true;
+
     // Nothing about the window *style* changes -- that is the point. This only
     // asks Windows to recompute the frame, which sends the WM_NCCALCSIZE the
     // caption removal actually happens in.
     SetWindowPos(hwnd, nullptr, 0, 0, 0, 0,
                  SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE |
                  SWP_NOZORDER | SWP_NOOWNERZORDER | SWP_NOACTIVATE);
-    m_installed = true;
 }
 
 bool WindowChrome::handleNativeEvent(void* message, qintptr* result) {
