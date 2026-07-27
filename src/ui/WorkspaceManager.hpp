@@ -85,6 +85,16 @@ private:
         QString panelId;
         Qt::DockWidgetArea area;
         bool tabifyWithPrevious;   ///< stack onto the previously placed dock
+        /// Width for the column this dock leads, or 0 for kSideColumnWidth.
+        /// Only read from a dock that starts a column; one that tabs onto the
+        /// previous shares its width by definition.
+        int width = 0;
+        /// Height of this dock's row, or 0 to let Qt distribute the column.
+        /// Relative rather than absolute -- resizeDocks reads these as
+        /// proportions of the space available. Without them Qt divides the
+        /// column by size hint, which hands most of it to whichever panel has
+        /// the longest form and leaves the others a sliver.
+        int height = 0;
     };
 
     [[nodiscard]] static QVector<DockPlacement> preset(const QString& workspaceId);

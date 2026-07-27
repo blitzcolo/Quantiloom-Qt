@@ -4,6 +4,8 @@
 
 #include "WorkspaceManager.hpp"
 
+#include <algorithm>
+
 #include <QDockWidget>
 #include <QMainWindow>
 #include <QSet>
@@ -43,44 +45,54 @@ QString WorkspaceManager::workspaceTitle(const QString& id) {
 }
 
 QVector<WorkspaceManager::DockPlacement> WorkspaceManager::preset(const QString& id) {
+    // Captured from a hand-arranged session rather than designed at a desk, so
+    // the reasoning below describes what the arrangement turned out to be.
     if (id == QLatin1String("layout")) {
-        // Staging a scene: structure on the left, what-is-selected on the right.
+        // Staging a scene: what exists and what is selected on the left, the
+        // two things being aimed -- camera and light -- on the right. The left
+        // column is the wider one in both workspaces that carry the properties
+        // panel: its rows pair a label with a spin box and a unit, which is
+        // the widest form in the application.
         return {
-            {QStringLiteral("scene"),      Qt::LeftDockWidgetArea,  false},
-            {QStringLiteral("camera"),     Qt::LeftDockWidgetArea,  false},
-            {QStringLiteral("properties"), Qt::RightDockWidgetArea, false},
-            {QStringLiteral("lighting"),   Qt::RightDockWidgetArea, false},
+            {QStringLiteral("scene"),      Qt::LeftDockWidgetArea,  false, 495, 513},
+            {QStringLiteral("properties"), Qt::LeftDockWidgetArea,  false, 0,   460},
+            {QStringLiteral("camera"),     Qt::RightDockWidgetArea, false, 432, 658},
+            {QStringLiteral("lighting"),   Qt::RightDockWidgetArea, false, 0,   315},
         };
     }
     if (id == QLatin1String("environment")) {
-        // Deciding what the image means: band, atmosphere, sensor, quality.
-        // Two stacks of two rather than four docks sharing the column: four
-        // vertical slots left every panel too short to use and the viewport
-        // too narrow.
+        // Deciding what the image means. Four panels in two columns of two,
+        // none tabbed: they are read against each other, and a tab hides half
+        // of what the comparison needs.
         return {
-            {QStringLiteral("spectral"),   Qt::RightDockWidgetArea, false},
-            {QStringLiteral("render"),     Qt::RightDockWidgetArea, true},
-            {QStringLiteral("atmosphere"), Qt::RightDockWidgetArea, false},
-            {QStringLiteral("sensor"),     Qt::RightDockWidgetArea, true},
+            {QStringLiteral("render"),     Qt::LeftDockWidgetArea,  false, 380, 623},
+            {QStringLiteral("sensor"),     Qt::LeftDockWidgetArea,  false, 0,   350},
+            {QStringLiteral("spectral"),   Qt::RightDockWidgetArea, false, 363, 559},
+            {QStringLiteral("atmosphere"), Qt::RightDockWidgetArea, false, 0,   414},
         };
     }
     if (id == QLatin1String("material")) {
-        // The scene and material context the generator is used against. The
-        // generator itself is deliberately absent: it is a wide, occasional,
-        // offline tool and it opens as a floating window from the Tools menu.
-        // Docked along the bottom edge it spent the whole session competing
-        // for vertical space with the panels it is meant to be used beside.
+        // The spectral generator is docked here, full height on the right and
+        // the widest column in any workspace, beside the scene and material
+        // context it is used against. It used to
+        // be excluded on the grounds that a wide occasional tool belongs in a
+        // floating window; given a column of its own rather than a strip along
+        // the bottom, it earns the space.
         return {
-            {QStringLiteral("scene"),      Qt::LeftDockWidgetArea,  false},
-            {QStringLiteral("properties"), Qt::RightDockWidgetArea, false},
+            {QStringLiteral("scene"),       Qt::LeftDockWidgetArea,  false, 495, 665},
+            {QStringLiteral("properties"),  Qt::LeftDockWidgetArea,  false, 0,   308},
+            {QStringLiteral("spectralgen"), Qt::RightDockWidgetArea, false, 474},
         };
     }
     if (id == QLatin1String("debug")) {
+        // One panel, and the rest of the window is the image. That is the
+        // whole point of this workspace: the debug visualisation is read off
+        // the render, so anything else in the frame is competing with the
+        // thing being looked at. The properties panel was tabbed in here in
+        // the session this was captured from, left over rather than wanted.
         return {
-            {QStringLiteral("scene"),      Qt::LeftDockWidgetArea,  false},
-            {QStringLiteral("debug"),      Qt::RightDockWidgetArea, false},
-            {QStringLiteral("properties"), Qt::RightDockWidgetArea, true},
-        };  // one stack: the debug workspace is about the image, not the panels
+            {QStringLiteral("debug"), Qt::RightDockWidgetArea, false},
+        };
     }
     return {};
 }
@@ -238,6 +250,22 @@ void WorkspaceManager::applyPreset(const QString& id) {
     QDockWidget* previous = nullptr;
     QList<QDockWidget*> placed;
     QList<QDockWidget*> stackLeaders;
+
+    // Width belongs to a *column*, height to a *row*, and conflating the two
+    // is what made every side column come out the same width. A column is a
+    // dock area, so only the first dock placed in each area carries its width;
+    // asking for one on the second row of the same column is asking Qt for two
+    // widths at once, and the answer was neither.
+    QList<QDockWidget*> columnLeaders;
+    QList<int> columnWidths;
+    QSet<Qt::DockWidgetArea> areasSized;
+
+    // Heights are per row, and only from rows that name one. A zero in the
+    // list makes Qt reject the whole call -- "all sizes need to be larger than
+    // 0" -- so a single-row column that has no height to give would otherwise
+    // take every other column's heights down with it.
+    QList<QDockWidget*> rowLeaders;
+    QList<int> rowHeights;
     for (const DockPlacement& placement : placements) {
         QDockWidget* dock = m_docks.value(placement.panelId, nullptr);
         if (!dock) {
@@ -248,6 +276,17 @@ void WorkspaceManager::applyPreset(const QString& id) {
         } else {
             m_window->addDockWidget(placement.area, dock);
             stackLeaders.append(dock);
+
+            if (!areasSized.contains(placement.area)) {
+                areasSized.insert(placement.area);
+                columnLeaders.append(dock);
+                columnWidths.append(placement.width > 0 ? placement.width
+                                                        : kSideColumnWidth);
+            }
+            if (placement.height > 0) {
+                rowLeaders.append(dock);
+                rowHeights.append(placement.height);
+            }
         }
         dock->show();
         previous = dock;
@@ -258,12 +297,18 @@ void WorkspaceManager::applyPreset(const QString& id) {
     // arrangement left behind, and leave the viewport the larger share.
     // resizeDocks works on the visible layout, so it has to come after the
     // docks are shown.
-    if (!stackLeaders.isEmpty()) {
-        // Every docked column starts at the same width; the viewport keeps the
-        // rest. (The one dock that wanted a width of its own, the spectral
-        // generator, is a floating tool window now.)
-        const QList<int> widths(stackLeaders.size(), kSideColumnWidth);
-        m_window->resizeDocks(stackLeaders, widths, Qt::Horizontal);
+    if (!columnLeaders.isEmpty()) {
+        // Each column gets the width its preset asked for, falling back to
+        // kSideColumnWidth; the viewport keeps the rest.
+        m_window->resizeDocks(columnLeaders, columnWidths, Qt::Horizontal);
+
+        // And the rows their share of the height. Without this Qt divides a
+        // column by size hint, which gives most of it to whichever panel has
+        // the longest form -- the properties panel took the left column and
+        // left the scene tree a strip.
+        if (!rowLeaders.isEmpty()) {
+            m_window->resizeDocks(rowLeaders, rowHeights, Qt::Vertical);
+        }
     }
 
     // Each stack should open on the panel the preset listed first, not on
