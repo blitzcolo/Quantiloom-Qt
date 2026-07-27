@@ -142,6 +142,17 @@ void ViewportFrame::updateChips() {
 }
 
 void ViewportFrame::setSceneLoaded(bool loaded) {
+    // Switching the stack away from the viewport hides the window container,
+    // and Qt answers that by releasing the renderer's Vulkan resources -- the
+    // render context is destroyed and the application does not survive it.
+    // That makes this far more than a page change, and a page change to the
+    // page already showing is not worth paying for: a scene named on the
+    // command line that fails to load called this with false while the
+    // guidance page was up from the start, and the redundant switch tore the
+    // renderer down and took the window with it.
+    if (m_sceneLoaded == loaded) {
+        return;
+    }
     m_sceneLoaded = loaded;
     if (loaded && m_viewport) {
         m_stack->setCurrentWidget(m_viewport);

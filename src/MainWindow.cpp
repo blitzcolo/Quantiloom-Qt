@@ -1033,20 +1033,37 @@ void MainWindow::setupConnections() {
                     applyPendingMaterialConfigs();
                     showStatusMessage(message);
                 } else {
-                    // Back to the guidance page: an empty viewport with no
-                    // explanation is what the frame exists to avoid.
-                    m_viewportFrame->setSceneLoaded(false);
-                    showStatusMessage(tr("Failed to load scene"));
-
-                    // Queued, because this signal is not always emitted from
-                    // somewhere a modal dialog can be opened. A scene named on
-                    // the command line is loaded from the renderer's
-                    // initResources(), and exec()ing a dialog there starts a
-                    // nested event loop *inside* the Vulkan render callback:
-                    // the window cannot paint, so the box came up empty and
-                    // the application froze with it. One turn later the
-                    // callback has returned and it is an ordinary dialog.
+                    // The whole failure branch runs a turn later, because none
+                    // of it can safely run where this signal is emitted from.
+                    //
+                    // Returning to the guidance page hides the window container
+                    // holding the Vulkan surface, and Qt answers that by
+                    // releasing the renderer's resources -- which destroys the
+                    // render context from inside a signal that context's own
+                    // loadScene() emitted. For a scene named on the command
+                    // line it is worse still: that load runs from
+                    // initResources(), so the teardown re-enters Qt while it is
+                    // creating the very resources being destroyed. The dialog
+                    // then exec()ed a nested event loop in the middle of it,
+                    // which is why it came up empty and took the window with
+                    // it.
                     QMetaObject::invokeMethod(this, [this, message]() {
+                        // Deliberately *not* returning to the guidance page.
+                        //
+                        // openPath() shows the render surface before asking for
+                        // the load, because the Vulkan window only builds its
+                        // renderer once it is exposed. Hiding it again is
+                        // therefore not a page change: Qt releases the
+                        // renderer's resources, the render context is destroyed,
+                        // and the application does not survive that. Going out
+                        // and back is destructive in a way the guidance page is
+                        // not worth.
+                        //
+                        // What that page was here for was to explain an empty
+                        // viewport. The dialog below and the status line say
+                        // more than it would, and File > Open is still one
+                        // menu away.
+                        showStatusMessage(tr("Failed to load scene"));
                         QMessageBox::warning(this, tr("Scene Load Failed"), message);
                     }, Qt::QueuedConnection);
                 }
