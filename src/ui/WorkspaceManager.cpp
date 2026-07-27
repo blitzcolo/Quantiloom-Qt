@@ -239,6 +239,12 @@ void WorkspaceManager::resetCurrentToDefault() {
     m_switching = true;
     applyPreset(m_current);
     m_switching = false;
+
+    // Record the result as this workspace's state right away. Dropping the old
+    // entry and leaving it at that meant the reset layout existed only on
+    // screen: nothing held it until the next captureCurrent(), so returning
+    // from another workspace could bring the pre-reset arrangement back.
+    captureCurrent();
 }
 
 void WorkspaceManager::activateInitial() {
@@ -265,6 +271,12 @@ void WorkspaceManager::save(QSettings& settings) const {
     settings.setValue(kVersionKey, kLayoutVersion);
     settings.setValue(kCurrentKey, m_current);
     settings.beginGroup(kStateGroup);
+    // Clear the group rather than writing over it key by key. m_states is the
+    // whole truth about which workspaces have a saved layout, and a workspace
+    // that no longer has one -- because it was reset -- would otherwise keep
+    // whatever blob was last written for it and come back from the dead on the
+    // next launch.
+    settings.remove(QString());
     for (auto it = m_states.constBegin(); it != m_states.constEnd(); ++it) {
         settings.setValue(it.key(), it.value());
     }
