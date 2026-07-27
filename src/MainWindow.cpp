@@ -193,7 +193,7 @@ void MainWindow::setupUi() {
     // the viewport and the window background are all the same colour with a
     // one-pixel gap between them. Bound rather than set, because the colours
     // come from the palette and the palette changes with the theme.
-    m_styling.bind([this] { setStyleSheet(uistyle::shellStyleSheet(this)); });
+    m_styling.bind([this] { setStyleSheet(uistyle::shellStyleSheet()); });
 
     m_viewportFrame = new ViewportFrame(m_vulkanContainer, this);
     connect(m_viewportFrame, &ViewportFrame::openSceneRequested,

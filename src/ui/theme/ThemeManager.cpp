@@ -11,6 +11,7 @@
 #include <QStyle>
 #include <QStyleFactory>
 #include <QStyleHints>
+#include <QWidget>
 
 const QString ThemeManager::kBlenderDark    = QStringLiteral("blender-dark");
 const QString ThemeManager::kClassic        = QStringLiteral("classic");
@@ -875,4 +876,21 @@ void ThemeManager::apply(const theming::Theme& theme) {
     // previous theme's gradients. qApp's sheet cascades with MainWindow's own
     // shell sheet rather than replacing it.
     qApp->setStyleSheet(theme.styleSheet);
+
+    // Repaint everything, explicitly, rather than relying on the side effects
+    // of the calls above.
+    //
+    // Qt repaints on its own when the palette changes or when a style sheet is
+    // installed or removed. Neither covers a widget that paints straight from
+    // the theme -- the drawn title bars take their background and text from
+    // Caption, not from any palette role -- and setting an empty style sheet
+    // over an empty one is no change at all, so Qt does nothing. Switching
+    // between two themes that both carry no style sheet left those widgets
+    // showing the previous theme's colours, while every switch involving one
+    // of the three that do carry one happened to be repainted by the install
+    // or the removal and looked correct.
+    const auto widgets = QApplication::allWidgets();
+    for (QWidget* widget : widgets) {
+        widget->update();
+    }
 }

@@ -71,9 +71,9 @@ void applyHeadingStyle(QLabel* label);
 /// Qt's default dock separator is a 1-pixel gap in the window background, so
 /// with several docks around the viewport there is nothing to tell one region
 /// from the next. This widens it and gives it a colour, and makes each dock's
-/// title read as the heading of its region. Colours come from @p reference's
-/// palette, so the result follows the theme rather than assuming a light one.
-[[nodiscard]] QString shellStyleSheet(const QWidget* reference);
+/// title read as the heading of its region. Colours come from the application
+/// palette — see the definition for why not from the window's own.
+[[nodiscard]] QString shellStyleSheet();
 
 /// A widget's registered styling, re-runnable on demand.
 ///

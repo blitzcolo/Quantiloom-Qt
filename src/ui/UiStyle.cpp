@@ -118,8 +118,18 @@ void applyNoticeStyle(QLabel* label) {
         .arg(a.noticeText.name(), a.noticeBackground.name(), a.noticeBorder.name()));
 }
 
-QString shellStyleSheet(const QWidget* reference) {
-    const QPalette pal = reference ? reference->palette() : QApplication::palette();
+QString shellStyleSheet() {
+    // The application palette, like every other derivation in this file, and
+    // for a reason this function learned late: it used to read the palette of
+    // the window it was styling. A widget's resolved palette is cached, and Qt
+    // refreshes that cache when it repolishes -- which it does not do when an
+    // empty style sheet replaces an empty style sheet. Switching between two
+    // themes that carry no style sheet therefore recomputed this from the
+    // *previous* theme's colours, produced a string identical to the one
+    // already set, and setStyleSheet() correctly did nothing with it. The dock
+    // titles and separators kept the old theme until the application was
+    // restarted.
+    const QPalette pal = QApplication::palette();
     const bool dark = pal.color(QPalette::Window).lightnessF() < 0.5;
 
     // A separator has to be visibly darker than the window on a light theme and
