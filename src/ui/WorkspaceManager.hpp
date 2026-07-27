@@ -94,9 +94,9 @@ private:
     /// Take every dock out of the layout so a placement starts from nothing.
     /// Docks named in @p keepPlaced are un-floated first because they are
     /// about to be docked again; unnamed floating ones are left as they are.
-    /// Hide every docked panel, leaving the layout tree intact, so that a
-    /// following restoreState() shows exactly the docks its blob names.
-    void hideDocks();
+    /// Rebuild the workspace: the preset for a known structure, then the saved
+    /// layout on top of it. One path, used by both startup and switching.
+    void restoreOrPreset(const QString& id);
 
     void detachDocks(const QSet<QString>& keepPlaced);
     void applyPreset(const QString& id);
