@@ -98,6 +98,10 @@ private:
     /// layout on top of it. One path, used by both startup and switching.
     void restoreOrPreset(const QString& id);
 
+    /// Re-hide the docks a restored blob silently brought back. See the
+    /// definition: saveState() cannot record an absence.
+    void applyVisibility(const QString& id);
+
     void detachDocks(const QSet<QString>& keepPlaced);
     void applyPreset(const QString& id);
     void onTabChanged(int index);
@@ -106,6 +110,9 @@ private:
     QTabBar* m_tabBar = nullptr;
     QMap<QString, QDockWidget*> m_docks;
     QMap<QString, QByteArray> m_states;   ///< workspace id -> saveState() blob
+    /// Panels on screen per workspace, kept beside m_states because
+    /// saveState() cannot express "this dock should not appear".
+    QMap<QString, QStringList> m_visible;
     QString m_current;
     bool m_switching = false;
 };

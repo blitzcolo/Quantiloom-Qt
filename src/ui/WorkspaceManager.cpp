@@ -150,7 +150,38 @@ void WorkspaceManager::captureCurrent() {
     if (m_current.isEmpty()) {
         return;
     }
+    // Which panels are on screen, recorded beside the blob. saveState() only
+    // describes docks that are *in* the layout, so the ones applyPreset()
+    // removed leave no trace in it -- and restoreState() answers a dock it
+    // finds no entry for by putting it back and showing it. The blob therefore
+    // cannot express "not this one"; this list can.
+    QStringList visible;
+    for (auto vt = m_docks.constBegin(); vt != m_docks.constEnd(); ++vt) {
+        if (vt.value()->isVisible() && !vt.value()->isFloating()) {
+            visible << vt.key();
+        }
+    }
+    visible.sort();
+    m_visible.insert(m_current, visible);
+
     m_states.insert(m_current, m_window->saveState(kLayoutVersion));
+}
+
+void WorkspaceManager::applyVisibility(const QString& id) {
+    // Put right what restoreState() cannot: a dock its blob never mentioned
+    // comes back visible, so the workspace gains every panel the others use.
+    // The recorded list is what was actually on screen when the layout was
+    // saved, so a panel the user added by hand survives and one the preset
+    // never placed does not come back.
+    const auto it = m_visible.constFind(id);
+    if (it == m_visible.constEnd()) {
+        return;
+    }
+    for (auto dt = m_docks.constBegin(); dt != m_docks.constEnd(); ++dt) {
+        if (!dt.value()->isFloating()) {
+            dt.value()->setVisible(it->contains(dt.key()));
+        }
+    }
 }
 
 void WorkspaceManager::restoreOrPreset(const QString& id) {
@@ -173,6 +204,7 @@ void WorkspaceManager::restoreOrPreset(const QString& id) {
     const auto it = m_states.constFind(id);
     if (it != m_states.constEnd() && !it->isEmpty()) {
         m_window->restoreState(*it, kLayoutVersion);
+        applyVisibility(id);
     }
 }
 
@@ -243,6 +275,7 @@ void WorkspaceManager::applyPreset(const QString& id) {
 
 void WorkspaceManager::resetCurrentToDefault() {
     m_states.remove(m_current);
+    m_visible.remove(m_current);
     m_switching = true;
     applyPreset(m_current);
     m_switching = false;
@@ -271,17 +304,27 @@ void WorkspaceManager::activateInitial() {
 void WorkspaceManager::save(QSettings& settings) const {
     const_cast<WorkspaceManager*>(this)->captureCurrent();
 
+    // Clear the group before writing anything, not after. m_states is the whole
+    // truth about which workspaces have a saved layout, and a workspace that no
+    // longer has one -- because it was reset -- would otherwise keep whatever
+    // blob was last written for it and come back on the next launch.
+    //
+    // The order matters more than it looks: kVersionKey and kCurrentKey live
+    // *inside* this same group, so clearing it after writing them deleted the
+    // version stamp, restore() then read 0, decided the settings came from an
+    // incompatible build, and dropped every layout on the floor. Nothing was
+    // ever restored across a restart.
+    settings.beginGroup(kStateGroup);
+    settings.remove(QString());
+    settings.endGroup();
+
     settings.setValue(kVersionKey, kLayoutVersion);
     settings.setValue(kCurrentKey, m_current);
     settings.beginGroup(kStateGroup);
-    // Clear the group rather than writing over it key by key. m_states is the
-    // whole truth about which workspaces have a saved layout, and a workspace
-    // that no longer has one -- because it was reset -- would otherwise keep
-    // whatever blob was last written for it and come back from the dead on the
-    // next launch.
-    settings.remove(QString());
     for (auto it = m_states.constBegin(); it != m_states.constEnd(); ++it) {
         settings.setValue(it.key(), it.value());
+        settings.setValue(it.key() + QStringLiteral("_visible"),
+                          m_visible.value(it.key()));
     }
     settings.endGroup();
 }
@@ -300,6 +343,8 @@ void WorkspaceManager::restore(QSettings& settings) {
         const QByteArray blob = settings.value(id).toByteArray();
         if (!blob.isEmpty()) {
             m_states.insert(id, blob);
+            m_visible.insert(id, settings.value(id + QStringLiteral("_visible"))
+                                     .toStringList());
         }
     }
     settings.endGroup();
