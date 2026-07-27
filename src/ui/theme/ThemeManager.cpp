@@ -149,11 +149,21 @@ theming::Theme classic() {
 // ---------------------------------------------------------------------------
 // Windows 11
 // ---------------------------------------------------------------------------
-// The "windows11" style key comes from Qt's modern Windows style plugin
-// (qmodernwindowsstyle), so this theme degrades to Fusion anywhere that plugin
-// is absent -- an older Windows, or any other platform. The palette below is
-// the light one either way, so the result stays coherent rather than
-// half-native.
+// Hand-built on Fusion, not on the "windows11" style key, and that is a
+// reversal worth explaining.
+//
+// Qt's windows11 style derives from its vista style and draws most controls
+// through the UxTheme API -- that is, with whatever assets the *host* Windows
+// supplies. On a Windows 11 machine that makes this theme and the Windows 7 one
+// converge on the same flat controls, which is exactly what they were reported
+// doing, and the elements Qt does draw itself came out looking like neither
+// Windows: the spin box arrows rendered as a circle inside a circle.
+//
+// So both era themes are drawn here instead. The cost is that this is an
+// approximation of Windows 11 rather than the real thing; the gain is that it
+// is a *predictable* approximation that cannot change under a Windows update
+// and cannot be mistaken for its neighbour. Flat surfaces, 4px radii, a hairline
+// border and the accent blue only where something is focused.
 //
 // Mica is deliberately not applied. The signature Windows 11 backdrop needs
 // Qt::WA_TranslucentBackground, which Qt 6 only honours on a frameless window,
@@ -164,7 +174,7 @@ theming::Theme classic() {
 theming::Theme windows11() {
     theming::Theme t;
     t.id = ThemeManager::kWindows11;
-    t.styleKey = QStringLiteral("windows11");
+    t.styleKey = QStringLiteral("Fusion");
     t.colorScheme = Qt::ColorScheme::Light;
 
     QPalette p;
@@ -198,6 +208,57 @@ theming::Theme windows11() {
     t.accents.noticeBorder     = QColor(0xe0, 0xb3, 0x4a);
     t.accents.noticeText       = QColor(0x6b, 0x4d, 0x00);
     t.accents.errorText        = QColor(0xc4, 0x2b, 0x1c);
+
+    // Deliberately nothing here for QAbstractSpinBox. Styling a spin button in
+    // QSS opts its arrows out of the style's own drawing, and replacing them
+    // needs image assets this repository does not carry -- so the spin boxes
+    // keep Fusion's plain arrows, which is the whole complaint fixed.
+    t.styleSheet = QStringLiteral(R"(
+QPushButton, QToolButton {
+    border: 1px solid #d1d1d1;
+    border-bottom-color: #c4c4c4;
+    border-radius: 4px;
+    padding: 4px 14px;
+    background: #fbfbfb;
+}
+QPushButton:hover, QToolButton:hover { background: #f2f2f2; }
+QPushButton:pressed, QToolButton:pressed { background: #ebebeb; color: #5a5a5a; }
+QPushButton:default { border: 1px solid #0067c0; background: #0067c0; color: #ffffff; }
+QPushButton:default:hover { background: #1975c5; }
+QPushButton:disabled, QToolButton:disabled {
+    background: #f5f5f5; border-color: #e5e5e5; color: #a0a0a0;
+}
+QLineEdit, QPlainTextEdit, QTextEdit {
+    border: 1px solid #d1d1d1;
+    border-bottom: 2px solid #8a8a8a;
+    border-radius: 4px;
+    padding: 2px 6px;
+    background: #ffffff;
+}
+QLineEdit:focus, QPlainTextEdit:focus, QTextEdit:focus { border-bottom-color: #0067c0; }
+QGroupBox {
+    border: 1px solid #e2e2e2;
+    border-radius: 6px;
+    margin-top: 0.7em;
+    padding-top: 0.4em;
+}
+QGroupBox::title { subcontrol-origin: margin; left: 8px; padding: 0 3px; }
+QTabBar::tab {
+    border: none;
+    padding: 6px 14px;
+    background: transparent;
+}
+QTabBar::tab:selected { border-bottom: 2px solid #0067c0; }
+QTabBar::tab:hover:!selected { background: #ededed; }
+QProgressBar {
+    border: none;
+    border-radius: 3px;
+    background: #e6e6e6;
+    text-align: center;
+    max-height: 6px;
+}
+QProgressBar::chunk { border-radius: 3px; background: #0067c0; }
+)");
     return t;
 }
 
@@ -307,14 +368,15 @@ QProgressBar::chunk {
 // ---------------------------------------------------------------------------
 // Windows 7 (Aero, without the glass)
 // ---------------------------------------------------------------------------
-// "windowsvista" is the one legacy style key Qt still ships, and it draws
-// through the UxTheme API rather than from Qt's own primitives. What that gets
-// on a Windows 11 machine is the open question here: Qt's own reporting says
-// the assets it reaches are still the Vista-era ones, which would make the
-// Aero controls free; the alternative is that Windows redrew those parts flat
-// and this ends up looking like Windows 10. That is a question for eyes, not
-// for more research -- if it comes out flat, this theme grows a style sheet
-// like the XP one above.
+// This started on the "windowsvista" style key, on the reading that Qt reaches
+// Vista-era assets through UxTheme and would therefore still draw Aero on a
+// modern Windows. It does not: what comes back is whatever the host Windows
+// supplies, so on Windows 11 the controls came out flat and this theme was
+// indistinguishable from the Windows 11 one. Both are hand-drawn now.
+//
+// Aero's grammar is a two-stop vertical gradient with a hard break at the
+// midpoint -- the "gloss" is that discontinuity, not a soft blend -- a 3px
+// radius, and a blue wash on hover rather than a colour change.
 //
 // The glass is absent and will stay absent. DwmEnableBlurBehindWindow has been
 // a no-op since Windows 8, the replacement is undocumented, Qt 6 only honours
@@ -324,7 +386,7 @@ QProgressBar::chunk {
 theming::Theme windows7() {
     theming::Theme t;
     t.id = ThemeManager::kWindows7;
-    t.styleKey = QStringLiteral("windowsvista");
+    t.styleKey = QStringLiteral("Fusion");
     t.colorScheme = Qt::ColorScheme::Light;
 
     QPalette p;
@@ -358,6 +420,74 @@ theming::Theme windows7() {
     t.accents.noticeBorder     = QColor(0xd8, 0xb0, 0x40);
     t.accents.noticeText       = QColor(0x5a, 0x44, 0x00);
     t.accents.errorText        = QColor(0xc0, 0x20, 0x20);
+
+    // The Aero button's four states, in its own colours. Same deliberate
+    // omission as the Windows 11 theme: nothing touches QAbstractSpinBox, so
+    // its arrows stay with Fusion instead of disappearing for want of an image.
+    t.styleSheet = QStringLiteral(R"(
+QPushButton, QToolButton {
+    border: 1px solid #8ba7c7;
+    border-radius: 3px;
+    padding: 4px 13px;
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 #fdfeff, stop:0.49 #eef4fc, stop:0.5 #dce8f7, stop:1 #eaf2fd);
+}
+QPushButton:hover, QToolButton:hover {
+    border: 1px solid #3c7fb1;
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 #eaf6fd, stop:0.49 #d9f0fc, stop:0.5 #bee6fd, stop:1 #a7d9f5);
+}
+QPushButton:pressed, QToolButton:pressed {
+    border: 1px solid #2c628b;
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 #e5f4fc, stop:0.49 #c4e5f6, stop:0.5 #98d1ef, stop:1 #68b3db);
+}
+QPushButton:disabled, QToolButton:disabled {
+    border: 1px solid #bcbcbc;
+    color: #838383;
+    background: #f4f4f4;
+}
+QLineEdit, QPlainTextEdit, QTextEdit {
+    border: 1px solid #abadb3;
+    border-radius: 2px;
+    padding: 2px 4px;
+    background: #ffffff;
+}
+QLineEdit:focus, QPlainTextEdit:focus, QTextEdit:focus { border: 1px solid #3c7fb1; }
+QGroupBox {
+    border: 1px solid #d5dfe9;
+    border-radius: 4px;
+    margin-top: 0.7em;
+    padding-top: 0.4em;
+}
+QGroupBox::title { subcontrol-origin: margin; left: 8px; padding: 0 3px; }
+QTabBar::tab {
+    border: 1px solid #8ba7c7;
+    border-bottom: none;
+    border-top-left-radius: 3px;
+    border-top-right-radius: 3px;
+    padding: 4px 11px;
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 #fdfeff, stop:0.5 #eef4fc, stop:1 #dce8f7);
+}
+QTabBar::tab:selected {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 #ffffff, stop:1 #f2f7fd);
+}
+QProgressBar {
+    border: 1px solid #bcbcbc;
+    border-radius: 3px;
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 #e6e6e6, stop:0.5 #f6f6f6, stop:1 #ffffff);
+    text-align: center;
+}
+QProgressBar::chunk {
+    margin: 1px;
+    border-radius: 2px;
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 #b3e2a0, stop:0.49 #86cf6c, stop:0.5 #4ca62c, stop:1 #86cf6c);
+}
+)");
     return t;
 }
 
@@ -470,6 +600,9 @@ theming::Theme highContrast() {
     t.accents.noticeBorder     = QColor(0xff, 0xff, 0x00);
     t.accents.noticeText       = QColor(0xff, 0xff, 0x00);
     t.accents.errorText        = QColor(0xff, 0x60, 0x60);
+    // The primary colour rather than a derived shade: on black there is no
+    // darker to derive, and the yellow is what this theme is legible by.
+    t.accents.separator        = QColor(0xff, 0xff, 0x00);
     return t;
 }
 
@@ -570,6 +703,9 @@ theming::Theme phosphor() {
     t.accents.noticeBorder     = QColor(0x3b, 0xf5, 0x3b);
     t.accents.noticeText       = QColor(0x8c, 0xff, 0x8c);
     t.accents.errorText        = QColor(0xc8, 0xff, 0xc8);
+    // Same reasoning as High Contrast: the phosphor green is the only colour
+    // in this theme, so the boundaries are drawn in it.
+    t.accents.separator        = QColor(0x3b, 0xf5, 0x3b);
     return t;
 }
 

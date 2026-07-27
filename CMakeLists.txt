@@ -355,10 +355,13 @@ if(WIN32)
     # This is where the "windows11" and "windowsvista" style keys live -- they
     # are not built into Qt6Widgets, unlike "Fusion" and "Windows". Without the
     # plugin beside the executable, QStyleFactory::create() returns null for
-    # both and ThemeManager quietly falls back to Fusion: the Windows 11 theme
-    # loses the one thing that makes it Windows 11, and says nothing about it.
-    # It only appeared to work here because Qt6Core's compiled-in plugin path
-    # still finds C:/Qt/.../plugins on a machine with Qt installed.
+    # both and ThemeManager quietly falls back to Fusion, saying nothing.
+    #
+    # No theme asks for either key today: both draw through UxTheme with the
+    # host Windows' assets, which made the Windows 7 and Windows 11 themes
+    # converge, so both are hand-drawn on Fusion now. The plugin is still
+    # deployed because a theme is data -- setting styleKey to "windows11" is a
+    # one-line change, and this is the silent trap it would fall into.
     if(TARGET Qt6::QModernWindowsStylePlugin)
         add_custom_command(TARGET QuantiloomQt POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E make_directory

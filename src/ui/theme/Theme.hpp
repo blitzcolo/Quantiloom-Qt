@@ -50,6 +50,14 @@ struct Accents {
     /// warning. Not QPalette::BrightText: that role means "text that contrasts
     /// with Highlight", and on the classic palette it is white.
     QColor errorText;
+
+    /// The lines dividing the docked regions, and the rule under each dock
+    /// title. Leave invalid and shellStyleSheet() derives one by darkening the
+    /// window colour, which is right for the themes built on a mid-toned
+    /// background and useless on the ones that are not: there is nothing
+    /// darker than the High Contrast black or the Phosphor near-black, so the
+    /// boundaries vanished. Those two name the colour instead.
+    QColor separator;
 };
 
 struct Theme {

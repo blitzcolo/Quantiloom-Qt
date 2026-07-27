@@ -124,18 +124,32 @@ QString shellStyleSheet(const QWidget* reference) {
 
     // A separator has to be visibly darker than the window on a light theme and
     // visibly darker than the panels on a dark one; blending towards black in
-    // both directions gets that without two hand-picked colour sets.
+    // both directions gets that without two hand-picked colour sets. It stops
+    // working once the window colour is already at the bottom of the range --
+    // darker than black is black -- so a theme may name the colour instead.
     const QColor window = pal.color(QPalette::Window);
-    const QColor separator = dark ? window.darker(160) : window.darker(135);
+    const QColor themed = ThemeManager::instance().currentTheme().accents.separator;
+    const QColor separator = themed.isValid()
+        ? themed
+        : (dark ? window.darker(160) : window.darker(135));
     const QColor separatorHover = pal.color(QPalette::Highlight);
     const QColor titleBackground = dark ? window.lighter(125) : window.darker(108);
     const QColor titleText = pal.color(QPalette::WindowText);
 
+    // A derived separator is a near-miss of the window colour and needs width
+    // to register at all; a named one is the theme's primary and reads at a
+    // fraction of it. Same line, two jobs, so the width follows the colour.
+    //
+    // Not 1px, which is what "thin" would suggest: this band is also the drag
+    // handle for resizing the docks, and the style sheet width *is* the hit
+    // area.
+    const int separatorWidth = themed.isValid() ? 2 : 4;
+
     return QStringLiteral(
         "QMainWindow::separator {"
         "  background: %1;"
-        "  width: 4px;"
-        "  height: 4px;"
+        "  width: %5px;"
+        "  height: %5px;"
         "}"
         "QMainWindow::separator:hover {"
         "  background: %2;"
@@ -147,7 +161,8 @@ QString shellStyleSheet(const QWidget* reference) {
         "  border-bottom: 1px solid %1;"
         "}")
         .arg(separator.name(), separatorHover.name(),
-             titleBackground.name(), titleText.name());
+             titleBackground.name(), titleText.name())
+        .arg(separatorWidth);
 }
 
 void applyHeadingStyle(QLabel* label) {
