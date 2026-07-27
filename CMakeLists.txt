@@ -184,6 +184,10 @@ set(GUI_SOURCES
     src/ui/ViewportFrame.hpp
     src/ui/WorkspaceManager.cpp
     src/ui/WorkspaceManager.hpp
+    src/ui/chrome/TitleBar.cpp
+    src/ui/chrome/TitleBar.hpp
+    src/ui/chrome/WindowChrome.cpp
+    src/ui/chrome/WindowChrome.hpp
     src/ui/theme/Theme.hpp
     src/ui/theme/ThemeManager.cpp
     src/ui/theme/ThemeManager.hpp

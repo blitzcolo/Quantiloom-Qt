@@ -95,6 +95,11 @@ theming::Theme blenderDark() {
     t.accents.noticeBorder     = QColor(0x8a, 0x70, 0x20);
     t.accents.noticeText       = QColor(0xf2, 0xe2, 0xb0);
     t.accents.errorText        = QColor(0xff, 0x6b, 0x6b);
+    t.caption.background    = QColor(0x3a, 0x3a, 0x3a);
+    t.caption.text          = QColor(0xe5, 0xe5, 0xe5);
+    t.caption.buttonHover   = QColor(0x50, 0x50, 0x50);
+    t.caption.closeHover    = QColor(0xc4, 0x2b, 0x1c);
+    t.caption.closeHoverText= QColor(0xff, 0xff, 0xff);
     return t;
 }
 
@@ -143,6 +148,11 @@ theming::Theme classic() {
     t.accents.noticeBorder     = QColor(0x80, 0x80, 0x80);
     t.accents.noticeText       = QColor(0x00, 0x00, 0x00);
     t.accents.errorText        = QColor(0x80, 0x00, 0x00);
+    t.caption.background    = QColor(0x00, 0x00, 0x80);
+    t.caption.text          = QColor(0xff, 0xff, 0xff);
+    t.caption.buttonHover   = QColor(0x30, 0x30, 0x98);
+    t.caption.closeHover    = QColor(0xc0, 0x20, 0x20);
+    t.caption.closeHoverText= QColor(0xff, 0xff, 0xff);
     return t;
 }
 
@@ -208,6 +218,11 @@ theming::Theme windows11() {
     t.accents.noticeBorder     = QColor(0xe0, 0xb3, 0x4a);
     t.accents.noticeText       = QColor(0x6b, 0x4d, 0x00);
     t.accents.errorText        = QColor(0xc4, 0x2b, 0x1c);
+    t.caption.background    = QColor(0xf3, 0xf3, 0xf3);
+    t.caption.text          = QColor(0x1a, 0x1a, 0x1a);
+    t.caption.buttonHover   = QColor(0xe6, 0xe6, 0xe6);
+    t.caption.closeHover    = QColor(0xc4, 0x2b, 0x1c);
+    t.caption.closeHoverText= QColor(0xff, 0xff, 0xff);
 
     // Deliberately nothing here for QAbstractSpinBox. Styling a spin button in
     // QSS opts its arrows out of the style's own drawing, and replacing them
@@ -311,6 +326,11 @@ theming::Theme windowsXp() {
     t.accents.noticeBorder     = QColor(0xe9, 0xa8, 0x00);
     t.accents.noticeText       = QColor(0x3a, 0x2c, 0x00);
     t.accents.errorText        = QColor(0xa0, 0x00, 0x00);
+    t.caption.background    = QColor(0x0a, 0x54, 0xb8);
+    t.caption.text          = QColor(0xff, 0xff, 0xff);
+    t.caption.buttonHover   = QColor(0x3d, 0x7c, 0xd4);
+    t.caption.closeHover    = QColor(0xd9, 0x4d, 0x21);
+    t.caption.closeHoverText= QColor(0xff, 0xff, 0xff);
 
     // Buttons, tabs and the progress bar carry the look; the rest of the UI
     // reads as XP from the palette alone. #003C74 is Luna's outline blue and
@@ -420,6 +440,11 @@ theming::Theme windows7() {
     t.accents.noticeBorder     = QColor(0xd8, 0xb0, 0x40);
     t.accents.noticeText       = QColor(0x5a, 0x44, 0x00);
     t.accents.errorText        = QColor(0xc0, 0x20, 0x20);
+    t.caption.background    = QColor(0xd6, 0xe4, 0xf5);
+    t.caption.text          = QColor(0x14, 0x28, 0x40);
+    t.caption.buttonHover   = QColor(0xbe, 0xe6, 0xfd);
+    t.caption.closeHover    = QColor(0xe8, 0x11, 0x00);
+    t.caption.closeHoverText= QColor(0xff, 0xff, 0xff);
 
     // The Aero button's four states, in its own colours. Same deliberate
     // omission as the Windows 11 theme: nothing touches QAbstractSpinBox, so
@@ -546,6 +571,11 @@ theming::Theme neutralGrey() {
     // The one deliberate exception: an error that reads as grey is not an
     // error. It is a thin strip of text, far from the image.
     t.accents.errorText        = QColor(0x8c, 0x00, 0x00);
+    t.caption.background    = QColor(0x6e, 0x6e, 0x6e);
+    t.caption.text          = QColor(0xf0, 0xf0, 0xf0);
+    t.caption.buttonHover   = QColor(0x86, 0x86, 0x86);
+    t.caption.closeHover    = QColor(0x8c, 0x00, 0x00);
+    t.caption.closeHoverText= QColor(0xff, 0xff, 0xff);
     return t;
 }
 
@@ -600,6 +630,11 @@ theming::Theme highContrast() {
     t.accents.noticeBorder     = QColor(0xff, 0xff, 0x00);
     t.accents.noticeText       = QColor(0xff, 0xff, 0x00);
     t.accents.errorText        = QColor(0xff, 0x60, 0x60);
+    t.caption.background    = QColor(0x00, 0x00, 0x00);
+    t.caption.text          = QColor(0xff, 0xff, 0x00);
+    t.caption.buttonHover   = QColor(0x33, 0x33, 0x00);
+    t.caption.closeHover    = QColor(0xff, 0xff, 0x00);
+    t.caption.closeHoverText= QColor(0x00, 0x00, 0x00);
     // The primary colour rather than a derived shade: on black there is no
     // darker to derive, and the yellow is what this theme is legible by.
     t.accents.separator        = QColor(0xff, 0xff, 0x00);
@@ -651,6 +686,11 @@ theming::Theme solarizedLight() {
     t.accents.noticeBorder     = QColor(0xb5, 0x89, 0x00);
     t.accents.noticeText       = QColor(0x65, 0x51, 0x00);
     t.accents.errorText        = QColor(0xdc, 0x32, 0x2f);
+    t.caption.background    = QColor(0xee, 0xe8, 0xd5);
+    t.caption.text          = QColor(0x58, 0x6e, 0x75);
+    t.caption.buttonHover   = QColor(0xe0, 0xd9, 0xc3);
+    t.caption.closeHover    = QColor(0xdc, 0x32, 0x2f);
+    t.caption.closeHoverText= QColor(0xfd, 0xf6, 0xe3);
     return t;
 }
 
@@ -703,6 +743,11 @@ theming::Theme phosphor() {
     t.accents.noticeBorder     = QColor(0x3b, 0xf5, 0x3b);
     t.accents.noticeText       = QColor(0x8c, 0xff, 0x8c);
     t.accents.errorText        = QColor(0xc8, 0xff, 0xc8);
+    t.caption.background    = QColor(0x0b, 0x12, 0x0b);
+    t.caption.text          = QColor(0x3b, 0xf5, 0x3b);
+    t.caption.buttonHover   = QColor(0x1c, 0x32, 0x1c);
+    t.caption.closeHover    = QColor(0x3b, 0xf5, 0x3b);
+    t.caption.closeHoverText= QColor(0x04, 0x14, 0x04);
     // Same reasoning as High Contrast: the phosphor green is the only colour
     // in this theme, so the boundaries are drawn in it.
     t.accents.separator        = QColor(0x3b, 0xf5, 0x3b);

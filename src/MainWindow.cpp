@@ -31,6 +31,8 @@
 #include "ui/UiStyle.hpp"
 #include "ui/ViewportFrame.hpp"
 #include "ui/theme/ThemeManager.hpp"
+#include "ui/chrome/TitleBar.hpp"
+#include "ui/chrome/WindowChrome.hpp"
 #include "ui/WorkspaceManager.hpp"
 
 #include <QApplication>
@@ -137,6 +139,14 @@ MainWindow::MainWindow(QVulkanInstance* vulkanInstance, QWidget* parent)
     m_workspaces->activateInitial();
     updateWindowTitle();
 
+    // Last, and after restoreWindowState(): taking over the non-client area
+    // forces a frame recalculation, so it wants the window at its final size.
+    if (m_titleBar) {
+        m_chrome = std::make_unique<WindowChrome>(this, m_titleBar);
+        m_chrome->install();
+        m_titleBar->setWindowMaximized(isMaximized());
+    }
+
     m_viewportFrame->setRecentFiles(recentFiles());
 }
 
@@ -235,8 +245,39 @@ bool MainWindow::eventFilter(QObject* watched, QEvent* event) {
 // ============================================================================
 
 void MainWindow::setupMenus() {
+    // The menu bar lives inside a container with the title bar above it, and
+    // the pair is installed as the window's menu widget. Built explicitly
+    // rather than through menuBar(): that accessor creates and installs a menu
+    // bar of its own, which setMenuWidget() would then have to displace, and
+    // QMainWindow deletes whichever of the two it is holding.
+    m_menuBar = new QMenuBar();
+
+    auto* topArea = new QWidget(this);
+    auto* topLayout = new QVBoxLayout(topArea);
+    topLayout->setContentsMargins(0, 0, 0, 0);
+    topLayout->setSpacing(0);
+
+    if (WindowChrome::isSupported()) {
+        m_titleBar = new TitleBar(topArea);
+        topLayout->addWidget(m_titleBar);
+        connect(m_titleBar, &TitleBar::minimiseRequested, this, &MainWindow::showMinimized);
+        connect(m_titleBar, &TitleBar::maximiseRequested, this, [this]() {
+            // Not toggling a flag: isMaximized() is the state Windows itself
+            // reports, and a maximise triggered by Aero Snap never went
+            // through this button.
+            if (isMaximized()) {
+                showNormal();
+            } else {
+                showMaximized();
+            }
+        });
+        connect(m_titleBar, &TitleBar::closeRequested, this, &MainWindow::close);
+    }
+    topLayout->addWidget(m_menuBar);
+    setMenuWidget(topArea);
+
     // --- File -----------------------------------------------------------
-    m_fileMenu = menuBar()->addMenu(QString());
+    m_fileMenu = m_menuBar->addMenu(QString());
 
     m_openAction = m_fileMenu->addAction(QString(), this, &MainWindow::onOpenScene);
     m_openAction->setShortcut(QKeySequence::Open);
@@ -265,7 +306,7 @@ void MainWindow::setupMenus() {
     m_exitAction->setShortcut(QKeySequence::Quit);
 
     // --- Edit -----------------------------------------------------------
-    m_editMenu = menuBar()->addMenu(QString());
+    m_editMenu = m_menuBar->addMenu(QString());
 
     m_undoAction = m_editMenu->addAction(QString());
     m_undoAction->setShortcut(QKeySequence::Undo);
@@ -289,7 +330,7 @@ void MainWindow::setupMenus() {
     m_preferencesAction->setMenuRole(QAction::PreferencesRole);
 
     // --- View -----------------------------------------------------------
-    m_viewMenu = menuBar()->addMenu(QString());
+    m_viewMenu = m_menuBar->addMenu(QString());
 
     // Panel visibility. Every dock contributes its own toggleViewAction, which
     // is two-way bound to the dock by Qt: closing a panel with its × ticks the
@@ -327,7 +368,7 @@ void MainWindow::setupMenus() {
     buildThemeMenu(m_themeMenu);
 
     // --- Render ---------------------------------------------------------
-    m_renderMenu = menuBar()->addMenu(QString());
+    m_renderMenu = m_menuBar->addMenu(QString());
 
     m_startRenderAction = m_renderMenu->addAction(QString(), this, &MainWindow::onStartRender);
     m_startRenderAction->setShortcut(QKeySequence(Qt::Key_F5));
@@ -354,7 +395,7 @@ void MainWindow::setupMenus() {
     m_spectralMenu = m_renderMenu->addMenu(QString());
 
     // --- Tools ----------------------------------------------------------
-    m_toolsMenu = menuBar()->addMenu(QString());
+    m_toolsMenu = m_menuBar->addMenu(QString());
     m_spectralGenAction = m_toolsMenu->addAction(QString(), this, [this]() {
         QDockWidget* dock = m_docks.value(QStringLiteral("spectralgen"), nullptr);
         if (!dock) {
@@ -369,7 +410,7 @@ void MainWindow::setupMenus() {
     });
 
     // --- Help -----------------------------------------------------------
-    m_helpMenu = menuBar()->addMenu(QString());
+    m_helpMenu = m_menuBar->addMenu(QString());
     m_shortcutsAction = m_helpMenu->addAction(QString(), this, &MainWindow::onShowShortcuts);
     m_shortcutsAction->setShortcut(QKeySequence::HelpContents);
     m_debugReferenceAction = m_helpMenu->addAction(QString(), this,
@@ -1104,8 +1145,19 @@ void MainWindow::changeEvent(QEvent* event) {
         retranslateUi();
     } else if (uistyle::isThemeChangeEvent(event)) {
         restyleUi();
+    } else if (event->type() == QEvent::WindowStateChange && m_titleBar) {
+        // Covers every route into and out of maximised, including the ones the
+        // button never sees: Aero Snap, Win+Up, double-clicking the caption.
+        m_titleBar->setWindowMaximized(isMaximized());
     }
     QMainWindow::changeEvent(event);
+}
+
+bool MainWindow::nativeEvent(const QByteArray& eventType, void* message, qintptr* result) {
+    if (m_chrome && m_chrome->handleNativeEvent(message, result)) {
+        return true;
+    }
+    return QMainWindow::nativeEvent(eventType, message, result);
 }
 
 void MainWindow::retranslateUi() {
@@ -1144,6 +1196,9 @@ void MainWindow::retranslateUi() {
     }
     if (m_viewportFrame) {
         m_viewportFrame->retranslateUi();
+    }
+    if (m_titleBar) {
+        m_titleBar->retranslateUi();
     }
     m_panelsMenu->setTitle(tr("&Panels"));
     m_resetLayoutAction->setText(tr("&Reset Layout"));

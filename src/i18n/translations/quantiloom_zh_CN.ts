@@ -2584,6 +2584,25 @@ Not suitable for quantitative analysis. Load measured spectral materials for acc
     </message>
 </context>
 <context>
+    <name>TitleBar</name>
+    <message>
+        <source>Minimise</source>
+        <translation>最小化</translation>
+    </message>
+    <message>
+        <source>Restore Down</source>
+        <translation>向下还原</translation>
+    </message>
+    <message>
+        <source>Maximise</source>
+        <translation>最大化</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation>关闭</translation>
+    </message>
+</context>
+<context>
     <name>UndoStack</name>
     <message>
         <source>Undo</source>

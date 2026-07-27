@@ -32,6 +32,7 @@ class QProgressBar;
 class QLabel;
 class QAction;
 class QMenu;
+class QMenuBar;
 class QScrollArea;
 class QToolBar;
 QT_END_NAMESPACE
@@ -59,6 +60,8 @@ class DisplayEnhancementPanel;
 class SpectralMaterialGenPanel;
 class ConfigManager;
 class ViewportFrame;
+class TitleBar;
+class WindowChrome;
 class WorkspaceManager;
 class SelectionManager;
 class TransformGizmo;
@@ -92,6 +95,9 @@ public:
 protected:
     void closeEvent(QCloseEvent* event) override;
     void changeEvent(QEvent* event) override;
+    /// Routes Windows' non-client messages to WindowChrome, which is what
+    /// removes the system caption and answers the hit test.
+    bool nativeEvent(const QByteArray& eventType, void* message, qintptr* result) override;
     /// Routes the viewport's transform keys into the same QActions the menu
     /// uses, so there is one dispatcher rather than two.
     bool eventFilter(QObject* watched, QEvent* event) override;
@@ -374,4 +380,9 @@ private:
     void applyPendingMaterialConfigs();
 
     uistyle::StyleBindings m_styling;
+
+    // The window draws its own caption; see ui/chrome/WindowChrome.hpp.
+    QMenuBar* m_menuBar = nullptr;
+    TitleBar* m_titleBar = nullptr;
+    std::unique_ptr<WindowChrome> m_chrome;
 };

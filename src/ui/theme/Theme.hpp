@@ -60,6 +60,21 @@ struct Accents {
     QColor separator;
 };
 
+/// Colours for the window's own title bar, once the application draws it
+/// rather than Windows. Only four are given per theme; the inactive variants
+/// are faded from these, because nine themes times every state is a lot of hex
+/// for a strip of chrome.
+struct Caption {
+    QColor background;
+    QColor text;
+    /// Wash behind a caption button under the cursor.
+    QColor buttonHover;
+    /// Close is the one button that gets its own hover colour, by every
+    /// platform's convention, because it is the one that cannot be undone.
+    QColor closeHover;
+    QColor closeHoverText;
+};
+
 struct Theme {
     /// Stable identifier. Persisted in QSettings and used in the menu; never
     /// shown to the user, never translated. See ThemeManager::displayName().
@@ -76,6 +91,7 @@ struct Theme {
 
     QPalette palette;
     Accents accents;
+    Caption caption;
 
     /// Application-wide style sheet, or empty for none.
     ///
