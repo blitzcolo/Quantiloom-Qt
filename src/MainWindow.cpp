@@ -1029,6 +1029,10 @@ void MainWindow::setupConnections() {
     connect(m_vulkanWindow, &QuantiloomVulkanWindow::sceneLoaded,
             this, [this](bool success, const QString& message) {
                 if (success) {
+                    // The open is only now known to have worked, which is the
+                    // first point at which the file is worth remembering.
+                    rememberRecentFile(m_pendingOpenPath);
+                    m_pendingOpenPath.clear();
                     updatePanelsFromScene();
                     applyPendingMaterialConfigs();
                     showStatusMessage(message);
@@ -1047,6 +1051,8 @@ void MainWindow::setupConnections() {
                     // then exec()ed a nested event loop in the middle of it,
                     // which is why it came up empty and took the window with
                     // it.
+                    m_pendingOpenPath.clear();
+
                     QMetaObject::invokeMethod(this, [this, message]() {
                         // Deliberately *not* returning to the guidance page.
                         //
@@ -1350,10 +1356,11 @@ void MainWindow::setCurrentDocument(const QString& filePath) {
     if (filePath.endsWith(QLatin1String(".toml"), Qt::CaseInsensitive)) {
         m_currentConfigFile = filePath;
     }
-    rememberRecentFile(filePath);
-    if (m_viewportFrame) {
-        m_viewportFrame->setRecentFiles(recentFiles());
-    }
+    // Deliberately not remembering the file here. This runs when the open is
+    // *requested*, and for a model or a config's scene the load is asynchronous
+    // -- so a file that turned out to be unopenable was listed under Recent
+    // regardless. It is remembered from the sceneLoaded handler instead, where
+    // the outcome is known.
     updateWindowTitle();
 }
 
@@ -1403,6 +1410,9 @@ void MainWindow::rememberRecentFile(const QString& filePath) {
     }
     settings.setValue(kRecentFilesKey, files);
     rebuildRecentMenu();
+    if (m_viewportFrame) {
+        m_viewportFrame->setRecentFiles(recentFiles());
+    }
 }
 
 void MainWindow::rebuildRecentMenu() {
@@ -1519,7 +1529,21 @@ bool MainWindow::openPath(const QString& filePath) {
                 tr("Failed to load configuration: %1").arg(m_configManager->lastError()));
             return false;
         }
+        // Any syntactically valid TOML parses, so a successful load says
+        // nothing about whether this file is a *scene* configuration. Without
+        // a scene there is nothing to render and applyConfig() would quietly
+        // do nothing at all -- which is how opening an unrelated .toml from
+        // some other project reported success and showed an empty viewport.
+        // The core rejects the same input for the same reason.
+        if (config.gltfPath.isEmpty() && config.usdPath.isEmpty()) {
+            QMessageBox::warning(this, tr("Open Failed"),
+                tr("%1 is not a scene configuration: it names no scene.gltf or scene.usd.")
+                    .arg(QFileInfo(filePath).fileName()));
+            return false;
+        }
+
         m_currentConfigFile = filePath;
+        m_pendingOpenPath = filePath;
         applyConfig(config);
         setSceneModified(false);
         setCurrentDocument(filePath);
@@ -1535,6 +1559,7 @@ bool MainWindow::openPath(const QString& filePath) {
     // only creates its renderer once it is exposed, so keeping the guidance
     // page up until the scene reports success would wait on a renderer that
     // was itself waiting to be shown.
+    m_pendingOpenPath = filePath;
     m_viewportFrame->setSceneLoaded(true);
     m_vulkanWindow->loadScene(filePath);
     setSceneModified(false);

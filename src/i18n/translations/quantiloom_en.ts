@@ -1072,6 +1072,10 @@ May cause colour shifts.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>%1 is not a scene configuration: it names no scene.gltf or scene.usd.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Loaded configuration: %1</source>
         <translation type="unfinished"></translation>
     </message>

@@ -200,6 +200,9 @@ private:
 
     // --- recent files ----------------------------------------------------
     void rememberRecentFile(const QString& filePath);
+    /// What the user asked to open, held until the load reports back: only a
+    /// file that actually opened belongs in the recent list.
+    QString m_pendingOpenPath;
     void rebuildRecentMenu();
     [[nodiscard]] QStringList recentFiles() const;
 

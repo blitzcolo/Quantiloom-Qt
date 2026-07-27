@@ -1084,6 +1084,10 @@ May cause colour shifts.</source>
         <translation>加载配置失败：%1</translation>
     </message>
     <message>
+        <source>%1 is not a scene configuration: it names no scene.gltf or scene.usd.</source>
+        <translation>%1 不是场景配置：其中没有指定 scene.gltf 或 scene.usd。</translation>
+    </message>
+    <message>
         <source>Loaded configuration: %1</source>
         <translation>已加载配置：%1</translation>
     </message>
