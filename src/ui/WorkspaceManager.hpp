@@ -94,6 +94,10 @@ private:
     /// Take every dock out of the layout so a placement starts from nothing.
     /// Docks named in @p keepPlaced are un-floated first because they are
     /// about to be docked again; unnamed floating ones are left as they are.
+    /// Hide every docked panel, leaving the layout tree intact, so that a
+    /// following restoreState() shows exactly the docks its blob names.
+    void hideDocks();
+
     void detachDocks(const QSet<QString>& keepPlaced);
     void applyPreset(const QString& id);
     void onTabChanged(int index);

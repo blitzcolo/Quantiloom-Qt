@@ -142,15 +142,7 @@ void WorkspaceManager::applyWorkspace(const QString& id) {
 
     const auto it = m_states.constFind(id);
     if (it != m_states.constEnd() && !it->isEmpty()) {
-        // Clear the layout first. restoreState only describes the docks that
-        // were in the layout when the state was captured, and it leaves any
-        // other dock exactly where it is -- so a panel that a *different*
-        // workspace added since then survives into this one, and the columns
-        // fill up a little more with every switch. applyPreset never had the
-        // problem because it detaches everything up front; this is the same
-        // step, and the reason resetting a layout looked so much tidier than
-        // returning to it.
-        detachDocks({});
+        hideDocks();
         if (!m_window->restoreState(*it, kLayoutVersion)) {
             applyPreset(id);
         }
@@ -167,6 +159,28 @@ void WorkspaceManager::captureCurrent() {
         return;
     }
     m_states.insert(m_current, m_window->saveState(kLayoutVersion));
+}
+
+void WorkspaceManager::hideDocks() {
+    // Hide, deliberately, rather than removeDockWidget().
+    //
+    // restoreState() names only the docks that were in the layout when the
+    // state was captured and leaves every other one alone, so without this a
+    // panel placed by a *different* workspace survives into this one and the
+    // columns fill up a little more with every switch. But detaching them is
+    // the wrong instrument: it takes them out of the layout tree that
+    // restoreState then has to rebuild against, and the arrangement that comes
+    // back is not the one that was saved. Hiding keeps every dock in the tree,
+    // and restoreState shows exactly those its blob mentions.
+    //
+    // Floating docks are exempt: that is the spectral generator standing open
+    // as a tool window, and switching workspace to look something up should not
+    // slam it shut.
+    for (QDockWidget* dock : std::as_const(m_docks)) {
+        if (!dock->isFloating()) {
+            dock->hide();
+        }
+    }
 }
 
 void WorkspaceManager::detachDocks(const QSet<QString>& keepPlaced) {
@@ -250,9 +264,17 @@ void WorkspaceManager::resetCurrentToDefault() {
 void WorkspaceManager::activateInitial() {
     m_switching = true;
     const auto it = m_states.constFind(m_current);
-    if (it == m_states.constEnd() || it->isEmpty() ||
-        !m_window->restoreState(*it, kLayoutVersion)) {
+    if (it == m_states.constEnd() || it->isEmpty()) {
         applyPreset(m_current);
+    } else {
+        // The same two steps applyWorkspace() takes. These two paths differing
+        // is what made a layout correct on startup and wrong after switching
+        // away and back: setupDockWidgets() adds every panel to the layout, so
+        // whichever path does not clear them first inherits the lot.
+        hideDocks();
+        if (!m_window->restoreState(*it, kLayoutVersion)) {
+            applyPreset(m_current);
+        }
     }
     // Keep the tab bar in step with a workspace restored from settings.
     for (int i = 0; i < m_tabBar->count(); ++i) {
