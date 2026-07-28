@@ -15,6 +15,7 @@
 #include <chrono>
 
 #include <glm/glm.hpp>
+#include <core/SpectralData.hpp>
 #include <core/Types.hpp>
 #include <renderer/LightingParams.hpp>
 #include <atmos/AtmosphereNNConfig.hpp>
@@ -73,6 +74,12 @@ public:
     void setLightingParams(const quantiloom::LightingParams& params);
     void updateMaterial(int index, const quantiloom::Material& material);
     int addComplexRefractiveIndex(const quantiloom::ComplexRefractiveIndex& cri);
+
+    // Quantitative spectral data. Without these the context binds zeroed buffers and
+    // every material renders through the RGB-upsampled fallback.
+    int addSpectralCurve(const quantiloom::SpectralCurve& curve);
+    void setSolarSpectralLUT(const quantiloom::SpectralCurve& sun,
+                             const quantiloom::SpectralCurve& sky);
     void resetAccumulation();
     uint32_t currentSampleCount() const { return m_sampleCount; }
     uint32_t targetSPP() const { return m_targetSPP; }

@@ -15,6 +15,7 @@
 #include <vulkan/vulkan.h>
 
 #include <glm/glm.hpp>
+#include <core/SpectralData.hpp>
 #include <core/Types.hpp>
 
 namespace quantiloom {
@@ -146,6 +147,9 @@ public:
      * @return Index into CRI buffer, or -1 on failure
      */
     int addComplexRefractiveIndex(const quantiloom::ComplexRefractiveIndex& cri);
+    int addSpectralCurve(const quantiloom::SpectralCurve& curve);
+    void setSolarSpectralLUT(const quantiloom::SpectralCurve& sun,
+                             const quantiloom::SpectralCurve& sky);
 
     /**
      * @brief Reset render accumulation

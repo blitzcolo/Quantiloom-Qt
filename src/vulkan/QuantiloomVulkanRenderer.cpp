@@ -450,6 +450,18 @@ int QuantiloomVulkanRenderer::addComplexRefractiveIndex(const quantiloom::Comple
     return -1;
 }
 
+int QuantiloomVulkanRenderer::addSpectralCurve(const quantiloom::SpectralCurve& curve) {
+    if (m_renderContext)
+        return m_renderContext->AddSpectralCurve(curve);
+    return -1;
+}
+
+void QuantiloomVulkanRenderer::setSolarSpectralLUT(const quantiloom::SpectralCurve& sun,
+                                                   const quantiloom::SpectralCurve& sky) {
+    if (m_renderContext)
+        m_renderContext->SetSolarSpectralLUT(sun, sky);
+}
+
 const quantiloom::Scene* QuantiloomVulkanRenderer::getScene() const {
     return m_renderContext ? m_renderContext->GetScene() : nullptr;
 }

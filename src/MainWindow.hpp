@@ -382,6 +382,11 @@ private:
     std::unique_ptr<SceneConfig> m_lastConfig;
     void applyPendingMaterialConfigs();
 
+    // Upload the quantitative spectral data the opened config names, and point the
+    // materials that asked for it at the uploaded curves. Without this the render
+    // context binds zeroed buffers and every material takes the RGB fallback.
+    void applySpectralConfig();
+
     uistyle::StyleBindings m_styling;
 
     // The window draws its own caption; see ui/chrome/WindowChrome.hpp.

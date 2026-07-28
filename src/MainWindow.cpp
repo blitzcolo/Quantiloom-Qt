@@ -68,6 +68,8 @@
 #include <core/Types.hpp>
 #include <core/Image.hpp>
 #include <io/ImageIO.hpp>
+#include <io/SpectralIO.hpp>
+#include <core/Log.hpp>
 #include <scene/Material.hpp>
 #include <scene/Scene.hpp>
 #include <renderer/LightingParams.hpp>
@@ -1065,6 +1067,7 @@ void MainWindow::setupConnections() {
                     rememberRecentFile(m_pendingOpenPath);
                     m_pendingOpenPath.clear();
                     updatePanelsFromScene();
+                    applySpectralConfig();
                     applyPendingMaterialConfigs();
                     showStatusMessage(message);
                 } else {
@@ -2128,6 +2131,80 @@ void MainWindow::collectCurrentConfig(SceneConfig& config) {
     // Collect sensor settings
     config.sensorEnabled = m_sensorPanel->isSensorEnabled();
     config.sensorParams = m_sensorPanel->getSensorParams();
+}
+
+void MainWindow::applySpectralConfig() {
+    const quantiloom::Config* config = m_configManager->getRawConfig();
+    if (!config) {
+        return;
+    }
+
+    // Illuminant first: a reflectance curve describes what a surface does to light,
+    // so without a solar spectrum the quantitative path has nothing to reflect.
+    if (config->Has("lighting.solar_lut")) {
+        const auto path = config->Get<std::string>("lighting.solar_lut");
+        auto loaded = quantiloom::SpectralIO::LoadLibRadtranSunAndSky(path, "nm");
+        if (loaded.has_value()) {
+            const auto& [sun, sky] = loaded.value();
+            m_vulkanWindow->setSolarSpectralLUT(sun, sky);
+            QL_LOG_INFO("Solar LUT loaded from {}", path);
+        } else {
+            // Core logger rather than qWarning: with no console attached Qt sends
+            // qWarning to the debugger, so a failure here would be invisible in the
+            // same log that carries what it is reporting about.
+            QL_LOG_WARN("Solar LUT failed to load: {}", loaded.error());
+        }
+    }
+
+    if (!config->HasSection("spectral_curves")) {
+        return;
+    }
+
+    // [spectral_curves] maps a material name to a measured reflectance CSV -- the
+    // same section the CLI reads, so a config renders the same either way.
+    const auto* scene = m_vulkanWindow->getScene();
+    if (!scene) {
+        return;
+    }
+
+    std::unordered_map<std::string, int> nameToCurve;
+    for (const auto& [materialName, csvPath] : config->GetSection("spectral_curves")) {
+        auto samples = quantiloom::SpectralIO::LoadSpectralCurveCSV(csvPath);
+        if (!samples.has_value()) {
+            QL_LOG_WARN("Spectral curve for '{}' failed to load: {}", materialName,
+                        samples.error());
+            continue;
+        }
+
+        quantiloom::SpectralCurve curve;
+        curve.samples = samples.value();
+
+        const int index = m_vulkanWindow->addSpectralCurve(curve);
+        if (index >= 0) {
+            nameToCurve[materialName] = index;
+        }
+    }
+
+    if (nameToCurve.empty()) {
+        return;
+    }
+
+    // The curves are on the GPU; a material only uses one once its index says so.
+    for (size_t i = 0; i < scene->materials.size(); ++i) {
+        const auto found = nameToCurve.find(scene->materials[i].name);
+        if (found == nameToCurve.end()) {
+            continue;
+        }
+
+        quantiloom::Material updated = scene->materials[i];
+        updated.spectralReflectanceCurveIndex = found->second;
+        m_vulkanWindow->updateMaterial(static_cast<quantiloom::u32>(i), updated);
+
+        QL_LOG_INFO("Material '{}' -> spectral curve index {}", updated.name,
+                    found->second);
+    }
+
+    showStatusMessage(tr("Loaded %1 spectral curve(s)").arg(nameToCurve.size()));
 }
 
 void MainWindow::applyPendingMaterialConfigs() {
