@@ -11,6 +11,7 @@
 #include <renderer/ExternalRenderContext.hpp>
 #include <renderer/LightingParams.hpp>
 #include <atmos/AtmosphereNNConfig.hpp>
+#include <core/Log.hpp>
 #include <scene/Material.hpp>
 #include <scene/Scene.hpp>
 #include <core/Image.hpp>
@@ -790,38 +791,6 @@ std::unique_ptr<quantiloom::Image> QuantiloomVulkanRenderer::captureDisplayImage
 // Atmospheric Configuration
 // ============================================================================
 
-void QuantiloomVulkanRenderer::setAtmosphericPreset(const QString& preset) {
-    m_atmosphericPreset = preset;
-    std::string presetStr = preset.toLower().toStdString();
-
-    // Map legacy analytic preset names to their closest NN preset
-    if (presetStr == "clear_day" || presetStr == "mountain_top") {
-        presetStr = "clear";
-    } else if (presetStr == "hazy") {
-        presetStr = "haze";
-    } else if (presetStr == "polluted_urban") {
-        presetStr = "urban_haze";
-    } else if (presetStr == "mars") {
-        qWarning() << "Atmospheric preset 'mars' has no NN equivalent, disabling atmosphere";
-        presetStr = "disabled";
-    }
-
-    quantiloom::AtmosphereNNConfig config;
-    config.modelPackDir = m_atmosphericConfig.modelPackDir;  // Keep user's pack dir
-    if (config.ApplyPreset(presetStr)) {
-        config.enabled = (presetStr != "disabled");
-    } else {
-        qWarning() << "Unknown atmospheric preset" << preset << "- disabling atmosphere";
-        config.enabled = false;
-        config.preset = "disabled";
-    }
-    m_atmosphericConfig = config;
-
-    applyAtmosphereToContext();
-
-    qDebug() << "Atmospheric preset set to:" << QString::fromStdString(presetStr);
-}
-
 void QuantiloomVulkanRenderer::setAtmosphericConfig(const quantiloom::AtmosphereNNConfig& config) {
     m_atmosphericConfig = config;
     applyAtmosphereToContext();
@@ -853,21 +822,25 @@ void QuantiloomVulkanRenderer::applyAtmosphereToContext() {
     if (config.enabled && config.modelPackDir.empty()) {
         config.modelPackDir = resolveDefaultModelPackDir();
         if (config.modelPackDir.empty()) {
-            qWarning() << "NN atmosphere model pack not found (set QUANTILOOM_ATMOS_MODELS "
-                          "or pick a directory in the Atmospheric panel); disabling atmosphere";
+            QL_LOG_WARN("NN atmosphere model pack not found (set QUANTILOOM_ATMOS_MODELS "
+                        "or pick a directory in the Atmospheric panel); disabling atmosphere");
             config.enabled = false;
         }
     }
 
+    // These go through the core logger, not qWarning: with no console attached
+    // Qt routes qWarning to the debugger, where it does not appear in the log
+    // that carries the bake messages this would be read next to. A silently
+    // disabled atmosphere is indistinguishable from one that never ran.
     try {
         m_renderContext->SetAtmosphere(config);
     } catch (const std::exception& e) {
-        qWarning() << "Failed to apply NN atmosphere:" << e.what() << "- disabling atmosphere";
+        QL_LOG_WARN("Failed to apply NN atmosphere: {} - disabling atmosphere", e.what());
         config.enabled = false;
         try {
             m_renderContext->SetAtmosphere(config);
         } catch (const std::exception& e2) {
-            qWarning() << "Failed to disable NN atmosphere:" << e2.what();
+            QL_LOG_WARN("Failed to disable NN atmosphere: {}", e2.what());
         }
     }
 }

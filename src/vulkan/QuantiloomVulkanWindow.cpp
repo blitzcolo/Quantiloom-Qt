@@ -292,10 +292,6 @@ std::unique_ptr<quantiloom::Image> QuantiloomVulkanWindow::captureDisplayImage()
 // Atmospheric Configuration
 // ============================================================================
 
-void QuantiloomVulkanWindow::setAtmosphericPreset(const QString& preset) {
-    withRenderer([preset](QuantiloomVulkanRenderer& r) { r.setAtmosphericPreset(preset); });
-}
-
 void QuantiloomVulkanWindow::setAtmosphericConfig(const quantiloom::AtmosphereNNConfig& config) {
     withRenderer([config](QuantiloomVulkanRenderer& r) { r.setAtmosphericConfig(config); });
 }

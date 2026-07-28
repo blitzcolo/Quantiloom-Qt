@@ -2004,7 +2004,10 @@ void MainWindow::applyConfig(const SceneConfig& config) {
     m_atmosphericPanel->setAtmosphericConfig(config.atmosphere);
     m_atmosphericPanel->setAnalyticTerms(config.lighting.transmittance,
                                          config.lighting.atmosphereTemperature_K);
-    m_vulkanWindow->setAtmosphericPreset(config.atmosphericPreset);
+    // The whole struct, not just the preset name: ConfigManager parses all nine
+    // weather features, and sending only the preset threw every override away
+    // between the panel and the GPU.
+    m_vulkanWindow->setAtmosphericConfig(config.atmosphere);
 
     // Apply sensor configuration
     m_sensorPanel->setSensorParams(config.sensorParams);  // Always set params first

@@ -221,7 +221,6 @@ public:
      *               "fog", "light_rain", "heavy_rain", "snow", "haze",
      *               "disabled" (legacy analytic names are mapped)
      */
-    void setAtmosphericPreset(const QString& preset);
 
     /**
      * @brief Set full NN atmosphere configuration

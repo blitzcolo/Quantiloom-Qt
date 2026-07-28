@@ -170,8 +170,11 @@ void ConfigManager::extractSceneConfig(const quantiloom::Config& config, SceneCo
     out.atmosphere.ApplyPreset(out.atmosphericPreset.toStdString());
     out.atmosphere.modelPackDir = config.GetString("atmosphere.model_pack", "");
     out.atmosphere.preset = out.atmosphericPreset.toStdString();
-    // The core enables the NN atmosphere only when a model pack is named.
-    out.atmosphere.enabled = out.atmosphericEnabled && !out.atmosphere.modelPackDir.empty();
+    // Naming a preset is the opt-in; the model pack is a deployment artifact
+    // that ships next to the executable, so a scene does not have to name a
+    // path to it. An explicit atmosphere.model_pack still wins, and
+    // QuantiloomVulkanRenderer::applyAtmosphereToContext resolves an empty one.
+    out.atmosphere.enabled = out.atmosphericEnabled;
 
     out.atmosphere.atmosModel = config.GetFloat("atmosphere.atmos_model",
         static_cast<quantiloom::f32>(out.atmosphere.atmosModel));

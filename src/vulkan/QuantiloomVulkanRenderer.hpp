@@ -171,7 +171,6 @@ public:
      *               "disabled". Legacy analytic names (e.g. "clear_day")
      *               are mapped to their closest NN preset.
      */
-    void setAtmosphericPreset(const QString& preset);
 
     /**
      * @brief Set atmosphere configuration directly
@@ -294,7 +293,6 @@ private:
 
     // Atmosphere configuration (NN MODTRAN surrogate)
     quantiloom::AtmosphereNNConfig m_atmosphericConfig;  // Default: disabled
-    QString m_atmosphericPreset = "disabled";
 
     // Push m_atmosphericConfig to the render context, resolving the model
     // pack directory and downgrading to disabled on failure
