@@ -150,6 +150,37 @@ MainWindow::MainWindow(QVulkanInstance* vulkanInstance, QWidget* parent)
     }
 
     m_viewportFrame->setRecentFiles(recentFiles());
+
+    // Make QMainWindowLayout re-read the dock separator width from the shell
+    // style sheet, which it has not done at any point above.
+    //
+    // That width is a style pixel metric, PM_DockWidgetSeparatorExtent, and
+    // QMainWindowLayout reads it exactly once -- from its own constructor,
+    // which runs inside the QMainWindow base constructor, before this body has
+    // set any style sheet. The only thing that refreshes it afterwards is
+    // QMainWindow::event() seeing a QEvent::StyleChange. At startup no such
+    // event arrives after the sheet is in place: ThemeManager calls
+    // QApplication::setStyle() from main(), before this window exists, and the
+    // StyleChange that setStyleSheet() itself sends lands while the window is
+    // still unpolished, so the style sheet rule does not resolve and the metric
+    // falls back to the plain Fusion default.
+    //
+    // So the width was silently ignored for the whole first session and only
+    // took effect once the user switched themes, which calls setStyle() again
+    // with the window up. Every theme had this; it stayed invisible because the
+    // seven that leave Accents::separator unset ask for 4px and the unstyled
+    // default is close enough to pass. Print Friendly asks for 1px against a
+    // white ground, where a four-pixel black band is not something you miss.
+    //
+    // Queued rather than sent here, because "here" is still inside the
+    // constructor and the window is not polished yet -- the same condition that
+    // defeated the event setStyleSheet() already sent. One shot, not bound into
+    // m_styling: a theme switch re-reads the metric on its own, and rescheduling
+    // this from the setter it provokes would not terminate.
+    QTimer::singleShot(0, this, [this] {
+        QEvent styleChange(QEvent::StyleChange);
+        QApplication::sendEvent(this, &styleChange);
+    });
 }
 
 MainWindow::~MainWindow() = default;
