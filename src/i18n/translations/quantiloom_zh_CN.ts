@@ -2586,6 +2586,10 @@ Not suitable for quantitative analysis. Load measured spectral materials for acc
         <source>Green Phosphor</source>
         <translation>绿色荧光</translation>
     </message>
+    <message>
+        <source>Print Friendly</source>
+        <translation>打印友好</translation>
+    </message>
 </context>
 <context>
     <name>TitleBar</name>

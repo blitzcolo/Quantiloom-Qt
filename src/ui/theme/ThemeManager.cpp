@@ -22,6 +22,7 @@ const QString ThemeManager::kNeutralGrey    = QStringLiteral("neutral-grey");
 const QString ThemeManager::kHighContrast   = QStringLiteral("high-contrast");
 const QString ThemeManager::kSolarizedLight = QStringLiteral("solarized-light");
 const QString ThemeManager::kPhosphor       = QStringLiteral("phosphor");
+const QString ThemeManager::kPrintFriendly  = QStringLiteral("print-friendly");
 
 namespace {
 
@@ -758,6 +759,246 @@ theming::Theme phosphor() {
     return t;
 }
 
+// ---------------------------------------------------------------------------
+// Print Friendly
+// ---------------------------------------------------------------------------
+// For screenshotting the window and printing it on a monochrome laser printer.
+// The other eight themes are about how the application looks on a display; this
+// one is about what survives a grayscale conversion and a halftone screen, which
+// is a different problem with a different answer.
+//
+// Three things follow from the target and drive every value below.
+//
+// **Hue carries nothing.** A grayscale conversion is a luminance projection, so
+// two colours of different hue but equal luminance become the same grey. Every
+// distinction this theme makes is therefore a luminance distinction -- there is
+// no colour anywhere in it, not because monochrome is the aesthetic but because
+// a colour that had to be told apart from another colour would not survive the
+// trip.
+//
+// **Mid greys are the enemy, not the middle ground.** A laser printer has no
+// continuous tone: it renders grey as a halftone dot screen, and a 600 dpi
+// engine has on the order of ten to twenty usable levels. Density peaks around
+// 50%, which is exactly where small text set in grey turns into a dot pattern.
+// So the levels used here are pushed to the ends -- white, black, a light grey
+// at ~14% for fills and a dark grey at ~24-38% for secondary text -- and no text
+// is ever set on a mid grey. This is also why the disabled group is written out
+// rather than passed through deriveDisabledGroup(): fading text towards a white
+// window lands it in the dead zone and then past it into invisibility.
+//
+// **Structure has to be drawn, not shaded.** Print advice for the web is to drop
+// background fills and replace them with borders, and the same applies here: a
+// widget whose edge is a subtle shade of the window has no edge at all once
+// printed. That is what the style sheet is for. Fusion is the style because it
+// is the flattest starting point, but Fusion derives its own outline colour as
+// window.darker(140), which on a white window is #b6b6b6 -- a light grey that
+// prints as almost nothing. There is no palette role that overrides it; Light,
+// Midlight, Mid, Dark and Shadow do not feed it. So the outlines are restated in
+// QSS at full black, which is the one thing here a palette cannot express.
+theming::Theme printFriendly() {
+    theming::Theme t;
+    t.id = ThemeManager::kPrintFriendly;
+    t.styleKey = QStringLiteral("Fusion");
+    t.colorScheme = Qt::ColorScheme::Light;
+
+    QPalette p;
+    p.setColor(QPalette::Window,          QColor(0xff, 0xff, 0xff));
+    p.setColor(QPalette::WindowText,      QColor(0x00, 0x00, 0x00));
+    p.setColor(QPalette::Base,            QColor(0xff, 0xff, 0xff));
+    // The one tint in the theme: alternating rows need to differ from plain
+    // ones, and ~7% is light enough that black text over it stays crisp.
+    p.setColor(QPalette::AlternateBase,   QColor(0xed, 0xed, 0xed));
+    p.setColor(QPalette::Text,            QColor(0x00, 0x00, 0x00));
+    p.setColor(QPalette::Button,          QColor(0xff, 0xff, 0xff));
+    p.setColor(QPalette::ButtonText,      QColor(0x00, 0x00, 0x00));
+    // The role means "text that contrasts with Highlight", and Highlight here
+    // is black.
+    p.setColor(QPalette::BrightText,      QColor(0xff, 0xff, 0xff));
+    // Selection as a solid black bar with knocked-out white text. The usual
+    // blue is a mid grey once converted, which puts white text at about 3:1
+    // and black text at about 4:1 -- a selected row that is harder to read
+    // than an unselected one.
+    p.setColor(QPalette::Highlight,       QColor(0x00, 0x00, 0x00));
+    p.setColor(QPalette::HighlightedText, QColor(0xff, 0xff, 0xff));
+    p.setColor(QPalette::ToolTipBase,     QColor(0xff, 0xff, 0xff));
+    p.setColor(QPalette::ToolTipText,     QColor(0x00, 0x00, 0x00));
+    // Links are black and stay underlined rather than blue: blue prints at
+    // roughly the same density as body text, so the colour distinguished
+    // nothing and only cost contrast.
+    p.setColor(QPalette::Link,            QColor(0x00, 0x00, 0x00));
+    p.setColor(QPalette::LinkVisited,     QColor(0x00, 0x00, 0x00));
+    p.setColor(QPalette::PlaceholderText, QColor(0x60, 0x60, 0x60));
+    // Bevel roles: white highlight, black shadow, so any bevel Fusion does draw
+    // from the palette lands on one end of the range or the other.
+    p.setColor(QPalette::Light,           QColor(0xff, 0xff, 0xff));
+    p.setColor(QPalette::Midlight,        QColor(0xf2, 0xf2, 0xf2));
+    p.setColor(QPalette::Mid,             QColor(0x80, 0x80, 0x80));
+    p.setColor(QPalette::Dark,            QColor(0x00, 0x00, 0x00));
+    p.setColor(QPalette::Shadow,          QColor(0x00, 0x00, 0x00));
+    t.palette = p;
+
+    // Written out rather than derived, as above. #606060 is about 6:1 against
+    // white -- unmistakably lighter than the black of an enabled control, and
+    // still dark enough to print as letters rather than as texture.
+    for (QPalette::ColorRole role : {QPalette::WindowText, QPalette::Text,
+                                     QPalette::ButtonText, QPalette::ToolTipText}) {
+        t.palette.setColor(QPalette::Disabled, role, QColor(0x60, 0x60, 0x60));
+    }
+    t.palette.setColor(QPalette::Disabled, QPalette::Highlight,       QColor(0x60, 0x60, 0x60));
+    t.palette.setColor(QPalette::Disabled, QPalette::HighlightedText, QColor(0xff, 0xff, 0xff));
+
+    // The chips are a three-step luminance ladder -- 0%, 71%, 14% -- rather than
+    // three hues. Each keeps its text at the far end of the range from its own
+    // background; the mid greys that would sit between these steps are skipped
+    // because neither black nor white text is legible on them.
+    t.accents.accentChip  = {QColor(0x00, 0x00, 0x00), QColor(0xff, 0xff, 0xff)};
+    t.accents.warningChip = {QColor(0x4a, 0x4a, 0x4a), QColor(0xff, 0xff, 0xff)};
+    t.accents.neutralChip = {QColor(0xdc, 0xdc, 0xdc), QColor(0x00, 0x00, 0x00)};
+    // No fill: a notice is marked out by its black rule, which costs no toner
+    // and cannot muddy the text inside it.
+    t.accents.noticeBackground = QColor(0xff, 0xff, 0xff);
+    t.accents.noticeBorder     = QColor(0x00, 0x00, 0x00);
+    t.accents.noticeText       = QColor(0x00, 0x00, 0x00);
+    // Black, and so indistinguishable from body text -- the one thing this
+    // theme genuinely cannot express. Any grey that set it apart would set it
+    // apart by being *less* prominent than ordinary text, which is backwards
+    // for an error. The notice box's rule carries the emphasis instead.
+    t.accents.errorText        = QColor(0x00, 0x00, 0x00);
+    // Named, not derived: white has nothing darker to derive from, exactly as
+    // for High Contrast and Phosphor at the other end. Naming it also narrows
+    // the dock separators from 4px to 2px, which is the whole of what this
+    // theme needs -- solid black is the cheapest line a laser printer can lay
+    // down reliably, so the band wants to be thin rather than pale. Screening
+    // it to a grey instead would have been the wrong trade: grey is a halftone,
+    // and a hairline halftone prints as intermittent dots rather than a line.
+    t.accents.separator        = QColor(0x00, 0x00, 0x00);
+    // ~24% grey. The derived midpoint would be #808080, the worst density a
+    // halftone screen has; see Accents::mutedText.
+    t.accents.mutedText        = QColor(0x3d, 0x3d, 0x3d);
+
+    t.caption.background    = QColor(0xff, 0xff, 0xff);
+    t.caption.text          = QColor(0x00, 0x00, 0x00);
+    t.caption.buttonHover   = QColor(0xdc, 0xdc, 0xdc);
+    t.caption.closeHover    = QColor(0x00, 0x00, 0x00);
+    t.caption.closeHoverText= QColor(0xff, 0xff, 0xff);
+
+    // Every rule here exists to replace something Fusion would have drawn in
+    // its derived #b6b6b6 outline. Sizes are in em so they track the font and
+    // therefore the DPI scale factor, the same reasoning as UiStyle's padding.
+    //
+    // Two conventions worth stating because they are not the obvious choice:
+    //
+    // - A pressed or selected control is filled black with its text knocked out
+    //   white; a *checked* tool button instead keeps its white fill and doubles
+    //   its border. Filling a checked tool button would have been stronger, but
+    //   these carry icons, and an icon drawn in the theme's black over a black
+    //   fill is an empty button. The padding drops by the pixel the border
+    //   gains so the button does not resize when it is toggled.
+    // - Check boxes and radio buttons fill solid when checked instead of
+    //   drawing a tick or a dot. Once a border is set on an indicator, Qt stops
+    //   drawing the native tick and expects an `image:` to replace it, and this
+    //   theme ships no assets. A filled box against an empty one is the more
+    //   legible of the two on paper anyway. Nothing here is tristate, so there
+    //   is no third state left without a representation.
+    t.styleSheet = QStringLiteral(R"(
+QPushButton, QToolButton {
+    border: 1px solid #000000;
+    padding: 3px 12px;
+    background: #ffffff;
+    color: #000000;
+}
+QPushButton:hover, QToolButton:hover { background: #ededed; }
+QPushButton:pressed, QToolButton:pressed { background: #000000; color: #ffffff; }
+QPushButton:default { border: 2px solid #000000; padding: 2px 11px; }
+QToolButton:checked { border: 2px solid #000000; padding: 2px 11px; background: #ffffff; }
+QPushButton:disabled, QToolButton:disabled { border-color: #909090; color: #606060; }
+
+QLineEdit, QPlainTextEdit, QTextEdit {
+    border: 1px solid #000000;
+    padding: 2px 4px;
+    background: #ffffff;
+    color: #000000;
+}
+QLineEdit:focus, QPlainTextEdit:focus, QTextEdit:focus {
+    border: 2px solid #000000;
+    padding: 1px 3px;
+}
+QLineEdit:disabled, QPlainTextEdit:disabled, QTextEdit:disabled { border-color: #909090; }
+
+QGroupBox {
+    border: 1px solid #000000;
+    margin-top: 0.7em;
+    padding-top: 0.4em;
+}
+QGroupBox::title { subcontrol-origin: margin; left: 0.6em; padding: 0 0.3em; }
+
+QCheckBox::indicator, QRadioButton::indicator {
+    width: 0.85em;
+    height: 0.85em;
+    border: 1px solid #000000;
+    background: #ffffff;
+}
+QRadioButton::indicator { border-radius: 0.5em; }
+QCheckBox::indicator:checked, QRadioButton::indicator:checked { background: #000000; }
+QCheckBox::indicator:disabled, QRadioButton::indicator:disabled { border-color: #909090; }
+QCheckBox::indicator:checked:disabled, QRadioButton::indicator:checked:disabled {
+    background: #909090;
+}
+
+QTabBar::tab {
+    border: 1px solid #000000;
+    border-bottom: none;
+    padding: 4px 10px;
+    background: #ffffff;
+    color: #3d3d3d;
+}
+QTabBar::tab:selected { color: #000000; font-weight: bold; }
+QTabBar::tab:!selected { margin-top: 2px; }
+
+QProgressBar {
+    border: 1px solid #000000;
+    background: #ffffff;
+    color: #000000;
+    text-align: center;
+}
+QProgressBar::chunk { background: #000000; }
+
+QSlider::groove:horizontal {
+    border: 1px solid #000000;
+    height: 2px;
+    background: #ffffff;
+}
+QSlider::handle:horizontal {
+    border: 1px solid #000000;
+    background: #000000;
+    width: 0.5em;
+    margin: -0.45em 0;
+}
+QSlider::handle:horizontal:disabled { background: #909090; border-color: #909090; }
+
+QHeaderView::section {
+    border: none;
+    border-bottom: 1px solid #000000;
+    border-right: 1px solid #000000;
+    padding: 3px 6px;
+    background: #ffffff;
+    color: #000000;
+    font-weight: bold;
+}
+
+QMenuBar { border-bottom: 1px solid #000000; }
+QMenuBar::item { padding: 4px 8px; background: transparent; }
+QMenuBar::item:selected { background: #000000; color: #ffffff; }
+QMenu { border: 1px solid #000000; background: #ffffff; }
+QMenu::item:selected { background: #000000; color: #ffffff; }
+QMenu::separator { height: 1px; background: #000000; margin: 0.2em 0.4em; }
+
+QToolBar { border-bottom: 1px solid #000000; }
+QStatusBar { border-top: 1px solid #000000; }
+)");
+    return t;
+}
+
 }  // namespace
 
 ThemeManager::ThemeManager() = default;
@@ -769,10 +1010,13 @@ ThemeManager& ThemeManager::instance() {
 
 QVector<theming::Theme> ThemeManager::availableThemes() {
     // Menu order: the three that can be picked automatically first, then the
-    // period pieces, then the working themes.
+    // period pieces, then the working themes. Print Friendly goes last of the
+    // working themes -- it is the one picked for an errand rather than to work
+    // in, so it should not sit between two that are.
     return {blenderDark(), classic(), windows11(),
             windowsXp(), windows7(),
-            neutralGrey(), highContrast(), solarizedLight(), phosphor()};
+            neutralGrey(), highContrast(), solarizedLight(), phosphor(),
+            printFriendly()};
 }
 
 QString ThemeManager::displayName(const QString& id) {
@@ -788,6 +1032,7 @@ QString ThemeManager::displayName(const QString& id) {
     if (id == kHighContrast)   return tr("High Contrast");
     if (id == kSolarizedLight) return tr("Solarized Light");
     if (id == kPhosphor)       return tr("Green Phosphor");
+    if (id == kPrintFriendly)  return tr("Print Friendly");
     return id;
 }
 

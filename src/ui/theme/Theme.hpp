@@ -58,6 +58,20 @@ struct Accents {
     /// darker than the High Contrast black or the Phosphor near-black, so the
     /// boundaries vanished. Those two name the colour instead.
     QColor separator;
+
+    /// Hint and explanation text -- UiStyle's applyHintStyle(), nineteen call
+    /// sites. Leave invalid and it is derived as the midpoint between the text
+    /// and window colours, which is what every theme here wants: a colour that
+    /// stays legible whichever of the two is darker, without a tenth hex value
+    /// per theme.
+    ///
+    /// The same escape hatch as @ref separator, and for the same reason -- the
+    /// derivation encodes an assumption that one theme does not share. Halfway
+    /// from black to white is a 50% grey, and a 50% grey is the worst case for
+    /// a laser printer: it is the densest halftone screen, so small text set in
+    /// it prints as a fuzzy dot pattern rather than as letters. Print Friendly
+    /// names a darker grey instead of accepting the midpoint.
+    QColor mutedText;
 };
 
 /// Colours for the window's own title bar, once the application draws it

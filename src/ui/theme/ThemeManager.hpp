@@ -49,6 +49,7 @@ public:
     static const QString kHighContrast;
     static const QString kSolarizedLight;
     static const QString kPhosphor;
+    static const QString kPrintFriendly;
 
     static ThemeManager& instance();
 

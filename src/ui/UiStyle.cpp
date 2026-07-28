@@ -30,6 +30,13 @@ QPalette basePalette() {
 /// A colour that reads as "text, but quieter" against the theme's window
 /// background.
 QColor mutedTextColor() {
+    // A theme may name this outright; see Accents::mutedText for when the
+    // derivation below is the wrong answer.
+    const QColor themed = ThemeManager::instance().currentTheme().accents.mutedText;
+    if (themed.isValid()) {
+        return themed;
+    }
+
     const QPalette pal = basePalette();
     QColor text = pal.color(QPalette::WindowText);
     QColor base = pal.color(QPalette::Window);
@@ -152,7 +159,7 @@ QString shellStyleSheet() {
     //
     // Not 1px, which is what "thin" would suggest: this band is also the drag
     // handle for resizing the docks, and the style sheet width *is* the hit
-    // area.
+    // area. These are logical pixels, so the 2 is 3.5 device pixels at 175%.
     const int separatorWidth = themed.isValid() ? 2 : 4;
 
     return QStringLiteral(
