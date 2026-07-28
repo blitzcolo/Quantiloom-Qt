@@ -391,6 +391,20 @@ if(WIN32)
         COMMENT "Copying libQuantiloom DLL from SDK..."
     )
 
+    # Copy the SDK's PDBs next to the DLLs. Without them a crash inside the core
+    # gives a stack that stops at the DLL boundary. glob rather than
+    # $<TARGET_PDB_FILE:>, which is only defined for targets this project builds;
+    # the SDK's are imported. Silently absent on an SDK built without them.
+    file(GLOB QUANTILOOM_SDK_PDBS "${QUANTILOOM_SDK_DIR}/bin/*.pdb")
+    if(QUANTILOOM_SDK_PDBS)
+        add_custom_command(TARGET QuantiloomQt POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                ${QUANTILOOM_SDK_PDBS}
+                $<TARGET_FILE_DIR:QuantiloomQt>
+            COMMENT "Copying SDK debug symbols..."
+        )
+    endif()
+
     # Copy libSpectraForge DLL from SDK
     add_custom_command(TARGET QuantiloomQt POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
