@@ -37,6 +37,14 @@ configure time against the DLL actually loaded and refuses to start on a mismatc
 stale pairing reports itself instead of quietly misbehaving. The `build-and-run` skill
 has the refresh flow and the failure modes.
 
+The SDK ships only what the core marks public: `include/quantiloom/` and the `QL_API`
+exports. Reaching a core symbol that is not there takes three steps **in the dev
+repo** — move its header into `include/quantiloom/`, add `QL_API`, and update
+`docs/abi/exports.golden` — none of which can be done from this side. So "the header
+is missing" or "unresolved external" is a signal to go widen the SDK's API on purpose,
+never to work around it here (SRS CON-03: the frontend reaches the core only through
+exported symbols). `src/libQuantiloom/CLAUDE.md` over there has the rule.
+
 ## Repo map
 
 | Path | What |
