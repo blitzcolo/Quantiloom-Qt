@@ -286,6 +286,12 @@ void QuantiloomVulkanRenderer::loadScene(const QString& filePath) {
         m_renderContext->SetSPP(m_targetSPP);
         m_renderContext->SetSamplingSeed(m_samplingSeed);
         m_renderContext->SetWavelength(m_wavelength);
+        // The atmosphere belongs in this list for the same reason as the rest:
+        // a minimize destroys the render context, and the fresh one starts with
+        // no model pack and a disabled header. The buffers rebound and the
+        // scene rendered, so the only symptom was a sky that quietly stopped
+        // being atmospheric until the preset was touched again.
+        applyAtmosphereToContext();
 
         resetAccumulation();
         emit m_window->sceneLoaded(true, QObject::tr("Scene loaded successfully"));
