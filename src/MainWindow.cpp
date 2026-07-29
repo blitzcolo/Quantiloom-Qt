@@ -2146,7 +2146,20 @@ void MainWindow::applySpectralConfig() {
     // so without a solar spectrum the quantitative path has nothing to reflect.
     if (config->Has("lighting.solar_lut")) {
         const auto path = config->Get<std::string>("lighting.solar_lut");
-        auto loaded = quantiloom::SpectralIO::LoadLibRadtranSunAndSky(path, "nm");
+        // The file's layout is the scene's to declare, the same as in the CLI:
+        // the sun's spectrum is user-supplied data, not something the renderer
+        // knows the shape of. Defaults are libRadtran's; ASTM G-173 needs
+        // [4, 3] with diffuse_is_global.
+        const auto cols = config->GetArray<quantiloom::i32>("lighting.solar_lut_columns");
+        const auto directCol =
+            cols.size() >= 1 ? static_cast<quantiloom::u32>(cols[0]) : 2u;
+        const auto diffuseCol =
+            cols.size() >= 2 ? static_cast<quantiloom::u32>(cols[1]) : 3u;
+        const bool diffuseIsGlobal =
+            config->Get<bool>("lighting.solar_lut_diffuse_is_global", false);
+
+        auto loaded = quantiloom::SpectralIO::LoadLibRadtranSunAndSky(
+            path, "nm", directCol, diffuseCol, diffuseIsGlobal);
         if (loaded.has_value()) {
             const auto& [sun, sky] = loaded.value();
             m_vulkanWindow->setSolarSpectralLUT(sun, sky);
