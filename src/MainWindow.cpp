@@ -2144,6 +2144,24 @@ void MainWindow::applySpectralConfig() {
 
     // Illuminant first: a reflectance curve describes what a surface does to light,
     // so without a solar spectrum the quantitative path has nothing to reflect.
+    //
+    // And now nothing at all: the shaders no longer synthesise an illuminant
+    // from the RGB sun and sky when no spectrum is given, so a spectral scene
+    // without one renders unlit rather than approximately. The CLI refuses such
+    // a config outright; Studio says so and carries on, because a scene being
+    // edited is allowed to be half-finished.
+    if (!config->Has("lighting.solar_lut")) {
+        const auto lit = [config](const char* key) {
+            const auto v = config->GetArray<quantiloom::f32>(key);
+            return v.size() >= 3 && (v[0] > 0.0f || v[1] > 0.0f || v[2] > 0.0f);
+        };
+        if (lit("lighting.sun_radiance") || lit("lighting.sky_radiance")) {
+            QL_LOG_WARN("Scene sets sun_radiance or sky_radiance but names no "
+                        "solar_lut. In a spectral mode that illuminant has no "
+                        "spectrum and contributes nothing.");
+        }
+    }
+
     if (config->Has("lighting.solar_lut")) {
         const auto path = config->Get<std::string>("lighting.solar_lut");
         // The file's layout is the scene's to declare, the same as in the CLI:
