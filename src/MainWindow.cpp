@@ -2176,12 +2176,38 @@ void MainWindow::applySpectralConfig() {
         const bool diffuseIsGlobal =
             config->Get<bool>("lighting.solar_lut_diffuse_is_global", false);
 
-        auto loaded = quantiloom::SpectralIO::LoadLibRadtranSunAndSky(
-            path, "nm", directCol, diffuseCol, diffuseIsGlobal);
+        // "equal_energy" is the one illuminant that is not a file: a flat
+        // spectrum at unit luminance, the neutral reference. Everything else,
+        // D65 included, is a table the scene points at.
+        auto loaded = path == "equal_energy"
+            ? quantiloom::Result<std::pair<quantiloom::SpectralCurve,
+                                           quantiloom::SpectralCurve>, std::string>(
+                  std::make_pair(quantiloom::MakeEqualEnergyIlluminant(),
+                                 quantiloom::MakeEqualEnergyIlluminant()))
+            : quantiloom::SpectralIO::LoadLibRadtranSunAndSky(
+                  path, "nm", directCol, diffuseCol, diffuseIsGlobal);
         if (loaded.has_value()) {
             const auto& [sun, sky] = loaded.value();
             m_vulkanWindow->setSolarSpectralLUT(sun, sky);
-            QL_LOG_INFO("Solar LUT loaded from {}", path);
+
+            // One illuminant, every mode: the spectral paths sample these
+            // curves, and RGB and VIS_FUSED take their colour from the same
+            // place rather than from a triple in the config that had no
+            // defined relationship to the spectrum beside it.
+            m_lightingParams->sunRadiance_rgb =
+                quantiloom::SpectralIrradianceToLinearSrgb(sun);
+            m_lightingParams->skyRadiance_rgb =
+                quantiloom::SpectralIrradianceToLinearSrgb(sky);
+            const auto mean = [](const glm::vec3& c) { return (c.r + c.g + c.b) / 3.0f; };
+            m_lightingParams->sunRadiance_spectral = mean(m_lightingParams->sunRadiance_rgb);
+            m_lightingParams->skyRadiance_spectral = mean(m_lightingParams->skyRadiance_rgb);
+            pushLightingParams();
+
+            QL_LOG_INFO("Solar LUT loaded from {}; illuminant colour sun "
+                        "[{:.4g}, {:.4g}, {:.4g}]", path,
+                        m_lightingParams->sunRadiance_rgb.r,
+                        m_lightingParams->sunRadiance_rgb.g,
+                        m_lightingParams->sunRadiance_rgb.b);
         } else {
             // Core logger rather than qWarning: with no console attached Qt sends
             // qWarning to the debugger, so a failure here would be invisible in the
