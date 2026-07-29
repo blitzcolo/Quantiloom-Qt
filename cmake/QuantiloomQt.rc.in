@@ -1,0 +1,47 @@
+// Windows version resource for QuantiloomQt.exe -- what Explorer's Details tab,
+// the properties dialog and an installer read off the binary.
+//
+// Generated from this template by configure_file, so the version comes from
+// project(QuantiloomQt VERSION ...) rather than being typed here. Quantiloom-dev
+// keeps its two .rc files as literals and has to remember three places on every
+// bump; there is no reason to make that four.
+//
+// No icon. resources/icons/ is empty on purpose -- the toolbar takes its icons
+// from QStyle so they follow the active theme (see resources/quantiloom.qrc) --
+// and naming an .ico that does not exist fails the build rather than falling
+// back. Add `IDI_ICON1 ICON "..."` here when there is artwork to point at.
+
+#include <windows.h>
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION    @PROJECT_VERSION_MAJOR@,@PROJECT_VERSION_MINOR@,@PROJECT_VERSION_PATCH@,0
+ PRODUCTVERSION @PROJECT_VERSION_MAJOR@,@PROJECT_VERSION_MINOR@,@PROJECT_VERSION_PATCH@,0
+ FILEFLAGSMASK  0x3fL
+#ifdef _DEBUG
+ FILEFLAGS      0x1L
+#else
+ FILEFLAGS      0x0L
+#endif
+ FILEOS         VOS_NT_WINDOWS32
+ FILETYPE       VFT_APP  // <-- Indicates this is an APP (EXE)
+ FILESUBTYPE    VFT2_UNKNOWN
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904b0" // 0409: en-US, 04b0: Unicode
+        BEGIN
+            VALUE "CompanyName",      "blitzcolo\0"
+            VALUE "FileDescription",  "Quantiloom Studio\0"
+            VALUE "FileVersion",      "@PROJECT_VERSION@.0\0"
+            VALUE "InternalName",     "QuantiloomQt\0"
+            VALUE "LegalCopyright",   "Copyright (C) 2025-2026 blitzcolo. All rights reserved.\0"
+            VALUE "OriginalFilename", "QuantiloomQt.exe\0"
+            VALUE "ProductName",      "Quantiloom Studio\0"
+            VALUE "ProductVersion",   "@PROJECT_VERSION@.0\0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1200
+    END
+END

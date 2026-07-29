@@ -7,6 +7,7 @@
  * @author blitzcolo
  */
 
+#include "AppVersion.hpp"  // generated; see cmake/AppVersion.hpp.in
 #include "MainWindow.hpp"
 #include "SdkGuard.hpp"
 #include "i18n/LanguageManager.hpp"
@@ -35,7 +36,10 @@ int main(int argc, char* argv[]) {
 
     // Set application metadata
     app.setApplicationName("Quantiloom");
-    app.setApplicationVersion("0.1.2");
+    // From project(VERSION) via cmake/AppVersion.hpp.in. This is the only place
+    // the version is read; anything that needs to show it asks
+    // QCoreApplication::applicationVersion() rather than carrying a second copy.
+    app.setApplicationVersion(quantiloom_qt::version::kAppVersion);
     app.setOrganizationName("blitzcolo");
     app.setOrganizationDomain("github.com/blitzcolo");
 

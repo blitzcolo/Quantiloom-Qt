@@ -5,7 +5,7 @@
 cmake_minimum_required(VERSION 3.21)
 
 project(QuantiloomQt
-    VERSION 0.1.2
+    VERSION 0.1.3
     DESCRIPTION "Qt6 GUI for libQuantiloom"
     LANGUAGES CXX
 )
@@ -162,6 +162,12 @@ configure_file(
     @ONLY
 )
 
+configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/AppVersion.hpp.in"
+    "${QUANTILOOM_GENERATED_DIR}/AppVersion.hpp"
+    @ONLY
+)
+
 # ============================================================================
 # Sources
 # ============================================================================
@@ -261,6 +267,19 @@ qt6_add_translation(QM_FILES ${TS_FILES})
 set(RESOURCE_FILES
     resources/quantiloom.qrc
 )
+
+# The Windows version resource -- what Explorer's Details tab and an installer
+# read off the binary. Generated rather than checked in so the version has one
+# source, `project(... VERSION)` above; @ONLY because the file is full of
+# ${...} that belongs to the resource compiler, not to CMake.
+if(WIN32)
+    configure_file(
+        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/QuantiloomQt.rc.in"
+        "${QUANTILOOM_GENERATED_DIR}/QuantiloomQt.rc"
+        @ONLY
+    )
+    list(APPEND RESOURCE_FILES "${QUANTILOOM_GENERATED_DIR}/QuantiloomQt.rc")
+endif()
 
 # ============================================================================
 # Platform Detection (for libQuantiloom headers)

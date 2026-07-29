@@ -1763,8 +1763,13 @@ void MainWindow::onAbout() {
     QMessageBox::about(
         this,
         tr("About Quantiloom"),
+        // %1 rather than the number itself: the version used to be spelled out
+        // inside this string, so every bump changed the source text and
+        // invalidated the Chinese translation of the whole paragraph, which then
+        // had to be rewritten to say the same thing. It comes from
+        // project(VERSION) through main.cpp.
         tr("<h3>Quantiloom</h3>"
-           "<p>Version 0.1.2</p>"
+           "<p>Version %1</p>"
            "<p>A spectral renderer with hardware ray tracing support.</p>"
            "<p>Features:</p>"
            "<ul>"
@@ -1773,7 +1778,8 @@ void MainWindow::onAbout() {
            "<li>PBR materials with spectral extensions</li>"
            "<li>Atmospheric scattering</li>"
            "</ul>"
-           "<p>Copyright (c) 2025-2026 blitzcolo</p>"));
+           "<p>Copyright (c) 2025-2026 blitzcolo</p>")
+            .arg(QApplication::applicationVersion()));
 }
 
 void MainWindow::onShowShortcuts() {
