@@ -1284,10 +1284,6 @@ May cause colour shifts.</source>
         <translation>Accumulation reset</translation>
     </message>
     <message>
-        <source>Loaded %1 spectral curve(s)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>&amp;Redo %1</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1705,6 +1701,10 @@ Pick a node or a material in the scene tree.</source>
     <message>
         <source>Failed to load scene: %1</source>
         <translation type="unfinished">Failed to load scene: %1</translation>
+    </message>
+    <message>
+        <source>Failed to load configuration: %1</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>

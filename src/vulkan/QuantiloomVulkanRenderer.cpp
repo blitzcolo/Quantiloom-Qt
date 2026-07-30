@@ -11,6 +11,7 @@
 #include <renderer/ExternalRenderContext.hpp>
 #include <renderer/LightingParams.hpp>
 #include <atmos/AtmosphereNNConfig.hpp>
+#include <core/Config.hpp>
 #include <core/Log.hpp>
 #include <scene/Material.hpp>
 #include <scene/Scene.hpp>
@@ -146,17 +147,26 @@ void QuantiloomVulkanRenderer::initSwapChainResources() {
     // configuration it was opened with rather than with defaults.
     m_window->applyDeferredSettings();
 
-    // Load pending scene if any. This is also the restore-after-minimize path,
-    // so the scene's own camera must not displace the one the user flew to --
-    // the stored members are re-pushed just below.
-    if (!m_pendingScenePath.isEmpty()) {
+    // Rebuild the open document. A minimize destroys the context, and the fresh
+    // one starts at its constructor defaults -- which for a config document
+    // means no solar LUT, no spectral curves, no refractive indices, no
+    // temperature backfill and a disabled atmosphere. Re-pushing this class's
+    // members never covered any of that, because it holds none of it; replaying
+    // the config does.
+    if (m_currentConfig && !m_configAppliedToContext) {
+        applyConfigToContext(/*isFreshOpen=*/false);
+        m_pendingScenePath.clear();
+    } else if (!m_currentConfig && !m_pendingScenePath.isEmpty()) {
         loadScene(m_pendingScenePath, /*adoptSceneCamera=*/false);
         m_pendingScenePath.clear();
     }
 
-    // Set initial camera
-    m_renderContext->SetCameraLookAt(m_cameraPosition, m_cameraTarget, m_cameraUp);
-    m_renderContext->SetCameraFOV(m_cameraFovY);
+    // Set initial camera. Skipped for a config document, which has just had one
+    // applied -- pushing the stale members over it would undo that.
+    if (!m_currentConfig) {
+        m_renderContext->SetCameraLookAt(m_cameraPosition, m_cameraTarget, m_cameraUp);
+        m_renderContext->SetCameraFOV(m_cameraFovY);
+    }
 }
 
 void QuantiloomVulkanRenderer::releaseSwapChainResources() {
@@ -171,6 +181,8 @@ void QuantiloomVulkanRenderer::releaseResources() {
     }
     m_renderContext.reset();
     m_initialized = false;
+    // The next context is a fresh one and knows none of the document.
+    m_configAppliedToContext = false;
 }
 
 void QuantiloomVulkanRenderer::startNextFrame() {
@@ -295,6 +307,14 @@ void QuantiloomVulkanRenderer::loadScene(const QString& filePath, bool adoptScen
     if (result) {
         qDebug() << "  Scene loaded successfully!";
         m_currentScenePath = filePath;  // Save for restore after minimize
+        // A bare model is not a configuration, and the previous document's must
+        // not outlive it: replaying it here is how one scene's illuminant and
+        // spectral curves used to reach an unrelated model.
+        if (adoptSceneCamera) {
+            m_currentConfig.reset();
+            m_currentConfigBaseDir.clear();
+            m_configAppliedToContext = false;
+        }
 
         // Re-apply stored render settings (important for restore after minimize)
         if (m_hasLightingParams) {
@@ -344,6 +364,136 @@ void QuantiloomVulkanRenderer::loadScene(const QString& filePath, bool adoptScen
         emit m_window->sceneLoaded(false,
             QObject::tr("Failed to load scene: %1").arg(QString::fromStdString(result.error())));
     }
+}
+
+void QuantiloomVulkanRenderer::applyConfig(std::shared_ptr<const quantiloom::Config> config,
+                                           const QString& baseDir) {
+    if (!config) {
+        return;
+    }
+
+    m_currentConfig = std::move(config);
+    m_currentConfigBaseDir = baseDir;
+    m_configAppliedToContext = false;
+    // A config supersedes whatever bare model was open; the scene it names is
+    // loaded as part of applying it.
+    m_currentScenePath.clear();
+
+    if (!m_renderContext) {
+        // Same shape as a deferred scene load: replayed from
+        // initSwapChainResources() once there is a context to apply it to.
+        return;
+    }
+
+    applyConfigToContext(/*isFreshOpen=*/true);
+}
+
+void QuantiloomVulkanRenderer::applyConfigToContext(bool isFreshOpen) {
+    if (!m_renderContext || !m_currentConfig) {
+        return;
+    }
+
+    const bool compilingShaders = isFirstRun();
+    if (compilingShaders) {
+        emit m_window->longOperationStarted(
+            QObject::tr("Compiling shaders — first run may take a few minutes"));
+        QApplication::processEvents();
+    }
+
+    quantiloom::ConfigApplyOptions options;
+    // An editor holds a document being written, where half-finished is a normal
+    // state to be in. The CLI refuses the same file; saying what is missing and
+    // showing the rest is more useful here.
+    options.missingRequired =
+        quantiloom::ConfigApplyOptions::MissingKeyPolicy::WarnAndDefault;
+    options.baseDir = QDir::toNativeSeparators(m_currentConfigBaseDir).toStdString();
+    options.atmosphereModelPackFallback = resolveDefaultModelPackDir();
+    // Sun angles and observer altitude keep following the camera, which is what
+    // an interactive viewport wants and what the CLI, rendering one fixed frame,
+    // deliberately does not. Keys that state a geometry outright are honoured
+    // either way.
+    options.freezeDerivedAtmosGeometry = false;
+    // The debug visualisation is a way of looking at a scene, not part of it
+    // (src/config/CLAUDE.md).
+    options.applyDebugMode = false;
+
+    const quantiloom::ConfigApplyReport report =
+        m_renderContext->ApplyConfig(*m_currentConfig, options);
+
+    if (compilingShaders) {
+        emit m_window->longOperationFinished();
+    }
+
+    if (!report.ok()) {
+        const QString message = QString::fromStdString(report.FirstError());
+        qCritical() << "  ApplyConfig failed:" << message;
+        emit m_window->sceneLoaded(false,
+            QObject::tr("Failed to load configuration: %1").arg(message));
+        return;
+    }
+
+    // Whose values win depends on which of the two callers this is, and the
+    // distinction is the document rather than the device.
+    //
+    // A fresh open: the file is the document of record, and this class's members
+    // still describe the *previous* one. Take everything from the context, or
+    // the last scene's sun follows the user into this one.
+    //
+    // A rebuild after a lost device: the same document, and the members are the
+    // edits the user has made to it since opening. Those win -- but only after
+    // ApplyConfig has run, because they are the only state this class holds and
+    // the illuminant, spectral curves, refractive indices and temperature
+    // backfill are not among them. Re-pushing members alone, which is what the
+    // scene-path replay used to do, restored none of that.
+    if (isFreshOpen) {
+        m_lightingParams = m_renderContext->GetLightingParams();
+        m_hasLightingParams = true;
+        m_spectralMode = m_renderContext->GetSpectralMode();
+        m_wavelength = m_renderContext->GetWavelength();
+        m_targetSPP = m_renderContext->GetSPP();
+        m_samplingSeed = m_renderContext->GetSamplingSeed();
+        m_atmosphericConfig = m_renderContext->GetAtmosphere();
+
+        const quantiloom::Camera& camera = m_renderContext->GetCamera();
+        m_cameraPosition = camera.GetPosition();
+        m_cameraTarget = camera.GetLookAt();
+        m_cameraUp = camera.GetUp();
+        m_cameraFovY = camera.GetFovY();
+
+        // Radians -- see src/vulkan/CLAUDE.md.
+        const glm::vec3 offset = m_cameraPosition - m_cameraTarget;
+        m_orbitDistance = glm::length(offset);
+        if (m_orbitDistance > 1e-6f) {
+            const glm::vec3 dir = offset / m_orbitDistance;
+            m_orbitPitch = std::asin(glm::clamp(dir.y, -1.0f, 1.0f));
+            m_orbitYaw = std::atan2(dir.x, dir.z);
+        }
+        emit m_window->cameraChanged();
+    } else {
+        if (m_hasLightingParams) {
+            m_renderContext->SetLightingParams(m_lightingParams);
+        }
+        m_renderContext->SetSpectralMode(m_spectralMode);
+        m_renderContext->SetWavelength(m_wavelength);
+        m_renderContext->SetSPP(m_targetSPP);
+        m_renderContext->SetSamplingSeed(m_samplingSeed);
+        m_renderContext->SetDebugMode(m_debugMode);
+        applyAtmosphereToContext();
+        m_renderContext->SetCameraLookAt(m_cameraPosition, m_cameraTarget, m_cameraUp);
+        m_renderContext->SetCameraFOV(m_cameraFovY);
+    }
+
+    // Anything the config could not be honoured on, in the log next to the
+    // messages the SDK already wrote there.
+    for (const auto& message : report.messages) {
+        if (message.severity == quantiloom::ConfigApplyMessage::Severity::Warning) {
+            QL_LOG_WARN("Config: {}", message.text);
+        }
+    }
+
+    m_configAppliedToContext = true;
+    resetAccumulation();
+    emit m_window->sceneLoaded(true, QObject::tr("Scene loaded successfully"));
 }
 
 void QuantiloomVulkanRenderer::resetCamera() {

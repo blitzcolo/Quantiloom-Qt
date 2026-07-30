@@ -12,6 +12,7 @@
 #include "../editing/UndoStack.hpp"
 #include "../editing/Commands.hpp"
 
+#include <core/Config.hpp>
 #include <core/Image.hpp>
 
 #include <QKeyEvent>
@@ -166,6 +167,16 @@ void QuantiloomVulkanWindow::loadScene(const QString& filePath) {
     }
 }
 
+void QuantiloomVulkanWindow::applyConfig(std::shared_ptr<const quantiloom::Config> config,
+                                         const QString& baseDir) {
+    // Through withRenderer() rather than a second pending-path member: the
+    // renderer holds the config either way and replays it once it has a
+    // context, so there is nothing for this class to remember.
+    withRenderer([config = std::move(config), baseDir](QuantiloomVulkanRenderer& renderer) {
+        renderer.applyConfig(config, baseDir);
+    });
+}
+
 void QuantiloomVulkanWindow::resetCamera() {
     withRenderer([](QuantiloomVulkanRenderer& r) { r.resetCamera(); });
 }
@@ -211,6 +222,23 @@ void QuantiloomVulkanWindow::setWavelength(float wavelength_nm) {
 
 uint32_t QuantiloomVulkanWindow::currentSampleCount() const {
     return m_renderer ? m_renderer->currentSampleCount() : 0;
+}
+
+quantiloom::LightingParams QuantiloomVulkanWindow::lightingParams() const {
+    return m_renderer ? m_renderer->lightingParams()
+                      : quantiloom::CreateDefaultLightingParams();
+}
+
+quantiloom::SpectralMode QuantiloomVulkanWindow::spectralMode() const {
+    return m_renderer ? m_renderer->spectralMode() : quantiloom::SpectralMode::RGB;
+}
+
+float QuantiloomVulkanWindow::wavelength() const {
+    return m_renderer ? m_renderer->wavelength() : 550.0f;
+}
+
+quantiloom::AtmosphereNNConfig QuantiloomVulkanWindow::atmosphericConfig() const {
+    return m_renderer ? m_renderer->atmosphericConfig() : quantiloom::AtmosphereNNConfig{};
 }
 
 uint32_t QuantiloomVulkanWindow::targetSPP() const {

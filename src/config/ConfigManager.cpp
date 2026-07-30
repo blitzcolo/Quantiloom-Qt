@@ -43,7 +43,7 @@ bool ConfigManager::loadConfig(const QString& filePath, SceneConfig& outConfig) 
     }
 
     // Store the loaded config for later use
-    m_loadedConfig = std::make_unique<quantiloom::Config>(std::move(result.value()));
+    m_loadedConfig = std::make_shared<quantiloom::Config>(std::move(result.value()));
 
     // Extract values for UI panels
     extractSceneConfig(*m_loadedConfig, outConfig);
@@ -57,6 +57,10 @@ bool ConfigManager::loadConfig(const QString& filePath, SceneConfig& outConfig) 
 
 const quantiloom::Config* ConfigManager::getRawConfig() const {
     return m_loadedConfig.get();
+}
+
+std::shared_ptr<const quantiloom::Config> ConfigManager::sharedRawConfig() const {
+    return m_loadedConfig;
 }
 
 void ConfigManager::clearLoadedConfig() {

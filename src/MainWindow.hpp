@@ -370,9 +370,6 @@ private:
     };
     std::vector<TransformState> m_transformStartStates;
 
-    // Pending material configs (applied after scene load)
-    QVector<struct MaterialConfig> m_pendingMaterialConfigs;
-
     // Last configuration seen by applyConfig(), used as the base for
     // collectCurrentConfig(). Not every field has a panel behind it -- the
     // sampling seed, the hyperspectral range, the USD path, world scale -- and
@@ -380,12 +377,13 @@ private:
     // their defaults on export. Held by pointer to keep SceneConfig, and with
     // it the SDK headers it pulls in, out of this header.
     std::unique_ptr<SceneConfig> m_lastConfig;
-    void applyPendingMaterialConfigs();
 
-    // Upload the quantitative spectral data the opened config names, and point the
-    // materials that asked for it at the uploaded curves. Without this the render
-    // context binds zeroed buffers and every material takes the RGB fallback.
-    void applySpectralConfig();
+    // Show what the renderer resolved from the config, rather than what this
+    // repo read from it. The SDK does the reading now (ExternalRenderContext::
+    // ApplyConfig), so the panels are populated from the renderer once a scene
+    // reports loaded -- a widget disagreeing with the render is the bug class
+    // the shared reading removes.
+    void syncPanelsFromRenderer();
 
     uistyle::StyleBindings m_styling;
 

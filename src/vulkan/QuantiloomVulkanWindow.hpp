@@ -19,6 +19,7 @@
 #include <core/Types.hpp>
 
 namespace quantiloom {
+class Config;
 class Scene;
 struct Material;
 struct LightingParams;
@@ -58,6 +59,17 @@ public:
      * @param filePath Path to glTF or TOML scene file
      */
     void loadScene(const QString& filePath);
+
+    /**
+     * @brief Open a scene configuration, applied by the SDK
+     *
+     * Queued like any other setting when there is no render context yet.
+     *
+     * @param config  Parsed configuration
+     * @param baseDir Directory its relative paths resolve against
+     */
+    void applyConfig(std::shared_ptr<const quantiloom::Config> config,
+                     const QString& baseDir);
 
     /**
      * @brief Replay the settings queued before the render context existed
@@ -165,6 +177,18 @@ public:
      * @brief Target sample count the accumulation is working towards
      */
     uint32_t targetSPP() const;
+
+    /**
+     * @brief What the renderer is running on, for populating the panels
+     *
+     * After a config is opened these are what the SDK resolved from the file,
+     * not what this repo read from it. Default-constructed values when there is
+     * no renderer yet.
+     */
+    quantiloom::LightingParams lightingParams() const;
+    quantiloom::SpectralMode spectralMode() const;
+    float wavelength() const;
+    quantiloom::AtmosphereNNConfig atmosphericConfig() const;
 
     /**
      * @brief Suspend or resume progressive accumulation (Render ▸ Stop/Start)

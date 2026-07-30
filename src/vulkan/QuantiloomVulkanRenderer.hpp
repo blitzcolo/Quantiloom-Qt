@@ -29,10 +29,12 @@ struct ComplexRefractiveIndex;
 class QuantiloomVulkanWindow;
 
 namespace quantiloom {
+class Config;
 class ExternalRenderContext;
 class Scene;
 struct Material;
 struct Image;
+struct ConfigApplyReport;
 }
 
 /**
@@ -65,6 +67,25 @@ public:
     ///        destroyed context, where the camera the user has since flown to is
     ///        the one that should survive.
     void loadScene(const QString& filePath, bool adoptSceneCamera = true);
+
+    /// Open a scene configuration: the SDK reads every key, the same reading the
+    /// core CLI does. This repo interpreted them itself until the SDK exported
+    /// ApplyConfig, and the two readings had drifted -- see
+    /// render_path_divergence.md.
+    ///
+    /// The config is kept so a destroyed context can be rebuilt from it, which
+    /// covers state no member of this class ever held: the solar LUT, the
+    /// spectral curves, the refractive indices, the IR temperature backfill.
+    ///
+    /// @param config  Parsed config, shared because the replay outlives the call.
+    /// @param baseDir Directory the config's relative paths resolve against.
+    void applyConfig(std::shared_ptr<const quantiloom::Config> config,
+                     const QString& baseDir);
+
+    /// True while a scene configuration is the open document, as opposed to a
+    /// bare model or nothing at all.
+    [[nodiscard]] bool hasConfig() const { return m_currentConfig != nullptr; }
+
     void resetCamera();
 
     // Render settings
@@ -87,6 +108,23 @@ public:
     void resetAccumulation();
     uint32_t currentSampleCount() const { return m_sampleCount; }
     uint32_t targetSPP() const { return m_targetSPP; }
+
+    /// @name What the renderer is actually running on
+    /// These read the members this class keeps in step with the context, which
+    /// after applyConfig() are what the SDK resolved from the file. The shell
+    /// populates its panels from here rather than from its own reading of the
+    /// config -- a widget disagreeing with the renderer is the bug class the
+    /// shared config reading exists to remove.
+    /// @{
+    [[nodiscard]] const quantiloom::LightingParams& lightingParams() const {
+        return m_lightingParams;
+    }
+    [[nodiscard]] quantiloom::SpectralMode spectralMode() const { return m_spectralMode; }
+    [[nodiscard]] float wavelength() const { return m_wavelength; }
+    [[nodiscard]] const quantiloom::AtmosphereNNConfig& atmosphericConfig() const {
+        return m_atmosphericConfig;
+    }
+    /// @}
 
     /**
      * @brief Suspend or resume progressive accumulation
@@ -303,6 +341,14 @@ private:
     void applyAtmosphereToContext();
     static std::string resolveDefaultModelPackDir();
 
+    /// Hand m_currentConfig to the SDK and re-push this class's own state over
+    /// it. Called on open, and again whenever a destroyed context is rebuilt.
+    /// @param isFreshOpen True when the config is a newly opened document, so
+    ///        the context's resolved values replace this class's members. False
+    ///        on a rebuild of the same document, where those members are the
+    ///        user's edits and are re-pushed over it.
+    void applyConfigToContext(bool isFreshOpen);
+
     // Sensor simulation
     bool m_sensorEnabled = false;
     uint32_t m_samplingSeed = quantiloom::constants::DEFAULT_SAMPLING_SEED;
@@ -319,6 +365,20 @@ private:
     bool m_initialized = false;
     QString m_pendingScenePath;
     QString m_currentScenePath;  // Track loaded scene for restore after minimize
+
+    // The open document, when it is a config rather than a bare model. Kept for
+    // the same reason as m_currentScenePath -- a minimize destroys the render
+    // context -- but it restores far more: everything ApplyConfig sets that this
+    // class holds no member for. A bare model load clears it, which is what
+    // stops one document's illuminant reaching the next one's scene.
+    std::shared_ptr<const quantiloom::Config> m_currentConfig;
+    QString m_currentConfigBaseDir;
+    /// Whether m_currentConfig has been applied to the *current* context.
+    /// Cleared when the context is destroyed, which is what makes the rebuild
+    /// replay fire exactly once -- a config opened before the context existed is
+    /// applied by the deferred queue, and would otherwise be applied again
+    /// immediately afterwards by that replay.
+    bool m_configAppliedToContext = false;
 
     // First run shader compilation tracking
     bool m_isFirstRun = false;

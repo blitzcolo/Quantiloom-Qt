@@ -1067,8 +1067,7 @@ void MainWindow::setupConnections() {
                     rememberRecentFile(m_pendingOpenPath);
                     m_pendingOpenPath.clear();
                     updatePanelsFromScene();
-                    applySpectralConfig();
-                    applyPendingMaterialConfigs();
+                    syncPanelsFromRenderer();
                     showStatusMessage(message);
                 } else {
                     // The whole failure branch runs a turn later, because none
@@ -1578,7 +1577,14 @@ bool MainWindow::openPath(const QString& filePath) {
 
         m_currentConfigFile = filePath;
         m_pendingOpenPath = filePath;
+        // Panels first, then the render context -- and the two read the file
+        // through different code. What the panels show comes from
+        // ConfigManager; what renders comes from the SDK, which interprets the
+        // same ~50 keys the CLI does. syncPanelsFromRenderer() reconciles them
+        // once the scene reports loaded, so the widgets end up showing what is
+        // actually being rendered rather than this repo's reading of the file.
         applyConfig(config);
+        m_vulkanWindow->applyConfig(m_configManager->sharedRawConfig(), config.baseDir);
         setSceneModified(false);
         setCurrentDocument(filePath);
         showStatusMessage(tr("Loaded configuration: %1").arg(QFileInfo(filePath).fileName()));
@@ -1992,47 +1998,45 @@ void MainWindow::updatePanelsFromScene() {
 // ============================================================================
 
 void MainWindow::applyConfig(const SceneConfig& config) {
+    // Panels only. The render context is configured by the SDK, from the raw
+    // TOML, in openPath() -- this repo no longer decides what any key means.
+    // What is left here is the document's presentation: showing the same values
+    // in the widgets that the renderer was given.
+    //
+    // The two halves cannot swap: the SDK's reading is the one that renders, and
+    // syncPanelsFromRenderer() reconciles these widgets with it once the scene
+    // reports loaded. What this function seeds is the handful of fields the
+    // context has no getter for, plus the initial state for panels the user may
+    // touch before the load finishes.
+
     // Remember the whole config, not just the parts the panels can show. Export
     // starts from this so fields with no widget behind them survive a load/save
     // round trip instead of reverting to defaults.
     m_lastConfig = std::make_unique<SceneConfig>(config);
 
-    // Apply render settings
     m_renderSettingsPanel->setResolution(config.width, config.height);
     m_renderSettingsPanel->setTargetSPP(config.spp);
-    m_vulkanWindow->setSPP(config.spp);
-    m_vulkanWindow->setSamplingSeed(config.samplingSeed);
 
-    // Apply spectral settings
     m_spectralConfigPanel->setSpectralMode(config.spectralMode);
     m_spectralConfigPanel->setWavelength(config.wavelength_nm);
-    m_spectralConfigPanel->setWavelengthRange(config.lambda_min, config.lambda_max, config.delta_lambda);
-    m_vulkanWindow->setSpectralMode(config.spectralMode);
-    m_vulkanWindow->setWavelength(config.wavelength_nm);
+    m_spectralConfigPanel->setWavelengthRange(config.lambda_min, config.lambda_max,
+                                              config.delta_lambda);
 
-    // Apply lighting settings. The shell holds the merged struct; the panels
-    // each get the half they own.
+    // The shell holds the merged lighting struct; the panels each get the half
+    // they own.
     *m_lightingParams = config.lighting;
     m_lightingPanel->setLightingParams(config.lighting);
-    m_vulkanWindow->setLightingParams(config.lighting);
 
-    // Apply atmospheric configuration
     m_atmosphericPanel->setPreset(config.atmosphericPreset);
     m_atmosphericPanel->setAtmosphericConfig(config.atmosphere);
     m_atmosphericPanel->setAnalyticTerms(config.lighting.transmittance,
                                          config.lighting.atmosphereTemperature_K);
-    // The whole struct, not just the preset name: ConfigManager parses all nine
-    // weather features, and sending only the preset threw every override away
-    // between the panel and the GPU.
-    m_vulkanWindow->setAtmosphericConfig(config.atmosphere);
 
-    // Apply sensor configuration
-    m_sensorPanel->setSensorParams(config.sensorParams);  // Always set params first
-    m_sensorPanel->setSensorEnabled(config.sensorEnabled); // Then set enabled state
-    m_vulkanWindow->setSensorParams(config.sensorParams);
-    m_vulkanWindow->setSensorEnabled(config.sensorEnabled);
+    m_sensorPanel->setSensorParams(config.sensorParams);   // Params first,
+    m_sensorPanel->setSensorEnabled(config.sensorEnabled);  // then enabled state
 
-    // Load scene file (glTF or USD)
+    // The scene is loaded by ApplyConfig, but the shell still needs to know
+    // which file it was and to show the viewport instead of the guidance page.
     QString scenePath;
     if (!config.usdPath.isEmpty()) {
         scenePath = config.usdPath;
@@ -2045,32 +2049,30 @@ void MainWindow::applyConfig(const SceneConfig& config) {
             scenePath = config.baseDir + "/" + config.gltfPath;
         }
     }
-
     if (!scenePath.isEmpty()) {
         m_currentSceneFile = scenePath;
         m_viewportFrame->setSceneLoaded(true);
-        m_vulkanWindow->loadScene(scenePath);
     }
+}
 
-    // Apply environment map (IBL) - do this after scene load starts
-    if (!config.environmentMap.isEmpty()) {
-        QString envPath = config.environmentMap;
-        if (!QFileInfo(envPath).isAbsolute() && !config.baseDir.isEmpty()) {
-            envPath = config.baseDir + "/" + config.environmentMap;
-        }
-        if (!m_vulkanWindow->loadEnvironmentMap(envPath)) {
-            qWarning() << "Failed to load environment map:" << envPath;
-        }
-    }
+void MainWindow::syncPanelsFromRenderer() {
+    // Read back what the SDK actually applied. Before ApplyConfig existed this
+    // was unnecessary because the shell was the thing applying it; now the
+    // config's reading happens in the core, and a panel showing this repo's
+    // idea of a key rather than the renderer's is exactly the disagreement the
+    // whole change is about.
+    const quantiloom::LightingParams lighting = m_vulkanWindow->lightingParams();
+    *m_lightingParams = lighting;
+    m_lightingPanel->setLightingParams(lighting);
+    m_atmosphericPanel->setAnalyticTerms(lighting.transmittance,
+                                         lighting.atmosphereTemperature_K);
 
-    // Apply camera settings (after scene load so renderer is ready)
-    glm::vec3 camPos(config.cameraPosition[0], config.cameraPosition[1], config.cameraPosition[2]);
-    glm::vec3 camLookAt(config.cameraLookAt[0], config.cameraLookAt[1], config.cameraLookAt[2]);
-    glm::vec3 camUp(config.cameraUp[0], config.cameraUp[1], config.cameraUp[2]);
-    m_vulkanWindow->setCamera(camPos, camLookAt, camUp, config.cameraFovY);
+    m_spectralConfigPanel->setSpectralMode(m_vulkanWindow->spectralMode());
+    m_spectralConfigPanel->setWavelength(m_vulkanWindow->wavelength());
+    m_atmosphericPanel->setAtmosphericConfig(m_vulkanWindow->atmosphericConfig());
 
-    // Store material configs for application after scene load
-    m_pendingMaterialConfigs = config.materialConfigs;
+    // The camera panel is not in this list: the renderer emits cameraChanged()
+    // when it adopts one, which is the single dispatcher for camera state.
 }
 
 void MainWindow::collectCurrentConfig(SceneConfig& config) {
@@ -2151,214 +2153,6 @@ void MainWindow::collectCurrentConfig(SceneConfig& config) {
     // Collect sensor settings
     config.sensorEnabled = m_sensorPanel->isSensorEnabled();
     config.sensorParams = m_sensorPanel->getSensorParams();
-}
-
-void MainWindow::applySpectralConfig() {
-    const quantiloom::Config* config = m_configManager->getRawConfig();
-    if (!config) {
-        return;
-    }
-
-    // Illuminant first: a reflectance curve describes what a surface does to light,
-    // so without a solar spectrum the quantitative path has nothing to reflect.
-    //
-    // And now nothing at all: the shaders no longer synthesise an illuminant
-    // from the RGB sun and sky when no spectrum is given, so a spectral scene
-    // without one renders unlit rather than approximately. The CLI refuses such
-    // a config outright; Studio says so and carries on, because a scene being
-    // edited is allowed to be half-finished.
-    if (!config->Has("lighting.solar_lut")) {
-        const auto lit = [config](const char* key) {
-            const auto v = config->GetArray<quantiloom::f32>(key);
-            return v.size() >= 3 && (v[0] > 0.0f || v[1] > 0.0f || v[2] > 0.0f);
-        };
-        if (lit("lighting.sun_radiance") || lit("lighting.sky_radiance")) {
-            QL_LOG_WARN("Scene sets sun_radiance or sky_radiance but names no "
-                        "solar_lut. In a spectral mode that illuminant has no "
-                        "spectrum and contributes nothing.");
-        }
-    }
-
-    if (config->Has("lighting.solar_lut")) {
-        const auto path = config->Get<std::string>("lighting.solar_lut");
-        // The file's layout is the scene's to declare, the same as in the CLI:
-        // the sun's spectrum is user-supplied data, not something the renderer
-        // knows the shape of. Defaults are libRadtran's; ASTM G-173 needs
-        // [4, 3] with diffuse_is_global.
-        const auto cols = config->GetArray<quantiloom::i32>("lighting.solar_lut_columns");
-        const auto directCol =
-            cols.size() >= 1 ? static_cast<quantiloom::u32>(cols[0]) : 2u;
-        const auto diffuseCol =
-            cols.size() >= 2 ? static_cast<quantiloom::u32>(cols[1]) : 3u;
-        const bool diffuseIsGlobal =
-            config->Get<bool>("lighting.solar_lut_diffuse_is_global", false);
-
-        // "equal_energy" is the one illuminant that is not a file: a flat
-        // spectrum at unit luminance, the neutral reference. Everything else,
-        // D65 included, is a table the scene points at.
-        auto loaded = path == "equal_energy"
-            ? quantiloom::Result<std::pair<quantiloom::SpectralCurve,
-                                           quantiloom::SpectralCurve>, std::string>(
-                  std::make_pair(quantiloom::MakeEqualEnergyIlluminant(),
-                                 quantiloom::MakeEqualEnergyIlluminant()))
-            : quantiloom::SpectralIO::LoadLibRadtranSunAndSky(
-                  path, "nm", directCol, diffuseCol, diffuseIsGlobal);
-        if (loaded.has_value()) {
-            auto& [sun, sky] = loaded.value();
-
-            // Reference illuminants are published as relative spectra -- D65 is
-            // normalised to 100 at 560 nm -- so their absolute level is
-            // arbitrary. Normalising to unit luminance puts the illuminant at
-            // Y = 1, which is what makes D65 come out as sRGB (1, 1, 1). The
-            // key was read by the CLI and ignored here, so a scene using it
-            // rendered a whole luminance brighter in the viewport.
-            const auto normalise =
-                config->Get<std::string>("lighting.solar_lut_normalise", "");
-            if (normalise == "unit_luminance") {
-                const auto rgb = quantiloom::SpectralIrradianceToLinearSrgb(sun);
-                const float Y = 0.2126f * rgb.r + 0.7152f * rgb.g + 0.0722f * rgb.b;
-                if (Y > 0.0f) {
-                    // Both curves by the sun's luminance, not each by its own:
-                    // scaling them separately would discard the ratio between
-                    // sun and sky, which is what a measured pair tells you.
-                    for (auto& v : sun.samples) v.second /= Y;
-                    for (auto& v : sky.samples) v.second /= Y;
-                    QL_LOG_INFO("Illuminant normalised to unit luminance (was Y={:.4g})", Y);
-                }
-            } else if (!normalise.empty()) {
-                QL_LOG_WARN("Unknown solar_lut_normalise '{}' (known: unit_luminance)",
-                            normalise);
-            }
-
-            m_vulkanWindow->setSolarSpectralLUT(sun, sky);
-
-            // One illuminant, every mode: the spectral paths sample these
-            // curves, and RGB and VIS_FUSED take their colour from the same
-            // place rather than from a triple in the config that had no
-            // defined relationship to the spectrum beside it.
-            m_lightingParams->sunRadiance_rgb =
-                quantiloom::SpectralIrradianceToLinearSrgb(sun);
-            m_lightingParams->skyRadiance_rgb =
-                quantiloom::SpectralIrradianceToLinearSrgb(sky);
-            const auto mean = [](const glm::vec3& c) { return (c.r + c.g + c.b) / 3.0f; };
-            m_lightingParams->sunRadiance_spectral = mean(m_lightingParams->sunRadiance_rgb);
-            m_lightingParams->skyRadiance_spectral = mean(m_lightingParams->skyRadiance_rgb);
-            pushLightingParams();
-
-            QL_LOG_INFO("Solar LUT loaded from {}; illuminant colour sun "
-                        "[{:.4g}, {:.4g}, {:.4g}]", path,
-                        m_lightingParams->sunRadiance_rgb.r,
-                        m_lightingParams->sunRadiance_rgb.g,
-                        m_lightingParams->sunRadiance_rgb.b);
-        } else {
-            // Core logger rather than qWarning: with no console attached Qt sends
-            // qWarning to the debugger, so a failure here would be invisible in the
-            // same log that carries what it is reporting about.
-            QL_LOG_WARN("Solar LUT failed to load: {}", loaded.error());
-        }
-    }
-
-    if (!config->HasSection("spectral_curves")) {
-        return;
-    }
-
-    // [spectral_curves] maps a material name to a measured reflectance CSV -- the
-    // same section the CLI reads, so a config renders the same either way.
-    const auto* scene = m_vulkanWindow->getScene();
-    if (!scene) {
-        return;
-    }
-
-    std::unordered_map<std::string, int> nameToCurve;
-    for (const auto& [materialName, csvPath] : config->GetSection("spectral_curves")) {
-        auto samples = quantiloom::SpectralIO::LoadSpectralCurveCSV(csvPath);
-        if (!samples.has_value()) {
-            QL_LOG_WARN("Spectral curve for '{}' failed to load: {}", materialName,
-                        samples.error());
-            continue;
-        }
-
-        quantiloom::SpectralCurve curve;
-        curve.samples = samples.value();
-
-        const int index = m_vulkanWindow->addSpectralCurve(curve);
-        if (index >= 0) {
-            nameToCurve[materialName] = index;
-        }
-    }
-
-    if (nameToCurve.empty()) {
-        return;
-    }
-
-    // The curves are on the GPU; a material only uses one once its index says so.
-    for (size_t i = 0; i < scene->materials.size(); ++i) {
-        const auto found = nameToCurve.find(scene->materials[i].name);
-        if (found == nameToCurve.end()) {
-            continue;
-        }
-
-        quantiloom::Material updated = scene->materials[i];
-        updated.spectralReflectanceCurveIndex = found->second;
-        m_vulkanWindow->updateMaterial(static_cast<quantiloom::u32>(i), updated);
-
-        QL_LOG_INFO("Material '{}' -> spectral curve index {}", updated.name,
-                    found->second);
-    }
-
-    showStatusMessage(tr("Loaded %1 spectral curve(s)").arg(nameToCurve.size()));
-}
-
-void MainWindow::applyPendingMaterialConfigs() {
-    if (m_pendingMaterialConfigs.isEmpty()) {
-        return;
-    }
-
-    const auto* scene = m_vulkanWindow->getScene();
-    if (!scene) {
-        return;
-    }
-
-    for (const auto& matConfig : m_pendingMaterialConfigs) {
-        // Find material by name
-        for (size_t i = 0; i < scene->materials.size(); ++i) {
-            const auto& material = scene->materials[i];
-            if (QString::fromStdString(material.name) == matConfig.name) {
-                quantiloom::Material modified = material;
-
-                // Set IR curves with constant values across IR bands
-                const float mwir_nm = 4000.0f;
-                const float lwir_nm = 10000.0f;
-
-                if (matConfig.irEmissivity > 0.0f) {
-                    modified.irEmissivityCurve.clear();
-                    modified.irEmissivityCurve.push_back({mwir_nm, matConfig.irEmissivity});
-                    modified.irEmissivityCurve.push_back({lwir_nm, matConfig.irEmissivity});
-                }
-
-                if (matConfig.irTransmittance > 0.0f) {
-                    modified.irTransmittanceCurve.clear();
-                    modified.irTransmittanceCurve.push_back({mwir_nm, matConfig.irTransmittance});
-                    modified.irTransmittanceCurve.push_back({lwir_nm, matConfig.irTransmittance});
-                }
-
-                // Compute and set reflectance from energy conservation
-                float reflectance = 1.0f - matConfig.irEmissivity - matConfig.irTransmittance;
-                if (reflectance > 0.0f) {
-                    modified.irReflectanceCurve.clear();
-                    modified.irReflectanceCurve.push_back({mwir_nm, reflectance});
-                    modified.irReflectanceCurve.push_back({lwir_nm, reflectance});
-                }
-
-                modified.irTemperature_K = matConfig.irTemperature_K;
-
-                m_vulkanWindow->updateMaterial(static_cast<int>(i), modified);
-                break;
-            }
-        }
-    }
-
-    m_pendingMaterialConfigs.clear();
 }
 
 // ============================================================================

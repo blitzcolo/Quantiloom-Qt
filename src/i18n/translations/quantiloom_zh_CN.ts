@@ -1301,7 +1301,7 @@ May cause colour shifts.</source>
     </message>
     <message>
         <source>Loaded %1 spectral curve(s)</source>
-        <translation>已加载 %1 条光谱曲线</translation>
+        <translation type="vanished">已加载 %1 条光谱曲线</translation>
     </message>
     <message>
         <source>&amp;Redo %1</source>
@@ -1726,6 +1726,10 @@ Pick a node or a material in the scene tree.</source>
     <message>
         <source>Failed to load scene: %1</source>
         <translation>场景加载失败：%1</translation>
+    </message>
+    <message>
+        <source>Failed to load configuration: %1</source>
+        <translation>加载配置失败：%1</translation>
     </message>
 </context>
 <context>

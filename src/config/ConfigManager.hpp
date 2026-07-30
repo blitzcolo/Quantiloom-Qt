@@ -107,6 +107,16 @@ public:
     const quantiloom::Config* getRawConfig() const;
 
     /**
+     * @brief The loaded config, shared with whoever needs it to outlive the call
+     *
+     * The renderer keeps it: a destroyed render context is rebuilt by applying
+     * the same config again, which restores state no widget holds.
+     *
+     * @return The config, or nullptr when the open document is not one
+     */
+    std::shared_ptr<const quantiloom::Config> sharedRawConfig() const;
+
+    /**
      * @brief Forget the loaded config, so getRawConfig() reports none.
      *
      * Call this when opening something that is not a scene configuration --
@@ -134,5 +144,5 @@ private:
     quantiloom::SpectralMode parseSpectralMode(const std::string& modeStr);
 
     QString m_lastError;
-    std::unique_ptr<quantiloom::Config> m_loadedConfig;
+    std::shared_ptr<quantiloom::Config> m_loadedConfig;
 };
