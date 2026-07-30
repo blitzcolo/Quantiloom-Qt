@@ -2204,7 +2204,32 @@ void MainWindow::applySpectralConfig() {
             : quantiloom::SpectralIO::LoadLibRadtranSunAndSky(
                   path, "nm", directCol, diffuseCol, diffuseIsGlobal);
         if (loaded.has_value()) {
-            const auto& [sun, sky] = loaded.value();
+            auto& [sun, sky] = loaded.value();
+
+            // Reference illuminants are published as relative spectra -- D65 is
+            // normalised to 100 at 560 nm -- so their absolute level is
+            // arbitrary. Normalising to unit luminance puts the illuminant at
+            // Y = 1, which is what makes D65 come out as sRGB (1, 1, 1). The
+            // key was read by the CLI and ignored here, so a scene using it
+            // rendered a whole luminance brighter in the viewport.
+            const auto normalise =
+                config->Get<std::string>("lighting.solar_lut_normalise", "");
+            if (normalise == "unit_luminance") {
+                const auto rgb = quantiloom::SpectralIrradianceToLinearSrgb(sun);
+                const float Y = 0.2126f * rgb.r + 0.7152f * rgb.g + 0.0722f * rgb.b;
+                if (Y > 0.0f) {
+                    // Both curves by the sun's luminance, not each by its own:
+                    // scaling them separately would discard the ratio between
+                    // sun and sky, which is what a measured pair tells you.
+                    for (auto& v : sun.samples) v.second /= Y;
+                    for (auto& v : sky.samples) v.second /= Y;
+                    QL_LOG_INFO("Illuminant normalised to unit luminance (was Y={:.4g})", Y);
+                }
+            } else if (!normalise.empty()) {
+                QL_LOG_WARN("Unknown solar_lut_normalise '{}' (known: unit_luminance)",
+                            normalise);
+            }
+
             m_vulkanWindow->setSolarSpectralLUT(sun, sky);
 
             // One illuminant, every mode: the spectral paths sample these

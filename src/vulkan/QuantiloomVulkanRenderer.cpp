@@ -90,7 +90,25 @@ void QuantiloomVulkanRenderer::initSwapChainResources() {
 
     qDebug() << "  VkQueue:" << graphicsQueue;
     qDebug() << "  Queue family:" << m_window->graphicsQueueFamilyIndex();
-    qDebug() << "  Color format:" << m_window->colorFormat();
+
+    // Through the core logger, not qDebug: an sRGB swapchain is what encodes
+    // the SDK's linear output on the presenting blit, and setPreferredColorFormats
+    // only states a preference -- Qt falls back silently if the surface does not
+    // offer one. With no console attached qDebug reaches the debugger and not
+    // the log, so a viewport rendering uncorrected linear radiance would look
+    // exactly like one that is correct.
+    const VkFormat colorFormat = m_window->colorFormat();
+    const bool srgbTarget = colorFormat == VK_FORMAT_B8G8R8A8_SRGB ||
+                            colorFormat == VK_FORMAT_R8G8B8A8_SRGB;
+    if (srgbTarget) {
+        QL_LOG_INFO("Swapchain colour format {} (sRGB): the present blit encodes "
+                    "linear radiance", static_cast<int>(colorFormat));
+    } else {
+        QL_LOG_WARN("Swapchain colour format {} is not sRGB: the present blit "
+                    "cannot encode, so the viewport shows linear radiance "
+                    "uncorrected and reads darker than the CLI's PNG",
+                    static_cast<int>(colorFormat));
+    }
 
     // Initialize libQuantiloom with external handles
     quantiloom::ExternalRenderContext::InitParams params{};

@@ -9,8 +9,8 @@
 #include <QFileInfo>
 #include <QTextStream>
 #include <QDebug>
-#include <cctype>
 
+#include <core/Log.hpp>
 #include <postprocess/PostprocessConfig.hpp>
 #include <renderer/LightingParams.hpp>
 
@@ -73,7 +73,7 @@ void ConfigManager::extractSceneConfig(const quantiloom::Config& config, SceneCo
         out.width = static_cast<uint32_t>(resolution[0]);
         out.height = static_cast<uint32_t>(resolution[1]);
     }
-    out.spp = config.Get<quantiloom::u32>("renderer.spp", 4);
+    out.spp = config.Get<quantiloom::u32>("renderer.spp", 1);
     out.outputPath = QString::fromStdString(config.GetString("renderer.output", "output.exr"));
     out.environmentMap = QString::fromStdString(config.GetString("renderer.environment_map", ""));
     out.samplingSeed = config.Get<quantiloom::u32>(
@@ -82,7 +82,23 @@ void ConfigManager::extractSceneConfig(const quantiloom::Config& config, SceneCo
     // [spectral]
     std::string modeStr = config.GetString("spectral.mode", "rgb");
     out.spectralMode = parseSpectralMode(modeStr);
-    out.wavelength_nm = config.GetFloat("spectral.wavelength_nm", 550.0f);
+    // Same rule as the CLI, for the same modes it applies it to: an absent
+    // wavelength means the centre of the band being rendered, not 550 nm. A
+    // thermal config that did not spell the key out was being rendered here at
+    // a visible wavelength.
+    out.wavelength_nm = 550.0f;
+    const bool wavelengthMatters =
+        out.spectralMode == quantiloom::SpectralMode::Single ||
+        out.spectralMode == quantiloom::SpectralMode::MWIR_Fused ||
+        out.spectralMode == quantiloom::SpectralMode::LWIR_Fused ||
+        out.spectralMode == quantiloom::SpectralMode::SWIR_Fused;
+    if (wavelengthMatters) {
+        if (config.Has("spectral.wavelength_nm")) {
+            out.wavelength_nm = config.GetFloat("spectral.wavelength_nm", 550.0f);
+        } else if (auto band = quantiloom::GetFusedBandInfo(out.spectralMode)) {
+            out.wavelength_nm = band->CenterNm();
+        }
+    }
     out.lambda_min = config.GetFloat("spectral.lambda_min", 380.0f);
     out.lambda_max = config.GetFloat("spectral.lambda_max", 760.0f);
     out.delta_lambda = config.GetFloat("spectral.delta_lambda", 5.0f);
@@ -114,7 +130,9 @@ void ConfigManager::extractSceneConfig(const quantiloom::Config& config, SceneCo
         out.cameraUp[2] = camUp[2];
     }
 
-    out.cameraFovY = config.GetFloat("camera.fov_y", 45.0f);
+    // 60, the core Camera's own default -- not 45, which framed every config
+    // without the key differently here than in the CLI.
+    out.cameraFovY = config.GetFloat("camera.fov_y", 60.0f);
 
     // [lighting]
     auto sunDir = config.GetArray<quantiloom::f32>("lighting.sun_direction");
@@ -146,8 +164,11 @@ void ConfigManager::extractSceneConfig(const quantiloom::Config& config, SceneCo
         "quality.chroma_b_correction",
         quantiloom::LightingDefaults::CHROMA_B_CORRECTION);
 
-    // [renderer] Shadow ray control
-    bool enableShadowRays = config.Get<bool>("renderer.enable_shadow_rays", false);
+    // [renderer] Shadow ray control. On unless the config says otherwise, which
+    // is the core's default -- with it off here, every one of the shipped
+    // configs (none of them spell the key out) rendered shadowless in the
+    // viewport and shadowed from the CLI.
+    bool enableShadowRays = config.Get<bool>("renderer.enable_shadow_rays", true);
     out.lighting.enableShadowRays = enableShadowRays ? 1u : 0u;
 
     // [atmospheric] / [atmosphere] — prefer the NN [atmosphere] section,
@@ -235,34 +256,16 @@ void ConfigManager::extractSceneConfig(const quantiloom::Config& config, SceneCo
 }
 
 quantiloom::SpectralMode ConfigManager::parseSpectralMode(const std::string& modeStr) {
-    std::string lower;
-    lower.reserve(modeStr.size());
-    for (char c : modeStr) {
-        lower.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+    // The SDK's parser, not a second one. The hand-written version this
+    // replaces lower-cased its input first, which lost every uppercase alias
+    // the core accepts ("VIS", "LWIR", ...), and had no case for
+    // "multispectral" at all -- all of them fell through to RGB without a
+    // word, so a config asking for a band rendered in another one.
+    auto parsed = quantiloom::ParseSpectralMode(modeStr);
+    if (parsed.has_value()) {
+        return *parsed;
     }
-
-    if (lower == "single" || lower == "single_wavelength") {
-        return quantiloom::SpectralMode::Single;
-    }
-    if (lower == "rgb") {
-        return quantiloom::SpectralMode::RGB;
-    }
-    if (lower == "vis_fused") {
-        return quantiloom::SpectralMode::VIS_Fused;
-    }
-    if (lower == "mwir_fused") {
-        return quantiloom::SpectralMode::MWIR_Fused;
-    }
-    if (lower == "lwir_fused") {
-        return quantiloom::SpectralMode::LWIR_Fused;
-    }
-    if (lower == "swir_fused") {
-        return quantiloom::SpectralMode::SWIR_Fused;
-    }
-    if (lower == "nir_fused") {
-        return quantiloom::SpectralMode::NIR_Fused;
-    }
-    // Default to RGB
+    QL_LOG_WARN("{} - falling back to RGB", parsed.error());
     return quantiloom::SpectralMode::RGB;
 }
 
