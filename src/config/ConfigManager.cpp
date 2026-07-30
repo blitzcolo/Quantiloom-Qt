@@ -59,6 +59,10 @@ const quantiloom::Config* ConfigManager::getRawConfig() const {
     return m_loadedConfig.get();
 }
 
+void ConfigManager::clearLoadedConfig() {
+    m_loadedConfig.reset();
+}
+
 void ConfigManager::extractSceneConfig(const quantiloom::Config& config, SceneConfig& out) {
     // Initialize with defaults
     out.lighting = quantiloom::CreateDefaultLightingParams();

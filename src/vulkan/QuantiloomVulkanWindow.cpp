@@ -29,6 +29,14 @@
 QuantiloomVulkanWindow::QuantiloomVulkanWindow(QWindow* parent)
     : QVulkanWindow(parent)
 {
+    // The SDK presents by blitting its linear R32G32B32A32_SFLOAT output straight
+    // into the swapchain image, with no shader in between. A blit applies the
+    // destination format's transfer function, so an sRGB target is what performs
+    // the linear->sRGB encode -- Qt's default UNORM target would display linear
+    // radiance uncorrected, which is the whole viewport a stop and a half too dark
+    // against the CLI's PNG. Qt falls back to its default if neither is supported.
+    setPreferredColorFormats({VK_FORMAT_B8G8R8A8_SRGB, VK_FORMAT_R8G8B8A8_SRGB});
+
     // Request required device extensions for ray tracing
     setDeviceExtensions({
         // Ray tracing core extensions

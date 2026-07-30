@@ -60,7 +60,11 @@ public:
     void startNextFrame() override;
 
     // Scene management
-    void loadScene(const QString& filePath);
+    /// @param adoptSceneCamera Take the camera the scene file carries. True for
+    ///        a user-initiated open; false when replaying the path to rebuild a
+    ///        destroyed context, where the camera the user has since flown to is
+    ///        the one that should survive.
+    void loadScene(const QString& filePath, bool adoptSceneCamera = true);
     void resetCamera();
 
     // Render settings

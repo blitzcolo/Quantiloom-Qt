@@ -128,9 +128,11 @@ void QuantiloomVulkanRenderer::initSwapChainResources() {
     // configuration it was opened with rather than with defaults.
     m_window->applyDeferredSettings();
 
-    // Load pending scene if any
+    // Load pending scene if any. This is also the restore-after-minimize path,
+    // so the scene's own camera must not displace the one the user flew to --
+    // the stored members are re-pushed just below.
     if (!m_pendingScenePath.isEmpty()) {
-        loadScene(m_pendingScenePath);
+        loadScene(m_pendingScenePath, /*adoptSceneCamera=*/false);
         m_pendingScenePath.clear();
     }
 
@@ -223,7 +225,7 @@ void QuantiloomVulkanRenderer::setPaused(bool paused) {
     }
 }
 
-void QuantiloomVulkanRenderer::loadScene(const QString& filePath) {
+void QuantiloomVulkanRenderer::loadScene(const QString& filePath, bool adoptSceneCamera) {
     qDebug() << "QuantiloomVulkanRenderer::loadScene() - Path:" << filePath;
 
     if (!m_initialized) {
@@ -292,6 +294,30 @@ void QuantiloomVulkanRenderer::loadScene(const QString& filePath) {
         // scene rendered, so the only symptom was a sky that quietly stopped
         // being atmospheric until the preset was touched again.
         applyAtmosphereToContext();
+
+        // The context adopts the camera the scene file carries, but nothing
+        // told this class about it: the members kept on for the config-less
+        // case, so the panel read 45 degrees while the SDK rendered the
+        // scene's own FOV, and the first orbit drag snapped the view back to
+        // the stale members. A config load calls setCamera() right after this
+        // and wins, as it should -- the TOML is the document of record.
+        if (adoptSceneCamera) {
+            const quantiloom::Camera& sceneCamera = m_renderContext->GetCamera();
+            m_cameraPosition = sceneCamera.GetPosition();
+            m_cameraTarget = sceneCamera.GetLookAt();
+            m_cameraUp = sceneCamera.GetUp();
+            m_cameraFovY = sceneCamera.GetFovY();
+
+            // Orbit state is derived, and in radians -- see src/vulkan/CLAUDE.md.
+            const glm::vec3 offset = m_cameraPosition - m_cameraTarget;
+            m_orbitDistance = glm::length(offset);
+            if (m_orbitDistance > 1e-6f) {
+                const glm::vec3 dir = offset / m_orbitDistance;
+                m_orbitPitch = std::asin(glm::clamp(dir.y, -1.0f, 1.0f));
+                m_orbitYaw = std::atan2(dir.x, dir.z);
+            }
+            emit m_window->cameraChanged();
+        }
 
         resetAccumulation();
         emit m_window->sceneLoaded(true, QObject::tr("Scene loaded successfully"));
@@ -808,6 +834,11 @@ std::string QuantiloomVulkanRenderer::resolveDefaultModelPackDir() {
     if (!envDir.isEmpty()) {
         candidates << envDir;
     }
+    // Same three candidates in the same order as the core CLI. The
+    // working-directory one was missing here, so a Studio launched from a repo
+    // root -- where the CLI finds the pack and renders an atmosphere -- silently
+    // disabled it instead.
+    candidates << QDir::currentPath() + "/assets/atmos_models";
     // Copied next to the exe from the SDK by a POST_BUILD step
     candidates << QCoreApplication::applicationDirPath() + "/assets/atmos_models";
 

@@ -107,6 +107,16 @@ public:
     const quantiloom::Config* getRawConfig() const;
 
     /**
+     * @brief Forget the loaded config, so getRawConfig() reports none.
+     *
+     * Call this when opening something that is not a scene configuration --
+     * a bare model. The raw config outlives the document it came from
+     * otherwise, and everything keyed off it (the solar LUT, the spectral
+     * curves) gets replayed onto the next scene opened.
+     */
+    void clearLoadedConfig();
+
+    /**
      * @brief Export configuration to TOML file
      * @param filePath Output file path
      * @param config Configuration to export

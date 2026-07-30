@@ -1589,6 +1589,11 @@ bool MainWindow::openPath(const QString& filePath) {
     // save over -- Save will ask for a destination the first time.
     m_currentSceneFile = filePath;
     m_currentConfigFile.clear();
+    // And no configuration behind it means the previous document's must go.
+    // applySpectralConfig() runs on every successful load and reads whatever
+    // getRawConfig() still holds, so a TOML opened earlier used to lend this
+    // model its solar LUT and spectral curves.
+    m_configManager->clearLoadedConfig();
     // Show the render surface *before* asking for the load: the Vulkan window
     // only creates its renderer once it is exposed, so keeping the guidance
     // page up until the scene reports success would wait on a renderer that
@@ -1970,7 +1975,13 @@ void MainWindow::updatePanelsFromScene() {
     m_propertiesPanel->showEmptyState();
 
     if (scene) {
-        m_lightingPanel->setLightingParams(quantiloom::CreateDefaultLightingParams());
+        // Seed the panel from the struct the renderer is actually running on,
+        // not from the defaults. This fires on sceneLoaded, i.e. *after*
+        // applyConfig() has fed the config's lighting to both -- so seeding
+        // defaults here left the panel disagreeing with the render, and the
+        // first slider move published the panel's whole set of defaults over
+        // the config's values through onLightingChanged().
+        m_lightingPanel->setLightingParams(*m_lightingParams);
         m_spectralConfigPanel->setWavelengthRange(
             scene->lambda_min, scene->lambda_max, scene->delta_lambda);
     }
