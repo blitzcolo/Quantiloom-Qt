@@ -1,10 +1,34 @@
 # src/config/
 
+## What renders is not read here
+
+Opening a `.toml` hands it to `ExternalRenderContext::ApplyConfig`, and **that** is
+what configures the renderer — the same reading the core CLI does, in
+`rendercore::ResolveRenderConfig`. Nothing in this directory decides what a key means
+any more.
+
+It used to. This repo interpreted the same ~50 keys itself, and the two readings had
+drifted into a dozen ways the same file rendered differently depending on which program
+opened it: shadow rays defaulted off here and on there, an absent
+`spectral.wavelength_nm` meant 550 nm here and the band centre there,
+`lighting.solar_lut_normalise` was read there and ignored here (a factor of ten thousand
+on a D65 scene), and the NMF basis, `[refractive_index]` and
+`scene.default_temperature_k` were read there and not at all here. The audit is
+`render_path_divergence.md` at the repo root.
+
+**So a new key is added in Quantiloom-dev**, in `ConfigResolve.cpp`, where both hosts
+get it. Adding one here would recreate exactly the divergence that was just removed.
+
+## What this directory still does
+
 `ConfigManager` moves scene state between TOML on disk and the `SceneConfig` struct the
 panels read. Load and save share no code:
 
 - **Load** delegates to the SDK's `quantiloom::Config::Load`, then
-  `extractSceneConfig()` copies out the fields the GUI needs.
+  `extractSceneConfig()` copies out the fields the GUI needs **to show and to save**.
+  Those values populate widgets; `MainWindow::syncPanelsFromRenderer()` then reconciles
+  them with what the renderer actually resolved, so a panel cannot end up disagreeing
+  with the render.
 - **Save** is a hand-written serializer — `exportConfig()` streams TOML text with
   `out << ...`.
 
