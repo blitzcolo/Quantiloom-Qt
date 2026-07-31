@@ -18,7 +18,9 @@
 #include <memory>
 #include <vector>
 
+#include <atmos/AtmosphereNNConfig.hpp>
 #include <core/Types.hpp>
+#include <postprocess/SensorModel.hpp>
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 
@@ -175,6 +177,17 @@ private:
     void applyTargetSpp(uint32_t spp);
     void applyDisplayEnhancementEnabled(bool enabled);
     void applyTheme(const QString& themeId);
+    void applyWavelength(float wavelength_nm);
+    void applyLightingParams(const quantiloom::LightingParams& params);
+    void applyEnvironmentMap(const QString& path, bool enabled);
+    void applyAtmosphere(const quantiloom::AtmosphereNNConfig& config);
+    void applySensorEnabled(bool enabled);
+    void applySensorParams(const quantiloom::SensorParams& params);
+    void applyClaheParams(bool enabled, float clipLimit, int tileSize, bool luminanceOnly);
+    void applyCameraPose(const glm::vec3& position, const glm::vec3& target);
+    void applyCameraFov(float fovYDegrees);
+    void applyMaterial(int index, const quantiloom::Material& material);
+    void applyNodeTransform(int nodeIndex, const glm::mat4& transform);
 
     void buildThemeMenu(QMenu* menu);
 

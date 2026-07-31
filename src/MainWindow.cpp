@@ -722,6 +722,172 @@ void MainWindow::applyTargetSpp(uint32_t spp) {
     showStatusMessage(tr("Target samples: %1").arg(spp));
 }
 
+void MainWindow::applyWavelength(float wavelength_nm) {
+    m_vulkanWindow->setWavelength(wavelength_nm);
+    m_spectralConfigPanel->setWavelength(wavelength_nm);
+
+    setSceneModified(true);
+    showStatusMessage(tr("Wavelength: %1 nm").arg(wavelength_nm, 0, 'f', 0));
+}
+
+void MainWindow::applyLightingParams(const quantiloom::LightingParams& params) {
+    // Takes the whole struct, for a caller that has one -- the panels do not.
+    // They each own half of it and edit their half in place, which is what
+    // pushLightingParams() is for; this is the entry point for anything that
+    // arrives with the finished article.
+    if (&params != m_lightingParams.get()) {
+        *m_lightingParams = params;
+    }
+    pushLightingParams();
+
+    // Both halves of the struct are shown back, since the caller was neither
+    // panel. The lighting panel is not written back from pushLightingParams()
+    // because that path *is* the lighting panel: its azimuth and elevation come
+    // back out of the direction vector through asin and atan2, and rounding
+    // that to the slider's integer degrees mid-drag would fight the drag.
+    m_lightingPanel->setLightingParams(*m_lightingParams);
+    m_atmosphericPanel->setAnalyticTerms(m_lightingParams->transmittance,
+                                         m_lightingParams->atmosphereTemperature_K);
+}
+
+void MainWindow::applyEnvironmentMap(const QString& path, bool enabled) {
+    // The enable flag rides on LightingParams and has already been pushed by
+    // onLightingChanged(); what is left is loading a map the shell has not
+    // loaded yet. Turning one off does not unload it -- the flag stops the
+    // shader sampling it, and keeping it resident makes the checkbox instant.
+    if (enabled && !path.isEmpty()) {
+        if (!m_vulkanWindow->loadEnvironmentMap(path)) {
+            showStatusMessage(tr("Failed to load environment map: %1")
+                                  .arg(QFileInfo(path).fileName()));
+        }
+    }
+
+    // Remember it for export, since no getter on the renderer carries the path.
+    if (m_lastConfig) {
+        m_lastConfig->environmentMap = path;
+        m_lastConfig->environmentMapEnabled = enabled;
+    }
+    m_lightingPanel->setEnvironmentMap(path, enabled);
+    setSceneModified(true);
+
+    if (path.isEmpty()) {
+        showStatusMessage(tr("Environment map cleared"));
+    } else {
+        showStatusMessage(enabled
+            ? tr("Lighting from %1").arg(QFileInfo(path).fileName())
+            : tr("Environment map off — it contributes no light"));
+    }
+}
+
+void MainWindow::applyAtmosphere(const quantiloom::AtmosphereNNConfig& config) {
+    m_vulkanWindow->setAtmosphericConfig(config);
+    m_atmosphericPanel->setAtmosphericConfig(config);
+    setSceneModified(true);
+}
+
+void MainWindow::applySensorEnabled(bool enabled) {
+    m_vulkanWindow->setSensorEnabled(enabled);
+    m_sensorPanel->setSensorEnabled(enabled);
+    setSceneModified(true);
+    showStatusMessage(enabled ? tr("Sensor simulation enabled")
+                              : tr("Sensor simulation disabled"));
+}
+
+void MainWindow::applySensorParams(const quantiloom::SensorParams& params) {
+    m_vulkanWindow->setSensorParams(params);
+    m_sensorPanel->setSensorParams(params);
+    setSceneModified(true);
+    showStatusMessage(tr("Sensor parameters updated"));
+}
+
+void MainWindow::applyClaheParams(bool enabled, float clipLimit, int tileSize,
+                                  bool luminanceOnly) {
+    m_displayEnhancementEnabled = enabled;
+    m_claheClipLimit = clipLimit;
+    m_claheTileSize = tileSize;
+    m_claheLuminanceOnly = luminanceOnly;
+
+    m_vulkanWindow->setDisplayEnhancement(enabled, clipLimit, tileSize, luminanceOnly);
+
+    m_displayEnhancementPanel->setEnhancementEnabled(enabled);
+    m_displayEnhancementPanel->setClipLimit(clipLimit);
+    m_displayEnhancementPanel->setTileSize(tileSize);
+    m_displayEnhancementPanel->setLuminanceOnly(luminanceOnly);
+
+    if (m_displayEnhancementAction) {
+        const QSignalBlocker blocker(m_displayEnhancementAction);
+        m_displayEnhancementAction->setChecked(enabled);
+    }
+
+    // Session state, not the document -- see src/config/CLAUDE.md. No
+    // setSceneModified() here, deliberately.
+    showStatusMessage(enabled
+        ? tr("Display enhancement on (CLAHE: clip %1, %2x%2 tiles)")
+            .arg(clipLimit, 0, 'f', 1).arg(tileSize)
+        : tr("Display enhancement off"));
+}
+
+void MainWindow::applyCameraPose(const glm::vec3& position, const glm::vec3& target) {
+    glm::vec3 currentPosition;
+    glm::vec3 currentTarget;
+    glm::vec3 up;
+    float fovY = 45.0f;
+    m_vulkanWindow->getCameraState(currentPosition, currentTarget, up, fovY);
+    m_vulkanWindow->setCamera(position, target, up, fovY);
+    // No write-back: the renderer emits cameraChanged() when it adopts a pose,
+    // and onCameraChanged() is the single point that shows it.
+    setSceneModified(true);
+}
+
+void MainWindow::applyCameraFov(float fovYDegrees) {
+    m_vulkanWindow->setCameraFovY(fovYDegrees);
+    setSceneModified(true);
+}
+
+void MainWindow::applyMaterial(int index, const quantiloom::Material& material) {
+    const auto* scene = m_vulkanWindow->getScene();
+    if (!scene || index < 0 || static_cast<size_t>(index) >= scene->materials.size()) {
+        return;
+    }
+
+    const quantiloom::Material previous = scene->materials[static_cast<size_t>(index)];
+
+    // ModifyMaterialCommand has existed since the undo stack was written and
+    // was never pushed, so every material edit was silently outside the
+    // history -- Ctrl+Z after changing a colour undid whatever move came
+    // before it instead.
+    auto command = std::make_unique<ModifyMaterialCommand>(
+        m_vulkanWindow, index, previous, material);
+    command->execute();
+    m_undoStack->push(std::move(command));
+
+    m_materialEditorPanel->setMaterial(index, &scene->materials[static_cast<size_t>(index)]);
+    setSceneModified(true);
+    showStatusMessage(tr("Material modified"));
+}
+
+void MainWindow::applyNodeTransform(int nodeIndex, const glm::mat4& transform) {
+    const auto* scene = m_vulkanWindow->getScene();
+    if (!scene || nodeIndex < 0 || static_cast<size_t>(nodeIndex) >= scene->nodes.size()) {
+        return;
+    }
+
+    const glm::mat4 previous = scene->nodes[static_cast<size_t>(nodeIndex)].transform;
+    if (previous == transform) {
+        return;
+    }
+
+    // Same command the gizmo pushes, so the undo history does not care which
+    // way the node was moved.
+    auto command = std::make_unique<TransformNodeCommand>(
+        m_vulkanWindow, nodeIndex, previous, transform);
+    command->execute();
+    m_undoStack->push(std::move(command));
+
+    m_propertiesPanel->updateNodeTransform(transform);
+    setSceneModified(true);
+}
+
 void MainWindow::buildThemeMenu(QMenu* menu) {
     m_themeGroup = new QActionGroup(this);
     m_themeGroup->setExclusive(true);
@@ -854,17 +1020,8 @@ void MainWindow::setupDockWidgets() {
             this, &MainWindow::onMaterialSelected);
 
     connect(m_cameraPanel, &CameraPanel::cameraEdited,
-            this, [this](const glm::vec3& position, const glm::vec3& target) {
-                glm::vec3 currentPosition, currentTarget, up;
-                float fovY = 45.0f;
-                m_vulkanWindow->getCameraState(currentPosition, currentTarget, up, fovY);
-                m_vulkanWindow->setCamera(position, target, up, fovY);
-                setSceneModified(true);
-            });
-    connect(m_cameraPanel, &CameraPanel::fovEdited, this, [this](float fovY) {
-        m_vulkanWindow->setCameraFovY(fovY);
-        setSceneModified(true);
-    });
+            this, &MainWindow::applyCameraPose);
+    connect(m_cameraPanel, &CameraPanel::fovEdited, this, &MainWindow::applyCameraFov);
     connect(m_cameraPanel, &CameraPanel::resetRequested, this, &MainWindow::onResetCamera);
     connect(m_cameraPanel, &CameraPanel::viewDirectionRequested,
             this, [this](const glm::vec3& direction) {
@@ -905,10 +1062,7 @@ void MainWindow::setupDockWidgets() {
                 showStatusMessage(tr("Atmospheric preset: %1").arg(preset));
             });
     connect(m_atmosphericPanel, &AtmosphericPanel::configChanged,
-            this, [this](const quantiloom::AtmosphereNNConfig& config) {
-                m_vulkanWindow->setAtmosphericConfig(config);
-                setSceneModified(true);
-            });
+            this, &MainWindow::applyAtmosphere);
     // The two analytic terms moved here from the lighting panel; they still
     // belong to LightingParams, so they are merged into the copy the shell
     // holds rather than sent on their own.
@@ -921,34 +1075,13 @@ void MainWindow::setupDockWidgets() {
 
     // Sensor panel signals
     connect(m_sensorPanel, &SensorPanel::enabledChanged,
-            this, [this](bool enabled) {
-                m_vulkanWindow->setSensorEnabled(enabled);
-                showStatusMessage(enabled ? tr("Sensor simulation enabled")
-                                          : tr("Sensor simulation disabled"));
-            });
+            this, &MainWindow::applySensorEnabled);
     connect(m_sensorPanel, &SensorPanel::paramsChanged,
-            this, [this](const quantiloom::SensorParams& params) {
-                m_vulkanWindow->setSensorParams(params);
-                showStatusMessage(tr("Sensor parameters updated"));
-            });
+            this, &MainWindow::applySensorParams);
 
     // Display enhancement panel signals
     connect(m_displayEnhancementPanel, &DisplayEnhancementPanel::enhancementChanged,
-            this, [this](bool enabled, float clipLimit, int tileSize, bool luminanceOnly) {
-                m_displayEnhancementEnabled = enabled;
-                m_claheClipLimit = clipLimit;
-                m_claheTileSize = tileSize;
-                m_claheLuminanceOnly = luminanceOnly;
-                m_vulkanWindow->setDisplayEnhancement(enabled, clipLimit, tileSize, luminanceOnly);
-                if (m_displayEnhancementAction) {
-                    const QSignalBlocker blocker(m_displayEnhancementAction);
-                    m_displayEnhancementAction->setChecked(enabled);
-                }
-                showStatusMessage(enabled
-                    ? tr("Display enhancement on (CLAHE: clip %1, %2x%2 tiles)")
-                        .arg(clipLimit, 0, 'f', 1).arg(tileSize)
-                    : tr("Display enhancement off"));
-            });
+            this, &MainWindow::applyClaheParams);
 }
 
 void MainWindow::setupWorkspaces() {
@@ -1878,9 +2011,7 @@ void MainWindow::onMaterialSelected(int materialIndex) {
 }
 
 void MainWindow::onMaterialChanged(int index, const quantiloom::Material& material) {
-    m_vulkanWindow->updateMaterial(index, material);
-    setSceneModified(true);
-    showStatusMessage(tr("Material modified"));
+    applyMaterial(index, material);
 }
 
 void MainWindow::onLightingChanged(const quantiloom::LightingParams& params) {
@@ -1903,31 +2034,7 @@ void MainWindow::onLightingChanged(const quantiloom::LightingParams& params) {
 }
 
 void MainWindow::onEnvironmentMapChanged(const QString& path, bool enabled) {
-    // The enable flag rides on LightingParams and has already been pushed by
-    // onLightingChanged(); what is left is loading a map the shell has not
-    // loaded yet. Turning one off does not unload it -- the flag stops the
-    // shader sampling it, and keeping it resident makes the checkbox instant.
-    if (enabled && !path.isEmpty()) {
-        if (!m_vulkanWindow->loadEnvironmentMap(path)) {
-            showStatusMessage(tr("Failed to load environment map: %1")
-                                  .arg(QFileInfo(path).fileName()));
-        }
-    }
-
-    // Remember it for export, since no getter on the renderer carries the path.
-    if (m_lastConfig) {
-        m_lastConfig->environmentMap = path;
-        m_lastConfig->environmentMapEnabled = enabled;
-    }
-    setSceneModified(true);
-
-    if (path.isEmpty()) {
-        showStatusMessage(tr("Environment map cleared"));
-    } else {
-        showStatusMessage(enabled
-            ? tr("Lighting from %1").arg(QFileInfo(path).fileName())
-            : tr("Environment map off — it contributes no light"));
-    }
+    applyEnvironmentMap(path, enabled);
 }
 
 void MainWindow::pushLightingParams() {
@@ -1936,24 +2043,7 @@ void MainWindow::pushLightingParams() {
 }
 
 void MainWindow::onNodeTransformEdited(int nodeIndex, const glm::mat4& transform) {
-    const auto* scene = m_vulkanWindow->getScene();
-    if (!scene || nodeIndex < 0 || static_cast<size_t>(nodeIndex) >= scene->nodes.size()) {
-        return;
-    }
-
-    const glm::mat4 previous = scene->nodes[static_cast<size_t>(nodeIndex)].transform;
-    if (previous == transform) {
-        return;
-    }
-
-    // Same command the gizmo pushes, so the undo history does not care which
-    // way the node was moved.
-    auto command = std::make_unique<TransformNodeCommand>(
-        m_vulkanWindow, nodeIndex, previous, transform);
-    command->execute();
-    m_undoStack->push(std::move(command));
-
-    setSceneModified(true);
+    applyNodeTransform(nodeIndex, transform);
 }
 
 void MainWindow::onMaterialWithCriChanged(int index, const quantiloom::Material& material,
@@ -1988,9 +2078,7 @@ void MainWindow::onSpectralModeChanged(quantiloom::SpectralMode mode) {
 }
 
 void MainWindow::onWavelengthChanged(float wavelength_nm) {
-    m_vulkanWindow->setWavelength(wavelength_nm);
-    setSceneModified(true);
-    showStatusMessage(tr("Wavelength: %1 nm").arg(wavelength_nm, 0, 'f', 0));
+    applyWavelength(wavelength_nm);
 }
 
 void MainWindow::onDebugModeChanged(quantiloom::DebugVisualizationMode mode) {
