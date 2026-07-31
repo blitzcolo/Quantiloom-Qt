@@ -13,18 +13,41 @@ class QTextStream;
 #include <atmos/AtmosphereNNConfig.hpp>
 #include <core/Config.hpp>
 #include <core/Types.hpp>
+#include <glm/glm.hpp>
 #include <renderer/LightingParams.hpp>
 #include <postprocess/SensorModel.hpp>
 
 /**
  * @struct MaterialConfig
- * @brief IR material overrides from TOML config
+ * @brief Material overrides from TOML config, matched to the scene by name
  */
 struct MaterialConfig {
     QString name;                // Material name to match
     float irEmissivity = 0.0f;   // IR emissivity [0,1]
     float irTransmittance = 0.0f; // IR transmittance [0,1]
     float irTemperature_K = 0.0f; // Surface temperature (K)
+
+    /// The PBR half. Written only when hasPbr is set, so an entry that exists
+    /// to carry a temperature does not also assert a colour nobody chose.
+    bool hasPbr = false;
+    glm::vec3 baseColor{1.0f, 1.0f, 1.0f};
+    float metallic = 0.0f;
+    float roughness = 1.0f;
+    glm::vec3 emissive{0.0f, 0.0f, 0.0f};
+};
+
+/**
+ * @struct NodeConfig
+ * @brief A world transform for a node the scene file already placed
+ *
+ * Written as a matrix rather than as translation/rotation/scale: what the
+ * viewport holds is a matrix, and decomposing one into Euler angles to write it
+ * down and recomposing it on load is a round trip that does not always return
+ * what it was given. The core reads either.
+ */
+struct NodeConfig {
+    QString name;
+    glm::mat4 transform{1.0f};
 };
 
 /**
@@ -79,8 +102,16 @@ struct SceneConfig {
     bool sensorEnabled = false;
     quantiloom::SensorParams sensorParams;
 
+    /// [material] albedo -- the fallback surface for scenes that bring no
+    /// materials of their own. Required by the core's strict reading, so a
+    /// document saved without it renders here and is rejected by the CLI.
+    glm::vec3 defaultAlbedo{0.8f, 0.8f, 0.8f};
+
     // [[materials]] - IR material overrides
     QVector<MaterialConfig> materialConfigs;
+
+    // [[nodes]] -- transforms for nodes edited since the document was opened
+    QVector<NodeConfig> nodeConfigs;
 
     // Config file base directory (for resolving relative paths)
     QString baseDir;

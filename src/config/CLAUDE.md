@@ -45,6 +45,19 @@ spectral mode and wavelength range, the camera (read from the renderer, so orbit
 the mouse is exported too), the merged lighting parameters, the atmosphere preset and
 its nine weather features, and the whole sensor block.
 
+Node transforms and material edits round-trip too, and did not used to. Both are
+written only for what changed since the document was opened — `MainWindow` keeps
+`m_editedNodes` and `m_editedMaterials`, the `apply*` dispatchers add to them, and
+`applyConfig()` clears them. A scene with a thousand nodes does not want a thousand
+`[[nodes]]` blocks restating where the model file already put them. Both are matched by
+name in the file, so a node or material the scene left unnamed cannot be written down —
+a limit of the schema, not something to paper over with an index that the next export of
+the model would invalidate.
+
+`[material] albedo` is written because the core requires it. It never was, so every
+configuration this exporter produced rendered here under `WarnAndDefault` and was
+refused by the CLI, which reads the same file under `Error`.
+
 Three things are deliberately **session state** and are not in the file:
 
 - the debug visualization mode — a way of looking at the scene, not part of it;

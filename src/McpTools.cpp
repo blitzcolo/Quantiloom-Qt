@@ -262,10 +262,11 @@ void MainWindow::registerMcpTools() {
             "same writer.\n"
             "\n"
             "Use it to see what an edit changed, or to hand the document to the command-line "
-            "renderer. Note what it does not carry: node transforms and the PBR half of a "
-            "material have no representation in this schema, so an object moved with "
-            "ql_set_node_transform is not in what comes back and will not survive a save. The "
-            "reply repeats that in not_serialized.";
+            "renderer, which reads it the same way. Everything you can change through these "
+            "tools is in it, including node transforms and material edits, except the two "
+            "things that are ways of looking at a scene rather than part of it -- the debug "
+            "visualisation mode and display enhancement. The reply lists those in "
+            "session_only.";
         tool.inputSchemaJson = R"({"type":"object","properties":{}})";
         tool.readOnly = true;
         tool.handler = [this](const quantiloom::String&) {
@@ -276,10 +277,9 @@ void MainWindow::registerMcpTools() {
             out["toml"] = m_configManager->exportConfigToString(config);
             out["config_file"] = m_currentConfigFile;
             out["unsaved_changes"] = m_sceneModified;
-            out["not_serialized"] = QJsonArray{
-                QStringLiteral("node transforms (ql_set_node_transform)"),
-                QStringLiteral("material base colour, metallic, roughness and emissive"),
-                QStringLiteral("debug visualisation mode and display enhancement, session state"),
+            out["session_only"] = QJsonArray{
+                QStringLiteral("debug visualisation mode (ql_set_debug_mode)"),
+                QStringLiteral("display enhancement (ql_set_display_enhancement)"),
             };
             return Json(out);
         };
@@ -762,11 +762,9 @@ void MainWindow::registerMcpTools() {
             "parameters.\n"
             "\n"
             "The infrared trio matters only in the thermal modes: emissivity and transmittance "
-            "are 0-1 fractions, temperature is in kelvin. Undoable with ql_undo.\n"
-            "\n"
-            "base_color, metallic, roughness and emissive are NOT written to the TOML document -- "
-            "the schema has no place for them -- so they are lost on save. Only the infrared trio "
-            "round-trips.";
+            "are 0-1 fractions, temperature is in kelvin. Undoable with ql_undo, and written to "
+            "the document as a [[materials]] entry so it survives a save and renders the same "
+            "way from the command line.";
         tool.inputSchemaJson = R"({
   "type": "object",
   "properties": {
@@ -856,11 +854,14 @@ void MainWindow::registerMcpTools() {
             "Move, rotate or scale one object. index comes from ql_get_scene.\n"
             "\n"
             "Give translation, rotation_euler_degrees and scale to build the transform, or give "
-            "matrix directly as 16 column-major numbers. Rebuilds the acceleration structure and "
-            "resets accumulation. Undoable with ql_undo.\n"
+            "matrix directly as 16 column-major numbers. The transform is absolute, not relative "
+            "to where the model file put the node -- read the current one from ql_get_scene with "
+            "response_format 'detailed' if you mean to compose with it.\n"
             "\n"
-            "Not written to the TOML document -- the schema has no section for per-node "
-            "transforms -- so this is lost on save.";
+            "Rebuilds the acceleration structure and resets accumulation. Undoable with ql_undo, "
+            "and written to the document as a [[nodes]] entry, so it survives a save and renders "
+            "the same way from the command line. A node the scene file left unnamed cannot be "
+            "written down.";
         tool.inputSchemaJson = R"({
   "type": "object",
   "properties": {
@@ -927,7 +928,6 @@ void MainWindow::registerMcpTools() {
             QJsonObject out;
             out["index"] = index;
             out["name"] = QString::fromStdString(scene->nodes[static_cast<size_t>(index)].name);
-            out["not_serialized"] = true;
             return Json(out);
         };
         add(tool);

@@ -14,6 +14,8 @@
 #include <postprocess/PostprocessConfig.hpp>
 #include <renderer/LightingParams.hpp>
 
+#include <glm/gtc/matrix_transform.hpp>
+
 // Reading is delegated to the SDK's PostprocessConfig::ParseSensorParams, but
 // writing is hand-rolled TOML below, so the two drift apart whenever the SDK
 // adds a field: noiseSeed was parsed on load and dropped on save, which made a
@@ -230,6 +232,11 @@ void ConfigManager::extractSceneConfig(const quantiloom::Config& config, SceneCo
     // Always parse sensor params so they're available if user enables later
     out.sensorParams = quantiloom::PostprocessConfig::ParseSensorParams(config);
 
+    // [material] - the scene-wide fallback albedo
+    if (const auto albedo = config.GetFloatArray("material.albedo"); albedo.size() >= 3) {
+        out.defaultAlbedo = glm::vec3(albedo[0], albedo[1], albedo[2]);
+    }
+
     // [[materials]] - parse material IR overrides
     // TOML format:
     // [[materials]]
@@ -251,6 +258,25 @@ void ConfigManager::extractSceneConfig(const quantiloom::Config& config, SceneCo
         matConfig.irTransmittance = matTable.GetFloat("ir_transmittance", 0.0f);
         matConfig.irTemperature_K = matTable.GetFloat("ir_temperature_k", 0.0f);
 
+        // The PBR half, kept only if the file actually carries it -- so a
+        // reload/save cycle does not invent one for an entry that had none.
+        if (const auto colour = matTable.GetFloatArray("base_color"); colour.size() >= 3) {
+            matConfig.baseColor = glm::vec3(colour[0], colour[1], colour[2]);
+            matConfig.hasPbr = true;
+        }
+        if (matTable.Has("metallic")) {
+            matConfig.metallic = matTable.GetFloat("metallic", 0.0f);
+            matConfig.hasPbr = true;
+        }
+        if (matTable.Has("roughness")) {
+            matConfig.roughness = matTable.GetFloat("roughness", 1.0f);
+            matConfig.hasPbr = true;
+        }
+        if (const auto emissive = matTable.GetFloatArray("emissive"); emissive.size() >= 3) {
+            matConfig.emissive = glm::vec3(emissive[0], emissive[1], emissive[2]);
+            matConfig.hasPbr = true;
+        }
+
         out.materialConfigs.append(matConfig);
 
         qDebug() << "Loaded material config:" << matConfig.name
@@ -258,6 +284,48 @@ void ConfigManager::extractSceneConfig(const quantiloom::Config& config, SceneCo
                  << "transmittance=" << matConfig.irTransmittance
                  << "temperature=" << matConfig.irTemperature_K << "K";
     }
+    // [[nodes]] - transform overrides, matched to the scene by node name
+    out.nodeConfigs.clear();
+    for (const auto& nodeTable : config.GetTableArray("nodes")) {
+        const std::string name = nodeTable.GetString("name", "");
+        if (name.empty()) {
+            continue;
+        }
+
+        NodeConfig nodeConfig;
+        nodeConfig.name = QString::fromStdString(name);
+
+        if (const auto matrix = nodeTable.GetFloatArray("matrix"); matrix.size() == 16) {
+            for (int c = 0; c < 4; ++c) {
+                for (int r = 0; r < 4; ++r) {
+                    nodeConfig.transform[c][r] = matrix[static_cast<size_t>(c * 4 + r)];
+                }
+            }
+        } else {
+            // The core also reads translation/rotation/scale, which a person may
+            // well have written by hand; recompose them the same way it does.
+            const auto translation = nodeTable.GetFloatArray("translation");
+            const auto rotation = nodeTable.GetFloatArray("rotation_euler_degrees");
+            const auto scale = nodeTable.GetFloatArray("scale");
+            glm::mat4 transform(1.0f);
+            if (translation.size() >= 3) {
+                transform = glm::translate(
+                    transform, glm::vec3(translation[0], translation[1], translation[2]));
+            }
+            if (rotation.size() >= 3) {
+                transform = glm::rotate(transform, glm::radians(rotation[0]), glm::vec3(1, 0, 0));
+                transform = glm::rotate(transform, glm::radians(rotation[1]), glm::vec3(0, 1, 0));
+                transform = glm::rotate(transform, glm::radians(rotation[2]), glm::vec3(0, 0, 1));
+            }
+            if (scale.size() >= 3) {
+                transform = glm::scale(transform, glm::vec3(scale[0], scale[1], scale[2]));
+            }
+            nodeConfig.transform = transform;
+        }
+
+        out.nodeConfigs.append(nodeConfig);
+    }
+
 }
 
 quantiloom::SpectralMode ConfigManager::parseSpectralMode(const std::string& modeStr) {
@@ -420,12 +488,28 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
         out << "\n";
     }
 
-    // [[materials]] - export material IR configs
+    // [material] - required by the core, and absent from everything this
+    // exporter wrote before now: a configuration saved here rendered in Studio
+    // and was refused by the CLI, which reads the same file strictly.
+    out << "[material]\n";
+    out << "albedo = [" << config.defaultAlbedo.r << ", " << config.defaultAlbedo.g
+        << ", " << config.defaultAlbedo.b << "]\n";
+    out << "\n";
+
+    // [[materials]] - material overrides, IR and PBR
     for (const auto& matConfig : config.materialConfigs) {
-        if (matConfig.irEmissivity > 0.0f || matConfig.irTransmittance > 0.0f ||
-            matConfig.irTemperature_K > 0.0f) {
+        if (matConfig.hasPbr || matConfig.irEmissivity > 0.0f ||
+            matConfig.irTransmittance > 0.0f || matConfig.irTemperature_K > 0.0f) {
             out << "[[materials]]\n";
             out << "name = \"" << matConfig.name << "\"\n";
+            if (matConfig.hasPbr) {
+                out << "base_color = [" << matConfig.baseColor.r << ", "
+                    << matConfig.baseColor.g << ", " << matConfig.baseColor.b << "]\n";
+                out << "metallic = " << matConfig.metallic << "\n";
+                out << "roughness = " << matConfig.roughness << "\n";
+                out << "emissive = [" << matConfig.emissive.r << ", "
+                    << matConfig.emissive.g << ", " << matConfig.emissive.b << "]\n";
+            }
             if (matConfig.irEmissivity > 0.0f) {
                 out << "ir_emissivity = " << matConfig.irEmissivity << "\n";
             }
@@ -440,6 +524,26 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
     }
 
     // [sensor]
+    // [[nodes]] - transforms for nodes moved since the document was opened.
+    // A matrix rather than translation/rotation/scale: the viewport holds a
+    // matrix, and decomposing one to write it down does not always round-trip.
+    for (const auto& nodeConfig : config.nodeConfigs) {
+        out << "[[nodes]]\n";
+        out << "name = \"" << nodeConfig.name << "\"\n";
+        out << "matrix = [\n";
+        for (int c = 0; c < 4; ++c) {
+            out << "    ";
+            for (int r = 0; r < 4; ++r) {
+                out << nodeConfig.transform[c][r];
+                if (c != 3 || r != 3) {
+                    out << ", ";
+                }
+            }
+            out << "\n";
+        }
+        out << "]\n\n";
+    }
+
     out << "[sensor]\n";
     out << "enabled = " << (config.sensorEnabled ? "true" : "false") << "\n";
     out << "focal_length_mm = " << config.sensorParams.focalLength_mm << "\n";

@@ -388,6 +388,14 @@ private:
     void applyConfig(const SceneConfig& config);
     void collectCurrentConfig(SceneConfig& config);
 
+    /// Nodes and materials changed since the document was opened, by index.
+    /// collectCurrentConfig() writes [[nodes]] and the PBR half of
+    /// [[materials]] for these and no others: a scene with a thousand nodes
+    /// does not want a thousand transform blocks describing where the model
+    /// file already put them.
+    QSet<int> m_editedNodes;
+    QSet<int> m_editedMaterials;
+
     // MCP server, when the user has started one
     std::unique_ptr<quantiloom::mcp::Server> m_mcpServer;
     QAction* m_mcpAction = nullptr;

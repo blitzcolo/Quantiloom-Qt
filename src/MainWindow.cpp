@@ -867,6 +867,7 @@ void MainWindow::applyMaterial(int index, const quantiloom::Material& material) 
     command->execute();
     m_undoStack->push(std::move(command));
 
+    m_editedMaterials.insert(index);
     m_materialEditorPanel->setMaterial(index, &scene->materials[static_cast<size_t>(index)]);
     setSceneModified(true);
     showStatusMessage(tr("Material modified"));
@@ -890,6 +891,7 @@ void MainWindow::applyNodeTransform(int nodeIndex, const glm::mat4& transform) {
     command->execute();
     m_undoStack->push(std::move(command));
 
+    m_editedNodes.insert(nodeIndex);
     m_propertiesPanel->updateNodeTransform(transform);
     setSceneModified(true);
 }
@@ -2264,6 +2266,11 @@ void MainWindow::applyConfig(const SceneConfig& config) {
     // round trip instead of reverting to defaults.
     m_lastConfig = std::make_unique<SceneConfig>(config);
 
+    // A new document, so nothing has been edited in it yet. What the file
+    // already said is in m_lastConfig and is carried forward from there.
+    m_editedNodes.clear();
+    m_editedMaterials.clear();
+
     m_renderSettingsPanel->setResolution(config.width, config.height);
     m_renderSettingsPanel->setTargetSPP(config.spp);
 
@@ -2409,6 +2416,76 @@ void MainWindow::collectCurrentConfig(SceneConfig& config) {
     // Collect sensor settings
     config.sensorEnabled = m_sensorPanel->isSensorEnabled();
     config.sensorParams = m_sensorPanel->getSensorParams();
+
+    // Node transforms and material edits, read from the scene the renderer is
+    // running on. Only what changed since the document was opened: the model
+    // file already places everything else, and repeating it would bury the two
+    // lines that matter in a thousand that do not.
+    //
+    // Nodes and materials are matched by name in the file, so anything unnamed
+    // cannot be written down -- an honest limit of the schema rather than
+    // something to paper over with an index that the next export of the model
+    // would invalidate.
+    const quantiloom::Scene* scene = m_vulkanWindow->getScene();
+    if (!scene) {
+        return;
+    }
+
+    for (const int nodeIndex : m_editedNodes) {
+        if (nodeIndex < 0 || static_cast<size_t>(nodeIndex) >= scene->nodes.size()) {
+            continue;
+        }
+        const auto& node = scene->nodes[static_cast<size_t>(nodeIndex)];
+        if (node.name.empty()) {
+            continue;
+        }
+
+        NodeConfig nodeConfig;
+        nodeConfig.name = QString::fromStdString(node.name);
+        nodeConfig.transform = node.transform;
+
+        // Replace an entry the file already carried for this node rather than
+        // adding a second one the core would apply in file order.
+        auto existing = std::find_if(
+            config.nodeConfigs.begin(), config.nodeConfigs.end(),
+            [&nodeConfig](const NodeConfig& n) { return n.name == nodeConfig.name; });
+        if (existing != config.nodeConfigs.end()) {
+            *existing = nodeConfig;
+        } else {
+            config.nodeConfigs.append(nodeConfig);
+        }
+    }
+
+    for (const int materialIndex : m_editedMaterials) {
+        if (materialIndex < 0 ||
+            static_cast<size_t>(materialIndex) >= scene->materials.size()) {
+            continue;
+        }
+        const auto& material = scene->materials[static_cast<size_t>(materialIndex)];
+        if (material.name.empty()) {
+            continue;
+        }
+        const QString name = QString::fromStdString(material.name);
+
+        auto existing = std::find_if(
+            config.materialConfigs.begin(), config.materialConfigs.end(),
+            [&name](const MaterialConfig& m) { return m.name == name; });
+        MaterialConfig& matConfig = (existing != config.materialConfigs.end())
+            ? *existing
+            : *config.materialConfigs.insert(config.materialConfigs.end(), MaterialConfig{});
+
+        matConfig.name = name;
+        matConfig.hasPbr = true;
+        matConfig.baseColor = glm::vec3(material.baseColorFactor);
+        matConfig.metallic = material.metallicFactor;
+        matConfig.roughness = material.roughnessFactor;
+        matConfig.emissive = material.emissiveFactor;
+        matConfig.irEmissivity = material.irEmissivityCurve.empty()
+            ? 0.0f : material.irEmissivityCurve[0].second;
+        matConfig.irTransmittance = material.irTransmittanceCurve.empty()
+            ? 0.0f : material.irTransmittanceCurve[0].second;
+        matConfig.irTemperature_K = material.irTemperature_K;
+    }
 }
 
 // ============================================================================
