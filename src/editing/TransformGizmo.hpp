@@ -2,17 +2,20 @@
  * @file TransformGizmo.hpp
  * @brief Transform manipulation tool for scene objects
  *
- * Handles translate/rotate/scale operations via mouse dragging.
- * Supports axis constraints and coordinate space switching.
+ * The modal state machine behind the drawn gizmo: which mode, which space,
+ * and — during a drag — how far the grabbed handle has been pulled. The drag
+ * math is ray-based: every update intersects the mouse ray with the grabbed
+ * handle's axis line or plane and derives the TOTAL delta from the press
+ * reference, so the object tracks the cursor exactly at any distance and
+ * per-event rounding cannot accumulate.
  *
- * UX Design (the bindings are registered as QActions by MainWindow; this list
- * used to say W/E/R, which is not what the code has ever dispatched):
- * - G: Translate mode
- * - R: Rotate mode
- * - T: Scale mode
- * - X/Y/Z: Constrain to axis (toggle)
- * - Shift: Fine control (10x slower)
- * - Space: Toggle world/local coordinates
+ * UX (bindings registered as QActions by MainWindow):
+ * - G: Translate mode, R: Rotate mode, T: Scale mode
+ * - X/Y/Z: axis constraint entries (menu state; handles carry the axis)
+ * - Ctrl: snap (0.5 units / 15 deg / 0.1 scale; with Shift 0.05 / 5 deg)
+ * - Shift: fine control (deltas at 10%)
+ * - Space: toggle world/local coordinates
+ * - Escape: cancel the drag; the shell restores the start transforms
  *
  * @author blitzcolo
  */
@@ -30,15 +33,23 @@ namespace quantiloom {
 class Scene;
 }
 
+namespace vkview {
+struct CameraRay;
+}
+
+namespace editing {
+enum class GizmoHandle;
+struct GizmoFrame;
+}
+
 /**
  * @class TransformGizmo
- * @brief Virtual transform gizmo for mouse-based object manipulation
+ * @brief Modal drag state for the viewport transform gizmo
  *
- * No visual rendering (yet) - transforms are applied via mouse drag.
- * The class computes delta transforms based on:
- * - Current mode (translate/rotate/scale)
- * - Active axis constraints
- * - Mouse delta and camera orientation
+ * Owns no geometry (editing::GizmoModel draws and hit-tests); this class
+ * turns "handle H grabbed at ray R0, cursor now at ray R" into a delta
+ * transform, applied to each selected node's press-time matrix by
+ * applyDelta().
  */
 class TransformGizmo : public QObject {
     Q_OBJECT
@@ -55,7 +66,8 @@ public:
         Local
     };
 
-    // Axis flags (can be combined)
+    // Axis flags (menu/legacy constraint state; the drawn handles carry the
+    // actual constraint of a drag)
     enum Axis : int {
         None = 0,
         X = 1 << 0,
@@ -78,65 +90,80 @@ public:
     void toggleSpace();
     [[nodiscard]] Space space() const { return m_space; }
 
-    // Axis constraint
+    // Axis constraint (menu state)
     void setAxisConstraint(Axis axis);
     void toggleAxisConstraint(Axis axis);
     [[nodiscard]] Axis axisConstraint() const { return m_axisConstraint; }
 
-    // Fine control (Shift key)
+    // Fine control (Shift key): deltas at 10%
     void setFineControl(bool fine) { m_fineControl = fine; }
     [[nodiscard]] bool fineControl() const { return m_fineControl; }
 
-    // Drag handling
-    void beginDrag(const QPointF& screenPos, const glm::vec3& cameraPos,
-                   const glm::vec3& cameraForward, const glm::vec3& cameraRight,
-                   const glm::vec3& cameraUp);
-    void updateDrag(const QPointF& screenPos);
-    void endDrag();
-    [[nodiscard]] bool isDragging() const { return m_isDragging; }
+    // ========================================================================
+    // Handle drag
+    // ========================================================================
 
-    // Set pivot point (center of selected objects)
+    /// Grab `handle` with the press ray. The frame is the one the handle was
+    /// drawn with, so the press reference lands exactly where the cursor is.
+    /// Emits dragStarted() -- the shell snapshots start transforms on it.
+    void beginHandleDrag(editing::GizmoHandle handle,
+                         const vkview::CameraRay& pressRay,
+                         const editing::GizmoFrame& frame);
+
+    /// Recompute the total delta from the press reference for the current
+    /// mouse ray. `snap` (Ctrl) quantizes the total, not the increment.
+    void updateHandleDrag(const vkview::CameraRay& ray, bool snap);
+
+    /// Commit: emits transformFinished() (the shell pushes the undo command).
+    void endDrag();
+
+    /// Abort: emits dragCancelled() (the shell restores the start
+    /// transforms). No transformFinished, no undo entry.
+    void cancelDrag();
+
+    [[nodiscard]] bool isDragging() const { return m_isDragging; }
+    [[nodiscard]] editing::GizmoHandle activeHandle() const;
+
+    // Pivot (selection center at press time; world-space rotate/scale center)
     void setPivot(const glm::vec3& pivot) { m_pivot = pivot; }
     [[nodiscard]] const glm::vec3& pivot() const { return m_pivot; }
 
-    // Set initial transform (for local space operations)
-    void setInitialTransform(const glm::mat4& transform);
-
-    // Get accumulated delta transform since drag began
+    // Current total deltas
     [[nodiscard]] glm::vec3 deltaTranslation() const { return m_deltaTranslation; }
     [[nodiscard]] glm::quat deltaRotation() const { return m_deltaRotation; }
     [[nodiscard]] glm::vec3 deltaScale() const { return m_deltaScale; }
 
-    // Apply delta to a transform matrix
+    /// The drag's delta applied to a node's press-time transform. Rotation
+    /// and scale pivot on the selection center in world space and on the
+    /// node's own origin in local space (Blender median-point behavior).
     [[nodiscard]] glm::mat4 applyDelta(const glm::mat4& original) const;
 
-    // Sensitivity settings
-    void setTranslateSensitivity(float s) { m_translateSensitivity = s; }
-    void setRotateSensitivity(float s) { m_rotateSensitivity = s; }
-    void setScaleSensitivity(float s) { m_scaleSensitivity = s; }
-
 signals:
-    // Emitted when mode changes
     void modeChanged(Mode mode);
-
-    // Emitted when space changes
     void spaceChanged(Space space);
 
     // Emitted when the axis constraint changes, so the Edit ▸ Transform
     // entries and the toolbar buttons can show which one is active
     void axisConstraintChanged(Axis axis);
 
-    // Emitted during drag with current delta
+    /// A handle was grabbed: snapshot the start transforms NOW (not at
+    /// selection time -- panel edits between selection and drag would
+    /// otherwise be reverted by the first gizmo move)
+    void dragStarted();
+
+    // Emitted during drag with current total delta
     void transformChanged(const glm::vec3& translation,
                           const glm::quat& rotation,
                           const glm::vec3& scale);
 
-    // Emitted when drag ends
+    // Emitted when drag commits
     void transformFinished();
 
+    /// Emitted by cancelDrag(): restore the snapshots, keep no record
+    void dragCancelled();
+
 private:
-    glm::vec3 applyAxisConstraint(const glm::vec3& delta) const;
-    glm::vec3 screenToWorldDelta(const QPointF& screenDelta) const;
+    void resetDeltas();
 
     Mode m_mode = Mode::Translate;
     Space m_space = Space::World;
@@ -145,25 +172,24 @@ private:
     bool m_isDragging = false;
     bool m_fineControl = false;
 
-    QPointF m_dragStart;
-    QPointF m_lastDragPos;
-
     glm::vec3 m_pivot{0.0f};
-    glm::mat4 m_initialTransform{1.0f};
 
-    // Camera orientation for screen-to-world conversion
-    glm::vec3 m_cameraPos{0.0f, 0.0f, 5.0f};
-    glm::vec3 m_cameraForward{0.0f, 0.0f, -1.0f};
-    glm::vec3 m_cameraRight{1.0f, 0.0f, 0.0f};
-    glm::vec3 m_cameraUp{0.0f, 1.0f, 0.0f};
+    // The grabbed handle and the frame it was drawn in (decomposed to keep
+    // GizmoModel.hpp out of this header)
+    int m_activeHandleValue = 0;  // editing::GizmoHandle
+    glm::vec3 m_frameOrigin{0.0f};
+    glm::mat3 m_frameAxes{1.0f};
+    int m_dragAxis = -1;  // column of m_frameAxes, -1 for uniform scale
 
-    // Accumulated delta during drag
+    // Press-time references, in the handle's own parameterization
+    float m_refAxisT = 0.0f;         // axis handles: parameter along the line
+    glm::vec3 m_refPlanePoint{0.0f}; // plane handles: intersection point
+    float m_lastAngle = 0.0f;        // rings: last sample, for unwrapping
+    float m_totalAngle = 0.0f;       // rings: unwrapped total
+    float m_refDistance = 1.0f;      // uniform scale: closest-approach distance
+
+    // Total deltas since press
     glm::vec3 m_deltaTranslation{0.0f};
     glm::quat m_deltaRotation{1.0f, 0.0f, 0.0f, 0.0f};
     glm::vec3 m_deltaScale{1.0f};
-
-    // Sensitivity
-    float m_translateSensitivity = 0.05f;  // Increased for visibility
-    float m_rotateSensitivity = 0.5f;      // Degrees per pixel
-    float m_scaleSensitivity = 0.01f;      // Increased for visibility
 };

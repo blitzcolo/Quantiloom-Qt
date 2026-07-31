@@ -46,6 +46,11 @@ bool TransformNodeCommand::mergeWith(const Command* other) {
     if (!otherCmd || otherCmd->m_nodeIndex != m_nodeIndex) {
         return false;
     }
+    // Only within the same drag gesture: without this, two separate drags of
+    // the same node collapsed into a single undo step
+    if (m_gestureId < 0 || m_gestureId != otherCmd->m_gestureId) {
+        return false;
+    }
     // Keep our old transform, take their new transform
     m_newTransform = otherCmd->m_newTransform;
     return true;
@@ -82,6 +87,27 @@ void MultiTransformCommand::undo() {
     for (auto it = m_transforms.rbegin(); it != m_transforms.rend(); ++it) {
         m_window->setNodeTransform(it->nodeIndex, it->oldTransform);
     }
+}
+
+bool MultiTransformCommand::mergeWith(const Command* other) {
+    auto* otherCmd = dynamic_cast<const MultiTransformCommand*>(other);
+    if (!otherCmd || m_gestureId < 0 || m_gestureId != otherCmd->m_gestureId) {
+        return false;
+    }
+    // Same node set (in push order both come from the same selection walk)
+    if (m_transforms.size() != otherCmd->m_transforms.size()) {
+        return false;
+    }
+    for (size_t i = 0; i < m_transforms.size(); ++i) {
+        if (m_transforms[i].nodeIndex != otherCmd->m_transforms[i].nodeIndex) {
+            return false;
+        }
+    }
+    // Keep our old transforms, take their new ones
+    for (size_t i = 0; i < m_transforms.size(); ++i) {
+        m_transforms[i].newTransform = otherCmd->m_transforms[i].newTransform;
+    }
+    return true;
 }
 
 // ============================================================================

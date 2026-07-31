@@ -29,7 +29,8 @@ struct LightingParams;
 enum class CommandId {
     TransformNode = 1,
     ModifyMaterial = 2,
-    ModifyLighting = 3
+    ModifyLighting = 3,
+    MultiTransform = 4
 };
 
 /**
@@ -51,11 +52,17 @@ public:
     bool mergeWith(const Command* other) override;
     [[nodiscard]] int id() const override { return static_cast<int>(CommandId::TransformNode); }
 
+    /// Commands from the same drag gesture merge into one undo step;
+    /// separate drags of the same node stay separate steps. Unstamped (-1)
+    /// commands never merge.
+    void setMergeGesture(int gestureId) { m_gestureId = gestureId; }
+
 private:
     QuantiloomVulkanWindow* m_window;
     int m_nodeIndex;
     glm::mat4 m_oldTransform;
     glm::mat4 m_newTransform;
+    int m_gestureId = -1;
 };
 
 /**
@@ -76,10 +83,16 @@ public:
 
     void execute() override;
     void undo() override;
+    bool mergeWith(const Command* other) override;
+    [[nodiscard]] int id() const override { return static_cast<int>(CommandId::MultiTransform); }
+
+    /// Same contract as TransformNodeCommand::setMergeGesture
+    void setMergeGesture(int gestureId) { m_gestureId = gestureId; }
 
 private:
     QuantiloomVulkanWindow* m_window;
     std::vector<NodeTransform> m_transforms;
+    int m_gestureId = -1;
 };
 
 /**

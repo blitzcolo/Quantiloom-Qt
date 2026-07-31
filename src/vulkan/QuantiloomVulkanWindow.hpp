@@ -330,9 +330,21 @@ public:
                                UndoStack* undoStack);
 
     /**
-     * @brief Set node transform
+     * @brief Set node transform (full-quality: rebuild + reset accumulation)
      */
     void setNodeTransform(int nodeIndex, const glm::mat4& transform);
+
+    /**
+     * @brief Interactive-drag variants of setNodeTransform
+     *
+     * During a drag: setNodeTransformInteractive() per moved node (transform
+     * only), then one refitAfterInteractiveEdit() per mouse move (in-place
+     * TLAS refit + accumulation reset). On release or cancel:
+     * finalizeInteractiveEdit() for one full-quality rebuild.
+     */
+    void setNodeTransformInteractive(int nodeIndex, const glm::mat4& transform);
+    void refitAfterInteractiveEdit();
+    void finalizeInteractiveEdit();
 
     /**
      * @brief What is under this device-pixel position, via the SDK's ray query

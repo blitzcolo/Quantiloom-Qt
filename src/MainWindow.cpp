@@ -1455,10 +1455,14 @@ void MainWindow::setupEditingSystem() {
             this, &MainWindow::onSelectionChanged);
 
     // Connect gizmo transform changes
+    connect(m_transformGizmo, &TransformGizmo::dragStarted,
+            this, &MainWindow::onGizmoDragStarted);
     connect(m_transformGizmo, &TransformGizmo::transformChanged,
             this, &MainWindow::onGizmoTransformChanged);
     connect(m_transformGizmo, &TransformGizmo::transformFinished,
             this, &MainWindow::onGizmoTransformFinished);
+    connect(m_transformGizmo, &TransformGizmo::dragCancelled,
+            this, &MainWindow::onGizmoDragCancelled);
 
     // Keep the status chip, the Edit ▸ Transform entries and the toolbar
     // buttons showing the gizmo's actual state, whichever of them changed it.
@@ -2623,6 +2627,40 @@ void MainWindow::onSelectionChanged(const QSet<int>& selectedNodes) {
     }
 }
 
+void MainWindow::onGizmoDragStarted() {
+    // Snapshot at PRESS time, not selection time: a transform typed into the
+    // properties panel between selecting and dragging would otherwise be
+    // silently reverted by the first gizmo move.
+    const auto* scene = m_vulkanWindow->getScene();
+    if (!scene) {
+        return;
+    }
+    ++m_transformGestureId;
+    m_transformStartStates.clear();
+    for (int nodeIndex : m_selectionManager->selectedNodes()) {
+        if (nodeIndex >= 0 && static_cast<size_t>(nodeIndex) < scene->nodes.size()) {
+            m_transformStartStates.push_back({
+                nodeIndex,
+                scene->nodes[static_cast<size_t>(nodeIndex)].transform
+            });
+        }
+    }
+}
+
+void MainWindow::onGizmoDragCancelled() {
+    // Escape: put every node back exactly where the drag found it, keep no
+    // record -- no undo entry, no edited-nodes registration, no signal to the
+    // document. One full rebuild restores full trace quality.
+    for (const auto& state : m_transformStartStates) {
+        m_vulkanWindow->setNodeTransformInteractive(state.nodeIndex,
+                                                    state.originalTransform);
+        if (m_transformStartStates.size() == 1) {
+            m_propertiesPanel->updateNodeTransform(state.originalTransform);
+        }
+    }
+    m_vulkanWindow->finalizeInteractiveEdit();
+}
+
 void MainWindow::onGizmoTransformChanged(const glm::vec3& translation,
                                           const glm::quat& rotation,
                                           const glm::vec3& scale) {
@@ -2635,13 +2673,17 @@ void MainWindow::onGizmoTransformChanged(const glm::vec3& translation,
         return;
     }
 
+    // Apply every node, then refit the TLAS once for the whole batch: the
+    // in-place refit is what keeps a drag at interactive framerates (the old
+    // path did a full teardown-and-rebuild per node per mouse move).
     for (const auto& state : m_transformStartStates) {
         glm::mat4 newTransform = m_transformGizmo->applyDelta(state.originalTransform);
-        m_vulkanWindow->setNodeTransform(state.nodeIndex, newTransform);
+        m_vulkanWindow->setNodeTransformInteractive(state.nodeIndex, newTransform);
         if (m_transformStartStates.size() == 1) {
             m_propertiesPanel->updateNodeTransform(newTransform);
         }
     }
+    m_vulkanWindow->refitAfterInteractiveEdit();
 
     setSceneModified(true);
 }
@@ -2659,6 +2701,7 @@ void MainWindow::onGizmoTransformFinished() {
             if (newTransform != state.originalTransform) {
                 auto cmd = std::make_unique<TransformNodeCommand>(
                     m_vulkanWindow, state.nodeIndex, state.originalTransform, newTransform);
+                cmd->setMergeGesture(m_transformGestureId);
                 m_undoStack->push(std::move(cmd));
                 // The gizmo bypasses applyNodeTransform -- it applied the
                 // moves live during the drag -- so the record of what changed
@@ -2679,10 +2722,21 @@ void MainWindow::onGizmoTransformFinished() {
         }
         if (!transforms.empty()) {
             auto cmd = std::make_unique<MultiTransformCommand>(m_vulkanWindow, transforms);
+            cmd->setMergeGesture(m_transformGestureId);
             m_undoStack->push(std::move(cmd));
             for (const auto& moved : transforms) {
                 m_editedNodes.insert(moved.nodeIndex);
             }
+        }
+    }
+
+    // Only nodes with a name survive a save -- collectCurrentConfig writes
+    // [[nodes]] entries matched by name -- so say so when an edit will not
+    for (const auto& state : m_transformStartStates) {
+        if (static_cast<size_t>(state.nodeIndex) < scene->nodes.size() &&
+            scene->nodes[static_cast<size_t>(state.nodeIndex)].name.empty()) {
+            qWarning() << "Node" << state.nodeIndex
+                       << "has no name; its transform edit will not persist in the saved config";
         }
     }
 

@@ -155,6 +155,8 @@ private slots:
     void onCameraChanged();
     void onViewportClicked(const QPointF& screenPos, Qt::KeyboardModifiers modifiers);
     void onSelectionChanged(const QSet<int>& selectedNodes);
+    void onGizmoDragStarted();
+    void onGizmoDragCancelled();
     void onGizmoTransformChanged(const glm::vec3& translation,
                                   const glm::quat& rotation,
                                   const glm::vec3& scale);
@@ -422,6 +424,9 @@ private:
         glm::mat4 originalTransform;
     };
     std::vector<TransformState> m_transformStartStates;
+    // Bumped per gizmo drag; commands stamped with it merge only within one
+    // drag, so each drag stays its own undo step
+    int m_transformGestureId = 0;
 
     // Last configuration seen by applyConfig(), used as the base for
     // collectCurrentConfig(). Not every field has a panel behind it -- the

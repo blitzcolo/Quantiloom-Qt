@@ -403,8 +403,40 @@ void QuantiloomVulkanWindow::setNodeTransform(int nodeIndex, const glm::mat4& tr
 
     auto* ctx = m_renderer->getRenderContext();
     if (ctx && nodeIndex >= 0) {
-        qDebug() << "QuantiloomVulkanWindow::setNodeTransform - node:" << nodeIndex;
         ctx->SetNodeTransform(static_cast<quantiloom::u32>(nodeIndex), transform);
+        ctx->RebuildAccelerationStructure();
+        m_renderer->resetAccumulation();
+    }
+}
+
+void QuantiloomVulkanWindow::setNodeTransformInteractive(int nodeIndex,
+                                                         const glm::mat4& transform) {
+    if (!m_renderer) return;
+    auto* ctx = m_renderer->getRenderContext();
+    if (ctx && nodeIndex >= 0) {
+        // Transform only -- the caller batches all moved nodes, then refits
+        // once per mouse move via refitAfterInteractiveEdit()
+        ctx->SetNodeTransform(static_cast<quantiloom::u32>(nodeIndex), transform);
+    }
+}
+
+void QuantiloomVulkanWindow::refitAfterInteractiveEdit() {
+    if (!m_renderer) return;
+    auto* ctx = m_renderer->getRenderContext();
+    if (ctx) {
+        // A refit updates the TLAS in place -- no allocation, no device idle
+        // -- which is what keeps a drag at interactive framerates
+        ctx->RefitAccelerationStructure();
+        m_renderer->resetAccumulation();
+    }
+}
+
+void QuantiloomVulkanWindow::finalizeInteractiveEdit() {
+    if (!m_renderer) return;
+    auto* ctx = m_renderer->getRenderContext();
+    if (ctx) {
+        // Full-quality rebuild once, when the drag ends (a refit degrades
+        // trace quality slightly for large movements)
         ctx->RebuildAccelerationStructure();
         m_renderer->resetAccumulation();
     }
@@ -442,15 +474,16 @@ void QuantiloomVulkanWindow::keyPressEvent(QKeyEvent* event) {
     // actions, so a key pressed over the viewport and a menu entry chosen with
     // the mouse follow the same path.
     //
-    // Escape stays here: it means "cancel this drag, then clear the
-    // selection", which is about the state of this window and has no menu
-    // equivalent.
+    // Escape stays here: during a drag it means "abort and put everything
+    // back" (Blender semantics -- the shell restores the start transforms on
+    // dragCancelled), otherwise "clear the selection". One press does one
+    // thing, so aborting a drag never also throws the selection away.
     if (m_editMode && event->key() == Qt::Key_Escape) {
         if (m_transformDragging && m_gizmo && m_gizmo->isDragging()) {
-            m_gizmo->endDrag();
+            m_gizmo->cancelDrag();
             m_transformDragging = false;
-        }
-        if (m_selection) {
+            m_activeHandle = editing::GizmoHandle::None;
+        } else if (m_selection) {
             m_selection->clearSelection();
         }
         event->accept();
@@ -600,10 +633,28 @@ bool QuantiloomVulkanWindow::buildGizmoDrawList(
 }
 
 bool QuantiloomVulkanWindow::beginGizmoDragAt(const QPointF& devicePos) {
-    // Handle hit-testing lands with the drag-math rewrite; until then no
-    // click is a handle grab, so every click falls through to selection.
-    Q_UNUSED(devicePos);
-    return false;
+    if (!gizmoOnScreen()) {
+        return false;
+    }
+    const vkview::CameraMatrices camera = m_renderer->overlayCamera();
+    const editing::GizmoFrame frame = currentGizmoFrame(camera);
+    const vkview::CameraRay ray = camera.rayThroughPixel(
+        static_cast<float>(devicePos.x()), static_cast<float>(devicePos.y()));
+
+    const editing::GizmoHandle handle =
+        editing::hitTestGizmo(ray, frame, m_gizmo->mode());
+    if (handle == editing::GizmoHandle::None) {
+        return false;
+    }
+
+    m_gizmo->beginHandleDrag(handle, ray, frame);
+    if (!m_gizmo->isDragging()) {
+        return false;  // degenerate press reference (e.g. axis edge-on)
+    }
+    m_transformDragging = true;
+    m_transformDragStart = devicePos;
+    m_activeHandle = handle;
+    return true;
 }
 
 std::optional<quantiloom::PickResult> QuantiloomVulkanWindow::pickScene(
@@ -632,6 +683,7 @@ std::optional<quantiloom::PickResult> QuantiloomVulkanWindow::pickScene(
 void QuantiloomVulkanWindow::mouseReleaseEvent(QMouseEvent* event) {
     if (event->button() == Qt::LeftButton && m_transformDragging) {
         m_transformDragging = false;
+        m_activeHandle = editing::GizmoHandle::None;
         if (m_gizmo && m_gizmo->isDragging()) {
             m_gizmo->endDrag();
             // Note: The undo command is pushed in MainWindow when transform finishes
@@ -650,8 +702,12 @@ void QuantiloomVulkanWindow::mouseReleaseEvent(QMouseEvent* event) {
 
 void QuantiloomVulkanWindow::mouseMoveEvent(QMouseEvent* event) {
     // Transform dragging has priority
-    if (m_transformDragging && m_gizmo && m_gizmo->isDragging()) {
-        m_gizmo->updateDrag(toDevicePixels(event->position()));
+    if (m_transformDragging && m_gizmo && m_gizmo->isDragging() && m_renderer) {
+        const QPointF device = toDevicePixels(event->position());
+        const vkview::CameraRay ray = m_renderer->overlayCamera().rayThroughPixel(
+            static_cast<float>(device.x()), static_cast<float>(device.y()));
+        // Ctrl snaps the TOTAL delta to increments, Blender-style
+        m_gizmo->updateHandleDrag(ray, event->modifiers().testFlag(Qt::ControlModifier));
         event->accept();
         return;
     }
