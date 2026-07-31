@@ -2538,10 +2538,27 @@ void MainWindow::collectCurrentConfig(SceneConfig& config) {
 // Editing Slots
 // ============================================================================
 
-void MainWindow::onViewportClicked(const QPointF& screenPos) {
-    // Proper picking would cast a ray; selection currently goes through the
-    // scene tree.
-    Q_UNUSED(screenPos);
+void MainWindow::onViewportClicked(const QPointF& screenPos, Qt::KeyboardModifiers modifiers) {
+    // Click-to-select via the SDK's ray query: the pick ray is the raygen
+    // shader's own primary ray for the pixel, so what gets selected is what
+    // is visibly under the cursor. Ctrl/Shift extend the selection,
+    // Blender-style; a click on empty space clears it. Selection is not a
+    // scene edit, so nothing here resets accumulation.
+    const bool additive = modifiers.testFlag(Qt::ControlModifier) ||
+                          modifiers.testFlag(Qt::ShiftModifier);
+
+    const auto hit = m_vulkanWindow->pickScene(screenPos);
+    if (hit && hit->hit) {
+        const int nodeIndex = static_cast<int>(hit->nodeIndex);
+        if (additive) {
+            m_selectionManager->toggleSelection(nodeIndex);
+        } else {
+            m_selectionManager->select(nodeIndex);
+        }
+    } else if (hit && !additive) {
+        // A real miss (the ray reached the sky), not a failed pick
+        m_selectionManager->clearSelection();
+    }
 }
 
 void MainWindow::onSelectionChanged(const QSet<int>& selectedNodes) {

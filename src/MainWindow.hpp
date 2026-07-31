@@ -153,7 +153,7 @@ private slots:
     void onMaterialWithCriChanged(int index, const quantiloom::Material& material,
                                   const quantiloom::ComplexRefractiveIndex& cri);
     void onCameraChanged();
-    void onViewportClicked(const QPointF& screenPos);
+    void onViewportClicked(const QPointF& screenPos, Qt::KeyboardModifiers modifiers);
     void onSelectionChanged(const QSet<int>& selectedNodes);
     void onGizmoTransformChanged(const glm::vec3& translation,
                                   const glm::quat& rotation,

@@ -14,6 +14,7 @@
 
 #include <core/Config.hpp>
 #include <core/Image.hpp>
+#include <core/Log.hpp>
 
 #include <QKeyEvent>
 #include <QMouseEvent>
@@ -523,31 +524,16 @@ void QuantiloomVulkanWindow::mousePressEvent(QMouseEvent* event) {
         emit mouseHovered(static_cast<int>(device.x()), static_cast<int>(device.y()));
 
         if (m_editMode) {
-            // Edit mode: Left click for selection or transform start
-            if (m_selection && m_selection->hasSelection() && m_gizmo) {
-                // Start transform drag
-                m_transformDragging = true;
-                m_transformDragStart = toDevicePixels(event->position());
-
-                qDebug() << "Starting transform drag - hasSelection:" << m_selection->hasSelection()
-                         << "count:" << m_selection->selectionCount();
-
-                glm::vec3 camPos, camFwd, camRight, camUp;
-                getCameraInfo(camPos, camFwd, camRight, camUp);
-
-                // Set pivot at selection center
-                const auto* scene = getScene();
-                if (scene) {
-                    glm::vec3 pivot = m_selection->computeSelectionCenter(scene);
-                    m_gizmo->setPivot(pivot);
-                    qDebug() << "  Pivot:" << pivot.x << pivot.y << pivot.z;
-                }
-
-                m_gizmo->beginDrag(m_transformDragStart, camPos, camFwd, camRight, camUp);
+            // Three-way dispatch: a gizmo handle under the cursor starts a
+            // drag; anything else is a selection click (object or empty
+            // space). The old behavior -- any click starting a transform drag
+            // as soon as something was selected -- made it impossible to
+            // click another object or click empty space to deselect.
+            if (m_selection && m_selection->hasSelection() && m_gizmo &&
+                beginGizmoDragAt(toDevicePixels(event->position()))) {
+                // handle grabbed; drag state set up in beginGizmoDragAt
             } else {
-                qDebug() << "No selection - emitting viewportClicked";
-                // Click for selection
-                emit viewportClicked(device);
+                emit viewportClicked(device, event->modifiers());
             }
         }
         event->accept();
@@ -561,6 +547,36 @@ void QuantiloomVulkanWindow::mousePressEvent(QMouseEvent* event) {
     } else {
         QVulkanWindow::mousePressEvent(event);
     }
+}
+
+bool QuantiloomVulkanWindow::beginGizmoDragAt(const QPointF& devicePos) {
+    // Handle hit-testing lands with the drawn gizmo; until then no click is a
+    // handle grab, so every click falls through to selection.
+    Q_UNUSED(devicePos);
+    return false;
+}
+
+std::optional<quantiloom::PickResult> QuantiloomVulkanWindow::pickScene(
+    const QPointF& devicePos) {
+    if (!m_renderer) {
+        return std::nullopt;
+    }
+    auto* ctx = m_renderer->getRenderContext();
+    if (!ctx || !ctx->HasScene()) {
+        return std::nullopt;
+    }
+    const int x = static_cast<int>(devicePos.x());
+    const int y = static_cast<int>(devicePos.y());
+    if (x < 0 || y < 0) {
+        return std::nullopt;
+    }
+    auto result = ctx->Pick(static_cast<quantiloom::u32>(x),
+                            static_cast<quantiloom::u32>(y));
+    if (!result.has_value()) {
+        QL_LOG_WARN("pickScene: {}", result.error());
+        return std::nullopt;
+    }
+    return result.value();
 }
 
 void QuantiloomVulkanWindow::mouseReleaseEvent(QMouseEvent* event) {

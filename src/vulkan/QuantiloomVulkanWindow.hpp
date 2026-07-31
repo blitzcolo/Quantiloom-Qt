@@ -11,12 +11,14 @@
 #include <QString>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <vector>
 #include <vulkan/vulkan.h>
 
 #include <glm/glm.hpp>
 #include <core/SpectralData.hpp>
 #include <core/Types.hpp>
+#include <renderer/Pick.hpp>
 
 namespace quantiloom {
 class Config;
@@ -331,6 +333,15 @@ public:
     void setNodeTransform(int nodeIndex, const glm::mat4& transform);
 
     /**
+     * @brief What is under this device-pixel position, via the SDK's ray query
+     *
+     * The pick ray is the raygen shader's own primary ray for the pixel, so
+     * the answer agrees with the frame on screen. Returns std::nullopt when
+     * no scene is loaded or the pick could not run (the error is logged).
+     */
+    [[nodiscard]] std::optional<quantiloom::PickResult> pickScene(const QPointF& devicePos);
+
+    /**
      * @brief Get camera info for gizmo
      */
     void getCameraInfo(glm::vec3& position, glm::vec3& forward,
@@ -365,7 +376,7 @@ signals:
      * @brief Emitted when user clicks in viewport (for selection picking)
      * @param screenPos Screen position of click
      */
-    void viewportClicked(const QPointF& screenPos);
+    void viewportClicked(const QPointF& screenPos, Qt::KeyboardModifiers modifiers);
 
     /**
      * @brief Emitted when edit mode changes
@@ -421,6 +432,15 @@ private:
      * them while the others stay correct.
      */
     [[nodiscard]] QPointF toDevicePixels(const QPointF& logical) const;
+
+    /**
+     * @brief Try to grab a gizmo handle at a device-pixel position
+     *
+     * Returns true and sets up the drag when a handle is under the cursor;
+     * false lets the click fall through to selection. The handle set arrives
+     * with the drawn gizmo -- until then this is always false.
+     */
+    bool beginGizmoDragAt(const QPointF& devicePos);
 
     /**
      * @brief Apply a setting now, or record it until the renderer exists
