@@ -499,8 +499,44 @@ May cause colour shifts.</source>
         <translation> W/m²/sr</translation>
     </message>
     <message>
+        <source>Environment Map (IBL)</source>
+        <translation>环境贴图 (IBL)</translation>
+    </message>
+    <message>
+        <source>Light the scene from the environment map</source>
+        <translation>用环境贴图照亮场景</translation>
+    </message>
+    <message>
+        <source>Off means the map contributes no light at all — not that it is replaced by another sky. What a ray sees when it misses the scene is the sky radiance above, either way.</source>
+        <translation>关闭表示这张贴图完全不提供照明，而不是换成另一片天空。光线未命中场景时看到的始终是上方的天空辐亮度。</translation>
+    </message>
+    <message>
+        <source>Browse…</source>
+        <translation>浏览…</translation>
+    </message>
+    <message>
+        <source>Clear</source>
+        <translation>清除</translation>
+    </message>
+    <message>
         <source>%1°</source>
         <translation>%1°</translation>
+    </message>
+    <message>
+        <source>No map — lighting from the built-in sky</source>
+        <translation>未指定贴图 — 由内置天空照明</translation>
+    </message>
+    <message>
+        <source>Preview only — not quantitative: an environment map and an analytic sun or sky are both lighting the scene, so the same illumination is counted twice. An HDRI sky already contains its own sun, and nothing aligns the two directions — expect two specular highlights in different places. Set sun and sky to 0 to light from the map alone, or turn the map off.</source>
+        <translation>仅供预览 — 非定量结果：环境贴图与解析太阳／天空同时在照亮场景，同一份照明被重复计入。HDRI 天空本身就含有太阳，而两者的方向并不对齐 — 会在不同位置出现两个镜面高光。将太阳与天空设为 0 以仅用贴图照明，或关闭该贴图。</translation>
+    </message>
+    <message>
+        <source>Choose Environment Map</source>
+        <translation>选择环境贴图</translation>
+    </message>
+    <message>
+        <source>Environment Maps (*.exr *.hdr *.png *.jpg *.jpeg);;All Files (*)</source>
+        <translation>环境贴图 (*.exr *.hdr *.png *.jpg *.jpeg);;所有文件 (*)</translation>
     </message>
     <message>
         <source>Atmosphere</source>
@@ -1290,6 +1326,22 @@ May cause colour shifts.</source>
     <message>
         <source>Preferences saved</source>
         <translation>首选项已保存</translation>
+    </message>
+    <message>
+        <source>Failed to load environment map: %1</source>
+        <translation>环境贴图加载失败：%1</translation>
+    </message>
+    <message>
+        <source>Environment map cleared</source>
+        <translation>已清除环境贴图</translation>
+    </message>
+    <message>
+        <source>Lighting from %1</source>
+        <translation>正在使用 %1 照明</translation>
+    </message>
+    <message>
+        <source>Environment map off — it contributes no light</source>
+        <translation>环境贴图已关闭 — 不提供任何照明</translation>
     </message>
     <message>
         <source>Wavelength: %1 nm</source>

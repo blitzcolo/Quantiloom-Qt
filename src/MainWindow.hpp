@@ -133,6 +133,7 @@ private slots:
     void onMaterialSelected(int materialIndex);
     void onMaterialChanged(int index, const quantiloom::Material& material);
     void onLightingChanged(const quantiloom::LightingParams& params);
+    void onEnvironmentMapChanged(const QString& path, bool enabled);
     void onSppChanged(uint32_t spp);
     void onSpectralModeChanged(quantiloom::SpectralMode mode);
     void onWavelengthChanged(float wavelength_nm);

@@ -16,7 +16,9 @@
 #include <glm/glm.hpp>
 
 QT_BEGIN_NAMESPACE
+class QCheckBox;
 class QDoubleSpinBox;
+class QPushButton;
 class QSlider;
 class QLabel;
 class QGroupBox;
@@ -42,20 +44,36 @@ public:
 
     void setLightingParams(const quantiloom::LightingParams& params);
 
+    /// The environment map the open document names, and whether it lights the
+    /// scene. An empty path is a scene with no map of its own, which still has
+    /// image-based lighting from the fallback sky unless @p enabled is false.
+    void setEnvironmentMap(const QString& path, bool enabled);
+
 signals:
-    /// Carries a full LightingParams for convenience, but only the sun and sky
-    /// fields are this panel's to set; the shell keeps the atmospheric ones.
+    /// Carries a full LightingParams for convenience, but only the sun, sky and
+    /// environment-map fields are this panel's to set; the shell keeps the
+    /// atmospheric ones.
     void lightingChanged(const quantiloom::LightingParams& params);
+
+    /// The map to light from, and whether to light from it. An empty path with
+    /// @p enabled true means the fallback sky.
+    void environmentMapChanged(const QString& path, bool enabled);
 
 private slots:
     void onSunAzimuthChanged(int value);
     void onSunElevationChanged(int value);
     void onSunIntensityChanged(double value);
     void onSkyIntensityChanged(double value);
+    void onEnvironmentEnabledToggled(bool enabled);
+    void onBrowseEnvironmentMap();
+    void onClearEnvironmentMap();
 
 private:
     void setupUi();
     void emitChanges();
+    /// Show the path elided to the label's width, with the whole of it in the
+    /// tooltip. Also refreshes the double-count notice.
+    void updateEnvironmentDisplay();
 
     // Sun angles (degrees)
     float m_sunAzimuth = 180.0f;    // 0 = North, 90 = East, 180 = South
@@ -73,9 +91,19 @@ private:
     float m_chromaB_correction = 1.0437f;
     bool m_enableShadowRays = false;
 
+    // Environment map (image-based lighting)
+    QString m_environmentMapPath;
+    bool m_environmentEnabled = true;
+
     // UI elements
     QGroupBox* m_sunDirGroup = nullptr;
     QGroupBox* m_radianceGroup = nullptr;
+    QGroupBox* m_envGroup = nullptr;
+    QCheckBox* m_envEnabledCheck = nullptr;
+    QLabel* m_envPathLabel = nullptr;
+    QPushButton* m_envBrowseButton = nullptr;
+    QPushButton* m_envClearButton = nullptr;
+    QLabel* m_doubleCountNotice = nullptr;
     QSlider* m_azimuthSlider = nullptr;
     QLabel* m_azimuthLabel = nullptr;
     QLabel* m_azimuthCaption = nullptr;

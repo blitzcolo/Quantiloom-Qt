@@ -878,6 +878,8 @@ void MainWindow::setupDockWidgets() {
 
     connect(m_lightingPanel, &LightingPanel::lightingChanged,
             this, &MainWindow::onLightingChanged);
+    connect(m_lightingPanel, &LightingPanel::environmentMapChanged,
+            this, &MainWindow::onEnvironmentMapChanged);
 
     connect(m_renderSettingsPanel, &RenderSettingsPanel::sppChanged,
             this, &MainWindow::onSppChanged);
@@ -1894,9 +1896,38 @@ void MainWindow::onLightingChanged(const quantiloom::LightingParams& params) {
     m_lightingParams->chromaR_correction = params.chromaR_correction;
     m_lightingParams->chromaB_correction = params.chromaB_correction;
     m_lightingParams->enableShadowRays = params.enableShadowRays;
+    m_lightingParams->enableEnvironmentMap = params.enableEnvironmentMap;
 
     pushLightingParams();
     showStatusMessage(tr("Lighting updated"));
+}
+
+void MainWindow::onEnvironmentMapChanged(const QString& path, bool enabled) {
+    // The enable flag rides on LightingParams and has already been pushed by
+    // onLightingChanged(); what is left is loading a map the shell has not
+    // loaded yet. Turning one off does not unload it -- the flag stops the
+    // shader sampling it, and keeping it resident makes the checkbox instant.
+    if (enabled && !path.isEmpty()) {
+        if (!m_vulkanWindow->loadEnvironmentMap(path)) {
+            showStatusMessage(tr("Failed to load environment map: %1")
+                                  .arg(QFileInfo(path).fileName()));
+        }
+    }
+
+    // Remember it for export, since no getter on the renderer carries the path.
+    if (m_lastConfig) {
+        m_lastConfig->environmentMap = path;
+        m_lastConfig->environmentMapEnabled = enabled;
+    }
+    setSceneModified(true);
+
+    if (path.isEmpty()) {
+        showStatusMessage(tr("Environment map cleared"));
+    } else {
+        showStatusMessage(enabled
+            ? tr("Lighting from %1").arg(QFileInfo(path).fileName())
+            : tr("Environment map off — it contributes no light"));
+    }
 }
 
 void MainWindow::pushLightingParams() {
@@ -2027,6 +2058,8 @@ void MainWindow::applyConfig(const SceneConfig& config) {
     *m_lightingParams = config.lighting;
     m_lightingPanel->setLightingParams(config.lighting);
 
+    m_lightingPanel->setEnvironmentMap(config.environmentMap, config.environmentMapEnabled);
+
     m_atmosphericPanel->setPreset(config.atmosphericPreset);
     m_atmosphericPanel->setAtmosphericConfig(config.atmosphere);
     m_atmosphericPanel->setAnalyticTerms(config.lighting.transmittance,
@@ -2066,6 +2099,10 @@ void MainWindow::syncPanelsFromRenderer() {
     m_lightingPanel->setLightingParams(lighting);
     m_atmosphericPanel->setAnalyticTerms(lighting.transmittance,
                                          lighting.atmosphereTemperature_K);
+
+    m_lightingPanel->setEnvironmentMap(
+        m_lastConfig ? m_lastConfig->environmentMap : QString(),
+        lighting.enableEnvironmentMap != 0);
 
     m_spectralConfigPanel->setSpectralMode(m_vulkanWindow->spectralMode());
     m_spectralConfigPanel->setWavelength(m_vulkanWindow->wavelength());

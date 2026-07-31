@@ -80,6 +80,7 @@ void ConfigManager::extractSceneConfig(const quantiloom::Config& config, SceneCo
     out.spp = config.Get<quantiloom::u32>("renderer.spp", 1);
     out.outputPath = QString::fromStdString(config.GetString("renderer.output", "output.exr"));
     out.environmentMap = QString::fromStdString(config.GetString("renderer.environment_map", ""));
+    out.environmentMapEnabled = config.Get<bool>("renderer.environment_map_enabled", true);
     out.samplingSeed = config.Get<quantiloom::u32>(
         "renderer.seed", quantiloom::constants::DEFAULT_SAMPLING_SEED);
 
@@ -299,6 +300,11 @@ bool ConfigManager::exportConfig(const QString& filePath, const SceneConfig& con
     }
     if (!config.environmentMap.isEmpty()) {
         out << "environment_map = \"" << config.environmentMap << "\"\n";
+    }
+    // Written only when off: true is the default, and a key restating a default
+    // on every save is noise in the diff of a hand-edited file.
+    if (!config.environmentMapEnabled) {
+        out << "environment_map_enabled = false\n";
     }
     // shadow ray control
     if (config.lighting.enableShadowRays) {

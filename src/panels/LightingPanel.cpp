@@ -5,13 +5,21 @@
 
 #include "LightingPanel.hpp"
 
+#include "../ui/UiStyle.hpp"
+
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QGroupBox>
+#include <QCheckBox>
+#include <QFileDialog>
+#include <QFileInfo>
+#include <QFontMetrics>
 #include <QLabel>
+#include <QPushButton>
 #include <QSlider>
 #include <QDoubleSpinBox>
 #include <QFormLayout>
+#include <algorithm>
 #include <cmath>
 
 #include <renderer/LightingParams.hpp>
@@ -105,6 +113,50 @@ void LightingPanel::setupUi() {
     radianceLayout->addRow(m_skyCaption, m_skyIntensitySpin);
 
     mainLayout->addWidget(m_radianceGroup);
+
+    // Environment map (image-based lighting)
+    m_envGroup = new QGroupBox(this);
+    auto* envLayout = new QVBoxLayout(m_envGroup);
+
+    m_envEnabledCheck = new QCheckBox(m_envGroup);
+    m_envEnabledCheck->setChecked(true);
+    connect(m_envEnabledCheck, &QCheckBox::toggled,
+            this, &LightingPanel::onEnvironmentEnabledToggled);
+    envLayout->addWidget(m_envEnabledCheck);
+
+    m_envPathLabel = new QLabel(m_envGroup);
+    // The path can be far wider than the dock. Elided here, whole in the
+    // tooltip; without a minimum the label would instead widen the dock.
+    m_envPathLabel->setMinimumWidth(1);
+    m_envPathLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    envLayout->addWidget(m_envPathLabel);
+
+    auto* envButtons = new QHBoxLayout();
+    m_envBrowseButton = new QPushButton(m_envGroup);
+    connect(m_envBrowseButton, &QPushButton::clicked,
+            this, &LightingPanel::onBrowseEnvironmentMap);
+    envButtons->addWidget(m_envBrowseButton);
+
+    m_envClearButton = new QPushButton(m_envGroup);
+    connect(m_envClearButton, &QPushButton::clicked,
+            this, &LightingPanel::onClearEnvironmentMap);
+    envButtons->addWidget(m_envClearButton);
+    envButtons->addStretch();
+    envLayout->addLayout(envButtons);
+
+    // An HDRI sky carries its own sun, so lighting a scene with one *and* an
+    // analytic sun counts the same illumination twice -- and since nothing
+    // aligns the two directions, the usual symptom is two specular highlights
+    // in different places. Same notice style as the spectral panel's
+    // preview-only warning, because it says the same kind of thing: the render
+    // is not quantitative as configured.
+    m_doubleCountNotice = new QLabel(m_envGroup);
+    m_doubleCountNotice->setWordWrap(true);
+    bindStyle([this] { uistyle::applyNoticeStyle(m_doubleCountNotice); });
+    m_doubleCountNotice->setVisible(false);
+    envLayout->addWidget(m_doubleCountNotice);
+
+    mainLayout->addWidget(m_envGroup);
     mainLayout->addStretch();
 }
 
@@ -120,8 +172,100 @@ void LightingPanel::retranslateUi() {
     m_sunIntensitySpin->setSuffix(tr(" W/m²/sr"));
     m_skyIntensitySpin->setSuffix(tr(" W/m²/sr"));
 
+    m_envGroup->setTitle(tr("Environment Map (IBL)"));
+    m_envEnabledCheck->setText(tr("Light the scene from the environment map"));
+    m_envEnabledCheck->setToolTip(
+        tr("Off means the map contributes no light at all — not that it is "
+           "replaced by another sky. What a ray sees when it misses the scene "
+           "is the sky radiance above, either way."));
+    m_envBrowseButton->setText(tr("Browse…"));
+    m_envClearButton->setText(tr("Clear"));
+
     m_azimuthLabel->setText(tr("%1°").arg(static_cast<int>(m_sunAzimuth)));
     m_elevationLabel->setText(tr("%1°").arg(static_cast<int>(m_sunElevation)));
+
+    updateEnvironmentDisplay();
+}
+
+void LightingPanel::setEnvironmentMap(const QString& path, bool enabled) {
+    m_environmentMapPath = path;
+    m_environmentEnabled = enabled;
+    {
+        const QSignalBlocker block(m_envEnabledCheck);
+        m_envEnabledCheck->setChecked(enabled);
+    }
+    updateEnvironmentDisplay();
+}
+
+void LightingPanel::updateEnvironmentDisplay() {
+    if (!m_envPathLabel) {
+        return;
+    }
+
+    if (m_environmentMapPath.isEmpty()) {
+        m_envPathLabel->setText(tr("No map — lighting from the built-in sky"));
+        m_envPathLabel->setToolTip(QString());
+        m_envClearButton->setEnabled(false);
+    } else {
+        const QFontMetrics metrics(m_envPathLabel->font());
+        const int available = std::max(80, m_envPathLabel->width());
+        m_envPathLabel->setText(
+            metrics.elidedText(m_environmentMapPath, Qt::ElideMiddle, available));
+        m_envPathLabel->setToolTip(m_environmentMapPath);
+        m_envClearButton->setEnabled(true);
+    }
+
+    // Only when a map is actually lighting the scene *and* an analytic source
+    // is too. Either one alone is a legitimate way to light a render.
+    const bool analyticLit = m_sunIntensity > 0.0f || m_skyIntensity > 0.0f;
+    const bool doubleCounted =
+        m_environmentEnabled && !m_environmentMapPath.isEmpty() && analyticLit;
+    m_doubleCountNotice->setVisible(doubleCounted);
+    if (doubleCounted) {
+        m_doubleCountNotice->setText(
+            tr("Preview only — not quantitative: an environment map and an "
+               "analytic sun or sky are both lighting the scene, so the same "
+               "illumination is counted twice. An HDRI sky already contains its "
+               "own sun, and nothing aligns the two directions — expect two "
+               "specular highlights in different places. Set sun and sky to 0 to "
+               "light from the map alone, or turn the map off."));
+    }
+}
+
+void LightingPanel::onEnvironmentEnabledToggled(bool enabled) {
+    m_environmentEnabled = enabled;
+    updateEnvironmentDisplay();
+    emit environmentMapChanged(m_environmentMapPath, m_environmentEnabled);
+    emitChanges();
+}
+
+void LightingPanel::onBrowseEnvironmentMap() {
+    const QString path = QFileDialog::getOpenFileName(
+        this, tr("Choose Environment Map"),
+        QFileInfo(m_environmentMapPath).absolutePath(),
+        tr("Environment Maps (*.exr *.hdr *.png *.jpg *.jpeg);;All Files (*)"));
+    if (path.isEmpty()) {
+        return;
+    }
+
+    m_environmentMapPath = path;
+    // Choosing one is asking to light with it; a browse that left the map off
+    // would look like the dialog did nothing.
+    if (!m_environmentEnabled) {
+        m_environmentEnabled = true;
+        const QSignalBlocker block(m_envEnabledCheck);
+        m_envEnabledCheck->setChecked(true);
+    }
+    updateEnvironmentDisplay();
+    emit environmentMapChanged(m_environmentMapPath, m_environmentEnabled);
+    emitChanges();
+}
+
+void LightingPanel::onClearEnvironmentMap() {
+    m_environmentMapPath.clear();
+    updateEnvironmentDisplay();
+    emit environmentMapChanged(m_environmentMapPath, m_environmentEnabled);
+    emitChanges();
 }
 
 void LightingPanel::setLightingParams(const quantiloom::LightingParams& params) {
@@ -143,6 +287,7 @@ void LightingPanel::setLightingParams(const quantiloom::LightingParams& params) 
     m_chromaR_correction = params.chromaR_correction;
     m_chromaB_correction = params.chromaB_correction;
     m_enableShadowRays = (params.enableShadowRays != 0);
+    m_environmentEnabled = (params.enableEnvironmentMap != 0);
 
     // Update UI (block signals to avoid feedback loop)
     {
@@ -164,6 +309,9 @@ void LightingPanel::setLightingParams(const quantiloom::LightingParams& params) 
 
     m_azimuthLabel->setText(tr("%1°").arg(static_cast<int>(m_sunAzimuth)));
     m_elevationLabel->setText(tr("%1°").arg(static_cast<int>(m_sunElevation)));
+
+    // Radiance and the enable flag both just changed, and the notice reads both.
+    updateEnvironmentDisplay();
 }
 
 void LightingPanel::onSunAzimuthChanged(int value) {
@@ -181,6 +329,9 @@ void LightingPanel::onSunElevationChanged(int value) {
 void LightingPanel::onSunIntensityChanged(double value) {
     m_sunIntensity = static_cast<float>(value);
     m_sunRadiance = glm::vec3(m_sunIntensity);
+    // The double-count notice depends on this being non-zero, so zeroing the
+    // sun to light from the map alone has to make the notice go away.
+    updateEnvironmentDisplay();
     emitChanges();
 }
 
@@ -188,6 +339,7 @@ void LightingPanel::onSkyIntensityChanged(double value) {
     m_skyIntensity = static_cast<float>(value);
     // Keep sky color tint (blue-ish)
     m_skyRadiance = glm::vec3(m_skyIntensity * 1.0f, m_skyIntensity * 1.5f, m_skyIntensity * 2.0f);
+    updateEnvironmentDisplay();
     emitChanges();
 }
 
@@ -201,6 +353,7 @@ void LightingPanel::emitChanges() {
     params.chromaR_correction = m_chromaR_correction;
     params.chromaB_correction = m_chromaB_correction;
     params.enableShadowRays = m_enableShadowRays ? 1u : 0u;
+    params.enableEnvironmentMap = m_environmentEnabled ? 1u : 0u;
 
     // transmittance and atmosphereTemperature_K are left at their defaults on
     // purpose: the atmosphere panel owns them, and the shell merges the two

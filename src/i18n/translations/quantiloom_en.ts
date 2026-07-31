@@ -492,7 +492,43 @@ May cause colour shifts.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Environment Map (IBL)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Light the scene from the environment map</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Off means the map contributes no light at all — not that it is replaced by another sky. What a ray sees when it misses the scene is the sky radiance above, either way.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Browse…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Clear</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>%1°</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No map — lighting from the built-in sky</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Preview only — not quantitative: an environment map and an analytic sun or sky are both lighting the scene, so the same illumination is counted twice. An HDRI sky already contains its own sun, and nothing aligns the two directions — expect two specular highlights in different places. Set sun and sky to 0 to light from the map alone, or turn the map off.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose Environment Map</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Environment Maps (*.exr *.hdr *.png *.jpg *.jpeg);;All Files (*)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1273,6 +1309,22 @@ May cause colour shifts.</source>
     </message>
     <message>
         <source>Preferences saved</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Failed to load environment map: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Environment map cleared</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Lighting from %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Environment map off — it contributes no light</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

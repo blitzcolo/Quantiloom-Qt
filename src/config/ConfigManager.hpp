@@ -36,6 +36,10 @@ struct SceneConfig {
     uint32_t spp = 4;
     QString outputPath;
     QString environmentMap;
+    /// renderer.environment_map_enabled -- whether image-based lighting
+    /// contributes. Independent of whether a map is named: with no path the
+    /// built-in sky is what lights the scene, and it always has.
+    bool environmentMapEnabled = true;
     /// renderer.seed -- path tracer sampling seed. Same convention as the CLI:
     /// nonzero reproduces, 0 draws a nondeterministic seed each run.
     uint32_t samplingSeed = quantiloom::constants::DEFAULT_SAMPLING_SEED;
