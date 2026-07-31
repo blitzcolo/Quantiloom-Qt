@@ -25,10 +25,12 @@
 #pragma once
 
 #include "CameraMatrices.hpp"
+#include "../editing/GizmoModel.hpp"
 
 #include <vulkan/vulkan.h>
 
 #include <cstdint>
+#include <vector>
 
 class QVulkanWindow;
 
@@ -53,11 +55,14 @@ public:
 
     /// Record the overlay after ExternalRenderContext::RenderFrame in the
     /// same command buffer. A no-op while nothing is visible.
+    /// `gizmoVertices` is this frame's gizmo triangle list (world space,
+    /// empty = no gizmo); it is copied into a per-frame vertex buffer.
     void record(QVulkanWindow* window,
                 quantiloom::ExternalRenderContext* ctx,
                 VkCommandBuffer cmd,
                 uint32_t width, uint32_t height,
-                const CameraMatrices& camera);
+                const CameraMatrices& camera,
+                const std::vector<editing::GizmoVertex>& gizmoVertices);
 
     /// Destroy everything. Call from releaseResources() (device still valid).
     void releaseResources(QVulkanWindow* window);
@@ -71,6 +76,13 @@ private:
         uint32_t height = 0;
     };
 
+    struct FrameVertexBuffer {
+        VkBuffer buffer = VK_NULL_HANDLE;
+        VkDeviceMemory memory = VK_NULL_HANDLE;
+        void* mapped = nullptr;
+        VkDeviceSize capacity = 0;
+    };
+
     void ensureStaticResources(QVulkanWindow* window);
     void ensureSizedResources(QVulkanWindow* window, VkCommandBuffer cmd,
                               uint32_t width, uint32_t height);
@@ -79,6 +91,9 @@ private:
                            VkImageAspectFlags aspect);
     void destroyImage(VkDevice device, OwnedImage& img);
     void createGridPipeline(QVulkanWindow* window, VkFormat colorFormat);
+    void createGizmoPipeline(QVulkanWindow* window, VkFormat colorFormat);
+    void ensureGizmoBuffers(QVulkanWindow* window);
+    void destroyGizmoBuffers(VkDevice device);
 
     bool m_gridVisible = false;
 
@@ -91,6 +106,9 @@ private:
     VkDescriptorSet m_descriptorSet = VK_NULL_HANDLE;
     VkPipelineLayout m_gridPipelineLayout = VK_NULL_HANDLE;
     VkPipeline m_gridPipeline = VK_NULL_HANDLE;
+    VkPipelineLayout m_gizmoPipelineLayout = VK_NULL_HANDLE;
+    VkPipeline m_gizmoPipeline = VK_NULL_HANDLE;
+    std::vector<FrameVertexBuffer> m_gizmoVertexBuffers;  // one per frame in flight
     PFN_vkCmdBeginRenderingKHR m_vkCmdBeginRendering = nullptr;
     PFN_vkCmdEndRenderingKHR m_vkCmdEndRendering = nullptr;
 

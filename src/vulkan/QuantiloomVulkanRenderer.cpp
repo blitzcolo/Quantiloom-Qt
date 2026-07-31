@@ -229,10 +229,13 @@ void QuantiloomVulkanRenderer::startNextFrame() {
 
     // Editor overlay (grid, gizmo) over the blitted frame, same command
     // buffer. No-op while nothing is visible.
+    const vkview::CameraMatrices overlayCam = overlayCamera();
+    m_gizmoVertices.clear();
+    m_window->buildGizmoDrawList(overlayCam, m_gizmoVertices);
     m_overlay.record(m_window, m_renderContext.get(), cmd,
                      static_cast<uint32_t>(swapSize.width()),
                      static_cast<uint32_t>(swapSize.height()),
-                     overlayCamera());
+                     overlayCam, m_gizmoVertices);
 
     // Update sample count
     m_sampleCount = m_renderContext->GetAccumulatedSamples();

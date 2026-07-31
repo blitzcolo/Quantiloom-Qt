@@ -549,9 +549,59 @@ void QuantiloomVulkanWindow::mousePressEvent(QMouseEvent* event) {
     }
 }
 
+bool QuantiloomVulkanWindow::gizmoOnScreen() const {
+    return m_editMode && m_selection && m_selection->hasSelection() && m_gizmo &&
+           m_renderer && getScene() != nullptr;
+}
+
+editing::GizmoFrame QuantiloomVulkanWindow::currentGizmoFrame(
+    const vkview::CameraMatrices& camera) const {
+    editing::GizmoFrame frame;
+    const auto* scene = getScene();
+    if (!scene || !m_selection) {
+        return frame;
+    }
+    frame.origin = m_selection->computeSelectionCenter(scene);
+    frame.scale = editing::GizmoFrame::screenScale(camera.position(), frame.origin,
+                                                   camera.fovScale());
+
+    if (m_gizmo && m_gizmo->space() == TransformGizmo::Space::Local) {
+        // Local axes come from the lowest-index selected node -- QSet has no
+        // order, and lowest-index is at least deterministic
+        int primary = -1;
+        for (int index : m_selection->selectedNodes()) {
+            if (primary < 0 || index < primary) {
+                primary = index;
+            }
+        }
+        if (primary >= 0 && primary < static_cast<int>(scene->nodes.size())) {
+            const glm::mat4& t = scene->nodes[static_cast<size_t>(primary)].transform;
+            for (int c = 0; c < 3; ++c) {
+                const glm::vec3 column(t[c]);
+                const float length = glm::length(column);
+                frame.axes[c] = length > 1e-6f ? column / length
+                                               : glm::mat3(1.0f)[c];
+            }
+        }
+    }
+    return frame;
+}
+
+bool QuantiloomVulkanWindow::buildGizmoDrawList(
+    const vkview::CameraMatrices& camera, std::vector<editing::GizmoVertex>& out) {
+    if (!gizmoOnScreen()) {
+        return false;
+    }
+    const editing::GizmoFrame frame = currentGizmoFrame(camera);
+    const glm::vec3 viewDir = glm::normalize(frame.origin - camera.position());
+    editing::buildGizmoGeometry(m_gizmo->mode(), frame, m_hoveredHandle,
+                                m_activeHandle, viewDir, out);
+    return !out.empty();
+}
+
 bool QuantiloomVulkanWindow::beginGizmoDragAt(const QPointF& devicePos) {
-    // Handle hit-testing lands with the drawn gizmo; until then no click is a
-    // handle grab, so every click falls through to selection.
+    // Handle hit-testing lands with the drag-math rewrite; until then no
+    // click is a handle grab, so every click falls through to selection.
     Q_UNUSED(devicePos);
     return false;
 }
@@ -646,6 +696,21 @@ bool QuantiloomVulkanWindow::event(QEvent* event) {
         auto* hoverEvent = static_cast<QHoverEvent*>(event);
         const QPointF device = toDevicePixels(hoverEvent->position());
         emit mouseHovered(static_cast<int>(device.x()), static_cast<int>(device.y()));
+
+        // Gizmo hover highlight: the same hit-test the grab uses, so a handle
+        // that lights up is a handle that will respond. Overlay-only state --
+        // it never resets accumulation, and the render loop repaints anyway.
+        if (!m_transformDragging) {
+            editing::GizmoHandle hovered = editing::GizmoHandle::None;
+            if (gizmoOnScreen()) {
+                const vkview::CameraMatrices camera = m_renderer->overlayCamera();
+                const editing::GizmoFrame frame = currentGizmoFrame(camera);
+                const vkview::CameraRay ray = camera.rayThroughPixel(
+                    static_cast<float>(device.x()), static_cast<float>(device.y()));
+                hovered = editing::hitTestGizmo(ray, frame, m_gizmo->mode());
+            }
+            m_hoveredHandle = hovered;
+        }
         // Don't accept - let base class handle too
     }
     return QVulkanWindow::event(event);

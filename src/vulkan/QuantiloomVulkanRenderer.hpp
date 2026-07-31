@@ -314,6 +314,7 @@ private:
 
     // Editor overlay pass (grid, gizmo), drawn after RenderFrame's blit
     vkview::OverlayRenderer m_overlay;
+    std::vector<editing::GizmoVertex> m_gizmoVertices;  // rebuilt per frame
 
     // Frame timing
     std::chrono::high_resolution_clock::time_point m_lastFrameTime;

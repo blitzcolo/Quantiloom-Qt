@@ -20,6 +20,8 @@
 #include <core/Types.hpp>
 #include <renderer/Pick.hpp>
 
+#include "../editing/GizmoModel.hpp"
+
 namespace quantiloom {
 class Config;
 class Scene;
@@ -342,6 +344,16 @@ public:
     [[nodiscard]] std::optional<quantiloom::PickResult> pickScene(const QPointF& devicePos);
 
     /**
+     * @brief This frame's gizmo triangles, or false when no gizmo is shown
+     *
+     * Called by the renderer every frame. The frame (origin, axes, screen-
+     * constant scale) is the same one the hover and grab hit-tests use, so
+     * what is drawn is exactly what is grabbable.
+     */
+    bool buildGizmoDrawList(const vkview::CameraMatrices& camera,
+                            std::vector<editing::GizmoVertex>& out);
+
+    /**
      * @brief Get camera info for gizmo
      */
     void getCameraInfo(glm::vec3& position, glm::vec3& forward,
@@ -442,6 +454,14 @@ private:
      */
     bool beginGizmoDragAt(const QPointF& devicePos);
 
+    /// Whether a gizmo is currently on screen (edit mode, selection, scene)
+    [[nodiscard]] bool gizmoOnScreen() const;
+
+    /// The gizmo's placement for the current camera: selection center,
+    /// world/local axes, screen-constant scale
+    [[nodiscard]] editing::GizmoFrame currentGizmoFrame(
+        const vkview::CameraMatrices& camera) const;
+
     /**
      * @brief Apply a setting now, or record it until the renderer exists
      *
@@ -505,4 +525,8 @@ private:
     bool m_editMode = true;  // Default to edit mode
     bool m_transformDragging = false;
     QPointF m_transformDragStart;
+
+    // Gizmo interaction state, fed to the overlay for highlight colors
+    editing::GizmoHandle m_hoveredHandle = editing::GizmoHandle::None;
+    editing::GizmoHandle m_activeHandle = editing::GizmoHandle::None;
 };

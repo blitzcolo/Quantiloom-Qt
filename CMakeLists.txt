@@ -250,6 +250,8 @@ set(GUI_SOURCES
     src/editing/Commands.hpp
     src/editing/TransformGizmo.cpp
     src/editing/TransformGizmo.hpp
+    src/editing/GizmoModel.cpp
+    src/editing/GizmoModel.hpp
     # Dialogs
     src/dialogs/PreferencesDialog.cpp
     src/dialogs/PreferencesDialog.hpp
@@ -291,6 +293,8 @@ endfunction()
 
 compile_overlay_shader(grid.vert kGridVertSpv grid_vert.h)
 compile_overlay_shader(grid.frag kGridFragSpv grid_frag.h)
+compile_overlay_shader(gizmo.vert kGizmoVertSpv gizmo_vert.h)
+compile_overlay_shader(gizmo.frag kGizmoFragSpv gizmo_frag.h)
 
 # ============================================================================
 # Translations (i18n)
