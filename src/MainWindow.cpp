@@ -86,6 +86,7 @@ constexpr auto kMcpPortKey = "mcp_port";
 constexpr int  kMaxRecentFiles = 8;
 constexpr auto kGeometryKey    = "window/geometry";
 constexpr auto kStateVersionKey = "window/state_version";
+constexpr auto kShowGridKey    = "viewport/show_grid";
 
 /// Bumped whenever the dock inventory changes, so a layout written by an older
 /// build is discarded instead of restored into a window that no longer has the
@@ -143,6 +144,13 @@ MainWindow::MainWindow(QVulkanInstance* vulkanInstance, QWidget* parent)
     restoreWindowState();
     m_workspaces->activateInitial();
     updateWindowTitle();
+
+    // The grid ships on: a scene-layout viewport without a ground reference
+    // is the exception, not the default. Queued if the renderer is not up yet.
+    {
+        QSettings settings;
+        applyGridVisible(settings.value(kShowGridKey, true).toBool());
+    }
 
     // Last, and after restoreWindowState(): taking over the non-client area
     // forces a frame recalculation, so it wants the window at its final size.
@@ -394,6 +402,14 @@ void MainWindow::setupMenus() {
     m_displayEnhancementAction->setCheckable(true);
     connect(m_displayEnhancementAction, &QAction::triggered,
             this, &MainWindow::applyDisplayEnhancementEnabled);
+
+    m_showGridAction = m_viewMenu->addAction(QString());
+    m_showGridAction->setCheckable(true);
+    // Ctrl+`, the overlay-toggle corner of the keyboard; the bare letters
+    // near it are taken by the transform gizmo (G/R/T, X/Y/Z).
+    m_showGridAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_QuoteLeft));
+    connect(m_showGridAction, &QAction::triggered,
+            this, &MainWindow::applyGridVisible);
 
     m_viewMenu->addSeparator();
 
@@ -1054,6 +1070,20 @@ void MainWindow::restyleUi() {
     m_styling.reapply();
 }
 
+void MainWindow::applyGridVisible(bool visible) {
+    // Single application point for the grid overlay. Display-only: the scene
+    // is unchanged, only what is composited over the frame -- so this is the
+    // deliberate exception to src/vulkan/CLAUDE.md's "every setter resets
+    // accumulation" rule, and toggling it must not restart convergence.
+    m_vulkanWindow->setGridVisible(visible);
+    if (m_showGridAction) {
+        const QSignalBlocker blocker(m_showGridAction);
+        m_showGridAction->setChecked(visible);
+    }
+    QSettings settings;
+    settings.setValue(kShowGridKey, visible);
+}
+
 void MainWindow::applyDisplayEnhancementEnabled(bool enabled) {
     // Route through the panel so the checkbox, the menu entry and the renderer
     // cannot disagree; the panel's own signal carries the current parameters.
@@ -1577,6 +1607,9 @@ void MainWindow::retranslateUi() {
     m_displayEnhancementAction->setText(tr("Display &Enhancement (CLAHE)"));
     m_displayEnhancementAction->setToolTip(
         tr("Affects the viewport and screenshots only; exported images keep their raw values."));
+    m_showGridAction->setText(tr("Show &Grid"));
+    m_showGridAction->setToolTip(
+        tr("Ground grid overlay in the viewport; does not affect renders or accumulation."));
 
     m_renderMenu->setTitle(tr("&Render"));
     m_startRenderAction->setText(tr("&Start Render"));

@@ -182,6 +182,7 @@ private:
     void applySpectralMode(quantiloom::SpectralMode mode);
     void applyTargetSpp(uint32_t spp);
     void applyDisplayEnhancementEnabled(bool enabled);
+    void applyGridVisible(bool visible);
     void applyTheme(const QString& themeId);
     void applyWavelength(float wavelength_nm);
     void applyLightingParams(const quantiloom::LightingParams& params);
@@ -330,6 +331,7 @@ private:
     QAction* m_aboutAction = nullptr;
     QAction* m_aboutQtAction = nullptr;
     QAction* m_displayEnhancementAction = nullptr;
+    QAction* m_showGridAction = nullptr;
 
     // Mode submenus. Each holds one exclusive action group, and each group is
     // mirrored by a toolbar combo box showing the same selection.

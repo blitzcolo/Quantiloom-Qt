@@ -374,6 +374,18 @@ void QuantiloomVulkanWindow::setDisplayEnhancement(bool enabled, float clipLimit
 }
 
 // ============================================================================
+// Viewport Overlay
+// ============================================================================
+
+void QuantiloomVulkanWindow::setGridVisible(bool visible) {
+    withRenderer([visible](QuantiloomVulkanRenderer& r) { r.setGridVisible(visible); });
+}
+
+bool QuantiloomVulkanWindow::isGridVisible() const {
+    return m_renderer && m_renderer->isGridVisible();
+}
+
+// ============================================================================
 // Scene Editing
 // ============================================================================
 

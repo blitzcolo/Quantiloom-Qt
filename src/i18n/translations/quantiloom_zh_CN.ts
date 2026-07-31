@@ -1058,6 +1058,14 @@ May cause colour shifts.</source>
         <translation>只影响视口与截图；导出的图像保留原始数值。</translation>
     </message>
     <message>
+        <source>Show &amp;Grid</source>
+        <translation>显示网格(&amp;G)</translation>
+    </message>
+    <message>
+        <source>Ground grid overlay in the viewport; does not affect renders or accumulation.</source>
+        <translation>在视口中叠加地面网格；不影响渲染结果与累积。</translation>
+    </message>
+    <message>
         <source>Reset &amp;Accumulation</source>
         <translation>重置累积(&amp;A)</translation>
     </message>

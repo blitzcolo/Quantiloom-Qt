@@ -1045,6 +1045,14 @@ May cause colour shifts.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Show &amp;Grid</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ground grid overlay in the viewport; does not affect renders or accumulation.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Reset &amp;Accumulation</source>
         <translation type="unfinished"></translation>
     </message>

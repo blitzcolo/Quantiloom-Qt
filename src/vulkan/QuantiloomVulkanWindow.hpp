@@ -300,6 +300,21 @@ public:
                                int tileSize, bool luminanceOnly);
 
     // ========================================================================
+    // Viewport Overlay
+    // ========================================================================
+
+    /**
+     * @brief Show or hide the ground grid overlay
+     *
+     * Display-only: does not touch accumulation (see the renderer's setter).
+     * Queued through withRenderer() like every setter, so a toggle restored
+     * from settings before the renderer exists is not lost.
+     */
+    void setGridVisible(bool visible);
+
+    [[nodiscard]] bool isGridVisible() const;
+
+    // ========================================================================
     // Scene Editing
     // ========================================================================
 
