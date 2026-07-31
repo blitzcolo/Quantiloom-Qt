@@ -22,6 +22,8 @@
 #include <postprocess/SensorModel.hpp>
 #include <postprocess/GenericSensor.hpp>
 
+#include "OverlayRenderer.hpp"
+
 namespace quantiloom {
 struct ComplexRefractiveIndex;
 }
@@ -162,6 +164,20 @@ public:
     // Render context access (for transform operations)
     quantiloom::ExternalRenderContext* getRenderContext() { return m_renderContext.get(); }
 
+    // ========================================================================
+    // Viewport overlay (grid, gizmo)
+    // ========================================================================
+
+    /// Show or hide the ground grid. Display-only: deliberately does NOT
+    /// resetAccumulation(), the exception to this file's every-setter rule --
+    /// the scene is unchanged, only what is composited over the frame is.
+    void setGridVisible(bool visible) { m_overlay.setGridVisible(visible); }
+    [[nodiscard]] bool isGridVisible() const { return m_overlay.gridVisible(); }
+
+    /// The camera the frame on screen was rendered with, as matrices and
+    /// pixel rays. Only valid while a scene is loaded.
+    [[nodiscard]] vkview::CameraMatrices overlayCamera() const;
+
     // Camera control
     void updateCameraMovement(bool forward, bool backward, bool left, bool right,
                               bool up, bool down, bool fast);
@@ -295,6 +311,9 @@ private:
 
     // libQuantiloom render context
     std::unique_ptr<quantiloom::ExternalRenderContext> m_renderContext;
+
+    // Editor overlay pass (grid, gizmo), drawn after RenderFrame's blit
+    vkview::OverlayRenderer m_overlay;
 
     // Frame timing
     std::chrono::high_resolution_clock::time_point m_lastFrameTime;

@@ -179,6 +179,7 @@ void QuantiloomVulkanRenderer::releaseResources() {
         m_pendingScenePath = m_currentScenePath;
         qDebug() << "Saved scene path for restore:" << m_pendingScenePath;
     }
+    m_overlay.releaseResources(m_window);
     m_renderContext.reset();
     m_initialized = false;
     // The next context is a fresh one and knows none of the document.
@@ -226,6 +227,13 @@ void QuantiloomVulkanRenderer::startNextFrame() {
         static_cast<quantiloom::u32>(swapSize.height())
     );
 
+    // Editor overlay (grid, gizmo) over the blitted frame, same command
+    // buffer. No-op while nothing is visible.
+    m_overlay.record(m_window, m_renderContext.get(), cmd,
+                     static_cast<uint32_t>(swapSize.width()),
+                     static_cast<uint32_t>(swapSize.height()),
+                     overlayCamera());
+
     // Update sample count
     m_sampleCount = m_renderContext->GetAccumulatedSamples();
 
@@ -243,6 +251,16 @@ void QuantiloomVulkanRenderer::startNextFrame() {
     if (!m_paused) {
         m_window->requestUpdate();
     }
+}
+
+vkview::CameraMatrices QuantiloomVulkanRenderer::overlayCamera() const {
+    if (m_renderContext) {
+        const QSize size = m_window->swapChainImageSize();
+        return vkview::CameraMatrices::fromCamera(
+            m_renderContext->GetCamera(),
+            static_cast<float>(size.width()), static_cast<float>(size.height()));
+    }
+    return {};
 }
 
 void QuantiloomVulkanRenderer::setPaused(bool paused) {

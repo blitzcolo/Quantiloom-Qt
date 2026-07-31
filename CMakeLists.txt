@@ -209,6 +209,10 @@ set(GUI_SOURCES
     src/vulkan/QuantiloomVulkanWindow.hpp
     src/vulkan/QuantiloomVulkanRenderer.cpp
     src/vulkan/QuantiloomVulkanRenderer.hpp
+    src/vulkan/CameraMatrices.cpp
+    src/vulkan/CameraMatrices.hpp
+    src/vulkan/OverlayRenderer.cpp
+    src/vulkan/OverlayRenderer.hpp
     # Parameter panels
     src/panels/SceneTreePanel.cpp
     src/panels/SceneTreePanel.hpp
@@ -252,6 +256,41 @@ set(GUI_SOURCES
     src/dialogs/HelpDialog.cpp
     src/dialogs/HelpDialog.hpp
 )
+
+# ============================================================================
+# Overlay shaders (viewport grid / gizmo)
+# ============================================================================
+# GLSL compiled to SPIR-V at build time and embedded as C arrays, so the
+# executable carries them and nothing is loaded from disk at runtime.
+find_program(GLSLANG_VALIDATOR glslangValidator
+    PATHS "C:/VulkanSDK/1.4.350.0/Bin" "C:/VulkanSDK/1.4.328.1/Bin"
+          "$ENV{VULKAN_SDK}/Bin"
+)
+if(NOT GLSLANG_VALIDATOR)
+    message(FATAL_ERROR "glslangValidator not found; install the Vulkan SDK")
+endif()
+
+set(OVERLAY_SHADER_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/shaders/overlay)
+set(OVERLAY_SHADER_GEN_DIR ${QUANTILOOM_GENERATED_DIR}/overlay_shaders)
+file(MAKE_DIRECTORY ${OVERLAY_SHADER_GEN_DIR})
+
+set(OVERLAY_SHADER_HEADERS "")
+# compile_overlay_shader(<source name> <C array name> <output header name>)
+function(compile_overlay_shader SRC_NAME VAR_NAME OUT_NAME)
+    set(OUT_HEADER ${OVERLAY_SHADER_GEN_DIR}/${OUT_NAME})
+    add_custom_command(
+        OUTPUT ${OUT_HEADER}
+        COMMAND ${GLSLANG_VALIDATOR} -V --vn ${VAR_NAME}
+                -o ${OUT_HEADER} ${OVERLAY_SHADER_SRC_DIR}/${SRC_NAME}
+        DEPENDS ${OVERLAY_SHADER_SRC_DIR}/${SRC_NAME}
+        COMMENT "Compiling overlay shader ${SRC_NAME}"
+        VERBATIM
+    )
+    set(OVERLAY_SHADER_HEADERS ${OVERLAY_SHADER_HEADERS} ${OUT_HEADER} PARENT_SCOPE)
+endfunction()
+
+compile_overlay_shader(grid.vert kGridVertSpv grid_vert.h)
+compile_overlay_shader(grid.frag kGridFragSpv grid_frag.h)
 
 # ============================================================================
 # Translations (i18n)
@@ -304,6 +343,7 @@ add_executable(QuantiloomQt
     ${GUI_SOURCES}
     ${QM_FILES}
     ${RESOURCE_FILES}
+    ${OVERLAY_SHADER_HEADERS}
 )
 
 # Platform definition for libQuantiloom headers
