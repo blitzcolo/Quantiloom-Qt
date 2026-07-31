@@ -879,6 +879,28 @@ May cause colour shifts.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>MCP server stopped</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>MCP Server</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Could not start the MCP server.
+
+%1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>MCP server on 127.0.0.1:%1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>MCP :%1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Workspace: %1</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1048,6 +1070,14 @@ May cause colour shifts.</source>
     </message>
     <message>
         <source>Spectral Material &amp;Generator</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;MCP Server</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Let an agent drive Studio over a local connection</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

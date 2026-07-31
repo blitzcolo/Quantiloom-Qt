@@ -82,6 +82,7 @@
 namespace {
 
 constexpr auto kRecentFilesKey = "recent_files";
+constexpr auto kMcpPortKey = "mcp_port";
 constexpr int  kMaxRecentFiles = 8;
 constexpr auto kGeometryKey    = "window/geometry";
 constexpr auto kStateVersionKey = "window/state_version";
@@ -443,6 +444,11 @@ void MainWindow::setupMenus() {
             dock->activateWindow();
         }
     });
+
+    m_toolsMenu->addSeparator();
+    m_mcpAction = m_toolsMenu->addAction(QString());
+    m_mcpAction->setCheckable(true);
+    connect(m_mcpAction, &QAction::toggled, this, &MainWindow::setMcpServerRunning);
 
     // --- Help -----------------------------------------------------------
     m_helpMenu = m_menuBar->addMenu(QString());
@@ -888,6 +894,119 @@ void MainWindow::applyNodeTransform(int nodeIndex, const glm::mat4& transform) {
     setSceneModified(true);
 }
 
+// ============================================================================
+// MCP
+// ============================================================================
+
+void MainWindow::setMcpServerRunning(bool running) {
+    if (running == (m_mcpServer != nullptr)) {
+        return;
+    }
+
+    if (!running) {
+        m_mcpServer.reset();
+        if (m_mcpPumpTimer) {
+            m_mcpPumpTimer->stop();
+        }
+        updateMcpStatusLabel();
+        showStatusMessage(tr("MCP server stopped"));
+        return;
+    }
+
+    QSettings settings;
+    const quantiloom::u16 port =
+        static_cast<quantiloom::u16>(settings.value(kMcpPortKey, 8767).toUInt());
+
+    quantiloom::mcp::ServerOptions options;
+    options.port = port;
+    options.serverName = "quantiloom-studio";
+    options.serverVersion = QCoreApplication::applicationVersion().toStdString();
+
+    // Called on the transport thread. Nothing here may touch the renderer or a
+    // widget -- it posts, and pumpMcp() does the work on this thread.
+    options.onCommandQueued = [this] {
+        QMetaObject::invokeMethod(this, &MainWindow::pumpMcp, Qt::QueuedConnection);
+    };
+
+    // A tool that reloads the document runs here instead of inside Pump(),
+    // because opening a scene pumps Qt events of its own while shaders compile
+    // and doing that from within the pump would nest one inside the other.
+    options.hostDispatch = [this](std::function<void()> work) {
+        QMetaObject::invokeMethod(
+            this, [work = std::move(work)]() mutable { work(); }, Qt::QueuedConnection);
+    };
+
+    auto created = quantiloom::mcp::Server::Create(options);
+    if (!created.has_value()) {
+        const QString reason = QString::fromStdString(created.error());
+        QL_LOG_ERROR("MCP: {}", created.error());
+        QMessageBox::warning(this, tr("MCP Server"),
+                             tr("Could not start the MCP server.\n\n%1").arg(reason));
+        if (m_mcpAction) {
+            const QSignalBlocker blocker(m_mcpAction);
+            m_mcpAction->setChecked(false);
+        }
+        return;
+    }
+    m_mcpServer = std::move(created.value());
+
+    registerMcpTools();
+
+    // The posted wake is the fast path; this is the backstop for anything it
+    // could not deliver -- a wake that arrived while a long operation was in
+    // progress, or while a pump was already running.
+    if (!m_mcpPumpTimer) {
+        m_mcpPumpTimer = new QTimer(this);
+        m_mcpPumpTimer->setInterval(250);
+        connect(m_mcpPumpTimer, &QTimer::timeout, this, &MainWindow::pumpMcp);
+    }
+    m_mcpPumpTimer->start();
+
+    updateMcpStatusLabel();
+    showStatusMessage(tr("MCP server on 127.0.0.1:%1").arg(m_mcpServer->Port()));
+    QL_LOG_INFO("MCP: Studio serving on port {}", m_mcpServer->Port());
+}
+
+void MainWindow::startMcpServerFromCommandLine(quint16 port) {
+    if (port != 0) {
+        QSettings settings;
+        settings.setValue(kMcpPortKey, port);
+    }
+    // Through the action, not through setMcpServerRunning() directly: the
+    // menu entry has to end up ticked, and the action's toggled signal is what
+    // does that.
+    if (m_mcpAction) {
+        m_mcpAction->setChecked(true);
+    } else {
+        setMcpServerRunning(true);
+    }
+}
+
+void MainWindow::pumpMcp() {
+    if (!m_mcpServer || m_mcpPumping || m_longOperationActive) {
+        return;
+    }
+    m_mcpPumping = true;
+    m_mcpServer->Pump();
+    m_mcpPumping = false;
+}
+
+void MainWindow::updateMcpStatusLabel() {
+    if (!m_mcpStatusLabel) {
+        return;
+    }
+    if (m_mcpServer) {
+        m_mcpStatusLabel->setText(tr("MCP :%1").arg(m_mcpServer->Port()));
+        m_mcpStatusLabel->setVisible(true);
+    } else {
+        m_mcpStatusLabel->setVisible(false);
+    }
+    if (m_mcpAction) {
+        const QSignalBlocker blocker(m_mcpAction);
+        m_mcpAction->setChecked(m_mcpServer != nullptr);
+    }
+}
+
 void MainWindow::buildThemeMenu(QMenu* menu) {
     m_themeGroup = new QActionGroup(this);
     m_themeGroup->setExclusive(true);
@@ -1151,6 +1270,10 @@ void MainWindow::setupStatusBar() {
     m_renderProgress->setValue(0);
 
     statusBar()->addWidget(m_statusLabel, 1);
+    m_mcpStatusLabel = new QLabel();
+    m_mcpStatusLabel->setVisible(false);
+
+    statusBar()->addPermanentWidget(m_mcpStatusLabel);
     statusBar()->addPermanentWidget(m_debugValueLabel);
     statusBar()->addPermanentWidget(m_editModeLabel);
     statusBar()->addPermanentWidget(m_sampleCountLabel);
@@ -1259,11 +1382,16 @@ void MainWindow::setupConnections() {
     // raised before the window appeared. It reports beside the viewport now.
     connect(m_vulkanWindow, &QuantiloomVulkanWindow::longOperationStarted,
             this, [this](const QString& description) {
+                // The MCP pump stands down for the duration: this operation
+                // runs its own event loop, and a tool dispatched from it would
+                // reach a renderer that is halfway through building resources.
+                m_longOperationActive = true;
                 m_viewportFrame->setBusyMessage(description);
                 showStatusMessage(description, 0);
             });
     connect(m_vulkanWindow, &QuantiloomVulkanWindow::longOperationFinished,
             this, [this]() {
+                m_longOperationActive = false;
                 m_viewportFrame->setBusyMessage(QString());
                 showStatusMessage(tr("Ready"));
             });
@@ -1477,6 +1605,9 @@ void MainWindow::retranslateUi() {
 
     m_toolsMenu->setTitle(tr("&Tools"));
     m_spectralGenAction->setText(tr("Spectral Material &Generator"));
+    m_mcpAction->setText(tr("&MCP Server"));
+    m_mcpAction->setToolTip(tr("Let an agent drive Studio over a local connection"));
+    updateMcpStatusLabel();
 
     m_helpMenu->setTitle(tr("&Help"));
     m_shortcutsAction->setText(tr("&Keyboard Shortcuts"));

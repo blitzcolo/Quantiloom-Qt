@@ -18,6 +18,9 @@
 #include <QString>
 #include <QVector>
 
+#include <optional>
+#include <string>
+
 #include <core/Types.hpp>
 
 namespace catalog {
@@ -59,6 +62,15 @@ enum class DebugCategory {
 /// the Help menu; it used to occupy half of the debug panel.
 [[nodiscard]] QString debugOutputInterpretation();
 
+/// Stable identifier, e.g. "shaded_normal". Never translated and never shown:
+/// this is what an API says when it means a mode, because debugModeName()
+/// changes with the interface language and a protocol cannot.
+[[nodiscard]] const char* debugModeId(quantiloom::DebugVisualizationMode mode);
+
+/// The inverse. Nothing for an identifier this build does not have.
+[[nodiscard]] std::optional<quantiloom::DebugVisualizationMode> debugModeFromId(
+    const std::string& id);
+
 // ============================================================================
 // Spectral mode
 // ============================================================================
@@ -83,6 +95,11 @@ enum class DebugCategory {
 /// The wavelength range a fused mode integrates, formatted for display, or an
 /// empty string for modes that are not fused bands.
 [[nodiscard]] QString fusedRangeText(quantiloom::SpectralMode mode);
+
+/// Stable identifier, e.g. "lwir_fused" -- the spelling a scene configuration
+/// uses and quantiloom::ParseSpectralMode reads back, so an agent that saw one
+/// here can write it into a TOML document unchanged.
+[[nodiscard]] const char* spectralModeId(quantiloom::SpectralMode mode);
 
 // ============================================================================
 // Render quality presets

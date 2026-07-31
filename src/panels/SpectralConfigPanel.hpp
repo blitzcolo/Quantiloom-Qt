@@ -60,6 +60,8 @@ private:
     void setupUi();
     void updateModeDescription(quantiloom::SpectralMode mode);
     void updateBandCount();
+    /// The swatch and the spin box, without emitting. See the note on the definition.
+    void updateWavelengthSwatch(int value);
     void applyModePage(quantiloom::SpectralMode mode);
 
     // Current settings

@@ -107,9 +107,23 @@ int main(int argc, char* argv[]) {
     // A path on the command line opens like File ▸ Open. The window edits a
     // document now, and a document-shaped application is expected to accept
     // one this way.
+    //
+    // --mcp, or --mcp=PORT, starts the server the Tools menu also starts, so a
+    // session an agent is meant to drive comes up already serving instead of
+    // waiting for someone to tick a menu entry. The menu remains the way to
+    // start and stop it by hand; this only chooses the state the window opens
+    // in, and the port it opens on.
     const QStringList arguments = QApplication::arguments();
-    if (arguments.size() > 1) {
-        mainWindow.openFromCommandLine(arguments.at(1));
+    for (int i = 1; i < arguments.size(); ++i) {
+        const QString& argument = arguments.at(i);
+        if (argument == QLatin1String("--mcp")) {
+            mainWindow.startMcpServerFromCommandLine(0);
+        } else if (argument.startsWith(QLatin1String("--mcp="))) {
+            mainWindow.startMcpServerFromCommandLine(
+                argument.mid(6).toUShort());
+        } else if (!argument.startsWith(QLatin1Char('-'))) {
+            mainWindow.openFromCommandLine(argument);
+        }
     }
 
     int result = app.exec();

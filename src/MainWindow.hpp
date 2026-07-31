@@ -20,6 +20,7 @@
 
 #include <atmos/AtmosphereNNConfig.hpp>
 #include <core/Types.hpp>
+#include <mcp/McpServer.hpp>
 #include <postprocess/SensorModel.hpp>
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
@@ -93,6 +94,11 @@ public:
 
     /// Open a path given on the command line, exactly as File ▸ Open would.
     void openFromCommandLine(const QString& filePath);
+
+    /// Start the MCP server at launch, as --mcp asks. Same path as the Tools
+    /// menu entry, so the menu shows it running.
+    /// @param port Zero to use the configured one.
+    void startMcpServerFromCommandLine(quint16 port);
 
 protected:
     void closeEvent(QCloseEvent* event) override;
@@ -188,6 +194,16 @@ private:
     void applyCameraFov(float fovYDegrees);
     void applyMaterial(int index, const quantiloom::Material& material);
     void applyNodeTransform(int nodeIndex, const glm::mat4& transform);
+
+    // --- MCP -------------------------------------------------------------
+    // The server runs a transport thread; nothing it receives touches this
+    // window until pumpMcp() runs a queued call on this thread.
+    void setMcpServerRunning(bool running);
+    void pumpMcp();
+    /// Defined in McpTools.cpp -- the tool catalogue is long enough to live
+    /// beside itself rather than in the middle of the shell.
+    void registerMcpTools();
+    void updateMcpStatusLabel();
 
     void buildThemeMenu(QMenu* menu);
 
@@ -371,6 +387,19 @@ private:
     // Helper methods
     void applyConfig(const SceneConfig& config);
     void collectCurrentConfig(SceneConfig& config);
+
+    // MCP server, when the user has started one
+    std::unique_ptr<quantiloom::mcp::Server> m_mcpServer;
+    QAction* m_mcpAction = nullptr;
+    QLabel* m_mcpStatusLabel = nullptr;
+    class QTimer* m_mcpPumpTimer = nullptr;
+    /// Guards against pumping from inside a pump.
+    bool m_mcpPumping = false;
+    /// Scene loads compile shaders and pump Qt events while they do it. A tool
+    /// running from that nested event loop would be reaching into a renderer
+    /// halfway through building its resources, so the pump stands down until
+    /// the operation reports finished.
+    bool m_longOperationActive = false;
 
     // Editing system
     SelectionManager* m_selectionManager = nullptr;

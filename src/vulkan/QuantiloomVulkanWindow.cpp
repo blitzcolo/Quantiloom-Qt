@@ -241,6 +241,10 @@ quantiloom::AtmosphereNNConfig QuantiloomVulkanWindow::atmosphericConfig() const
     return m_renderer ? m_renderer->atmosphericConfig() : quantiloom::AtmosphereNNConfig{};
 }
 
+quantiloom::DebugVisualizationMode QuantiloomVulkanWindow::debugMode() const {
+    return m_renderer ? m_renderer->getDebugMode() : quantiloom::DebugVisualizationMode::None;
+}
+
 uint32_t QuantiloomVulkanWindow::targetSPP() const {
     return m_renderer ? m_renderer->targetSPP() : 0;
 }

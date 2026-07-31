@@ -431,35 +431,43 @@ void MaterialEditorPanel::applyChanges() {
     modified.roughnessFactor = m_roughness;
     modified.emissiveFactor = m_emissive;
 
-    // IR properties - set as constant curves (single wavelength point)
-    if (m_irEmissivity > 0.0f || m_irTransmittance > 0.0f || m_irTemperature_K > 0.0f) {
-        modified.irEmissivityCurve.clear();
-        modified.irTransmittanceCurve.clear();
-        modified.irReflectanceCurve.clear();
-
-        // Create constant curve with points at MWIR and LWIR bands
-        const float mwir_nm = 4000.0f;  // 4 um
-        const float lwir_nm = 10000.0f; // 10 um
-
-        if (m_irEmissivity > 0.0f) {
-            modified.irEmissivityCurve.push_back({mwir_nm, m_irEmissivity});
-            modified.irEmissivityCurve.push_back({lwir_nm, m_irEmissivity});
-        }
-
-        if (m_irTransmittance > 0.0f) {
-            modified.irTransmittanceCurve.push_back({mwir_nm, m_irTransmittance});
-            modified.irTransmittanceCurve.push_back({lwir_nm, m_irTransmittance});
-        }
-
-        // Compute reflectance from energy conservation
-        const float reflectance = 1.0f - m_irEmissivity - m_irTransmittance;
-        if (reflectance > 0.0f) {
-            modified.irReflectanceCurve.push_back({mwir_nm, reflectance});
-            modified.irReflectanceCurve.push_back({lwir_nm, reflectance});
-        }
-
-        modified.irTemperature_K = m_irTemperature_K;
-    }
+    applyIrScalars(modified, m_irEmissivity, m_irTransmittance, m_irTemperature_K);
 
     emit materialChanged(m_currentIndex, modified);
+}
+
+void MaterialEditorPanel::applyIrScalars(quantiloom::Material& material, float emissivity,
+                                         float transmittance, float temperatureK) {
+    if (emissivity <= 0.0f && transmittance <= 0.0f && temperatureK <= 0.0f) {
+        return;
+    }
+
+    material.irEmissivityCurve.clear();
+    material.irTransmittanceCurve.clear();
+    material.irReflectanceCurve.clear();
+
+    // Constant across the band: two points, one at each end of the thermal
+    // range the renderer integrates.
+    const float mwir_nm = 4000.0f;   // 4 um
+    const float lwir_nm = 10000.0f;  // 10 um
+
+    if (emissivity > 0.0f) {
+        material.irEmissivityCurve.push_back({mwir_nm, emissivity});
+        material.irEmissivityCurve.push_back({lwir_nm, emissivity});
+    }
+
+    if (transmittance > 0.0f) {
+        material.irTransmittanceCurve.push_back({mwir_nm, transmittance});
+        material.irTransmittanceCurve.push_back({lwir_nm, transmittance});
+    }
+
+    // Reflectance is what is left: Kirchhoff in thermal equilibrium says
+    // epsilon + rho + tau = 1, so it is derived rather than given.
+    const float reflectance = 1.0f - emissivity - transmittance;
+    if (reflectance > 0.0f) {
+        material.irReflectanceCurve.push_back({mwir_nm, reflectance});
+        material.irReflectanceCurve.push_back({lwir_nm, reflectance});
+    }
+
+    material.irTemperature_K = temperatureK;
 }

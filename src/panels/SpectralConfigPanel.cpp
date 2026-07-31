@@ -200,7 +200,7 @@ void SpectralConfigPanel::setupUi() {
     // Initialize
     updateModeDescription(quantiloom::SpectralMode::RGB);
     updateBandCount();
-    onWavelengthSliderChanged(550);
+    updateWavelengthSwatch(550);
 }
 
 void SpectralConfigPanel::retranslateUi() {
@@ -243,7 +243,7 @@ void SpectralConfigPanel::setWavelength(float wavelength_nm) {
         m_wavelengthSpin->setValue(wavelength_nm);
     }
 
-    onWavelengthSliderChanged(static_cast<int>(wavelength_nm));
+    updateWavelengthSwatch(static_cast<int>(wavelength_nm));
 }
 
 void SpectralConfigPanel::setWavelengthRange(float min_nm, float max_nm, float delta_nm) {
@@ -287,6 +287,15 @@ void SpectralConfigPanel::onModeChanged(int index) {
 }
 
 void SpectralConfigPanel::onWavelengthSliderChanged(int value) {
+    updateWavelengthSwatch(value);
+    emit wavelengthChanged(m_wavelength);
+}
+
+// Everything onWavelengthSliderChanged() does except tell the world. setWavelength()
+// calls this rather than the slot: the slot ends in an emit, and a setter that
+// reports back to whoever set it is a loop as soon as the receiver echoes the
+// value to the panel -- which is exactly what a single dispatcher does.
+void SpectralConfigPanel::updateWavelengthSwatch(int value) {
     m_wavelength = static_cast<float>(value);
 
     {
@@ -320,8 +329,6 @@ void SpectralConfigPanel::onWavelengthSliderChanged(int value) {
     m_wavelengthColorPreview->setStyleSheet(
         QStringLiteral("background-color: rgb(%1, %2, %3); border: 1px solid palette(mid);")
             .arg(color.red()).arg(color.green()).arg(color.blue()));
-
-    emit wavelengthChanged(m_wavelength);
 }
 
 void SpectralConfigPanel::onWavelengthSpinChanged(double value) {

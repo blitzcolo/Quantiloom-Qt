@@ -6,6 +6,8 @@
 #pragma once
 
 #include <QString>
+
+class QTextStream;
 #include <QObject>
 
 #include <atmos/AtmosphereNNConfig.hpp>
@@ -139,11 +141,23 @@ public:
     bool exportConfig(const QString& filePath, const SceneConfig& config);
 
     /**
+     * @brief Serialise the same document exportConfig() writes, without a file
+     *
+     * One writer, two destinations: an agent asking what the open document
+     * currently says gets the bytes that Save would have produced, rather than
+     * a second rendering of the same struct that could drift from it.
+     */
+    QString exportConfigToString(const SceneConfig& config);
+
+    /**
      * @brief Get last error message
      */
     QString lastError() const { return m_lastError; }
 
 private:
+    /// The single writer. exportConfig() points it at a file,
+    /// exportConfigToString() at a string.
+    void writeConfig(QTextStream& out, const SceneConfig& config);
     void extractSceneConfig(const quantiloom::Config& config, SceneConfig& out);
     quantiloom::SpectralMode parseSpectralMode(const std::string& modeStr);
 

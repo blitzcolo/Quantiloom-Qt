@@ -44,6 +44,23 @@ public:
     void restyleUi() override;
 
     void setMaterial(int index, const quantiloom::Material* material);
+
+    /**
+     * @brief Write the scalar infrared trio into a material as flat curves
+     *
+     * Emissivity and transmittance are stored as curves; this panel shows one
+     * number for each and writes it as a two-point curve spanning the MWIR and
+     * LWIR bands, then derives reflectance from what is left over. Static, and
+     * public, because anything that edits a material the way this panel does
+     * has to produce the same material -- the reflectance in particular is not
+     * given, it is 1 - emissivity - transmittance, and a second copy of that
+     * arithmetic is a second chance to get it wrong.
+     *
+     * Does nothing when all three are zero, which leaves an existing curve set
+     * alone rather than clearing it.
+     */
+    static void applyIrScalars(quantiloom::Material& material, float emissivity,
+                               float transmittance, float temperatureK);
     void clear();
 
     [[nodiscard]] int currentMaterialIndex() const { return m_currentIndex; }

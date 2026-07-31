@@ -189,6 +189,7 @@ public:
     quantiloom::SpectralMode spectralMode() const;
     float wavelength() const;
     quantiloom::AtmosphereNNConfig atmosphericConfig() const;
+    quantiloom::DebugVisualizationMode debugMode() const;
 
     /**
      * @brief Suspend or resume progressive accumulation (Render ▸ Stop/Start)

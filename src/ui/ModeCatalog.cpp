@@ -487,4 +487,113 @@ QString qualityPresetLabel(const QualityPreset& preset) {
     return Tr::tr("%1 (%2 spp)").arg(name).arg(preset.spp);
 }
 
+// ============================================================================
+// Stable identifiers
+// ============================================================================
+//
+// A protocol cannot name a mode with debugModeName(): that string is
+// translated, so the same mode answers to different text depending on the
+// interface language. These are the names that do not move. The table is the
+// single place both directions read, so an identifier cannot exist in one and
+// not the other.
+
+namespace {
+
+struct DebugModeId {
+    DebugVisualizationMode mode;
+    const char* id;
+};
+
+constexpr DebugModeId kDebugModeIds[] = {
+    {DebugVisualizationMode::None, "none"},
+
+    {DebugVisualizationMode::WorldPosition, "world_position"},
+    {DebugVisualizationMode::GeometricNormal, "geometric_normal"},
+    {DebugVisualizationMode::ShadedNormal, "shaded_normal"},
+    {DebugVisualizationMode::Tangent, "tangent"},
+    {DebugVisualizationMode::UV, "uv"},
+    {DebugVisualizationMode::MaterialID, "material_id"},
+    {DebugVisualizationMode::TriangleID, "triangle_id"},
+    {DebugVisualizationMode::Barycentric, "barycentric"},
+
+    {DebugVisualizationMode::BaseColor, "base_color"},
+    {DebugVisualizationMode::Metallic, "metallic"},
+    {DebugVisualizationMode::Roughness, "roughness"},
+    {DebugVisualizationMode::NormalMapDelta, "normal_map_delta"},
+    {DebugVisualizationMode::Emissive, "emissive"},
+    {DebugVisualizationMode::Alpha, "alpha"},
+
+    {DebugVisualizationMode::NdotL, "ndotl"},
+    {DebugVisualizationMode::NdotV, "ndotv"},
+    {DebugVisualizationMode::DirectSun, "direct_sun"},
+    {DebugVisualizationMode::Diffuse, "diffuse"},
+    {DebugVisualizationMode::AtmosphericTransmittance, "atmospheric_transmittance"},
+
+    {DebugVisualizationMode::FresnelF0, "fresnel_f0"},
+    {DebugVisualizationMode::Fresnel, "fresnel"},
+    {DebugVisualizationMode::BRDF_Full, "brdf_full"},
+    {DebugVisualizationMode::SpecularD, "specular_d"},
+    {DebugVisualizationMode::SpecularG, "specular_g"},
+
+    {DebugVisualizationMode::ReflectionDir, "reflection_dir"},
+    {DebugVisualizationMode::PrefilteredEnv, "prefiltered_env"},
+    {DebugVisualizationMode::BrdfLut, "brdf_lut"},
+    {DebugVisualizationMode::IblSpecular, "ibl_specular"},
+    {DebugVisualizationMode::SkyAmbient, "sky_ambient"},
+
+    {DebugVisualizationMode::XYZ_Tristimulus, "xyz_tristimulus"},
+    {DebugVisualizationMode::BeforeChromaCorrection, "before_chroma_correction"},
+    {DebugVisualizationMode::SpectralReflectance550, "spectral_reflectance_550"},
+
+    {DebugVisualizationMode::Temperature, "surface_temperature"},
+    {DebugVisualizationMode::IREmissivity, "ir_emissivity"},
+    {DebugVisualizationMode::IREmission, "ir_emission"},
+    {DebugVisualizationMode::IRReflection, "ir_reflection"},
+
+    {DebugVisualizationMode::VertexPositions, "vertex_positions"},
+    {DebugVisualizationMode::IndexValues, "index_values"},
+    {DebugVisualizationMode::InstanceID, "instance_id"},
+    {DebugVisualizationMode::PrimitiveID, "primitive_id"},
+    {DebugVisualizationMode::IndexBufferPos, "index_buffer_pos"},
+    {DebugVisualizationMode::V0Position, "v0_position"},
+    {DebugVisualizationMode::RawIdx0, "raw_idx0"},
+    {DebugVisualizationMode::V0Raw, "v0_raw"},
+};
+
+}  // namespace
+
+const char* debugModeId(DebugVisualizationMode mode) {
+    for (const auto& entry : kDebugModeIds) {
+        if (entry.mode == mode) {
+            return entry.id;
+        }
+    }
+    return "unknown";
+}
+
+std::optional<DebugVisualizationMode> debugModeFromId(const std::string& id) {
+    for (const auto& entry : kDebugModeIds) {
+        if (id == entry.id) {
+            return entry.mode;
+        }
+    }
+    return std::nullopt;
+}
+
+const char* spectralModeId(quantiloom::SpectralMode mode) {
+    // The spelling a scene configuration uses, so quantiloom::ParseSpectralMode
+    // reads back what this returns.
+    switch (mode) {
+        case quantiloom::SpectralMode::Single:        return "single";
+        case quantiloom::SpectralMode::VIS_Fused:     return "vis_fused";
+        case quantiloom::SpectralMode::Multispectral: return "multispectral";
+        case quantiloom::SpectralMode::MWIR_Fused:    return "mwir_fused";
+        case quantiloom::SpectralMode::LWIR_Fused:    return "lwir_fused";
+        case quantiloom::SpectralMode::SWIR_Fused:    return "swir_fused";
+        case quantiloom::SpectralMode::NIR_Fused:     return "nir_fused";
+        case quantiloom::SpectralMode::RGB:           return "rgb";
+    }
+    return "rgb";
+}
+
 } // namespace catalog

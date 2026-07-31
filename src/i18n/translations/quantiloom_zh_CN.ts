@@ -890,6 +890,30 @@ May cause colour shifts.</source>
         <translation>已关闭显示增强</translation>
     </message>
     <message>
+        <source>MCP server stopped</source>
+        <translation>MCP 服务已停止</translation>
+    </message>
+    <message>
+        <source>MCP Server</source>
+        <translation>MCP 服务</translation>
+    </message>
+    <message>
+        <source>Could not start the MCP server.
+
+%1</source>
+        <translation>无法启动 MCP 服务。
+
+%1</translation>
+    </message>
+    <message>
+        <source>MCP server on 127.0.0.1:%1</source>
+        <translation>MCP 服务运行于 127.0.0.1:%1</translation>
+    </message>
+    <message>
+        <source>MCP :%1</source>
+        <translation>MCP :%1</translation>
+    </message>
+    <message>
         <source>Workspace: %1</source>
         <translation>工作区：%1</translation>
     </message>
@@ -1060,6 +1084,14 @@ May cause colour shifts.</source>
     <message>
         <source>Spectral Material &amp;Generator</source>
         <translation>光谱材质生成器(&amp;G)</translation>
+    </message>
+    <message>
+        <source>&amp;MCP Server</source>
+        <translation>MCP 服务(&amp;M)</translation>
+    </message>
+    <message>
+        <source>Let an agent drive Studio over a local connection</source>
+        <translation>让 Agent 通过本机连接操作 Studio</translation>
     </message>
     <message>
         <source>&amp;Keyboard Shortcuts</source>

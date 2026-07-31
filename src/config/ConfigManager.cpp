@@ -283,7 +283,20 @@ bool ConfigManager::exportConfig(const QString& filePath, const SceneConfig& con
 
     QTextStream out(&file);
     out.setEncoding(QStringConverter::Utf8);
+    writeConfig(out, config);
 
+    file.close();
+    return true;
+}
+
+QString ConfigManager::exportConfigToString(const SceneConfig& config) {
+    QString text;
+    QTextStream out(&text);
+    writeConfig(out, config);
+    return text;
+}
+
+void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
     // Header
     out << "# ============================================================================\n";
     out << "# Quantiloom Scene Configuration\n";
@@ -456,7 +469,4 @@ bool ConfigManager::exportConfig(const QString& filePath, const SceneConfig& con
     out << "enable_nuc = " << (config.sensorParams.enableNUC ? "true" : "false") << "\n";
     out << "nuc_efficiency = " << config.sensorParams.nucEfficiency << "\n";
     out << "\n";
-
-    file.close();
-    return true;
 }
