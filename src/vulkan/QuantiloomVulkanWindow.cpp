@@ -249,6 +249,10 @@ uint32_t QuantiloomVulkanWindow::targetSPP() const {
     return m_renderer ? m_renderer->targetSPP() : 0;
 }
 
+uint32_t QuantiloomVulkanWindow::samplingSeed() const {
+    return m_renderer ? m_renderer->samplingSeed() : quantiloom::constants::DEFAULT_SAMPLING_SEED;
+}
+
 void QuantiloomVulkanWindow::setRenderPaused(bool paused) {
     withRenderer([paused](QuantiloomVulkanRenderer& r) { r.setPaused(paused); });
 }

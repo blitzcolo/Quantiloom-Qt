@@ -179,6 +179,11 @@ public:
     uint32_t targetSPP() const;
 
     /**
+     * @brief The sampling seed the renderer is running on
+     */
+    uint32_t samplingSeed() const;
+
+    /**
      * @brief What the renderer is running on, for populating the panels
      *
      * After a config is opened these are what the SDK resolved from the file,

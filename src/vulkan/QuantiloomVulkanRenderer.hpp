@@ -108,6 +108,7 @@ public:
     void resetAccumulation();
     uint32_t currentSampleCount() const { return m_sampleCount; }
     uint32_t targetSPP() const { return m_targetSPP; }
+    uint32_t samplingSeed() const { return m_samplingSeed; }
 
     /// @name What the renderer is actually running on
     /// These read the members this class keeps in step with the context, which

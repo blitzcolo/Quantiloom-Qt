@@ -868,7 +868,11 @@ void MainWindow::applyMaterial(int index, const quantiloom::Material& material) 
     m_undoStack->push(std::move(command));
 
     m_editedMaterials.insert(index);
-    m_materialEditorPanel->setMaterial(index, &scene->materials[static_cast<size_t>(index)]);
+    // Refresh the editor if it is already showing this material; do not switch
+    // it to one the user did not pick.
+    if (m_materialEditorPanel->currentMaterialIndex() == index) {
+        m_materialEditorPanel->setMaterial(index, &scene->materials[static_cast<size_t>(index)]);
+    }
     setSceneModified(true);
     showStatusMessage(tr("Material modified"));
 }
@@ -892,7 +896,12 @@ void MainWindow::applyNodeTransform(int nodeIndex, const glm::mat4& transform) {
     m_undoStack->push(std::move(command));
 
     m_editedNodes.insert(nodeIndex);
-    m_propertiesPanel->updateNodeTransform(transform);
+    // The properties panel shows the *selected* node; writing some other
+    // node's transform into it would display a pose that belongs to nothing
+    // on screen.
+    if (m_selectionManager->primarySelection() == nodeIndex) {
+        m_propertiesPanel->updateNodeTransform(transform);
+    }
     setSceneModified(true);
 }
 
@@ -2359,6 +2368,10 @@ void MainWindow::collectCurrentConfig(SceneConfig& config) {
     config.width = m_renderSettingsPanel->renderWidth();
     config.height = m_renderSettingsPanel->renderHeight();
     config.spp = m_renderSettingsPanel->spp();
+    // From the renderer, not from m_lastConfig: no widget shows the seed, so
+    // the carried-forward copy is the only other source and it goes stale the
+    // moment anything sets a new one.
+    config.samplingSeed = m_vulkanWindow->samplingSeed();
 
     // Spectral. The panel used to be described as "tracking these internally",
     // which meant nothing read them back and a mode change never reached the
@@ -2597,6 +2610,11 @@ void MainWindow::onGizmoTransformFinished() {
                 auto cmd = std::make_unique<TransformNodeCommand>(
                     m_vulkanWindow, state.nodeIndex, state.originalTransform, newTransform);
                 m_undoStack->push(std::move(cmd));
+                // The gizmo bypasses applyNodeTransform -- it applied the
+                // moves live during the drag -- so the record of what changed
+                // is kept here, or a dragged node would vanish from the saved
+                // document while an identically typed-in one would not.
+                m_editedNodes.insert(state.nodeIndex);
             }
         }
     } else {
@@ -2612,6 +2630,9 @@ void MainWindow::onGizmoTransformFinished() {
         if (!transforms.empty()) {
             auto cmd = std::make_unique<MultiTransformCommand>(m_vulkanWindow, transforms);
             m_undoStack->push(std::move(cmd));
+            for (const auto& moved : transforms) {
+                m_editedNodes.insert(moved.nodeIndex);
+            }
         }
     }
 

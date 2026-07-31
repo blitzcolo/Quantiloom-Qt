@@ -28,9 +28,12 @@
 #include "config/ConfigManager.hpp"
 #include "editing/SelectionManager.hpp"
 #include "editing/UndoStack.hpp"
+#include "panels/AtmosphericPanel.hpp"
 #include "panels/DebugVisualizationPanel.hpp"
 #include "panels/MaterialEditorPanel.hpp"
 #include "panels/SceneTreePanel.hpp"
+#include "panels/SensorPanel.hpp"
+#include "panels/SpectralConfigPanel.hpp"
 #include "ui/ModeCatalog.hpp"
 #include "vulkan/QuantiloomVulkanWindow.hpp"
 
@@ -662,7 +665,10 @@ void MainWindow::registerMcpTools() {
     "wavelength_nm": {"type": "number", "minimum": 100, "maximum": 20000},
     "target_samples": {"type": "integer", "minimum": 1},
     "seed": {"type": "integer", "minimum": 0,
-             "description": "Nonzero reproduces the same noise every time; 0 varies per frame."}
+             "description": "Nonzero reproduces the same noise every time; 0 varies per frame."},
+    "lambda_min_nm": {"type": "number", "description": "Hyperspectral cube range start. Document state, used when the cube is rendered."},
+    "lambda_max_nm": {"type": "number"},
+    "delta_lambda_nm": {"type": "number", "minimum": 0.1}
   }
 })";
         tool.handler = [this](const quantiloom::String& argumentsJson) {
@@ -694,11 +700,33 @@ void MainWindow::registerMcpTools() {
                     static_cast<uint32_t>(args.value(QStringLiteral("seed")).toInt()));
                 setSceneModified(true);
             }
+            if (args.contains(QStringLiteral("lambda_min_nm")) ||
+                args.contains(QStringLiteral("lambda_max_nm")) ||
+                args.contains(QStringLiteral("delta_lambda_nm"))) {
+                // Document state the panel owns: nothing in the interactive
+                // renderer reads it, the hyperspectral cube does at render
+                // time, and the export reads it back from this panel.
+                const float lo = static_cast<float>(
+                    args.value(QStringLiteral("lambda_min_nm"))
+                        .toDouble(m_spectralConfigPanel->lambdaMin()));
+                const float hi = static_cast<float>(
+                    args.value(QStringLiteral("lambda_max_nm"))
+                        .toDouble(m_spectralConfigPanel->lambdaMax()));
+                const float step = static_cast<float>(
+                    args.value(QStringLiteral("delta_lambda_nm"))
+                        .toDouble(m_spectralConfigPanel->deltaLambda()));
+                m_spectralConfigPanel->setWavelengthRange(lo, hi, step);
+                setSceneModified(true);
+            }
 
             QJsonObject out;
             out["mode"] = catalog::spectralModeId(m_vulkanWindow->spectralMode());
             out["wavelength_nm"] = m_vulkanWindow->wavelength();
             out["target_samples"] = static_cast<qint64>(m_vulkanWindow->targetSPP());
+            out["seed"] = static_cast<qint64>(m_vulkanWindow->samplingSeed());
+            out["lambda_min_nm"] = m_spectralConfigPanel->lambdaMin();
+            out["lambda_max_nm"] = m_spectralConfigPanel->lambdaMax();
+            out["delta_lambda_nm"] = m_spectralConfigPanel->deltaLambda();
             out["accumulated_samples"] =
                 static_cast<qint64>(m_vulkanWindow->currentSampleCount());
             return Json(out);
@@ -971,6 +999,244 @@ void MainWindow::registerMcpTools() {
             out["tile_size"] = m_claheTileSize;
             out["luminance_only"] = m_claheLuminanceOnly;
             out["session_only"] = true;
+            return Json(out);
+        };
+        add(tool);
+    }
+
+    {
+        mcp::ToolDef tool;
+        tool.name = "ql_set_atmosphere";
+        tool.description =
+            "Configure the neural MODTRAN-surrogate atmosphere. Give any subset.\n"
+            "\n"
+            "preset is the coarse control -- clear, haze, fog, rain, overcast and friends, or "
+            "'disabled' -- and the named weather features override on top of whichever preset is "
+            "in effect: vis_km is visibility [0.5, 50], rainrt_mm_h is rain rate [0, 50], "
+            "t_ground_k is ground temperature [253, 328], rh is relative humidity [0.05, 1], "
+            "p_hpa is pressure [950, 1040], h2o_scale scales water vapour [0.5, 2].\n"
+            "\n"
+            "Enabling it needs a model pack on disk; if the scene's configuration named one it is "
+            "already set. The spectral LUT rebakes lazily before the next frame, so the first "
+            "frame after a change is slower.";
+        tool.inputSchemaJson = R"({
+  "type": "object",
+  "properties": {
+    "preset": {"type": "string",
+               "enum": ["disabled", "clear", "haze", "humid", "fog", "rain", "storm", "overcast", "desert"],
+               "description": "Applied first; the features below override on top."},
+    "enabled": {"type": "boolean"},
+    "vis_km": {"type": "number", "minimum": 0.5, "maximum": 50},
+    "rainrt_mm_h": {"type": "number", "minimum": 0, "maximum": 50},
+    "t_ground_k": {"type": "number", "minimum": 253, "maximum": 328},
+    "rh": {"type": "number", "minimum": 0.05, "maximum": 1},
+    "p_hpa": {"type": "number", "minimum": 950, "maximum": 1040},
+    "h2o_scale": {"type": "number", "minimum": 0.5, "maximum": 2}
+  }
+})";
+        tool.handler = [this](const quantiloom::String& argumentsJson) {
+            QJsonObject args;
+            mcp::ToolResult error;
+            if (!ParseArgs(argumentsJson, args, error)) {
+                return error;
+            }
+
+            // Preset first, through the panel's own flow -- its combo owns the
+            // preset, and its onPresetChanged re-derives the config -- and only
+            // then the explicit overrides on top. The other order let the
+            // preset flow re-derive the config after the overrides and quietly
+            // undo them.
+            if (args.contains(QStringLiteral("preset"))) {
+                const QString presetName = args.value(QStringLiteral("preset")).toString();
+                quantiloom::AtmosphereNNConfig probe;
+                if (!probe.ApplyPreset(presetName.toStdString()) &&
+                    presetName != QLatin1String("disabled")) {
+                    return mcp::ToolResult::Error("Not a preset: " + presetName.toStdString());
+                }
+                m_atmosphericPanel->setPreset(presetName);
+            }
+
+            quantiloom::AtmosphereNNConfig config =
+                m_atmosphericPanel->getAtmosphericConfig();
+            if (args.contains(QStringLiteral("enabled"))) {
+                config.enabled = args.value(QStringLiteral("enabled")).toBool();
+            }
+            if (args.contains(QStringLiteral("vis_km"))) {
+                config.visKm = args.value(QStringLiteral("vis_km")).toDouble();
+            }
+            if (args.contains(QStringLiteral("rainrt_mm_h"))) {
+                config.rainrtMmH = args.value(QStringLiteral("rainrt_mm_h")).toDouble();
+            }
+            if (args.contains(QStringLiteral("t_ground_k"))) {
+                config.tGroundK = args.value(QStringLiteral("t_ground_k")).toDouble();
+            }
+            if (args.contains(QStringLiteral("rh"))) {
+                config.rh = args.value(QStringLiteral("rh")).toDouble();
+            }
+            if (args.contains(QStringLiteral("p_hpa"))) {
+                config.pHPa = args.value(QStringLiteral("p_hpa")).toDouble();
+            }
+            if (args.contains(QStringLiteral("h2o_scale"))) {
+                config.h2oScale = args.value(QStringLiteral("h2o_scale")).toDouble();
+            }
+
+            // No model-pack guard here: the renderer resolves an empty
+            // directory against QUANTILOOM_ATMOS_MODELS and the executable's
+            // own assets, and disables the atmosphere with a logged warning if
+            // nothing is found. Refusing earlier would refuse configurations
+            // that path would have served.
+            applyAtmosphere(config);
+
+            const auto now = m_atmosphericPanel->getAtmosphericConfig();
+            QJsonObject out;
+            out["enabled"] = now.enabled;
+            out["note"] =
+                "If no atmosphere model pack is installed the renderer logs a warning and "
+                "renders without one; check ql_capture_viewport if the effect matters.";
+            out["preset"] = m_atmosphericPanel->preset();
+            out["vis_km"] = now.visKm;
+            out["rainrt_mm_h"] = now.rainrtMmH;
+            out["t_ground_k"] = now.tGroundK;
+            out["rh"] = now.rh;
+            out["p_hpa"] = now.pHPa;
+            out["h2o_scale"] = now.h2oScale;
+            return Json(out);
+        };
+        add(tool);
+    }
+
+    {
+        mcp::ToolDef tool;
+        tool.name = "ql_set_sensor";
+        tool.description =
+            "Configure the GPU sensor simulation -- the imaging chain between the radiance and "
+            "the displayed pixel: optics, detector, ADC and noise. Give any subset; keys match "
+            "the [sensor] section of a scene configuration.\n"
+            "\n"
+            "This is what makes the viewport look like a camera instead of a path tracer. It "
+            "applies in real time, so ql_capture_viewport view 'display' shows its effect; view "
+            "'raw' never does.";
+        tool.inputSchemaJson = R"({
+  "type": "object",
+  "properties": {
+    "enabled": {"type": "boolean"},
+    "focal_length_mm": {"type": "number", "minimum": 0.1},
+    "f_number": {"type": "number", "minimum": 0.5},
+    "pixel_pitch_um": {"type": "number", "minimum": 0.1},
+    "quantum_efficiency": {"type": "number", "minimum": 0, "maximum": 1},
+    "well_capacity_e": {"type": "number", "minimum": 1},
+    "integration_time_s": {"type": "number", "minimum": 0},
+    "bit_depth": {"type": "integer", "minimum": 1, "maximum": 32},
+    "gain": {"type": "number", "minimum": 0},
+    "read_noise_e_rms": {"type": "number", "minimum": 0},
+    "dark_current_e_s": {"type": "number", "minimum": 0},
+    "enable_poisson_noise": {"type": "boolean"},
+    "enable_read_noise": {"type": "boolean"},
+    "enable_dark_current": {"type": "boolean"},
+    "enable_fpn": {"type": "boolean"},
+    "detector_temperature_k": {"type": "number", "minimum": 0}
+  }
+})";
+        tool.handler = [this](const quantiloom::String& argumentsJson) {
+            QJsonObject args;
+            mcp::ToolResult error;
+            if (!ParseArgs(argumentsJson, args, error)) {
+                return error;
+            }
+
+            quantiloom::SensorParams params = m_sensorPanel->getSensorParams();
+            const auto setF = [&args](const char* key, float& field) {
+                if (args.contains(QLatin1String(key))) {
+                    field = static_cast<float>(args.value(QLatin1String(key)).toDouble());
+                }
+            };
+            const auto setB = [&args](const char* key, bool& field) {
+                if (args.contains(QLatin1String(key))) {
+                    field = args.value(QLatin1String(key)).toBool();
+                }
+            };
+            setF("focal_length_mm", params.focalLength_mm);
+            setF("f_number", params.fNumber);
+            setF("pixel_pitch_um", params.pixelPitch_um);
+            setF("quantum_efficiency", params.quantumEfficiency);
+            setF("well_capacity_e", params.wellCapacity_e);
+            setF("integration_time_s", params.integrationTime_s);
+            if (args.contains(QStringLiteral("bit_depth"))) {
+                params.bitDepth = static_cast<quantiloom::u32>(
+                    args.value(QStringLiteral("bit_depth")).toInt());
+            }
+            setF("gain", params.gain);
+            setF("read_noise_e_rms", params.readNoise_e_rms);
+            setF("dark_current_e_s", params.darkCurrent_e_s);
+            setB("enable_poisson_noise", params.enablePoissonNoise);
+            setB("enable_read_noise", params.enableReadNoise);
+            setB("enable_dark_current", params.enableDarkCurrent);
+            setB("enable_fpn", params.enableFPN);
+            setF("detector_temperature_k", params.detectorTemperature_K);
+
+            applySensorParams(params);
+            if (args.contains(QStringLiteral("enabled"))) {
+                applySensorEnabled(args.value(QStringLiteral("enabled")).toBool());
+            }
+
+            const auto now = m_sensorPanel->getSensorParams();
+            QJsonObject out;
+            out["enabled"] = m_sensorPanel->isSensorEnabled();
+            out["focal_length_mm"] = now.focalLength_mm;
+            out["f_number"] = now.fNumber;
+            out["gain"] = now.gain;
+            out["integration_time_s"] = now.integrationTime_s;
+            out["bit_depth"] = static_cast<qint64>(now.bitDepth);
+            out["enable_poisson_noise"] = now.enablePoissonNoise;
+            out["enable_fpn"] = now.enableFPN;
+            return Json(out);
+        };
+        add(tool);
+    }
+
+    {
+        mcp::ToolDef tool;
+        tool.name = "ql_load_environment_map";
+        tool.description =
+            "Load an equirectangular HDR environment map (.exr or .hdr) for image-based "
+            "lighting, or turn the loaded one off with enabled=false -- off stops it "
+            "contributing light but keeps it resident, so turning it back on is instant.\n"
+            "\n"
+            "Conversion to a prefiltered cubemap happens on load, so the call takes a moment for "
+            "a large map. Resets accumulation.";
+        tool.inputSchemaJson = R"({
+  "type": "object",
+  "properties": {
+    "path": {"type": "string", "description": "Path to an .exr or .hdr equirectangular image."},
+    "enabled": {"type": "boolean", "description": "Default true. False keeps the current map but stops it lighting the scene."}
+  }
+})";
+        tool.timeoutMs = 120000;
+        tool.handler = [this](const quantiloom::String& argumentsJson) {
+            QJsonObject args;
+            mcp::ToolResult error;
+            if (!ParseArgs(argumentsJson, args, error)) {
+                return error;
+            }
+
+            const QString path = args.value(QStringLiteral("path")).toString();
+            const bool enabled = args.value(QStringLiteral("enabled")).toBool(true);
+            if (!path.isEmpty() && !QFileInfo::exists(path)) {
+                return mcp::ToolResult::Error("No such file: " + path.toStdString());
+            }
+
+            // The enable flag rides on LightingParams; set it the way the
+            // lighting panel would, then load the map the way it would.
+            quantiloom::LightingParams params = *m_lightingParams;
+            params.enableEnvironmentMap = enabled ? 1 : 0;
+            applyLightingParams(params);
+            applyEnvironmentMap(path.isEmpty() && m_lastConfig ? m_lastConfig->environmentMap
+                                                               : path,
+                                enabled);
+
+            QJsonObject out;
+            out["environment_map"] = m_lastConfig ? m_lastConfig->environmentMap : QString();
+            out["enabled"] = enabled;
             return Json(out);
         };
         add(tool);
