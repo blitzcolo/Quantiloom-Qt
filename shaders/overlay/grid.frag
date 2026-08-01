@@ -26,9 +26,12 @@ layout(push_constant) uniform PC {
     vec4 upPad;          // xyz up
 } pc;
 
-const vec3 kGridColor = vec3(0.28, 0.28, 0.28);
-const vec3 kAxisXColor = vec3(0.62, 0.10, 0.13);  // line along X (z == 0)
-const vec3 kAxisZColor = vec3(0.10, 0.19, 0.55);  // line along Z (x == 0)
+// LINEAR values (the sRGB attachment encodes on write): the linear form of
+// the intended display colors -- mid-dark gray, X-axis red, Z-axis blue.
+// Writing display values directly would come out washed out.
+const vec3 kGridColor = vec3(0.064, 0.064, 0.064);
+const vec3 kAxisXColor = vec3(0.349, 0.010, 0.016);  // line along X (z == 0)
+const vec3 kAxisZColor = vec3(0.010, 0.030, 0.268);  // line along Z (x == 0)
 
 // 0..1 line intensity for a unit grid over `coord`, one pixel wide
 float gridLine(vec2 coord) {
@@ -95,9 +98,12 @@ void main() {
     intensity = max(intensity, axisBoost);
 
     // Grazing-angle and radial fades keep the horizon from aliasing into a
-    // solid band; the radius scales with the coarse cell so it survives LOD
+    // solid band. The radius follows the camera height -- continuous in t,
+    // unlike a cell-size-based radius, which pops every time the LOD
+    // crosses a power of ten
     float fade = clamp(abs(dir.y) * 6.0, 0.0, 1.0);
-    fade *= 1.0 - smoothstep(0.55, 1.0, t / (cellCoarse * 24.0));
+    float fadeRadius = 500.0 * max(abs(camPos.y), 0.5);
+    fade *= 1.0 - smoothstep(0.45, 1.0, t / fadeRadius);
 
     float alpha = intensity * fade * gridAlpha;
     if (alpha <= 0.003) {

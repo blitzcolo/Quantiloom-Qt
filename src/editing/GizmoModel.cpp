@@ -25,15 +25,18 @@ constexpr float kUniformCube = 0.12f;
 constexpr float kAxisPickRadius = 0.10f;
 constexpr float kRingPickBand = 0.09f;
 
-// Axis colors match the grid's palette; hover yellow, active white
+// Axis colors match the grid's palette; hover yellow, active white.
+// LINEAR values (the sRGB swapchain encodes on write): each is the linear
+// form of the intended display color -- X #DB4F54, Y #8CC740, Z #4A6BDB
+// -- writing display values directly would come out washed out.
 const glm::vec4 kAxisColors[3] = {
-    {0.86f, 0.31f, 0.33f, 1.0f},  // X
-    {0.55f, 0.78f, 0.25f, 1.0f},  // Y
-    {0.29f, 0.42f, 0.86f, 1.0f},  // Z
+    {0.718f, 0.076f, 0.088f, 1.0f},  // X
+    {0.268f, 0.579f, 0.048f, 1.0f},  // Y
+    {0.066f, 0.148f, 0.718f, 1.0f},  // Z
 };
-const glm::vec4 kHoverColor{1.0f, 0.85f, 0.20f, 1.0f};
+const glm::vec4 kHoverColor{1.0f, 0.699f, 0.029f, 1.0f};
 const glm::vec4 kActiveColor{1.0f, 1.0f, 1.0f, 1.0f};
-const glm::vec4 kUniformColor{0.75f, 0.75f, 0.75f, 1.0f};
+const glm::vec4 kUniformColor{0.531f, 0.531f, 0.531f, 1.0f};
 
 glm::vec4 handleColor(GizmoHandle handle, GizmoHandle hovered, GizmoHandle active,
                       const glm::vec4& base) {

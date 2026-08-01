@@ -29,6 +29,8 @@
 
 #include <vulkan/vulkan.h>
 
+#include <QString>
+
 #include <cstdint>
 #include <vector>
 
@@ -66,6 +68,25 @@ public:
 
     /// Destroy everything. Call from releaseResources() (device still valid).
     void releaseResources(QVulkanWindow* window);
+
+    // ========================================================================
+    // Composited capture (what-you-see screenshots for agents/debugging)
+    // ========================================================================
+
+    /// Queue a one-shot PNG capture of the final swapchain image -- the
+    /// SDK's frame WITH the grid and gizmo composited over it, which the
+    /// SDK-side captures cannot show. Saved a few frames later (the copy has
+    /// to clear the frames in flight); poll the file.
+    void requestCompositedCapture(const QString& path);
+
+    /// Record the swapchain copy for a pending capture. Call after record(),
+    /// while the image is back in PRESENT_SRC.
+    void recordCaptureIfRequested(QVulkanWindow* window, VkCommandBuffer cmd,
+                                  uint32_t width, uint32_t height);
+
+    /// Save a recorded capture once its frame is provably complete. Call at
+    /// the top of each startNextFrame.
+    void finishCaptureIfReady(QVulkanWindow* window);
 
 private:
     struct OwnedImage {
@@ -116,7 +137,18 @@ private:
     OwnedImage m_depthAov;      // R32_SFLOAT, written by BlitDepthTo, sampled by grid
     OwnedImage m_overlayDepth;  // D32_SFLOAT, cleared per pass, overlay self-occlusion
     VkImageLayout m_depthAovLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    bool m_overlayDepthInitialized = false;
+
+    // Composited-capture state (one shot at a time)
+    QString m_capturePath;             // non-empty = capture requested
+    bool m_captureRecorded = false;
+    int m_captureCountdown = 0;        // frames until the copy is provably done
+    VkBuffer m_captureBuffer = VK_NULL_HANDLE;
+    VkDeviceMemory m_captureMemory = VK_NULL_HANDLE;
+    void* m_captureMapped = nullptr;
+    uint32_t m_captureWidth = 0;
+    uint32_t m_captureHeight = 0;
+    VkFormat m_captureFormat = VK_FORMAT_UNDEFINED;
+    void destroyCaptureBuffer(VkDevice device);
 };
 
 }  // namespace vkview

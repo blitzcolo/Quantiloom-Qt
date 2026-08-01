@@ -4,6 +4,7 @@
 
 #include <QVulkanWindow>
 #include <QVulkanInstance>
+#include <QImage>
 #include <QtDebug>
 
 #include <algorithm>
@@ -608,10 +609,14 @@ void OverlayRenderer::ensureSizedResources(QVulkanWindow* window, VkCommandBuffe
         m_overlayDepth = createImage(window, width, height, VK_FORMAT_D32_SFLOAT,
                                      VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
                                      VK_IMAGE_ASPECT_DEPTH_BIT);
-        m_overlayDepthInitialized = false;
     }
 
-    if (!m_overlayDepthInitialized) {
+    // Every frame, not just the first: frames overlap on the GPU, and the
+    // clear at the top of this frame's pass must not race the depth writes
+    // of the previous one. oldLayout UNDEFINED on purpose -- the attachment
+    // is cleared anyway, so last frame's contents are discardable, and the
+    // barrier is then purely an execution dependency on prior depth use.
+    {
         VkImageMemoryBarrier toDepth{};
         toDepth.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
         toDepth.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -622,14 +627,15 @@ void OverlayRenderer::ensureSizedResources(QVulkanWindow* window, VkCommandBuffe
         toDepth.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
         toDepth.subresourceRange.levelCount = 1;
         toDepth.subresourceRange.layerCount = 1;
-        toDepth.srcAccessMask = 0;
+        toDepth.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
         toDepth.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT |
                                 VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-        vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+        vkCmdPipelineBarrier(cmd,
+                             VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT |
+                                 VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
                              VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT |
                                  VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
                              0, 0, nullptr, 0, nullptr, 1, &toDepth);
-        m_overlayDepthInitialized = true;
     }
 }
 
@@ -693,6 +699,140 @@ void OverlayRenderer::destroyImage(VkDevice device, OwnedImage& img) {
     img = OwnedImage{};
 }
 
+void OverlayRenderer::requestCompositedCapture(const QString& path) {
+    if (!m_capturePath.isEmpty()) {
+        return;  // one at a time; the pending one wins
+    }
+    m_capturePath = path;
+    m_captureRecorded = false;
+}
+
+void OverlayRenderer::recordCaptureIfRequested(QVulkanWindow* window,
+                                               VkCommandBuffer cmd,
+                                               uint32_t width, uint32_t height) {
+    if (m_capturePath.isEmpty() || m_captureRecorded || width == 0 || height == 0) {
+        return;
+    }
+    VkDevice device = window->device();
+
+    destroyCaptureBuffer(device);
+    const VkDeviceSize bytes = VkDeviceSize(width) * height * 4;
+    VkBufferCreateInfo bufferInfo{};
+    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    bufferInfo.size = bytes;
+    bufferInfo.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    if (vkCreateBuffer(device, &bufferInfo, nullptr, &m_captureBuffer) != VK_SUCCESS) {
+        qWarning() << "OverlayRenderer: capture buffer creation failed";
+        m_capturePath.clear();
+        return;
+    }
+    VkMemoryRequirements memReq;
+    vkGetBufferMemoryRequirements(device, m_captureBuffer, &memReq);
+    VkMemoryAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.allocationSize = memReq.size;
+    allocInfo.memoryTypeIndex =
+        findMemoryType(window->physicalDevice(), memReq.memoryTypeBits,
+                       VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                           VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    if (vkAllocateMemory(device, &allocInfo, nullptr, &m_captureMemory) != VK_SUCCESS ||
+        vkBindBufferMemory(device, m_captureBuffer, m_captureMemory, 0) != VK_SUCCESS ||
+        vkMapMemory(device, m_captureMemory, 0, bytes, 0, &m_captureMapped) != VK_SUCCESS) {
+        qWarning() << "OverlayRenderer: capture buffer memory failed";
+        destroyCaptureBuffer(device);
+        m_capturePath.clear();
+        return;
+    }
+
+    const int swapIndex = window->currentSwapChainImageIndex();
+    VkImage swapImage = window->swapChainImage(swapIndex);
+
+    VkImageMemoryBarrier toSrc{};
+    toSrc.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    toSrc.oldLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    toSrc.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+    toSrc.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    toSrc.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    toSrc.image = swapImage;
+    toSrc.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    toSrc.subresourceRange.levelCount = 1;
+    toSrc.subresourceRange.layerCount = 1;
+    toSrc.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
+    toSrc.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+    vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+                         VK_PIPELINE_STAGE_TRANSFER_BIT, 0,
+                         0, nullptr, 0, nullptr, 1, &toSrc);
+
+    VkBufferImageCopy region{};
+    region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    region.imageSubresource.layerCount = 1;
+    region.imageExtent = {width, height, 1};
+    vkCmdCopyImageToBuffer(cmd, swapImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                           m_captureBuffer, 1, &region);
+
+    VkImageMemoryBarrier toPresent = toSrc;
+    toPresent.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+    toPresent.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    toPresent.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+    toPresent.dstAccessMask = 0;
+    vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT,
+                         VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0,
+                         0, nullptr, 0, nullptr, 1, &toPresent);
+
+    m_captureWidth = width;
+    m_captureHeight = height;
+    m_captureFormat = window->colorFormat();
+    m_captureRecorded = true;
+    // The copy is provably complete once every frame in flight has cycled
+    m_captureCountdown = window->concurrentFrameCount() + 1;
+}
+
+void OverlayRenderer::finishCaptureIfReady(QVulkanWindow* window) {
+    if (!m_captureRecorded || m_captureMapped == nullptr) {
+        return;
+    }
+    if (--m_captureCountdown > 0) {
+        return;
+    }
+
+    const QImage::Format format =
+        (m_captureFormat == VK_FORMAT_R8G8B8A8_SRGB ||
+         m_captureFormat == VK_FORMAT_R8G8B8A8_UNORM)
+            ? QImage::Format_RGBA8888
+            : QImage::Format_ARGB32;  // B8G8R8A8 bytes are ARGB32 little-endian
+    const QImage view(static_cast<const uchar*>(m_captureMapped),
+                      static_cast<int>(m_captureWidth),
+                      static_cast<int>(m_captureHeight),
+                      static_cast<qsizetype>(m_captureWidth) * 4, format);
+    const bool saved = view.copy().save(m_capturePath, "PNG");
+    if (saved) {
+        qInfo() << "OverlayRenderer: composited capture saved to" << m_capturePath;
+    } else {
+        qWarning() << "OverlayRenderer: failed to save composited capture to"
+                   << m_capturePath;
+    }
+
+    destroyCaptureBuffer(window->device());
+    m_capturePath.clear();
+    m_captureRecorded = false;
+}
+
+void OverlayRenderer::destroyCaptureBuffer(VkDevice device) {
+    if (m_captureMapped) {
+        vkUnmapMemory(device, m_captureMemory);
+        m_captureMapped = nullptr;
+    }
+    if (m_captureBuffer != VK_NULL_HANDLE) {
+        vkDestroyBuffer(device, m_captureBuffer, nullptr);
+        m_captureBuffer = VK_NULL_HANDLE;
+    }
+    if (m_captureMemory != VK_NULL_HANDLE) {
+        vkFreeMemory(device, m_captureMemory, nullptr);
+        m_captureMemory = VK_NULL_HANDLE;
+    }
+}
+
 void OverlayRenderer::releaseResources(QVulkanWindow* window) {
     VkDevice device = window->device();
     if (device == VK_NULL_HANDLE) {
@@ -700,10 +840,13 @@ void OverlayRenderer::releaseResources(QVulkanWindow* window) {
     }
     vkDeviceWaitIdle(device);
 
+    destroyCaptureBuffer(device);
+    m_capturePath.clear();
+    m_captureRecorded = false;
+
     destroyImage(device, m_depthAov);
     destroyImage(device, m_overlayDepth);
     m_depthAovLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    m_overlayDepthInitialized = false;
 
     destroyGizmoBuffers(device);
     if (m_gizmoPipeline != VK_NULL_HANDLE) {
