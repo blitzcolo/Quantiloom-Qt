@@ -2427,9 +2427,46 @@ void MainWindow::onCopyNodes() {
     showStatusMessage(tr("Copied %n object(s)", "", m_nodeClipboard.size()));
 }
 
+glm::vec3 MainWindow::pasteOffset(
+    const std::vector<PasteNodesCommand::Spec>& specs) const {
+    if (specs.empty()) {
+        return glm::vec3(0.0f);
+    }
+
+    // One offset for the whole batch, from the batch's center: a pasted
+    // group keeps its internal arrangement and slides as a unit
+    glm::vec3 center(0.0f);
+    for (const auto& spec : specs) {
+        center += glm::vec3(spec.transform[3]);
+    }
+    center /= static_cast<float>(specs.size());
+
+    glm::vec3 camPos, forward, right, up;
+    m_vulkanWindow->getCameraInfo(camPos, forward, right, up);
+    glm::vec3 statePos, stateTarget, stateUp;
+    float fovY = 45.0f;
+    m_vulkanWindow->getCameraState(statePos, stateTarget, stateUp, fovY);
+
+    // distance * tan(fovY/2) is half the vertical extent the camera sees at
+    // the sources' depth, so the nudge is the same fraction of the screen at
+    // any zoom -- the gizmo sizes itself with the same product. Along the
+    // camera's right axis, i.e. in the view plane: depth-ward would hide the
+    // copy inside the original from exactly the viewpoint that matters.
+    constexpr float kNudgeFraction = 0.25f;
+    const float distance = glm::length(center - camPos);
+    const float fovScale = std::tan(glm::radians(fovY) * 0.5f);
+    return right * (kNudgeFraction * distance * fovScale);
+}
+
 void MainWindow::executePaste(const std::vector<PasteNodesCommand::Spec>& specs,
                               const QHash<QString, QString>& sourceByName) {
-    auto command = std::make_unique<PasteNodesCommand>(m_vulkanWindow, specs);
+    std::vector<PasteNodesCommand::Spec> placed = specs;
+    const glm::vec3 nudge = pasteOffset(placed);
+    for (auto& spec : placed) {
+        spec.transform[3] += glm::vec4(nudge, 0.0f);
+    }
+
+    auto command = std::make_unique<PasteNodesCommand>(m_vulkanWindow, placed);
     command->execute();
     const QVector<int> created = command->createdIndices();
     m_undoStack->push(std::move(command));

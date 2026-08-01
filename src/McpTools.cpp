@@ -1402,9 +1402,10 @@ void MainWindow::registerMcpTools() {
         tool.name = "ql_duplicate";
         tool.description =
             "Duplicate the selected nodes the way Edit > Duplicate (Ctrl+D) does: "
-            "shallow copies sharing geometry and materials with their sources, pasted "
-            "in place, selected, and undoable as one step. Select first with "
-            "ql_select. Returns the new node indices.";
+            "shallow copies sharing geometry and materials with their sources, nudged "
+            "sideways in the view plane (a screen-proportional offset, so the copy is "
+            "visible beside the original), selected, and undoable as one step. Select "
+            "first with ql_select. Returns the new node indices.";
         tool.inputSchemaJson = R"({"type": "object", "properties": {}})";
         tool.handler = [this](const quantiloom::String&) {
             if (!m_vulkanWindow->getScene()) {

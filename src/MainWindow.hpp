@@ -200,6 +200,12 @@ private:
     /// `taken` holds names claimed earlier in the same paste batch.
     [[nodiscard]] QString makeUniqueNodeName(const QString& base,
                                              QSet<QString>& taken) const;
+    /// Where a paste lands relative to its source: a nudge along the camera's
+    /// right axis, sized as a fraction of what the viewport shows at the
+    /// sources' distance -- so the copy is visibly beside the original at any
+    /// zoom, instead of hidden exactly inside it.
+    [[nodiscard]] glm::vec3 pasteOffset(
+        const std::vector<PasteNodesCommand::Spec>& specs) const;
     /// Build and run one PasteNodesCommand: names resolved, copies selected,
     /// the paste registered for [[duplicates]] persistence.
     void executePaste(const std::vector<PasteNodesCommand::Spec>& specs,
