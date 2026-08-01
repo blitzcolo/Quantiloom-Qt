@@ -204,7 +204,7 @@ void RenderSettingsPanel::onSppPresetChanged(int index) {
         spp = m_customSpp->value();
     } else {
         m_customSpp->setEnabled(false);
-        m_customSpp->setValue(spp);
+        if (spp > 0) m_customSpp->setValue(spp);
     }
 
     m_targetSPP = static_cast<uint32_t>(spp);

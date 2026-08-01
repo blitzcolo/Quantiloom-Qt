@@ -922,6 +922,10 @@ May cause colour shifts.</source>
         <translation>Spectral mode: %1</translation>
     </message>
     <message>
+        <source>Target samples: infinite</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Target samples: %1</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1283,6 +1287,10 @@ May cause colour shifts.</source>
     <message>
         <source>Failed to save the image:
 %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Rendering (infinite)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -3322,6 +3330,10 @@ Right-drag orbits the camera, middle-drag pans, the wheel zooms; G/R/T switch tr
     </message>
     <message>
         <source>Production</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Infinite (∞)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

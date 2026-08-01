@@ -928,6 +928,10 @@ May cause colour shifts.</source>
         <translation>光谱模式: %1</translation>
     </message>
     <message>
+        <source>Target samples: infinite</source>
+        <translation>目标采样数：无限</translation>
+    </message>
+    <message>
         <source>Target samples: %1</source>
         <translation>目标采样数：%1</translation>
     </message>
@@ -1294,6 +1298,10 @@ May cause colour shifts.</source>
 %1</source>
         <translation>保存图像失败：
 %1</translation>
+    </message>
+    <message>
+        <source>Rendering (infinite)</source>
+        <translation>正在渲染（无限）</translation>
     </message>
     <message>
         <source>Rendering from scratch to %1 samples</source>
@@ -3356,6 +3364,10 @@ Right-drag orbits the camera, middle-drag pans, the wheel zooms; G/R/T switch tr
     <message>
         <source>Production</source>
         <translation>成品</translation>
+    </message>
+    <message>
+        <source>Infinite (∞)</source>
+        <translation>无限 (∞)</translation>
     </message>
     <message>
         <source>%1 (%2 spp)</source>

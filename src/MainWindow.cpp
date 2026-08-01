@@ -593,6 +593,7 @@ void MainWindow::buildQualityMenu(QMenu* menu) {
     m_qualityGroup->setExclusive(true);
 
     for (const catalog::QualityPreset& preset : catalog::qualityPresets()) {
+        if (preset.spp == 0) menu->addSeparator();
         QAction* action = menu->addAction(QString());
         action->setCheckable(true);
         action->setData(preset.spp);
@@ -778,7 +779,10 @@ void MainWindow::applyTargetSpp(uint32_t spp) {
 
     setSceneModified(true);
     updateRenderProgress();
-    showStatusMessage(tr("Target samples: %1").arg(spp));
+    if (spp == 0)
+        showStatusMessage(tr("Target samples: infinite"));
+    else
+        showStatusMessage(tr("Target samples: %1").arg(spp));
 }
 
 void MainWindow::applyWavelength(float wavelength_nm) {
@@ -1432,8 +1436,12 @@ void MainWindow::updateRenderProgress() {
     const uint32_t target = m_renderSettingsPanel ? m_renderSettingsPanel->spp() : 0;
     const uint32_t samples = m_vulkanWindow ? m_vulkanWindow->currentSampleCount() : 0;
     if (target == 0) {
-        m_renderProgress->setValue(0);
+        // Infinite mode: pulsing indeterminate bar while accumulating.
+        m_renderProgress->setRange(0, 0);
         return;
+    }
+    if (m_renderProgress->maximum() != 100) {
+        m_renderProgress->setRange(0, 100);
     }
     const int percent = static_cast<int>(
         std::min<uint32_t>(100u, (samples * 100u) / target));
@@ -2120,8 +2128,11 @@ void MainWindow::onStartRender() {
     m_vulkanWindow->resetAccumulation();
     m_startRenderAction->setEnabled(false);
     m_stopRenderAction->setEnabled(true);
-    showStatusMessage(tr("Rendering from scratch to %1 samples")
-                          .arg(m_renderSettingsPanel->spp()));
+    const uint32_t spp = m_renderSettingsPanel->spp();
+    if (spp == 0)
+        showStatusMessage(tr("Rendering (infinite)"));
+    else
+        showStatusMessage(tr("Rendering from scratch to %1 samples").arg(spp));
 }
 
 void MainWindow::onStopRender() {
@@ -2636,6 +2647,12 @@ void MainWindow::onFrameRendered(float frameTimeMs, uint32_t sampleCount) {
 
     m_renderSettingsPanel->setSampleCount(sampleCount);
     updateRenderProgress();
+
+    const uint32_t target = m_vulkanWindow->targetSPP();
+    if (target > 0 && sampleCount >= target) {
+        m_startRenderAction->setEnabled(true);
+        m_stopRenderAction->setEnabled(false);
+    }
 }
 
 // ============================================================================

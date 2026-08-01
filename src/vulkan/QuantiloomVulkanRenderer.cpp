@@ -257,7 +257,8 @@ void QuantiloomVulkanRenderer::startNextFrame() {
     // completed -- stopping before the render would present an undefined
     // swapchain image -- so a pause takes effect from the next frame on.
     m_window->frameReady();
-    if (!m_paused) {
+    const bool atTarget = m_targetSPP > 0 && m_sampleCount >= m_targetSPP;
+    if (!m_paused && !atTarget) {
         m_window->requestUpdate();
     }
 }
@@ -619,7 +620,12 @@ void QuantiloomVulkanRenderer::setViewDirection(const glm::vec3& direction) {
 void QuantiloomVulkanRenderer::setSPP(uint32_t spp) {
     m_targetSPP = spp;
     if (m_renderContext) {
-        m_renderContext->SetSPP(spp);
+        // 0 means "infinite" in the UI; the SDK still needs a positive count.
+        m_renderContext->SetSPP(spp > 0 ? spp : 1);
+    }
+    // Resume the render loop when the new target has not been reached yet.
+    if (!m_paused && (spp == 0 || m_sampleCount < spp)) {
+        m_window->requestUpdate();
     }
 }
 
@@ -854,6 +860,10 @@ void QuantiloomVulkanRenderer::resetAccumulation() {
     m_sampleCount = 0;
     if (m_renderContext) {
         m_renderContext->ResetAccumulation();
+    }
+    // Kick the loop back if it had auto-stopped at the previous target.
+    if (!m_paused) {
+        m_window->requestUpdate();
     }
 }
 

@@ -470,6 +470,7 @@ QVector<QualityPreset> qualityPresets() {
         {"high",      64},
         {"veryhigh", 256},
         {"production", 1024},
+        {"infinite",   0},
     };
 }
 
@@ -482,6 +483,7 @@ QString qualityPresetLabel(const QualityPreset& preset) {
     else if (id == "high")       name = Tr::tr("High");
     else if (id == "veryhigh")   name = Tr::tr("Very High");
     else if (id == "production") name = Tr::tr("Production");
+    else if (id == "infinite")   return Tr::tr("Infinite (∞)");
     else                         name = id;
 
     return Tr::tr("%1 (%2 spp)").arg(name).arg(preset.spp);
