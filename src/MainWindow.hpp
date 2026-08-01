@@ -175,6 +175,9 @@ private:
     void setupConnections();
     void setupEditingSystem();
     void updatePanelsFromScene();
+    /// Re-read the selected node's transform into the properties panel after
+    /// the scene changed under it (undo/redo).
+    void refreshSelectionPanels();
     void retranslateUi();
 
     // --- single application points --------------------------------------
@@ -185,6 +188,10 @@ private:
     void applyTargetSpp(uint32_t spp);
     void applyDisplayEnhancementEnabled(bool enabled);
     void applyGridVisible(bool visible);
+    /// Scope the scene-editing tools to the Layout workspace: grid, gizmo and
+    /// the transform shortcuts exist there and nowhere else. The grid menu
+    /// entry follows the workspace; the user's on/off preference survives.
+    void applyWorkspaceEditingScope(const QString& workspaceId);
     void applyTheme(const QString& themeId);
     void applyWavelength(float wavelength_nm);
     void applyLightingParams(const quantiloom::LightingParams& params);
@@ -427,6 +434,11 @@ private:
     // Bumped per gizmo drag; commands stamped with it merge only within one
     // drag, so each drag stays its own undo step
     int m_transformGestureId = 0;
+
+    // The user's grid on/off preference. What the renderer shows is this AND
+    // the Layout workspace being active -- the preference survives visits to
+    // the other workspaces, where the grid never draws.
+    bool m_gridUserVisible = true;
 
     // Last configuration seen by applyConfig(), used as the base for
     // collectCurrentConfig(). Not every field has a panel behind it -- the

@@ -147,9 +147,12 @@ MainWindow::MainWindow(QVulkanInstance* vulkanInstance, QWidget* parent)
 
     // The grid ships on: a scene-layout viewport without a ground reference
     // is the exception, not the default. Queued if the renderer is not up yet.
+    // Then settle the editing scope for whichever workspace activateInitial
+    // landed on -- the preference had not been read when its signal fired.
     {
         QSettings settings;
         applyGridVisible(settings.value(kShowGridKey, true).toBool());
+        applyWorkspaceEditingScope(m_workspaces->currentWorkspace());
     }
 
     // Last, and after restoreWindowState(): taking over the non-client area
@@ -1075,13 +1078,54 @@ void MainWindow::applyGridVisible(bool visible) {
     // is unchanged, only what is composited over the frame -- so this is the
     // deliberate exception to src/vulkan/CLAUDE.md's "every setter resets
     // accumulation" rule, and toggling it must not restart convergence.
-    m_vulkanWindow->setGridVisible(visible);
+    //
+    // What the renderer shows is the preference gated by the workspace: the
+    // grid belongs to Layout, and a toggle made there survives a round trip
+    // through the other workspaces.
+    m_gridUserVisible = visible;
+    const bool layoutActive =
+        m_workspaces && m_workspaces->currentWorkspace() == QLatin1String("layout");
+    m_vulkanWindow->setGridVisible(visible && layoutActive);
     if (m_showGridAction) {
         const QSignalBlocker blocker(m_showGridAction);
         m_showGridAction->setChecked(visible);
     }
     QSettings settings;
     settings.setValue(kShowGridKey, visible);
+}
+
+void MainWindow::applyWorkspaceEditingScope(const QString& workspaceId) {
+    // Layout is the scene-editing workspace; the others are parameter rooms.
+    // Grid, gizmo and the transform shortcuts exist in Layout and nowhere
+    // else -- panels stay freely rearrangeable everywhere, but the editing
+    // tools follow the workspace, not the panel set. Viewport click-to-select
+    // stays active everywhere: picking an object to inspect its material or
+    // its debug values is not a scene edit.
+    const bool layout = workspaceId == QLatin1String("layout");
+
+    m_vulkanWindow->setEditingToolsEnabled(layout);
+    m_vulkanWindow->setGridVisible(m_gridUserVisible && layout);
+
+    // The grid entry leaves the menu entirely outside Layout (and its
+    // shortcut with it): showing a toggle that could not take effect would
+    // misreport what the viewport is doing.
+    if (m_showGridAction) {
+        m_showGridAction->setVisible(layout);
+        m_showGridAction->setEnabled(layout);
+    }
+
+    // Grey the whole transform vocabulary, shortcuts included -- a disabled
+    // submenu entry alone would still let G/R/T fire
+    if (m_transformMenu) {
+        m_transformMenu->menuAction()->setEnabled(layout);
+    }
+    for (QAction* action : {m_translateAction, m_rotateAction, m_scaleAction,
+                            m_axisXAction, m_axisYAction, m_axisZAction,
+                            m_localSpaceAction}) {
+        if (action) {
+            action->setEnabled(layout);
+        }
+    }
 }
 
 void MainWindow::applyDisplayEnhancementEnabled(bool enabled) {
@@ -1286,6 +1330,7 @@ void MainWindow::setupWorkspaces() {
                 for (QAction* action : std::as_const(m_workspaceActions)) {
                     action->setChecked(action->data().toString() == id);
                 }
+                applyWorkspaceEditingScope(id);
                 showStatusMessage(tr("Workspace: %1")
                                       .arg(WorkspaceManager::workspaceTitle(id)));
             });
@@ -1449,6 +1494,11 @@ void MainWindow::setupEditingSystem() {
     // Connect undo stack state changes
     connect(m_undoStack, &UndoStack::canUndoChanged, this, &MainWindow::onUndoRedoChanged);
     connect(m_undoStack, &UndoStack::canRedoChanged, this, &MainWindow::onUndoRedoChanged);
+    // Fires after every push, undo and redo: undo/redo move node transforms
+    // under the panels, which otherwise showed the pre-undo values until the
+    // node was deselected and reselected.
+    connect(m_undoStack, &UndoStack::indexChanged, this,
+            [this](int) { refreshSelectionPanels(); });
 
     // Connect selection changes
     connect(m_selectionManager, &SelectionManager::selectionChanged,
@@ -2624,6 +2674,22 @@ void MainWindow::onSelectionChanged(const QSet<int>& selectedNodes) {
                 });
             }
         }
+    }
+}
+
+void MainWindow::refreshSelectionPanels() {
+    const auto* scene = m_vulkanWindow->getScene();
+    if (!scene) {
+        return;
+    }
+    const QSet<int>& selected = m_selectionManager->selectedNodes();
+    if (selected.size() != 1) {
+        return;  // multi-selection shows a count, nothing transform-shaped
+    }
+    const int nodeIndex = *selected.constBegin();
+    if (nodeIndex >= 0 && static_cast<size_t>(nodeIndex) < scene->nodes.size()) {
+        m_propertiesPanel->updateNodeTransform(
+            scene->nodes[static_cast<size_t>(nodeIndex)].transform);
     }
 }
 

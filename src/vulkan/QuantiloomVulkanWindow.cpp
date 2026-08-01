@@ -586,9 +586,24 @@ void QuantiloomVulkanWindow::requestCompositedCapture(const QString& path) {
     withRenderer([path](QuantiloomVulkanRenderer& r) { r.requestCompositedCapture(path); });
 }
 
+void QuantiloomVulkanWindow::setEditingToolsEnabled(bool enabled) {
+    m_editingToolsEnabled = enabled;
+    // Switching workspace mid-drag (Ctrl+2 with the mouse held) aborts the
+    // drag the same way Escape does: transforms restored, no undo entry
+    if (!enabled && m_transformDragging && m_gizmo && m_gizmo->isDragging()) {
+        m_gizmo->cancelDrag();
+        m_transformDragging = false;
+        m_activeHandle = editing::GizmoHandle::None;
+    }
+    if (!enabled) {
+        m_hoveredHandle = editing::GizmoHandle::None;
+    }
+}
+
 bool QuantiloomVulkanWindow::gizmoOnScreen() const {
-    return m_editMode && m_selection && m_selection->hasSelection() && m_gizmo &&
-           m_renderer && getScene() != nullptr;
+    return m_editingToolsEnabled && m_editMode && m_selection &&
+           m_selection->hasSelection() && m_gizmo && m_renderer &&
+           getScene() != nullptr;
 }
 
 editing::GizmoFrame QuantiloomVulkanWindow::currentGizmoFrame(

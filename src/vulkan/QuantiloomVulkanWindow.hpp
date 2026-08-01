@@ -389,6 +389,17 @@ public:
      */
     void setEditMode(bool edit);
 
+    /**
+     * @brief Enable or disable the scene-editing tools (gizmo, transforms)
+     *
+     * Off outside the Layout workspace: the gizmo neither draws nor grabs,
+     * hover does nothing, and a drag in flight is aborted like Escape.
+     * Viewport click-to-select stays active -- picking an object to inspect
+     * it is not a scene edit.
+     */
+    void setEditingToolsEnabled(bool enabled);
+    [[nodiscard]] bool editingToolsEnabled() const { return m_editingToolsEnabled; }
+
 signals:
     /**
      * @brief Emitted after each frame is rendered
@@ -543,6 +554,7 @@ private:
 
     // Edit mode state
     bool m_editMode = true;  // Default to edit mode
+    bool m_editingToolsEnabled = true;  // false outside the Layout workspace
     bool m_transformDragging = false;
     QPointF m_transformDragStart;
 
