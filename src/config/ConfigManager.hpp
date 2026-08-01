@@ -51,6 +51,20 @@ struct NodeConfig {
 };
 
 /**
+ * @struct DuplicateConfig
+ * @brief A node pasted in the editor: a named shallow copy of a placed node
+ *
+ * Same matrix-not-Euler reasoning as NodeConfig. The core resolves these
+ * before [[nodes]] and in file order, so a copy of a copy is written after
+ * its source.
+ */
+struct DuplicateConfig {
+    QString sourceName;
+    QString name;
+    glm::mat4 transform{1.0f};
+};
+
+/**
  * @struct SceneConfig
  * @brief Extracted configuration values for UI panels
  */
@@ -112,6 +126,12 @@ struct SceneConfig {
 
     // [[nodes]] -- transforms for nodes edited since the document was opened
     QVector<NodeConfig> nodeConfigs;
+
+    // [[duplicates]] -- nodes pasted in the editor, shallow copies by name
+    QVector<DuplicateConfig> duplicateConfigs;
+
+    // scene.removed_nodes -- nodes the file placed but the user deleted
+    QStringList removedNodes;
 
     // Config file base directory (for resolving relative paths)
     QString baseDir;

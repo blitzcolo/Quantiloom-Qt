@@ -8,6 +8,7 @@
 #pragma once
 
 #include "ui/UiStyle.hpp"
+#include "editing/Commands.hpp"
 
 #include <QMainWindow>
 #include <QVulkanInstance>
@@ -135,6 +136,10 @@ private slots:
     void onPreferences();
     void onSelectAll();
     void onInvertSelection();
+    void onCopyNodes();
+    void onPasteNodes();
+    void onDuplicateNodes();
+    void onDeleteNodes();
 
     // Status updates
     void onFrameRendered(float frameTimeMs, uint32_t sampleCount);
@@ -180,6 +185,25 @@ private:
     /// Re-read the selected node's transform into the properties panel after
     /// the scene changed under it (undo/redo).
     void refreshSelectionPanels();
+    /// After a paste, delete, or their undo: repopulate the scene tree
+    /// (tombstoned nodes leave it) and drop inactive nodes from the
+    /// selection. Records the topology so refreshTopologyIfChanged() can
+    /// tell an undo that moved a node from one that removed it.
+    void refreshAfterTopologyChange();
+    void refreshTopologyIfChanged();
+    /// Rebuild m_pastedNodes from the loaded document's [[duplicates]].
+    /// Called from the sceneLoaded path only -- updatePanelsFromScene is
+    /// also a panel-refresh helper for the MCP undo tools and must not
+    /// clear session state.
+    void seedPastedNodesFromDocument();
+    /// Blender-style unique name for a pasted node: base.001, base.002...
+    /// `taken` holds names claimed earlier in the same paste batch.
+    [[nodiscard]] QString makeUniqueNodeName(const QString& base,
+                                             QSet<QString>& taken) const;
+    /// Build and run one PasteNodesCommand: names resolved, copies selected,
+    /// the paste registered for [[duplicates]] persistence.
+    void executePaste(const std::vector<PasteNodesCommand::Spec>& specs,
+                      const QHash<QString, QString>& sourceByName);
     void retranslateUi();
 
     // --- single application points --------------------------------------
@@ -332,6 +356,10 @@ private:
     QAction* m_redoAction = nullptr;
     QAction* m_selectAllAction = nullptr;
     QAction* m_invertSelectionAction = nullptr;
+    QAction* m_copyAction = nullptr;
+    QAction* m_pasteAction = nullptr;
+    QAction* m_duplicateAction = nullptr;
+    QAction* m_deleteAction = nullptr;
     QAction* m_preferencesAction = nullptr;
     QAction* m_resetCameraAction = nullptr;
     QAction* m_resetLayoutAction = nullptr;
@@ -410,6 +438,25 @@ private:
     /// file already put them.
     QSet<int> m_editedNodes;
     QSet<int> m_editedMaterials;
+
+    /// One copied node: identified by name for persistence and for pasting
+    /// after a reload, by index as the in-session fast path.
+    struct NodeClipboardEntry {
+        QString sourceName;
+        int sourceIndex = -1;
+        glm::mat4 transform{1.0f};
+    };
+    QVector<NodeClipboardEntry> m_nodeClipboard;
+
+    /// Pasted node index -> the source name its [[duplicates]] entry cites.
+    /// Entries are never erased on delete or undo; whether one is written at
+    /// save time follows the node's live active flag, so the undo history
+    /// and the document can never disagree.
+    QHash<int, QString> m_pastedNodes;
+
+    /// (node count, active count) after the last topology refresh, so an
+    /// undo/redo can cheaply tell whether it changed the node set.
+    QPair<int, int> m_lastTopology{0, 0};
 
     // MCP server, when the user has started one
     std::unique_ptr<quantiloom::mcp::Server> m_mcpServer;

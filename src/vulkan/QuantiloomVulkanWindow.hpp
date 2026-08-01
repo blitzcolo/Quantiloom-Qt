@@ -347,6 +347,23 @@ public:
     void finalizeInteractiveEdit();
 
     /**
+     * @brief Topology edits: paste, delete, and their undo
+     *
+     * duplicateNode() is the shallow copy behind copy-paste (shared mesh and
+     * materials, own transform); removeNode() tombstones so indices held by
+     * the selection and the undo stack never shift; restoreNode() is remove's
+     * exact undo. None of the three rebuilds by itself -- batch the edits,
+     * then call rebuildSceneTopology() once (full rebuild + accumulation
+     * reset; a refit cannot represent an instance-count change).
+     *
+     * @return duplicateNode: the new node's index, or -1 on failure
+     */
+    int duplicateNode(int sourceIndex, const QString& newName);
+    bool removeNode(int nodeIndex);
+    bool restoreNode(int nodeIndex);
+    void rebuildSceneTopology();
+
+    /**
      * @brief What is under this device-pixel position, via the SDK's ray query
      *
      * The pick ray is the raygen shader's own primary ray for the pixel, so

@@ -30,7 +30,9 @@ enum class CommandId {
     TransformNode = 1,
     ModifyMaterial = 2,
     ModifyLighting = 3,
-    MultiTransform = 4
+    MultiTransform = 4,
+    PasteNodes = 5,
+    RemoveNodes = 6
 };
 
 /**
@@ -93,6 +95,60 @@ private:
     QuantiloomVulkanWindow* m_window;
     std::vector<NodeTransform> m_transforms;
     int m_gestureId = -1;
+};
+
+/**
+ * @class PasteNodesCommand
+ * @brief Paste (or duplicate) nodes as shallow copies of existing ones
+ *
+ * The first execute() creates the copies through the SDK's DuplicateNode
+ * and remembers their indices; undo tombstones them via removeNode, and a
+ * redo brings the same indices back via restoreNode -- so the indices a
+ * paste produced stay valid across the whole undo history, which is what
+ * lets later commands (a drag of the pasted node) refer to them safely.
+ */
+class PasteNodesCommand : public Command {
+public:
+    struct Spec {
+        int sourceIndex;      ///< node to instance, valid at execute time
+        QString name;         ///< unique name for the copy
+        glm::mat4 transform;  ///< world transform for the copy
+    };
+
+    PasteNodesCommand(QuantiloomVulkanWindow* window,
+                      const std::vector<Spec>& specs,
+                      const QString& description = QString());
+
+    void execute() override;
+    void undo() override;
+    [[nodiscard]] int id() const override { return static_cast<int>(CommandId::PasteNodes); }
+
+    /// Node indices the first execute() created, for selecting the copies
+    [[nodiscard]] const QVector<int>& createdIndices() const { return m_created; }
+
+private:
+    QuantiloomVulkanWindow* m_window;
+    std::vector<Spec> m_specs;
+    QVector<int> m_created;
+};
+
+/**
+ * @class RemoveNodesCommand
+ * @brief Delete nodes (tombstone); undo restores the same indices
+ */
+class RemoveNodesCommand : public Command {
+public:
+    RemoveNodesCommand(QuantiloomVulkanWindow* window,
+                       const QVector<int>& nodeIndices,
+                       const QString& description = QString());
+
+    void execute() override;
+    void undo() override;
+    [[nodiscard]] int id() const override { return static_cast<int>(CommandId::RemoveNodes); }
+
+private:
+    QuantiloomVulkanWindow* m_window;
+    QVector<int> m_indices;
 };
 
 /**

@@ -285,6 +285,20 @@ Leave empty to auto-detect.</source>
             <numerusform>Transform %n Nodes</numerusform>
         </translation>
     </message>
+    <message numerus="yes">
+        <source>Paste %n Object(s)</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>Delete %n Object(s)</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
     <message>
         <source>Modify Material</source>
         <translation>Modify Material</translation>
@@ -585,6 +599,51 @@ May cause colour shifts.</source>
     <message>
         <source>&amp;Edit</source>
         <translation>&amp;Edit</translation>
+    </message>
+    <message>
+        <source>Nothing selected to copy</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>Copied %n object(s)</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>Pasted %n object(s)</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Nothing to paste</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Clipboard objects no longer exist in this scene</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Nothing selected to duplicate</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Nothing selected to delete</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cannot delete every object in the scene</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>Deleted %n object(s)</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
     </message>
     <message>
         <source>Node %1</source>
@@ -986,6 +1045,26 @@ May cause colour shifts.</source>
     </message>
     <message>
         <source>&amp;Invert Selection</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Copy</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Paste</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Paste as instances: geometry and materials stay shared with the source.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>D&amp;uplicate</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>De&amp;lete</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

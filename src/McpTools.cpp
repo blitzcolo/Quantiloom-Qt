@@ -218,6 +218,11 @@ void MainWindow::registerMcpTools() {
                 QJsonObject entry;
                 entry["index"] = static_cast<qint64>(i);
                 entry["name"] = QString::fromStdString(node.name);
+                if (!node.active) {
+                    // Tombstoned by ql_delete (or an undone paste): the index
+                    // stays reserved but nothing renders
+                    entry["active"] = false;
+                }
                 if (detailed) {
                     // Column-major, as glm stores it and as ql_set_node_transform
                     // expects it back.
@@ -1387,6 +1392,106 @@ void MainWindow::registerMcpTools() {
                 selected.append(node);
             }
             out["selected"] = selected;
+            return Json(out);
+        };
+        add(tool);
+    }
+
+    {
+        mcp::ToolDef tool;
+        tool.name = "ql_duplicate";
+        tool.description =
+            "Duplicate the selected nodes the way Edit > Duplicate (Ctrl+D) does: "
+            "shallow copies sharing geometry and materials with their sources, pasted "
+            "in place, selected, and undoable as one step. Select first with "
+            "ql_select. Returns the new node indices.";
+        tool.inputSchemaJson = R"({"type": "object", "properties": {}})";
+        tool.handler = [this](const quantiloom::String&) {
+            if (!m_vulkanWindow->getScene()) {
+                return mcp::ToolResult::Error("No scene is loaded.");
+            }
+            if (!m_selectionManager->hasSelection()) {
+                return mcp::ToolResult::Error("Nothing is selected; call ql_select first.");
+            }
+            onDuplicateNodes();
+            QJsonObject out;
+            QJsonArray created;
+            for (int node : m_selectionManager->selectedNodes()) {
+                created.append(node);  // the copies become the selection
+            }
+            out["created"] = created;
+            return Json(out);
+        };
+        add(tool);
+    }
+
+    {
+        mcp::ToolDef tool;
+        tool.name = "ql_delete";
+        tool.description =
+            "Delete the selected nodes the way Edit > Delete does: tombstoned (their "
+            "indices stay reserved), removed from the render and the scene tree, "
+            "undoable as one step. Refuses to empty the scene.";
+        tool.inputSchemaJson = R"({"type": "object", "properties": {}})";
+        tool.handler = [this](const quantiloom::String&) {
+            const auto* scene = m_vulkanWindow->getScene();
+            if (!scene) {
+                return mcp::ToolResult::Error("No scene is loaded.");
+            }
+            if (!m_selectionManager->hasSelection()) {
+                return mcp::ToolResult::Error("Nothing is selected; call ql_select first.");
+            }
+            const int before = m_selectionManager->selectionCount();
+            onDeleteNodes();
+            if (m_selectionManager->hasSelection()) {
+                // onDeleteNodes clears the selection when it deletes;
+                // a surviving selection means the whole-scene guard refused
+                return mcp::ToolResult::Error(
+                    "Deletion refused: it would remove every object in the scene.");
+            }
+            QJsonObject out;
+            out["deleted"] = before;
+            return Json(out);
+        };
+        add(tool);
+    }
+
+    {
+        mcp::ToolDef tool;
+        tool.name = "ql_save_config";
+        tool.description =
+            "Write the current document to a TOML config file, with everything File > "
+            "Save writes: [[nodes]] transform edits, [[duplicates]] pastes, "
+            "scene.removed_nodes deletions, camera, lighting, sensor. An export -- the "
+            "open document keeps its own path. save_path must be absolute.";
+        tool.inputSchemaJson = R"({
+  "type": "object",
+  "properties": {
+    "save_path": {"type": "string", "description": "Absolute path for the .toml file."}
+  },
+  "required": ["save_path"]
+})";
+        tool.handler = [this](const quantiloom::String& argumentsJson) {
+            QJsonObject args;
+            mcp::ToolResult error;
+            if (!ParseArgs(argumentsJson, args, error)) {
+                return error;
+            }
+            if (!m_vulkanWindow->getScene()) {
+                return mcp::ToolResult::Error("No scene is loaded.");
+            }
+            const QString path = args.value(QStringLiteral("save_path")).toString();
+            if (path.isEmpty()) {
+                return mcp::ToolResult::Error("save_path is required.");
+            }
+            SceneConfig config;
+            collectCurrentConfig(config);
+            if (!m_configManager->exportConfig(path, config)) {
+                return mcp::ToolResult::Error(
+                    ("Save failed: " + m_configManager->lastError()).toStdString());
+            }
+            QJsonObject out;
+            out["saved"] = path;
             return Json(out);
         };
         add(tool);

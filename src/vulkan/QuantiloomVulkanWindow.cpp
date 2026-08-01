@@ -431,6 +431,43 @@ void QuantiloomVulkanWindow::refitAfterInteractiveEdit() {
     }
 }
 
+int QuantiloomVulkanWindow::duplicateNode(int sourceIndex, const QString& newName) {
+    if (!m_renderer || sourceIndex < 0) return -1;
+    auto* ctx = m_renderer->getRenderContext();
+    if (!ctx) return -1;
+
+    auto result = ctx->DuplicateNode(static_cast<quantiloom::u32>(sourceIndex),
+                                     newName.toStdString());
+    if (!result.has_value()) {
+        qWarning() << "duplicateNode:" << QString::fromStdString(result.error());
+        return -1;
+    }
+    return static_cast<int>(result.value());
+}
+
+bool QuantiloomVulkanWindow::removeNode(int nodeIndex) {
+    if (!m_renderer || nodeIndex < 0) return false;
+    auto* ctx = m_renderer->getRenderContext();
+    return ctx && ctx->RemoveNode(static_cast<quantiloom::u32>(nodeIndex));
+}
+
+bool QuantiloomVulkanWindow::restoreNode(int nodeIndex) {
+    if (!m_renderer || nodeIndex < 0) return false;
+    auto* ctx = m_renderer->getRenderContext();
+    return ctx && ctx->RestoreNode(static_cast<quantiloom::u32>(nodeIndex));
+}
+
+void QuantiloomVulkanWindow::rebuildSceneTopology() {
+    if (!m_renderer) return;
+    auto* ctx = m_renderer->getRenderContext();
+    if (ctx) {
+        // The instance count changed, so this is always the full rebuild;
+        // a refit cannot add or drop instances
+        ctx->RebuildAccelerationStructure();
+        m_renderer->resetAccumulation();
+    }
+}
+
 void QuantiloomVulkanWindow::finalizeInteractiveEdit() {
     if (!m_renderer) return;
     auto* ctx = m_renderer->getRenderContext();

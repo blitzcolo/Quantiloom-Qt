@@ -326,6 +326,56 @@ void ConfigManager::extractSceneConfig(const quantiloom::Config& config, SceneCo
         out.nodeConfigs.append(nodeConfig);
     }
 
+    // [[duplicates]] - pasted nodes, and scene.removed_nodes - deleted ones.
+    // Both are read so a save can write them back; the scene-side effect
+    // (creating the copies, tombstoning the removals) is ApplyConfig's.
+    out.duplicateConfigs.clear();
+    for (const auto& dupTable : config.GetTableArray("duplicates")) {
+        const std::string source = dupTable.GetString("source", "");
+        const std::string name = dupTable.GetString("name", "");
+        if (source.empty() || name.empty()) {
+            continue;
+        }
+
+        DuplicateConfig dup;
+        dup.sourceName = QString::fromStdString(source);
+        dup.name = QString::fromStdString(name);
+
+        if (const auto matrix = dupTable.GetFloatArray("matrix"); matrix.size() == 16) {
+            for (int c = 0; c < 4; ++c) {
+                for (int r = 0; r < 4; ++r) {
+                    dup.transform[c][r] = matrix[static_cast<size_t>(c * 4 + r)];
+                }
+            }
+        } else {
+            const auto translation = dupTable.GetFloatArray("translation");
+            const auto rotation = dupTable.GetFloatArray("rotation_euler_degrees");
+            const auto scale = dupTable.GetFloatArray("scale");
+            glm::mat4 transform(1.0f);
+            if (translation.size() >= 3) {
+                transform = glm::translate(
+                    transform, glm::vec3(translation[0], translation[1], translation[2]));
+            }
+            if (rotation.size() >= 3) {
+                transform = glm::rotate(transform, glm::radians(rotation[0]), glm::vec3(1, 0, 0));
+                transform = glm::rotate(transform, glm::radians(rotation[1]), glm::vec3(0, 1, 0));
+                transform = glm::rotate(transform, glm::radians(rotation[2]), glm::vec3(0, 0, 1));
+            }
+            if (scale.size() >= 3) {
+                transform = glm::scale(transform, glm::vec3(scale[0], scale[1], scale[2]));
+            }
+            dup.transform = transform;
+        }
+
+        out.duplicateConfigs.append(dup);
+    }
+
+    out.removedNodes.clear();
+    for (const auto& name : config.GetStringArray("scene.removed_nodes")) {
+        if (!name.empty()) {
+            out.removedNodes.append(QString::fromStdString(name));
+        }
+    }
 }
 
 quantiloom::SpectralMode ConfigManager::parseSpectralMode(const std::string& modeStr) {
@@ -425,6 +475,18 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
         out << "usd = \"" << config.usdPath << "\"\n";
     }
     out << "world_units_to_meters = " << config.worldUnitsToMeters << "\n";
+    if (!config.removedNodes.isEmpty()) {
+        // Nodes the file placed but the user deleted; the core tombstones
+        // them at load, matched by name
+        out << "removed_nodes = [";
+        for (int i = 0; i < config.removedNodes.size(); ++i) {
+            if (i > 0) {
+                out << ", ";
+            }
+            out << "\"" << config.removedNodes[i] << "\"";
+        }
+        out << "]\n";
+    }
     out << "\n";
 
     // [camera]
@@ -523,7 +585,27 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
         }
     }
 
-    // [sensor]
+    // [[duplicates]] - pasted nodes. Before [[nodes]], because the core
+    // resolves them in that order (an override may address a copy by name),
+    // and in creation order, so a copy of a copy follows its source.
+    for (const auto& dup : config.duplicateConfigs) {
+        out << "[[duplicates]]\n";
+        out << "source = \"" << dup.sourceName << "\"\n";
+        out << "name = \"" << dup.name << "\"\n";
+        out << "matrix = [\n";
+        for (int c = 0; c < 4; ++c) {
+            out << "    ";
+            for (int r = 0; r < 4; ++r) {
+                out << dup.transform[c][r];
+                if (c != 3 || r != 3) {
+                    out << ", ";
+                }
+            }
+            out << "\n";
+        }
+        out << "]\n\n";
+    }
+
     // [[nodes]] - transforms for nodes moved since the document was opened.
     // A matrix rather than translation/rotation/scale: the viewport holds a
     // matrix, and decomposing one to write it down does not always round-trip.

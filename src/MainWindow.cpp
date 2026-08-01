@@ -37,6 +37,7 @@
 
 #include <QApplication>
 #include <QGuiApplication>
+#include <QClipboard>
 #include <QMenuBar>
 #include <QMenu>
 #include <QAction>
@@ -381,6 +382,27 @@ void MainWindow::setupMenus() {
 
     m_invertSelectionAction = m_editMenu->addAction(QString(), this, &MainWindow::onInvertSelection);
     m_invertSelectionAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_I));
+
+    m_editMenu->addSeparator();
+
+    // Copy/paste of scene objects. A focused text field keeps these keys for
+    // its own editing: Qt's ShortcutOverride gives the line edit first
+    // refusal, so Ctrl+C in a name box copies text, not nodes. Copy is
+    // harmless everywhere; paste, duplicate and delete change the scene and
+    // follow the Layout workspace (applyWorkspaceEditingScope).
+    m_copyAction = m_editMenu->addAction(QString(), this, &MainWindow::onCopyNodes);
+    m_copyAction->setShortcut(QKeySequence::Copy);
+
+    m_pasteAction = m_editMenu->addAction(QString(), this, &MainWindow::onPasteNodes);
+    m_pasteAction->setShortcut(QKeySequence::Paste);
+
+    // Ctrl+D, the key Unreal ships and Blender users remap to: one step
+    // instead of copy-then-paste, without touching the clipboard
+    m_duplicateAction = m_editMenu->addAction(QString(), this, &MainWindow::onDuplicateNodes);
+    m_duplicateAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_D));
+
+    m_deleteAction = m_editMenu->addAction(QString(), this, &MainWindow::onDeleteNodes);
+    m_deleteAction->setShortcut(QKeySequence::Delete);
 
     m_editMenu->addSeparator();
 
@@ -1138,6 +1160,15 @@ void MainWindow::applyWorkspaceEditingScope(const QString& workspaceId) {
             action->setEnabled(layout);
         }
     }
+
+    // Paste, duplicate and delete change the scene, so they follow Layout
+    // like the transform vocabulary. Copy stays live everywhere -- taking a
+    // snapshot of a selection is inspection, not an edit.
+    for (QAction* action : {m_pasteAction, m_duplicateAction, m_deleteAction}) {
+        if (action) {
+            action->setEnabled(layout);
+        }
+    }
 }
 
 void MainWindow::applyDisplayEnhancementEnabled(bool enabled) {
@@ -1423,6 +1454,7 @@ void MainWindow::setupConnections() {
                     rememberRecentFile(m_pendingOpenPath);
                     m_pendingOpenPath.clear();
                     updatePanelsFromScene();
+                    seedPastedNodesFromDocument();
                     syncPanelsFromRenderer();
                     showStatusMessage(message);
                 } else {
@@ -1510,7 +1542,13 @@ void MainWindow::setupEditingSystem() {
     // under the panels, which otherwise showed the pre-undo values until the
     // node was deselected and reselected.
     connect(m_undoStack, &UndoStack::indexChanged, this,
-            [this](int) { refreshSelectionPanels(); });
+            [this](int) {
+                // Topology first: if the undo removed or restored nodes, the
+                // tree and the selection must reflect that before the panels
+                // re-read the selection
+                refreshTopologyIfChanged();
+                refreshSelectionPanels();
+            });
 
     // Connect selection changes
     connect(m_selectionManager, &SelectionManager::selectionChanged,
@@ -1625,6 +1663,12 @@ void MainWindow::retranslateUi() {
     m_localSpaceAction->setToolTip(tr("Transform along the object's own axes instead of the world's"));
     m_selectAllAction->setText(tr("Select &All"));
     m_invertSelectionAction->setText(tr("&Invert Selection"));
+    m_copyAction->setText(tr("&Copy"));
+    m_pasteAction->setText(tr("&Paste"));
+    m_pasteAction->setToolTip(
+        tr("Paste as instances: geometry and materials stay shared with the source."));
+    m_duplicateAction->setText(tr("D&uplicate"));
+    m_deleteAction->setText(tr("De&lete"));
     m_preferencesAction->setText(tr("&Preferences..."));
 
     m_viewMenu->setTitle(tr("&View"));
@@ -2255,6 +2299,299 @@ void MainWindow::onInvertSelection() {
     }
 }
 
+QString MainWindow::makeUniqueNodeName(const QString& base, QSet<QString>& taken) const {
+    QString stem = base.isEmpty() ? QStringLiteral("Node") : base;
+
+    // Strip an all-digit .NNN suffix so pasting a paste yields Hull.002
+    // rather than Hull.001.001 -- Blender's convention
+    const int dot = stem.lastIndexOf(QLatin1Char('.'));
+    if (dot > 0) {
+        bool allDigits = false;
+        stem.mid(dot + 1).toInt(&allDigits);
+        if (allDigits) {
+            stem = stem.left(dot);
+        }
+    }
+
+    const auto* scene = m_vulkanWindow->getScene();
+    if (scene) {
+        for (const auto& node : scene->nodes) {
+            taken.insert(QString::fromStdString(node.name));
+        }
+    }
+
+    for (int n = 1; n < 100000; ++n) {
+        const QString candidate = QStringLiteral("%1.%2")
+            .arg(stem)
+            .arg(n, 3, 10, QLatin1Char('0'));
+        if (!taken.contains(candidate)) {
+            taken.insert(candidate);
+            return candidate;
+        }
+    }
+    return stem;  // 99999 copies of one name; not a scene, a fuzzer
+}
+
+void MainWindow::refreshAfterTopologyChange() {
+    const auto* scene = m_vulkanWindow->getScene();
+
+    m_sceneTreePanel->refresh();
+
+    int active = 0;
+    QSet<int> pruned;
+    if (scene) {
+        for (size_t i = 0; i < scene->nodes.size(); ++i) {
+            if (scene->nodes[i].active) {
+                ++active;
+            }
+        }
+        for (const int index : m_selectionManager->selectedNodes()) {
+            if (index >= 0 && static_cast<size_t>(index) < scene->nodes.size() &&
+                scene->nodes[static_cast<size_t>(index)].active) {
+                pruned.insert(index);
+            }
+        }
+    }
+    m_lastTopology = {scene ? static_cast<int>(scene->nodes.size()) : 0, active};
+
+    if (pruned != m_selectionManager->selectedNodes()) {
+        if (pruned.isEmpty()) {
+            m_selectionManager->clearSelection();
+        } else {
+            m_selectionManager->selectMultiple(pruned);
+        }
+    }
+}
+
+void MainWindow::refreshTopologyIfChanged() {
+    const auto* scene = m_vulkanWindow->getScene();
+    int active = 0;
+    if (scene) {
+        for (const auto& node : scene->nodes) {
+            if (node.active) {
+                ++active;
+            }
+        }
+    }
+    const QPair<int, int> now{scene ? static_cast<int>(scene->nodes.size()) : 0, active};
+    if (now != m_lastTopology) {
+        refreshAfterTopologyChange();
+    }
+}
+
+void MainWindow::onCopyNodes() {
+    const auto* scene = m_vulkanWindow->getScene();
+    if (!scene || !m_selectionManager->hasSelection()) {
+        showStatusMessage(tr("Nothing selected to copy"));
+        return;
+    }
+
+    QList<int> indices = m_selectionManager->selectedNodes().values();
+    std::sort(indices.begin(), indices.end());
+
+    m_nodeClipboard.clear();
+    QString fragment;
+    for (const int index : indices) {
+        if (index < 0 || static_cast<size_t>(index) >= scene->nodes.size()) {
+            continue;
+        }
+        const auto& node = scene->nodes[static_cast<size_t>(index)];
+        NodeClipboardEntry entry;
+        entry.sourceName = QString::fromStdString(node.name);
+        entry.sourceIndex = index;
+        entry.transform = node.transform;
+        m_nodeClipboard.append(entry);
+
+        // The OS clipboard gets the same fragment a save would write, so a
+        // copied object can be pasted straight into a config file by hand
+        if (!entry.sourceName.isEmpty()) {
+            fragment += QStringLiteral("[[duplicates]]\nsource = \"%1\"\nname = \"%1.paste\"\nmatrix = [\n")
+                            .arg(entry.sourceName);
+            for (int c = 0; c < 4; ++c) {
+                fragment += QStringLiteral("    ");
+                for (int r = 0; r < 4; ++r) {
+                    fragment += QString::number(entry.transform[c][r]);
+                    if (c != 3 || r != 3) {
+                        fragment += QStringLiteral(", ");
+                    }
+                }
+                fragment += QStringLiteral("\n");
+            }
+            fragment += QStringLiteral("]\n\n");
+        }
+    }
+
+    if (!fragment.isEmpty()) {
+        QGuiApplication::clipboard()->setText(fragment);
+    }
+    showStatusMessage(tr("Copied %n object(s)", "", m_nodeClipboard.size()));
+}
+
+void MainWindow::executePaste(const std::vector<PasteNodesCommand::Spec>& specs,
+                              const QHash<QString, QString>& sourceByName) {
+    auto command = std::make_unique<PasteNodesCommand>(m_vulkanWindow, specs);
+    command->execute();
+    const QVector<int> created = command->createdIndices();
+    m_undoStack->push(std::move(command));
+
+    // Register each copy for [[duplicates]] persistence, matched through its
+    // unique name so a partial paste cannot misalign the mapping
+    const auto* scene = m_vulkanWindow->getScene();
+    QSet<int> newSelection;
+    for (const int index : created) {
+        newSelection.insert(index);
+        if (scene && static_cast<size_t>(index) < scene->nodes.size()) {
+            const QString name =
+                QString::fromStdString(scene->nodes[static_cast<size_t>(index)].name);
+            const auto source = sourceByName.constFind(name);
+            if (source != sourceByName.constEnd()) {
+                m_pastedNodes.insert(index, source.value());
+            }
+        }
+    }
+
+    refreshAfterTopologyChange();
+    if (!newSelection.isEmpty()) {
+        m_selectionManager->selectMultiple(newSelection);
+    }
+    setSceneModified(true);
+    showStatusMessage(tr("Pasted %n object(s)", "", created.size()));
+}
+
+void MainWindow::onPasteNodes() {
+    const auto* scene = m_vulkanWindow->getScene();
+    if (!scene) {
+        return;
+    }
+    if (m_nodeClipboard.isEmpty()) {
+        showStatusMessage(tr("Nothing to paste"));
+        return;
+    }
+
+    std::vector<PasteNodesCommand::Spec> specs;
+    QHash<QString, QString> sourceByName;
+    QSet<QString> taken;
+    int skipped = 0;
+    for (const auto& entry : m_nodeClipboard) {
+        // The index is only trusted while it still names the same node; after
+        // a reload (or a copy from an earlier document) the name decides
+        int source = entry.sourceIndex;
+        const bool indexValid =
+            source >= 0 && static_cast<size_t>(source) < scene->nodes.size() &&
+            (entry.sourceName.isEmpty() ||
+             scene->nodes[static_cast<size_t>(source)].name == entry.sourceName.toStdString());
+        if (!indexValid) {
+            source = -1;
+            if (!entry.sourceName.isEmpty()) {
+                const std::string wanted = entry.sourceName.toStdString();
+                for (size_t i = 0; i < scene->nodes.size(); ++i) {
+                    if (scene->nodes[i].name == wanted) {
+                        source = static_cast<int>(i);
+                        break;
+                    }
+                }
+            }
+        }
+        if (source < 0) {
+            ++skipped;
+            continue;
+        }
+
+        PasteNodesCommand::Spec spec;
+        spec.sourceIndex = source;
+        const QString sourceName =
+            entry.sourceName.isEmpty()
+                ? QString::fromStdString(scene->nodes[static_cast<size_t>(source)].name)
+                : entry.sourceName;
+        spec.name = makeUniqueNodeName(sourceName, taken);
+        spec.transform = entry.transform;
+        specs.push_back(spec);
+        sourceByName.insert(spec.name, sourceName);
+    }
+
+    if (specs.empty()) {
+        showStatusMessage(tr("Clipboard objects no longer exist in this scene"));
+        return;
+    }
+    if (skipped > 0) {
+        qWarning() << "Paste: skipped" << skipped
+                   << "clipboard entr(ies) whose source no longer exists";
+    }
+    executePaste(specs, sourceByName);
+}
+
+void MainWindow::onDuplicateNodes() {
+    const auto* scene = m_vulkanWindow->getScene();
+    if (!scene || !m_selectionManager->hasSelection()) {
+        showStatusMessage(tr("Nothing selected to duplicate"));
+        return;
+    }
+
+    QList<int> indices = m_selectionManager->selectedNodes().values();
+    std::sort(indices.begin(), indices.end());
+
+    std::vector<PasteNodesCommand::Spec> specs;
+    QHash<QString, QString> sourceByName;
+    QSet<QString> taken;
+    for (const int index : indices) {
+        if (index < 0 || static_cast<size_t>(index) >= scene->nodes.size()) {
+            continue;
+        }
+        const auto& node = scene->nodes[static_cast<size_t>(index)];
+        PasteNodesCommand::Spec spec;
+        spec.sourceIndex = index;
+        spec.name = makeUniqueNodeName(QString::fromStdString(node.name), taken);
+        spec.transform = node.transform;
+        specs.push_back(spec);
+        sourceByName.insert(spec.name, QString::fromStdString(node.name));
+    }
+    if (specs.empty()) {
+        return;
+    }
+    executePaste(specs, sourceByName);
+}
+
+void MainWindow::onDeleteNodes() {
+    const auto* scene = m_vulkanWindow->getScene();
+    if (!scene || !m_selectionManager->hasSelection()) {
+        showStatusMessage(tr("Nothing selected to delete"));
+        return;
+    }
+
+    QVector<int> indices;
+    int activeCount = 0;
+    for (size_t i = 0; i < scene->nodes.size(); ++i) {
+        if (scene->nodes[i].active) {
+            ++activeCount;
+        }
+    }
+    for (const int index : m_selectionManager->selectedNodes()) {
+        if (index >= 0 && static_cast<size_t>(index) < scene->nodes.size() &&
+            scene->nodes[static_cast<size_t>(index)].active) {
+            indices.append(index);
+        }
+    }
+    if (indices.isEmpty()) {
+        return;
+    }
+    if (indices.size() >= activeCount) {
+        // The renderer cannot represent an empty scene (and a viewport
+        // showing one would just be a sky); the guard lives here, where the
+        // user can be told, rather than as a crash in the SDK
+        showStatusMessage(tr("Cannot delete every object in the scene"));
+        return;
+    }
+    std::sort(indices.begin(), indices.end());
+
+    auto command = std::make_unique<RemoveNodesCommand>(m_vulkanWindow, indices);
+    command->execute();
+    m_undoStack->push(std::move(command));
+
+    refreshAfterTopologyChange();
+    setSceneModified(true);
+    showStatusMessage(tr("Deleted %n object(s)", "", indices.size()));
+}
+
 void MainWindow::onFrameRendered(float frameTimeMs, uint32_t sampleCount) {
     const float fps = (frameTimeMs > 0.0f) ? (1000.0f / frameTimeMs) : 0.0f;
     m_fpsLabel->setText(tr("FPS: %1").arg(fps, 0, 'f', 1));
@@ -2385,6 +2722,42 @@ void MainWindow::updatePanelsFromScene() {
         m_spectralConfigPanel->setWavelengthRange(
             scene->lambda_min, scene->lambda_max, scene->delta_lambda);
     }
+
+}
+
+void MainWindow::seedPastedNodesFromDocument() {
+    // Re-register the nodes the document's [[duplicates]] entries created, so
+    // the next save writes them back out. ApplyConfig appended them to the
+    // scene under their unique names, which is what resolves them here; a
+    // name the scene lacks (a stale config, a bare model load) simply seeds
+    // nothing.
+    //
+    // Only from the sceneLoaded path -- NOT from updatePanelsFromScene, which
+    // the MCP undo/redo tools reuse as a panel refresh. Clearing here on
+    // every undo silently dropped the session's pastes from the next save.
+    const auto* scene = m_vulkanWindow->getScene();
+
+    m_pastedNodes.clear();
+    int activeCount = 0;
+    if (scene) {
+        if (m_lastConfig) {
+            for (const auto& dup : m_lastConfig->duplicateConfigs) {
+                const std::string wanted = dup.name.toStdString();
+                for (size_t i = 0; i < scene->nodes.size(); ++i) {
+                    if (scene->nodes[i].name == wanted) {
+                        m_pastedNodes.insert(static_cast<int>(i), dup.sourceName);
+                        break;
+                    }
+                }
+            }
+        }
+        for (const auto& node : scene->nodes) {
+            if (node.active) {
+                ++activeCount;
+            }
+        }
+    }
+    m_lastTopology = {scene ? static_cast<int>(scene->nodes.size()) : 0, activeCount};
 }
 
 // ============================================================================
@@ -2577,8 +2950,53 @@ void MainWindow::collectCurrentConfig(SceneConfig& config) {
         return;
     }
 
+    // [[duplicates]] and scene.removed_nodes are regenerated from the live
+    // scene rather than carried forward: the scene already reflects what the
+    // file said (its duplicates were created and its removals tombstoned at
+    // load, and m_pastedNodes was re-seeded then), so one pass over the
+    // current state covers the file's entries and this session's edits alike.
+    config.duplicateConfigs.clear();
+    config.removedNodes.clear();
+
+    QList<int> pastedIndices = m_pastedNodes.keys();
+    // Creation order, so a copy of a copy always cites a source the core has
+    // already resolved when it reads the file top to bottom
+    std::sort(pastedIndices.begin(), pastedIndices.end());
+    for (const int index : pastedIndices) {
+        if (index < 0 || static_cast<size_t>(index) >= scene->nodes.size()) {
+            continue;
+        }
+        const auto& node = scene->nodes[static_cast<size_t>(index)];
+        if (!node.active) {
+            continue;  // pasted then deleted: simply not written
+        }
+        DuplicateConfig dup;
+        dup.sourceName = m_pastedNodes.value(index);
+        dup.name = QString::fromStdString(node.name);
+        dup.transform = node.transform;
+        config.duplicateConfigs.append(dup);
+    }
+
+    for (size_t i = 0; i < scene->nodes.size(); ++i) {
+        const auto& node = scene->nodes[i];
+        if (node.active || m_pastedNodes.contains(static_cast<int>(i))) {
+            continue;
+        }
+        if (node.name.empty()) {
+            qWarning() << "Node" << i
+                       << "was deleted but has no name; the deletion cannot be saved";
+            continue;
+        }
+        config.removedNodes.append(QString::fromStdString(node.name));
+    }
+
     for (const int nodeIndex : m_editedNodes) {
         if (nodeIndex < 0 || static_cast<size_t>(nodeIndex) >= scene->nodes.size()) {
+            continue;
+        }
+        // A pasted node's transform lives in its [[duplicates]] entry; a
+        // second [[nodes]] block would restate it
+        if (m_pastedNodes.contains(nodeIndex)) {
             continue;
         }
         const auto& node = scene->nodes[static_cast<size_t>(nodeIndex)];

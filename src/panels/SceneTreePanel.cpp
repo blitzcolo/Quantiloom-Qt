@@ -90,14 +90,25 @@ void SceneTreePanel::populateTree() {
     sceneRoot->setText(1, tr("Scene"));
     sceneRoot->setExpanded(true);
 
-    // Nodes section
+    // Nodes section. Tombstoned nodes (deleted, or a paste that was undone)
+    // keep their indices in the scene but leave the tree, and the count
+    // shows what actually renders.
+    size_t activeNodes = 0;
+    for (const auto& node : m_scene->nodes) {
+        if (node.active) {
+            ++activeNodes;
+        }
+    }
     auto* nodesRoot = new QTreeWidgetItem(sceneRoot);
-    nodesRoot->setText(0, tr("Nodes (%1)").arg(m_scene->nodes.size()));
+    nodesRoot->setText(0, tr("Nodes (%1)").arg(activeNodes));
     nodesRoot->setText(1, tr("Group"));
     nodesRoot->setExpanded(true);
 
     for (size_t i = 0; i < m_scene->nodes.size(); ++i) {
         const auto& node = m_scene->nodes[i];
+        if (!node.active) {
+            continue;
+        }
         auto* nodeItem = new QTreeWidgetItem(nodesRoot);
 
         QString nodeName = tr("Node %1").arg(i);

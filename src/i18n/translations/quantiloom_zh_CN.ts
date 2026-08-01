@@ -285,6 +285,18 @@ Leave empty to auto-detect.</source>
             <numerusform>变换 %n 个节点</numerusform>
         </translation>
     </message>
+    <message numerus="yes">
+        <source>Paste %n Object(s)</source>
+        <translation>
+            <numerusform>粘贴 %n 个物体</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>Delete %n Object(s)</source>
+        <translation>
+            <numerusform>删除 %n 个物体</numerusform>
+        </translation>
+    </message>
     <message>
         <source>Modify Material</source>
         <translation>修改材质</translation>
@@ -592,6 +604,48 @@ May cause colour shifts.</source>
     <message>
         <source>&amp;Edit</source>
         <translation>编辑(&amp;E)</translation>
+    </message>
+    <message>
+        <source>Nothing selected to copy</source>
+        <translation>没有选中可复制的物体</translation>
+    </message>
+    <message numerus="yes">
+        <source>Copied %n object(s)</source>
+        <translation>
+            <numerusform>已复制 %n 个物体</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>Pasted %n object(s)</source>
+        <translation>
+            <numerusform>已粘贴 %n 个物体</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Nothing to paste</source>
+        <translation>剪贴板里没有可粘贴的物体</translation>
+    </message>
+    <message>
+        <source>Clipboard objects no longer exist in this scene</source>
+        <translation>剪贴板中的物体已不在当前场景中</translation>
+    </message>
+    <message>
+        <source>Nothing selected to duplicate</source>
+        <translation>没有选中可创建副本的物体</translation>
+    </message>
+    <message>
+        <source>Nothing selected to delete</source>
+        <translation>没有选中可删除的物体</translation>
+    </message>
+    <message>
+        <source>Cannot delete every object in the scene</source>
+        <translation>不能删除场景中的全部物体</translation>
+    </message>
+    <message numerus="yes">
+        <source>Deleted %n object(s)</source>
+        <translation>
+            <numerusform>已删除 %n 个物体</numerusform>
+        </translation>
     </message>
     <message>
         <source>Node %1</source>
@@ -1000,6 +1054,26 @@ May cause colour shifts.</source>
     <message>
         <source>&amp;Invert Selection</source>
         <translation>反选(&amp;I)</translation>
+    </message>
+    <message>
+        <source>&amp;Copy</source>
+        <translation>复制(&amp;C)</translation>
+    </message>
+    <message>
+        <source>&amp;Paste</source>
+        <translation>粘贴(&amp;P)</translation>
+    </message>
+    <message>
+        <source>Paste as instances: geometry and materials stay shared with the source.</source>
+        <translation>以实例方式粘贴：几何体与材质与源物体保持共享。</translation>
+    </message>
+    <message>
+        <source>D&amp;uplicate</source>
+        <translation>创建副本(&amp;U)</translation>
+    </message>
+    <message>
+        <source>De&amp;lete</source>
+        <translation>删除(&amp;L)</translation>
     </message>
     <message>
         <source>&amp;Preferences...</source>

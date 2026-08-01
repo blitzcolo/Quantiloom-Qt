@@ -111,6 +111,86 @@ bool MultiTransformCommand::mergeWith(const Command* other) {
 }
 
 // ============================================================================
+// PasteNodesCommand
+// ============================================================================
+
+PasteNodesCommand::PasteNodesCommand(QuantiloomVulkanWindow* window,
+                                     const std::vector<Spec>& specs,
+                                     const QString& description)
+    : Command(description.isEmpty()
+        ? QCoreApplication::translate("Commands", "Paste %n Object(s)", nullptr,
+            static_cast<int>(specs.size()))
+        : description)
+    , m_window(window)
+    , m_specs(specs)
+{
+}
+
+void PasteNodesCommand::execute() {
+    if (!m_window) return;
+
+    if (m_created.isEmpty()) {
+        // First run: create the copies and remember their indices
+        for (const auto& spec : m_specs) {
+            const int index = m_window->duplicateNode(spec.sourceIndex, spec.name);
+            if (index < 0) {
+                continue;  // warned by duplicateNode; the rest still paste
+            }
+            // The copy inherits the source's transform, which may have moved
+            // since the copy was taken; the clipboard's snapshot wins
+            m_window->setNodeTransformInteractive(index, spec.transform);
+            m_created.append(index);
+        }
+    } else {
+        // Redo: the same indices come back from their tombstones
+        for (const int index : m_created) {
+            m_window->restoreNode(index);
+        }
+    }
+    m_window->rebuildSceneTopology();
+}
+
+void PasteNodesCommand::undo() {
+    if (!m_window) return;
+    for (const int index : m_created) {
+        m_window->removeNode(index);
+    }
+    m_window->rebuildSceneTopology();
+}
+
+// ============================================================================
+// RemoveNodesCommand
+// ============================================================================
+
+RemoveNodesCommand::RemoveNodesCommand(QuantiloomVulkanWindow* window,
+                                       const QVector<int>& nodeIndices,
+                                       const QString& description)
+    : Command(description.isEmpty()
+        ? QCoreApplication::translate("Commands", "Delete %n Object(s)", nullptr,
+            nodeIndices.size())
+        : description)
+    , m_window(window)
+    , m_indices(nodeIndices)
+{
+}
+
+void RemoveNodesCommand::execute() {
+    if (!m_window) return;
+    for (const int index : m_indices) {
+        m_window->removeNode(index);
+    }
+    m_window->rebuildSceneTopology();
+}
+
+void RemoveNodesCommand::undo() {
+    if (!m_window) return;
+    for (const int index : m_indices) {
+        m_window->restoreNode(index);
+    }
+    m_window->rebuildSceneTopology();
+}
+
+// ============================================================================
 // ModifyMaterialCommand
 // ============================================================================
 
