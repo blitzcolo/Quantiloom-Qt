@@ -27,12 +27,13 @@ constexpr float kRingPickBand = 0.09f;
 
 // Axis colors match the grid's palette; hover yellow, active white.
 // LINEAR values (the sRGB swapchain encodes on write): each is the linear
-// form of the intended display color -- X #DB4F54, Y #8CC740, Z #4A6BDB
-// -- writing display values directly would come out washed out.
+// form of the intended display color -- X #E2484D, Y #8CC740, Z #3D9BE9 --
+// writing display values directly would come out washed out. X and Z are
+// kept far apart in hue and brightness so red and blue never read alike.
 const glm::vec4 kAxisColors[3] = {
-    {0.718f, 0.076f, 0.088f, 1.0f},  // X
+    {0.770f, 0.065f, 0.076f, 1.0f},  // X
     {0.268f, 0.579f, 0.048f, 1.0f},  // Y
-    {0.066f, 0.148f, 0.718f, 1.0f},  // Z
+    {0.047f, 0.335f, 0.820f, 1.0f},  // Z
 };
 const glm::vec4 kHoverColor{1.0f, 0.699f, 0.029f, 1.0f};
 const glm::vec4 kActiveColor{1.0f, 1.0f, 1.0f, 1.0f};

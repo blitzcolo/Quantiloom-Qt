@@ -27,16 +27,23 @@ layout(push_constant) uniform PC {
 } pc;
 
 // LINEAR values (the sRGB attachment encodes on write): the linear form of
-// the intended display colors -- mid-dark gray, X-axis red, Z-axis blue.
-// Writing display values directly would come out washed out.
+// the intended display colors -- mid-dark gray, X-axis red, Z-axis azure.
+// Writing display values directly would come out washed out. Red and blue
+// are deliberately far apart in brightness and hue (bright warm red vs
+// bright cyan-leaning blue) so the two axes never read alike.
 const vec3 kGridColor = vec3(0.064, 0.064, 0.064);
-const vec3 kAxisXColor = vec3(0.349, 0.010, 0.016);  // line along X (z == 0)
-const vec3 kAxisZColor = vec3(0.010, 0.030, 0.268);  // line along Z (x == 0)
+const vec3 kAxisXColor = vec3(0.770, 0.065, 0.076);  // ~#E2484D, line along X (z == 0)
+const vec3 kAxisZColor = vec3(0.047, 0.335, 0.820);  // ~#3D9BE9, line along Z (x == 0)
 
 // 0..1 line intensity for a unit grid over `coord`, one pixel wide
 float gridLine(vec2 coord) {
-    vec2 g = abs(fract(coord - 0.5) - 0.5) / fwidth(coord);
-    return 1.0 - min(min(g.x, g.y), 1.0);
+    vec2 fw = fwidth(coord);
+    vec2 g = abs(fract(coord - 0.5) - 0.5) / fw;
+    float line = 1.0 - min(min(g.x, g.y), 1.0);
+    // Once a pixel spans a large fraction of a cell it can no longer
+    // resolve individual lines; fade them out instead of letting them
+    // alias into the dashed moire band this replaced at the horizon
+    return line * (1.0 - smoothstep(0.2, 0.5, max(fw.x, fw.y)));
 }
 
 void main() {
