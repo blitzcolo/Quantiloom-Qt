@@ -372,6 +372,18 @@ void MainWindow::setupMenus() {
 
     m_editMenu->addSeparator();
 
+    // Selection, not editing: picking objects to inspect them is useful in
+    // every workspace, so unlike the transform vocabulary above these are
+    // not gated by applyWorkspaceEditingScope. Ctrl+I matches both Blender
+    // and Unreal for invert.
+    m_selectAllAction = m_editMenu->addAction(QString(), this, &MainWindow::onSelectAll);
+    m_selectAllAction->setShortcut(QKeySequence::SelectAll);
+
+    m_invertSelectionAction = m_editMenu->addAction(QString(), this, &MainWindow::onInvertSelection);
+    m_invertSelectionAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_I));
+
+    m_editMenu->addSeparator();
+
     m_preferencesAction = m_editMenu->addAction(QString(), this, &MainWindow::onPreferences);
     m_preferencesAction->setShortcut(QKeySequence::Preferences);
     m_preferencesAction->setMenuRole(QAction::PreferencesRole);
@@ -1611,6 +1623,8 @@ void MainWindow::retranslateUi() {
     m_axisZAction->setText(tr("Constrain to &Z"));
     m_localSpaceAction->setText(tr("&Local Space"));
     m_localSpaceAction->setToolTip(tr("Transform along the object's own axes instead of the world's"));
+    m_selectAllAction->setText(tr("Select &All"));
+    m_invertSelectionAction->setText(tr("&Invert Selection"));
     m_preferencesAction->setText(tr("&Preferences..."));
 
     m_viewMenu->setTitle(tr("&View"));
@@ -2207,6 +2221,38 @@ void MainWindow::onPreferences() {
     applyTheme(dialog.selectedThemeId());
 
     showStatusMessage(tr("Preferences saved"));
+}
+
+void MainWindow::onSelectAll() {
+    const auto* scene = m_vulkanWindow->getScene();
+    if (!scene || scene->nodes.empty()) {
+        return;
+    }
+    QSet<int> all;
+    all.reserve(static_cast<int>(scene->nodes.size()));
+    for (int i = 0; i < static_cast<int>(scene->nodes.size()); ++i) {
+        all.insert(i);
+    }
+    m_selectionManager->selectMultiple(all);
+}
+
+void MainWindow::onInvertSelection() {
+    const auto* scene = m_vulkanWindow->getScene();
+    if (!scene || scene->nodes.empty()) {
+        return;
+    }
+    const QSet<int>& selected = m_selectionManager->selectedNodes();
+    QSet<int> inverted;
+    for (int i = 0; i < static_cast<int>(scene->nodes.size()); ++i) {
+        if (!selected.contains(i)) {
+            inverted.insert(i);
+        }
+    }
+    if (inverted.isEmpty()) {
+        m_selectionManager->clearSelection();
+    } else {
+        m_selectionManager->selectMultiple(inverted);
+    }
 }
 
 void MainWindow::onFrameRendered(float frameTimeMs, uint32_t sampleCount) {

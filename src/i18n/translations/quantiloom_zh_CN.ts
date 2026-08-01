@@ -994,6 +994,14 @@ May cause colour shifts.</source>
         <translation>沿物体自身的坐标轴变换，而非世界坐标轴</translation>
     </message>
     <message>
+        <source>Select &amp;All</source>
+        <translation>全选(&amp;A)</translation>
+    </message>
+    <message>
+        <source>&amp;Invert Selection</source>
+        <translation>反选(&amp;I)</translation>
+    </message>
+    <message>
         <source>&amp;Preferences...</source>
         <translation>首选项(&amp;P)...</translation>
     </message>

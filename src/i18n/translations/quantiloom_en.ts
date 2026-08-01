@@ -981,6 +981,14 @@ May cause colour shifts.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Select &amp;All</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Invert Selection</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>&amp;Preferences...</source>
         <translation type="unfinished"></translation>
     </message>

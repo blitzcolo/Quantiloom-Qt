@@ -133,6 +133,8 @@ private slots:
 
     // Edit menu actions
     void onPreferences();
+    void onSelectAll();
+    void onInvertSelection();
 
     // Status updates
     void onFrameRendered(float frameTimeMs, uint32_t sampleCount);
@@ -328,6 +330,8 @@ private:
     QAction* m_exitAction = nullptr;
     QAction* m_undoAction = nullptr;
     QAction* m_redoAction = nullptr;
+    QAction* m_selectAllAction = nullptr;
+    QAction* m_invertSelectionAction = nullptr;
     QAction* m_preferencesAction = nullptr;
     QAction* m_resetCameraAction = nullptr;
     QAction* m_resetLayoutAction = nullptr;
