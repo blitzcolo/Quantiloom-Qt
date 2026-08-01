@@ -178,6 +178,12 @@ public:
     /// pixel rays. Only valid while a scene is loaded.
     [[nodiscard]] vkview::CameraMatrices overlayCamera() const;
 
+    /// One-shot what-you-see PNG: the swapchain image with grid and gizmo
+    /// composited, saved a few frames from now. Poll the file.
+    void requestCompositedCapture(const QString& path) {
+        m_overlay.requestCompositedCapture(path);
+    }
+
     // Camera control
     void updateCameraMovement(bool forward, bool backward, bool left, bool right,
                               bool up, bool down, bool fast);

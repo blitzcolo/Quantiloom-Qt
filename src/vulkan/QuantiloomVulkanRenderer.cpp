@@ -190,6 +190,9 @@ void QuantiloomVulkanRenderer::startNextFrame() {
     static uint64_t frameCounter = 0;
     frameCounter++;
 
+    // A composited capture recorded a few frames ago is complete by now
+    m_overlay.finishCaptureIfReady(m_window);
+
     auto now = std::chrono::high_resolution_clock::now();
     float deltaTime = std::chrono::duration<float>(now - m_lastFrameTime).count();
     m_lastFrameTime = now;
@@ -236,6 +239,9 @@ void QuantiloomVulkanRenderer::startNextFrame() {
                      static_cast<uint32_t>(swapSize.width()),
                      static_cast<uint32_t>(swapSize.height()),
                      overlayCam, m_gizmoVertices);
+    m_overlay.recordCaptureIfRequested(m_window, cmd,
+                                       static_cast<uint32_t>(swapSize.width()),
+                                       static_cast<uint32_t>(swapSize.height()));
 
     // Update sample count
     m_sampleCount = m_renderContext->GetAccumulatedSamples();

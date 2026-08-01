@@ -366,6 +366,14 @@ public:
                             std::vector<editing::GizmoVertex>& out);
 
     /**
+     * @brief One-shot what-you-see PNG of the composited viewport
+     *
+     * The swapchain image with grid and gizmo overlays -- the SDK-side
+     * captures cannot show those. Saved asynchronously a few frames later.
+     */
+    void requestCompositedCapture(const QString& path);
+
+    /**
      * @brief Get camera info for gizmo
      */
     void getCameraInfo(glm::vec3& position, glm::vec3& forward,

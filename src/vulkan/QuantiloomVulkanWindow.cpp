@@ -582,6 +582,10 @@ void QuantiloomVulkanWindow::mousePressEvent(QMouseEvent* event) {
     }
 }
 
+void QuantiloomVulkanWindow::requestCompositedCapture(const QString& path) {
+    withRenderer([path](QuantiloomVulkanRenderer& r) { r.requestCompositedCapture(path); });
+}
+
 bool QuantiloomVulkanWindow::gizmoOnScreen() const {
     return m_editMode && m_selection && m_selection->hasSelection() && m_gizmo &&
            m_renderer && getScene() != nullptr;

@@ -1311,5 +1311,132 @@ void MainWindow::registerMcpTools() {
         add(tool);
     }
 
+    {
+        mcp::ToolDef tool;
+        tool.name = "ql_select";
+        tool.description =
+            "Select a scene node the way a viewport click does -- the scene tree, the "
+            "properties panel and the transform gizmo all follow. index -1 clears the "
+            "selection. Optionally switch the gizmo's mode and coordinate space in the "
+            "same call, like pressing G/R/T and Space in the viewport.";
+        tool.inputSchemaJson = R"({
+  "type": "object",
+  "properties": {
+    "index": {
+      "type": "integer",
+      "minimum": -1,
+      "description": "Node index from ql_get_scene; -1 clears the selection."
+    },
+    "add": {
+      "type": "boolean",
+      "description": "Add to the current selection instead of replacing it (Ctrl-click)."
+    },
+    "gizmo_mode": {
+      "type": "string",
+      "enum": ["translate", "rotate", "scale"],
+      "description": "Optional: also switch the transform gizmo's mode."
+    },
+    "space": {
+      "type": "string",
+      "enum": ["world", "local"],
+      "description": "Optional: also switch the gizmo's coordinate space."
+    }
+  },
+  "required": ["index"]
+})";
+        tool.handler = [this](const quantiloom::String& argumentsJson) {
+            QJsonObject args;
+            mcp::ToolResult error;
+            if (!ParseArgs(argumentsJson, args, error)) {
+                return error;
+            }
+            const auto* scene = m_vulkanWindow->getScene();
+            if (!scene) {
+                return mcp::ToolResult::Error("No scene is loaded.");
+            }
+
+            const QString mode = args.value(QStringLiteral("gizmo_mode")).toString();
+            if (mode == QLatin1String("translate")) {
+                m_transformGizmo->setMode(TransformGizmo::Mode::Translate);
+            } else if (mode == QLatin1String("rotate")) {
+                m_transformGizmo->setMode(TransformGizmo::Mode::Rotate);
+            } else if (mode == QLatin1String("scale")) {
+                m_transformGizmo->setMode(TransformGizmo::Mode::Scale);
+            }
+            const QString space = args.value(QStringLiteral("space")).toString();
+            if (space == QLatin1String("world")) {
+                m_transformGizmo->setSpace(TransformGizmo::Space::World);
+            } else if (space == QLatin1String("local")) {
+                m_transformGizmo->setSpace(TransformGizmo::Space::Local);
+            }
+
+            const int index = args.value(QStringLiteral("index")).toInt(-1);
+            if (index < 0) {
+                m_selectionManager->clearSelection();
+            } else {
+                if (static_cast<size_t>(index) >= scene->nodes.size()) {
+                    return mcp::ToolResult::Error("index is out of range.");
+                }
+                m_selectionManager->select(
+                    index, args.value(QStringLiteral("add")).toBool(false));
+            }
+
+            QJsonObject out;
+            QJsonArray selected;
+            for (int node : m_selectionManager->selectedNodes()) {
+                selected.append(node);
+            }
+            out["selected"] = selected;
+            return Json(out);
+        };
+        add(tool);
+    }
+
+    {
+        mcp::ToolDef tool;
+        tool.name = "ql_capture_composited";
+        tool.description =
+            "A what-you-see screenshot: the viewport's final swapchain image with the "
+            "grid and transform gizmo overlays composited, which ql_capture_viewport's "
+            "SDK-side captures cannot show. Asynchronous -- the PNG lands at save_path a "
+            "few frames after this returns; poll the file. Grid and gizmo visibility "
+            "follow the current UI state (View menu, ql_select).";
+        tool.inputSchemaJson = R"({
+  "type": "object",
+  "properties": {
+    "save_path": {
+      "type": "string",
+      "description": "Where to write the PNG."
+    }
+  },
+  "required": ["save_path"]
+})";
+        tool.readOnly = true;
+        tool.handler = [this](const quantiloom::String& argumentsJson) {
+            QJsonObject args;
+            mcp::ToolResult error;
+            if (!ParseArgs(argumentsJson, args, error)) {
+                return error;
+            }
+            const QString savePath = args.value(QStringLiteral("save_path")).toString();
+            if (savePath.isEmpty()) {
+                return mcp::ToolResult::Error("save_path is required.");
+            }
+            if (!m_vulkanWindow->hasRenderer()) {
+                return mcp::ToolResult::Error("The viewport is not rendering yet.");
+            }
+            m_vulkanWindow->requestCompositedCapture(savePath);
+            m_vulkanWindow->requestUpdate();
+
+            QJsonObject out;
+            out["scheduled"] = true;
+            out["save_path"] = savePath;
+            out["note"] = QStringLiteral(
+                "Written a few frames from now; poll the file for existence.");
+            return Json(out);
+        };
+        add(tool);
+    }
+
     QL_LOG_INFO("MCP: Studio registered {} tools", registered);
 }
