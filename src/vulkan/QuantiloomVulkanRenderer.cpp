@@ -173,6 +173,10 @@ void QuantiloomVulkanRenderer::initSwapChainResources() {
     if (!m_currentConfig) {
         m_renderContext->SetCameraLookAt(m_cameraPosition, m_cameraTarget, m_cameraUp);
         m_renderContext->SetCameraFOV(m_cameraFovY);
+        m_renderContext->SetCameraProjection(
+            m_orthographic ? quantiloom::CameraProjection::Orthographic
+                           : quantiloom::CameraProjection::Perspective,
+            m_orthoHeight);
     }
 }
 
@@ -516,6 +520,12 @@ void QuantiloomVulkanRenderer::applyConfigToContext(bool isFreshOpen) {
         m_cameraTarget = camera.GetLookAt();
         m_cameraUp = camera.GetUp();
         m_cameraFovY = camera.GetFovY();
+        // Projection too, or the overlay keeps drawing its grid and gizmo in
+        // perspective over an orthographic render -- which is visible as grid
+        // lines converging to a vanishing point the scene does not have.
+        m_orthographic =
+            camera.GetProjection() == quantiloom::Camera::Projection::Orthographic;
+        m_orthoHeight = camera.GetOrthoHeight();
 
         // Radians -- see src/vulkan/CLAUDE.md.
         const glm::vec3 offset = m_cameraPosition - m_cameraTarget;
@@ -570,6 +580,26 @@ void QuantiloomVulkanRenderer::applyConfigToContext(bool isFreshOpen) {
     m_configAppliedToContext = true;
     resetAccumulation();
     emit m_window->sceneLoaded(true, QObject::tr("Scene loaded successfully"));
+}
+
+void QuantiloomVulkanRenderer::setCameraProjection(bool orthographic, float orthoHeight) {
+    m_orthographic = orthographic;
+    if (orthoHeight > 0.0f) {
+        m_orthoHeight = orthoHeight;
+    } else if (orthographic) {
+        // No height given: frame what the perspective camera framed, so
+        // switching projection does not also change how much is in shot.
+        m_orthoHeight = 2.0f * m_orbitDistance *
+                        std::tan(glm::radians(m_cameraFovY) * 0.5f);
+    }
+    if (m_renderContext) {
+        m_renderContext->SetCameraProjection(
+            orthographic ? quantiloom::CameraProjection::Orthographic
+                         : quantiloom::CameraProjection::Perspective,
+            m_orthoHeight);
+        resetAccumulation();
+    }
+    emit m_window->cameraChanged();
 }
 
 void QuantiloomVulkanRenderer::setSceneScale(float radius) {

@@ -130,6 +130,12 @@ public:
     /// zoom clamps are derived. Zero restores the fixed fallbacks.
     void setSceneScale(float radius);
 
+    /// Perspective or orthographic ray generation. Kept so it survives a
+    /// context rebuild, like every other setter here.
+    void setCameraProjection(bool orthographic, float orthoHeight);
+    [[nodiscard]] bool cameraIsOrthographic() const { return m_orthographic; }
+    [[nodiscard]] float cameraOrthoHeight() const { return m_orthoHeight; }
+
     /// The SDK's trace time for the last frame, as distinct from the wall
     /// clock the frameRendered signal carries.
     [[nodiscard]] float lastGpuFrameTimeMs() const { return m_lastGpuFrameTimeMs; }
@@ -375,6 +381,8 @@ private:
     float m_orbitDistance = 5.0f;
     /// Bounding-sphere radius of the open scene, 0 when unknown.
     float m_sceneRadius = 0.0f;
+    bool m_orthographic = false;
+    float m_orthoHeight = 2.0f;
     float m_orbitYaw = 0.0f;    // Horizontal angle
     float m_orbitPitch = 0.0f;  // Vertical angle
 

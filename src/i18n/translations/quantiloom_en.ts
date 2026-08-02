@@ -1376,6 +1376,14 @@ May cause colour shifts.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>&amp;Orthographic</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Parallel projection: edges stay parallel and two things the same size measure the same at any depth</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>&amp;Front</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1619,6 +1627,14 @@ May cause colour shifts.</source>
     </message>
     <message>
         <source>Render complete, but the export to %1 failed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Orthographic projection</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Perspective projection</source>
         <translation type="unfinished"></translation>
     </message>
     <message numerus="yes">

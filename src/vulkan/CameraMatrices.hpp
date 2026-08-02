@@ -47,7 +47,8 @@ public:
     /// recomputed, so it cannot drift from what the SDK resolved.
     [[nodiscard]] glm::mat4 view() const;
 
-    /// Vulkan-convention perspective (zero-to-one depth, y flipped).
+    /// Vulkan convention (zero-to-one depth, y flipped), perspective or
+    /// orthographic to match the camera it came from.
     [[nodiscard]] glm::mat4 proj() const;
 
     [[nodiscard]] glm::mat4 viewProj() const { return proj() * view(); }
@@ -62,6 +63,8 @@ public:
     [[nodiscard]] const glm::vec3& up() const { return m_up; }
     [[nodiscard]] float fovScale() const { return m_fovScale; }
     [[nodiscard]] float aspect() const { return m_aspect; }
+    [[nodiscard]] bool orthographic() const { return m_orthographic; }
+    [[nodiscard]] float orthoHeight() const { return m_orthoHeight; }
 
 private:
     glm::vec3 m_position{0.0f};
@@ -72,6 +75,10 @@ private:
     float m_aspect = 1.0f;
     float m_width = 1.0f;
     float m_height = 1.0f;
+    /// Mirrors the SDK camera, so the overlay draws with the projection the
+    /// scene beneath it was rendered with.
+    bool m_orthographic = false;
+    float m_orthoHeight = 2.0f;
 };
 
 }  // namespace vkview

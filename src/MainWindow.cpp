@@ -567,6 +567,14 @@ void MainWindow::buildCameraMenu(QMenu* menu) {
     m_frameAllAction = menu->addAction(QString(), this, &MainWindow::onFrameAll);
     m_frameAllAction->setShortcut(QKeySequence(Qt::SHIFT | Qt::Key_F));
 
+    // Beside the view presets, because it is what makes them worth having:
+    // a front or top view with convergence measures nothing.
+    m_orthographicAction = menu->addAction(QString());
+    m_orthographicAction->setCheckable(true);
+    m_orthographicAction->setShortcut(QKeySequence(Qt::Key_5));
+    connect(m_orthographicAction, &QAction::triggered,
+            this, [this](bool orthographic) { applyCameraProjection(orthographic); });
+
     menu->addSeparator();
 
     // Direction the camera sits in relative to its target. Y is up.
@@ -1922,6 +1930,10 @@ void MainWindow::retranslateUi() {
     m_frameSelectedAction->setToolTip(
         tr("Orbit around the selection and pull back to fit it"));
     m_frameAllAction->setText(tr("Frame &All"));
+    m_orthographicAction->setText(tr("&Orthographic"));
+    m_orthographicAction->setToolTip(
+        tr("Parallel projection: edges stay parallel and two things the same size "
+           "measure the same at any depth"));
     for (QAction* action : std::as_const(m_viewPresetActions)) {
         const QString id = action->data().toString();
         if (id == QLatin1String("front"))       action->setText(tr("&Front"));
@@ -2502,6 +2514,17 @@ void MainWindow::autoExportRender(uint32_t sampleCount) {
 void MainWindow::onResetCamera() {
     m_vulkanWindow->resetCamera();
     showStatusMessage(tr("Camera reset"));
+}
+
+void MainWindow::applyCameraProjection(bool orthographic) {
+    m_vulkanWindow->setCameraProjection(orthographic, 0.0f);
+    {
+        const QSignalBlocker blocker(m_orthographicAction);
+        m_orthographicAction->setChecked(orthographic);
+    }
+    setSceneModified(true);
+    showStatusMessage(orthographic ? tr("Orthographic projection")
+                                   : tr("Perspective projection"));
 }
 
 void MainWindow::onFrameSelected() {
@@ -3486,6 +3509,10 @@ void MainWindow::applyConfig(const SceneConfig& config) {
 
     m_lightingPanel->setEnvironmentMap(config.environmentMap, config.environmentMapEnabled);
 
+    if (config.cameraOrthographic) {
+        applyCameraProjection(true);
+    }
+
     // The illuminant the document names, mapped back onto the panel's choice.
     // The bundled ASTM spectrum is recognised by its column layout rather than
     // its path, so a config that names its own copy still reads as "ASTM".
@@ -3589,6 +3616,9 @@ void MainWindow::collectCurrentConfig(SceneConfig& config) {
     // the carried-forward copy is the only other source and it goes stale the
     // moment anything sets a new one.
     config.samplingSeed = m_vulkanWindow->samplingSeed();
+
+    config.cameraOrthographic = m_vulkanWindow->cameraIsOrthographic();
+    config.cameraOrthoHeight = m_vulkanWindow->cameraOrthoHeight();
 
     // The illuminant, as the core's own keys. The panel holds a choice; these
     // are what a scene file says, and what ResolveSolarLut reads back.

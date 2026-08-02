@@ -343,6 +343,9 @@ private:
     /// Push the scene's extent to the renderer, which derives the navigation
     /// speed and zoom limits from it.
     void updateSceneScale();
+    /// The single place the projection is switched: menu, config load and any
+    /// future toolbar entry all come through here.
+    void applyCameraProjection(bool orthographic);
 
     /// The single place the illuminant is applied: panel, menu and config load
     /// all come through here. Hands a SolarLutSpec to the core, which does the
@@ -486,6 +489,7 @@ private:
     QAction* m_resetCameraAction = nullptr;
     QAction* m_frameSelectedAction = nullptr;
     QAction* m_frameAllAction = nullptr;
+    QAction* m_orthographicAction = nullptr;
     QAction* m_resetLayoutAction = nullptr;
     QAction* m_startRenderAction = nullptr;
     QAction* m_stopRenderAction = nullptr;

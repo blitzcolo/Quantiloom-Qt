@@ -23,7 +23,7 @@ layout(push_constant) uniform PC {
     vec4 camPosFov;      // xyz camera position, w tan(fovY/2)
     vec4 forwardAspect;  // xyz forward, w aspect
     vec4 rightAlpha;     // xyz right, w overall grid alpha
-    vec4 upPad;          // xyz up
+    vec4 upPad;          // xyz up, w orthographic film height (0 = perspective)
 } pc;
 
 // LINEAR values (the sRGB attachment encodes on write): the linear form of
@@ -54,17 +54,32 @@ void main() {
     vec3 right = pc.rightAlpha.xyz;
     float gridAlpha = pc.rightAlpha.w;
     vec3 up = pc.upPad.xyz;
+    float orthoHeight = pc.upPad.w;
 
     // Vulkan clip y grows downward; raygen's NDC y grows upward
     vec2 ndc = vec2(vClip.x, -vClip.y);
-    vec3 dir = normalize(forward +
-                         ndc.x * right * fovScale * aspect +
-                         ndc.y * up * fovScale);
+
+    // The same two projections raygen generates. A perspective grid drawn
+    // over an orthographic render converges to a vanishing point the scene
+    // does not have, which is exactly as wrong as it looks.
+    vec3 origin;
+    vec3 dir;
+    if (orthoHeight > 0.0) {
+        float halfH = orthoHeight * 0.5;
+        float halfW = halfH * aspect;
+        dir = normalize(forward);
+        origin = camPos + ndc.x * right * halfW + ndc.y * up * halfH;
+    } else {
+        dir = normalize(forward +
+                        ndc.x * right * fovScale * aspect +
+                        ndc.y * up * fovScale);
+        origin = camPos;
+    }
 
     if (abs(dir.y) < 1e-7) {
         discard;
     }
-    float t = -camPos.y / dir.y;
+    float t = -origin.y / dir.y;
     if (t <= 0.0) {
         discard;  // plane is behind the camera for this pixel
     }
@@ -77,7 +92,7 @@ void main() {
         discard;
     }
 
-    vec3 p = camPos + t * dir;
+    vec3 p = origin + t * dir;
 
     // Two LOD levels from log10 of view distance: the fine grid fades out as
     // the coarse one takes over, so on-screen density stays roughly constant

@@ -594,6 +594,14 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
                     << config.cameraUp[1] << ", "
                     << config.cameraUp[2] << "]\n";
     out << "fov_y = " << config.cameraFovY << "\n";
+    // Written only when orthographic: perspective is the default, and a key
+    // restating a default on every save is noise in a hand-edited file.
+    if (config.cameraOrthographic) {
+        out << "projection = \"orthographic\"\n";
+        if (config.cameraOrthoHeight > 0.0f) {
+            out << "ortho_height = " << config.cameraOrthoHeight << "\n";
+        }
+    }
     out << "\n";
 
     // [lighting]

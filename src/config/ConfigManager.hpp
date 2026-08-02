@@ -121,6 +121,10 @@ struct SceneConfig {
     float cameraLookAt[3] = {0.0f, 0.0f, 0.0f};
     float cameraUp[3] = {0.0f, 1.0f, 0.0f};
     float cameraFovY = 45.0f;
+    /// camera.projection / camera.ortho_height. Absent means perspective,
+    /// which is what every scene written before the key existed meant.
+    bool cameraOrthographic = false;
+    float cameraOrthoHeight = 0.0f;
 
     // [lighting]
     quantiloom::LightingParams lighting;

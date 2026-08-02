@@ -1397,6 +1397,14 @@ May cause colour shifts.</source>
         <translation>聚焦全部(&amp;A)</translation>
     </message>
     <message>
+        <source>&amp;Orthographic</source>
+        <translation>正交投影(&amp;O)</translation>
+    </message>
+    <message>
+        <source>Parallel projection: edges stay parallel and two things the same size measure the same at any depth</source>
+        <translation>平行投影：边保持平行，同样大小的物体在任何深度上量出来都一样</translation>
+    </message>
+    <message>
         <source>&amp;Front</source>
         <translation>前视图(&amp;F)</translation>
     </message>
@@ -1643,6 +1651,14 @@ May cause colour shifts.</source>
     <message>
         <source>Render complete, but the export to %1 failed</source>
         <translation>渲染完成，但导出至 %1 失败</translation>
+    </message>
+    <message>
+        <source>Orthographic projection</source>
+        <translation>正交投影</translation>
+    </message>
+    <message>
+        <source>Perspective projection</source>
+        <translation>透视投影</translation>
     </message>
     <message numerus="yes">
         <source>Framed %n object(s)</source>

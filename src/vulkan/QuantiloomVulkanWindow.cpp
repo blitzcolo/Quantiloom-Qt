@@ -269,6 +269,20 @@ quantiloom::SensorParams QuantiloomVulkanWindow::sensorParams() const {
     return m_renderer ? m_renderer->getSensorParams() : quantiloom::SensorParams{};
 }
 
+void QuantiloomVulkanWindow::setCameraProjection(bool orthographic, float orthoHeight) {
+    if (m_renderer) {
+        m_renderer->setCameraProjection(orthographic, orthoHeight);
+    }
+}
+
+bool QuantiloomVulkanWindow::cameraIsOrthographic() const {
+    return m_renderer && m_renderer->cameraIsOrthographic();
+}
+
+float QuantiloomVulkanWindow::cameraOrthoHeight() const {
+    return m_renderer ? m_renderer->cameraOrthoHeight() : 2.0f;
+}
+
 void QuantiloomVulkanWindow::setSceneScale(float radius) {
     if (m_renderer) {
         m_renderer->setSceneScale(radius);

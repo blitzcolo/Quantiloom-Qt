@@ -192,6 +192,11 @@ public:
     /// See QuantiloomVulkanRenderer::setSceneScale.
     void setSceneScale(float radius);
 
+    /// See QuantiloomVulkanRenderer::setCameraProjection.
+    void setCameraProjection(bool orthographic, float orthoHeight);
+    [[nodiscard]] bool cameraIsOrthographic() const;
+    [[nodiscard]] float cameraOrthoHeight() const;
+
     /// Colour of the wireframe box drawn around the selection. Linear RGBA --
     /// the overlay writes into an sRGB target that encodes on write. Driven
     /// from the theme's accent, so it changes with the theme like everything

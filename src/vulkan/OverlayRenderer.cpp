@@ -26,7 +26,7 @@ struct GridPushConstants {
     glm::vec4 camPosFov;      // xyz camera position, w tan(fovY/2)
     glm::vec4 forwardAspect;  // xyz forward, w aspect
     glm::vec4 rightAlpha;     // xyz right, w overall grid alpha
-    glm::vec4 upPad;          // xyz up
+    glm::vec4 upPad;          // xyz up, w orthographic film height (0 = perspective)
 };
 static_assert(sizeof(GridPushConstants) == 64, "GridPushConstants size mismatch");
 
@@ -156,7 +156,10 @@ void OverlayRenderer::record(QVulkanWindow* window,
         pc.camPosFov = glm::vec4(camera.position(), camera.fovScale());
         pc.forwardAspect = glm::vec4(camera.forward(), camera.aspect());
         pc.rightAlpha = glm::vec4(camera.right(), 0.55f);
-        pc.upPad = glm::vec4(camera.up(), 0.0f);
+        // A positive height is what tells the shader to use orthographic
+        // rays; perspective passes zero, as the padding always did.
+        pc.upPad = glm::vec4(camera.up(),
+                             camera.orthographic() ? camera.orthoHeight() : 0.0f);
 
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_gridPipeline);
         vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
