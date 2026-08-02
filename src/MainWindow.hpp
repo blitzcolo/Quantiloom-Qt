@@ -18,6 +18,8 @@
 #include <QMap>
 #include <QSet>
 #include <QStringList>
+#include <concepts>
+#include <cstring>
 #include <filesystem>
 #include <memory>
 #include <vector>
@@ -634,3 +636,35 @@ private:
     TitleBar* m_titleBar = nullptr;
     std::unique_ptr<WindowChrome> m_chrome;
 };
+
+// Defined here rather than in the .cpp: McpTools.cpp instantiates it too, and
+// a template used from more than one translation unit needs its definition
+// visible in all of them.
+template <typename T, typename Apply>
+void MainWindow::pushSettingCommand(CommandId id, const QString& description,
+                                    const T& before, const T& after, Apply&& apply) {
+    // Loading a document and reading the renderer back both drive the panels,
+    // and neither is something the user should be able to undo.
+    if (m_suppressHistory) {
+        return;
+    }
+    // Structs without operator== are compared bytewise. They are plain
+    // aggregates of floats and enums from the SDK's layout-contract headers,
+    // so this is well-defined for them; the point is only to notice "nothing
+    // changed" and leave the history alone.
+    if constexpr (std::equality_comparable<T>) {
+        if (before == after) {
+            return;
+        }
+    } else {
+        if (std::memcmp(&before, &after, sizeof(T)) == 0) {
+            return;
+        }
+    }
+    // -1: these are whole-gesture snapshots already, so there is nothing left
+    // to merge. Consecutive changes are genuinely separate steps.
+    m_undoStack->push(std::make_unique<SettingCommand<T>>(
+        id, /*gestureId=*/-1, description, before, after,
+        std::function<void(const T&)>(std::forward<Apply>(apply))));
+}
+

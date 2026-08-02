@@ -636,7 +636,14 @@ void MainWindow::registerMcpTools() {
                     args.value(QStringLiteral("environment_map_enabled")).toBool() ? 1 : 0;
             }
 
-            applyLightingParams(params);
+            // Through the history, like every other route into these
+            // settings: an agent's change is as undoable as a user's, and
+            // ql_undo is offered on the same footing as Ctrl+Z.
+            pushSettingCommand(CommandId::ModifyLighting, tr("Lighting"),
+                               *m_lightingParams, params,
+                               [this](const quantiloom::LightingParams& v) {
+                                   applyLightingParams(v);
+                               });
 
             const quantiloom::LightingParams& now = *m_lightingParams;
             QJsonObject out;
@@ -690,11 +697,18 @@ void MainWindow::registerMcpTools() {
                 if (!parsed.has_value()) {
                     return mcp::ToolResult::Error("Not a spectral mode: " + id);
                 }
-                applySpectralMode(parsed.value());
+                pushSettingCommand(CommandId::ModifySpectralMode, tr("Spectral mode"),
+                                   m_vulkanWindow->spectralMode(), parsed.value(),
+                                   [this](const quantiloom::SpectralMode& v) {
+                                       applySpectralMode(v);
+                                   });
             }
             if (args.contains(QStringLiteral("wavelength_nm"))) {
-                applyWavelength(
-                    static_cast<float>(args.value(QStringLiteral("wavelength_nm")).toDouble()));
+                const float wavelength =
+                    static_cast<float>(args.value(QStringLiteral("wavelength_nm")).toDouble());
+                pushSettingCommand(CommandId::ModifyWavelength, tr("Wavelength"),
+                                   m_vulkanWindow->wavelength(), wavelength,
+                                   [this](const float& v) { applyWavelength(v); });
             }
             if (args.contains(QStringLiteral("target_samples"))) {
                 const int spp = args.value(QStringLiteral("target_samples")).toInt(1);
@@ -1090,7 +1104,11 @@ void MainWindow::registerMcpTools() {
             // own assets, and disables the atmosphere with a logged warning if
             // nothing is found. Refusing earlier would refuse configurations
             // that path would have served.
-            applyAtmosphere(config);
+            pushSettingCommand(CommandId::ModifyAtmosphere, tr("Atmosphere"),
+                               m_vulkanWindow->atmosphericConfig(), config,
+                               [this](const quantiloom::AtmosphereNNConfig& v) {
+                                   applyAtmosphere(v);
+                               });
 
             const auto now = m_atmosphericPanel->getAtmosphericConfig();
             QJsonObject out;
@@ -1179,9 +1197,16 @@ void MainWindow::registerMcpTools() {
             setB("enable_fpn", params.enableFPN);
             setF("detector_temperature_k", params.detectorTemperature_K);
 
-            applySensorParams(params);
+            pushSettingCommand(CommandId::ModifySensor, tr("Sensor parameters"),
+                               m_vulkanWindow->sensorParams(), params,
+                               [this](const quantiloom::SensorParams& v) {
+                                   applySensorParams(v);
+                               });
             if (args.contains(QStringLiteral("enabled"))) {
-                applySensorEnabled(args.value(QStringLiteral("enabled")).toBool());
+                const bool enabled = args.value(QStringLiteral("enabled")).toBool();
+                pushSettingCommand(CommandId::ModifySensor, tr("Sensor simulation"),
+                                   m_vulkanWindow->sensorEnabled(), enabled,
+                                   [this](const bool& v) { applySensorEnabled(v); });
             }
 
             const auto now = m_sensorPanel->getSensorParams();
@@ -1273,11 +1298,14 @@ void MainWindow::registerMcpTools() {
         mcp::ToolDef tool;
         tool.name = "ql_undo";
         tool.description =
-            "Undo the last change. Covers node transforms and material edits, whether they were "
-            "made from here or by hand in the window -- one history, shared.\n"
+            "Undo the last change. Covers node transforms, material edits, paste and delete, "
+            "and the settings panels -- lighting, atmosphere, sensor, spectral mode and "
+            "wavelength -- whether they were made from here or by hand in the window. One "
+            "history, shared.\n"
             "\n"
-            "Camera moves, lighting, spectral settings and the document itself are not in the "
-            "history and cannot be undone this way; put those back by setting them again.";
+            "Camera moves and the document itself are not in the history: opening a "
+            "configuration clears it, and moving the camera is not treated as an edit. Put "
+            "those back by setting them again.";
         tool.inputSchemaJson = R"({"type":"object","properties":{}})";
         tool.handler = [this](const quantiloom::String&) {
             if (!m_undoStack->canUndo()) {

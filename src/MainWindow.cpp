@@ -847,34 +847,6 @@ void MainWindow::applyTargetSpp(uint32_t spp) {
         showStatusMessage(tr("Target samples: %1").arg(spp));
 }
 
-template <typename T, typename Apply>
-void MainWindow::pushSettingCommand(CommandId id, const QString& description,
-                                    const T& before, const T& after, Apply&& apply) {
-    // Loading a document and reading the renderer back both drive the panels,
-    // and neither is something the user should be able to undo.
-    if (m_suppressHistory) {
-        return;
-    }
-    // Structs without operator== are compared bytewise. They are plain
-    // aggregates of floats and enums from the SDK's layout-contract headers,
-    // so this is well-defined for them; the point is only to notice "nothing
-    // changed" and leave the history alone.
-    if constexpr (std::equality_comparable<T>) {
-        if (before == after) {
-            return;
-        }
-    } else {
-        if (std::memcmp(&before, &after, sizeof(T)) == 0) {
-            return;
-        }
-    }
-    // -1: these are whole-gesture snapshots already, so there is nothing left
-    // to merge. Consecutive changes are genuinely separate steps.
-    m_undoStack->push(std::make_unique<SettingCommand<T>>(
-        id, /*gestureId=*/-1, description, before, after,
-        std::function<void(const T&)>(std::forward<Apply>(apply))));
-}
-
 void MainWindow::applyWavelength(float wavelength_nm) {
     m_vulkanWindow->setWavelength(wavelength_nm);
     m_spectralConfigPanel->setWavelength(wavelength_nm);
