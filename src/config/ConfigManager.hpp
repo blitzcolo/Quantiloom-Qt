@@ -6,6 +6,10 @@
 #pragma once
 
 #include <QString>
+#include <QMap>
+#include <QVector>
+
+#include <optional>
 
 class QTextStream;
 #include <QObject>
@@ -62,6 +66,23 @@ struct DuplicateConfig {
     QString sourceName;
     QString name;
     glm::mat4 transform{1.0f};
+};
+
+/**
+ * @struct HyperspectralConfig
+ * @brief The [hyperspectral] block, read by the core's offline renderer
+ *
+ * Carried whole rather than field by field because the viewport honours none
+ * of it -- a cube is rendered offline. It exists here so a config written for
+ * the CLI survives being opened and saved by the GUI.
+ */
+struct HyperspectralConfig {
+    float wavelengthMin_nm = 400.0f;
+    float wavelengthMax_nm = 2500.0f;
+    float wavelengthStep_nm = 10.0f;
+    bool useGpuReconstruction = true;
+    bool saveIntermediates = false;
+    QString outputFormat = QStringLiteral("envi_bsq");
 };
 
 /**
@@ -132,6 +153,54 @@ struct SceneConfig {
 
     // scene.removed_nodes -- nodes the file placed but the user deleted
     QStringList removedNodes;
+
+    // ====================================================================
+    // Quantitative spectral state. No widget owns any of it yet, but the
+    // core reads all of it, so a hand-authored config used to lose these
+    // sections the first time it was saved from the GUI -- the failure this
+    // block exists to prevent. Everything here is document state: it
+    // describes what the scene *is*, not how it is being looked at.
+    // ====================================================================
+
+    /// [spectral_curves] -- material name to reflectance CSV path.
+    QMap<QString, QString> spectralCurves;
+
+    /// [refractive_index] -- material name to RefractiveIndex.INFO YAML path.
+    QMap<QString, QString> refractiveIndexFiles;
+
+    /// lighting.solar_lut -- a file path, or the literal "equal_energy".
+    /// Empty means the key was absent; without it the quantitative spectral
+    /// modes render black, which is why it must survive a round trip.
+    QString solarLutPath;
+    /// lighting.solar_lut_columns -- [direct, diffuse]. Empty keeps the
+    /// core's libRadtran default of [2, 3] rather than asserting it.
+    QVector<int> solarLutColumns;
+    /// lighting.solar_lut_normalise -- "unit_luminance", or empty for none.
+    QString solarLutNormalise;
+    /// lighting.solar_lut_diffuse_is_global -- ASTM G-173's column 3 is
+    /// global rather than sky.
+    bool solarLutDiffuseIsGlobal = false;
+
+    /// [spectral] NMF basis: the measured-material database and the band
+    /// reconstructed from it.
+    QString basisFile;
+    QString materialsJson;
+    QString spectralBand;
+
+    // The three below are optional so that a file which never spelled them
+    // out does not acquire them on save, the same convention as
+    // MaterialConfig::hasPbr.
+
+    /// scene.default_temperature_k -- backfilled onto materials with no IR
+    /// temperature of their own.
+    std::optional<float> defaultTemperatureK;
+    /// quality.fail_on_srgb_upsample -- refuse to guess a spectrum from sRGB.
+    std::optional<bool> failOnSrgbUpsample;
+    /// quality.log_material_sources -- log where each material's data came from.
+    std::optional<bool> logMaterialSources;
+
+    /// [hyperspectral] -- honoured by the offline renderer only.
+    std::optional<HyperspectralConfig> hyperspectral;
 
     // Config file base directory (for resolving relative paths)
     QString baseDir;
@@ -210,6 +279,9 @@ private:
     /// exportConfigToString() at a string.
     void writeConfig(QTextStream& out, const SceneConfig& config);
     void extractSceneConfig(const quantiloom::Config& config, SceneConfig& out);
+    /// The sections no widget owns, split out only for length. Called by
+    /// extractSceneConfig; see SceneConfig for why they are carried at all.
+    void extractQuantitativeSpectral(const quantiloom::Config& config, SceneConfig& out);
     quantiloom::SpectralMode parseSpectralMode(const std::string& modeStr);
 
     QString m_lastError;

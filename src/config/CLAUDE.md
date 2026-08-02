@@ -58,6 +58,30 @@ the model would invalidate.
 configuration this exporter produced rendered here under `WarnAndDefault` and was
 refused by the CLI, which reads the same file under `Error`.
 
+### The quantitative spectral sections
+
+`[spectral_curves]`, `[refractive_index]`, `lighting.solar_lut*`,
+`spectral.basis_file` / `materials_json` / `band`, `scene.default_temperature_k`,
+`quality.fail_on_srgb_upsample` / `log_material_sources` and the whole
+`[hyperspectral]` block round-trip **without any widget behind them**. No panel edits
+them yet; they are read in `extractQuantitativeSpectral()` purely so `writeConfig()`
+can put them back. Until this was added, opening a hand-authored quantitative config
+and saving it stripped every one of them — the illuminant included, which turns the
+spectral modes black, and the NMF database reference, which is the core's flagship
+measured-material path. A file lost its meaning by being looked at.
+
+The optional ones (`default_temperature_k`, the two `quality` gates, `[hyperspectral]`)
+are `std::optional` so that a file which never spelled them out does not acquire them
+on save. When a panel eventually owns one of these, it moves into the ordinary
+"panel owns it, `collectCurrentConfig()` reads it back" group; the round trip is
+already in place.
+
+**A mode the panel cannot express stays the document's.** `collectCurrentConfig()`
+takes the spectral mode from the panel only when the loaded mode is one
+`ModeCatalog::spectralModes()` offers. `Multispectral` is deliberately not offered —
+a cube cannot render progressively, so the viewport previews it as RGB — and taking
+the panel's answer rewrote `mode = "multispectral"` to `"rgb"` on the first save.
+
 Three things are deliberately **session state** and are not in the file:
 
 - the debug visualization mode — a way of looking at the scene, not part of it;

@@ -376,6 +376,79 @@ void ConfigManager::extractSceneConfig(const quantiloom::Config& config, SceneCo
             out.removedNodes.append(QString::fromStdString(name));
         }
     }
+
+    extractQuantitativeSpectral(config, out);
+}
+
+void ConfigManager::extractQuantitativeSpectral(const quantiloom::Config& config,
+                                                SceneConfig& out) {
+    // None of this drives a widget yet. It is read so that writeConfig() can
+    // put it back: a hand-authored quantitative config opened and saved here
+    // used to come out stripped of every section below, silently.
+
+    // [spectral_curves] and [refractive_index]: name -> path maps.
+    out.spectralCurves.clear();
+    if (config.HasSection("spectral_curves")) {
+        for (const auto& [materialName, csvPath] : config.GetSection("spectral_curves")) {
+            out.spectralCurves.insert(QString::fromStdString(materialName),
+                                      QString::fromStdString(csvPath));
+        }
+    }
+
+    out.refractiveIndexFiles.clear();
+    if (config.HasSection("refractive_index")) {
+        for (const auto& [materialName, yamlPath] : config.GetSection("refractive_index")) {
+            out.refractiveIndexFiles.insert(QString::fromStdString(materialName),
+                                            QString::fromStdString(yamlPath));
+        }
+    }
+
+    // lighting.solar_lut*: the illuminant. Absent stays empty rather than
+    // becoming a default, because writing a path the file never named would
+    // change what renders.
+    out.solarLutPath = QString::fromStdString(config.GetString("lighting.solar_lut", ""));
+    out.solarLutColumns.clear();
+    for (const auto column : config.GetArray<quantiloom::i32>("lighting.solar_lut_columns")) {
+        out.solarLutColumns.append(static_cast<int>(column));
+    }
+    out.solarLutNormalise =
+        QString::fromStdString(config.GetString("lighting.solar_lut_normalise", ""));
+    out.solarLutDiffuseIsGlobal =
+        config.Get<bool>("lighting.solar_lut_diffuse_is_global", false);
+
+    // [spectral] NMF basis.
+    out.basisFile = QString::fromStdString(config.GetString("spectral.basis_file", ""));
+    out.materialsJson = QString::fromStdString(config.GetString("spectral.materials_json", ""));
+    out.spectralBand = QString::fromStdString(config.GetString("spectral.band", ""));
+
+    // Optional scalars: presence is the value, so Has() rather than a default.
+    out.defaultTemperatureK.reset();
+    if (config.Has("scene.default_temperature_k")) {
+        out.defaultTemperatureK = config.GetFloat("scene.default_temperature_k", 300.0f);
+    }
+    out.failOnSrgbUpsample.reset();
+    if (config.Has("quality.fail_on_srgb_upsample")) {
+        out.failOnSrgbUpsample = config.Get<bool>("quality.fail_on_srgb_upsample", false);
+    }
+    out.logMaterialSources.reset();
+    if (config.Has("quality.log_material_sources")) {
+        out.logMaterialSources = config.Get<bool>("quality.log_material_sources", false);
+    }
+
+    // [hyperspectral]: carried whole, honoured by the offline renderer only.
+    out.hyperspectral.reset();
+    if (config.HasSection("hyperspectral")) {
+        HyperspectralConfig hs;
+        hs.wavelengthMin_nm = config.GetFloat("hyperspectral.wavelength_min_nm", 400.0f);
+        hs.wavelengthMax_nm = config.GetFloat("hyperspectral.wavelength_max_nm", 2500.0f);
+        hs.wavelengthStep_nm = config.GetFloat("hyperspectral.wavelength_step_nm", 10.0f);
+        hs.useGpuReconstruction =
+            config.Get<bool>("hyperspectral.use_gpu_reconstruction", true);
+        hs.saveIntermediates = config.Get<bool>("hyperspectral.save_intermediates", false);
+        hs.outputFormat = QString::fromStdString(
+            config.GetString("hyperspectral.output_format", "envi_bsq"));
+        out.hyperspectral = hs;
+    }
 }
 
 quantiloom::SpectralMode ConfigManager::parseSpectralMode(const std::string& modeStr) {
@@ -453,6 +526,10 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
         case quantiloom::SpectralMode::LWIR_Fused: modeStr = "lwir_fused"; break;
         case quantiloom::SpectralMode::SWIR_Fused: modeStr = "swir_fused"; break;
         case quantiloom::SpectralMode::NIR_Fused: modeStr = "nir_fused"; break;
+        // Not offered in the viewport (ModeCatalog leaves it out; a cube is
+        // rendered offline), but a config that asks for it must not be
+        // downgraded to RGB by the act of saving it.
+        case quantiloom::SpectralMode::Multispectral: modeStr = "multispectral"; break;
         default: modeStr = "rgb"; break;
     }
     out << "mode = \"" << modeStr << "\"\n";
@@ -464,6 +541,16 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
     out << "lambda_min = " << config.lambda_min << "\n";
     out << "lambda_max = " << config.lambda_max << "\n";
     out << "delta_lambda = " << config.delta_lambda << "\n";
+    // The NMF measured-material database. The core needs basis_file and
+    // materials_json together -- either alone loads nothing -- so neither is
+    // written on its own.
+    if (!config.basisFile.isEmpty() && !config.materialsJson.isEmpty()) {
+        out << "basis_file = \"" << config.basisFile << "\"\n";
+        out << "materials_json = \"" << config.materialsJson << "\"\n";
+        if (!config.spectralBand.isEmpty()) {
+            out << "band = \"" << config.spectralBand << "\"\n";
+        }
+    }
     out << "\n";
 
     // [scene]
@@ -475,6 +562,12 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
         out << "usd = \"" << config.usdPath << "\"\n";
     }
     out << "world_units_to_meters = " << config.worldUnitsToMeters << "\n";
+    // Backfilled onto materials with no IR temperature of their own. Written
+    // only when the file named it, so a scene that never asked for the
+    // backfill does not acquire one by being saved.
+    if (config.defaultTemperatureK) {
+        out << "default_temperature_k = " << *config.defaultTemperatureK << "\n";
+    }
     if (!config.removedNodes.isEmpty()) {
         // Nodes the file placed but the user deleted; the core tombstones
         // them at load, matched by name
@@ -520,6 +613,22 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
     // deprecated -- view-path transmittance comes from the NN atmosphere now --
     // but a config the GUI wrote should still say what the GUI was holding.
     out << "transmittance = " << config.lighting.transmittance << "\n";
+    // The illuminant. No panel owns it yet, but without it the quantitative
+    // spectral modes render black, so dropping it on save turned a working
+    // config into a black frame.
+    if (!config.solarLutPath.isEmpty()) {
+        out << "solar_lut = \"" << config.solarLutPath << "\"\n";
+        if (config.solarLutColumns.size() >= 2) {
+            out << "solar_lut_columns = [" << config.solarLutColumns[0] << ", "
+                << config.solarLutColumns[1] << "]\n";
+        }
+        if (!config.solarLutNormalise.isEmpty()) {
+            out << "solar_lut_normalise = \"" << config.solarLutNormalise << "\"\n";
+        }
+        if (config.solarLutDiffuseIsGlobal) {
+            out << "solar_lut_diffuse_is_global = true\n";
+        }
+    }
     out << "\n";
 
     // [atmosphere] - preset plus the nine weather features. extractSceneConfig
@@ -541,12 +650,26 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
     out << "h2o_scale = " << config.atmosphere.h2oScale << "\n";
     out << "\n";
 
-    // [quality] - VIS_Fused chromaticity correction (only if non-default)
-    if (config.lighting.chromaR_correction != quantiloom::LightingDefaults::CHROMA_R_CORRECTION ||
-        config.lighting.chromaB_correction != quantiloom::LightingDefaults::CHROMA_B_CORRECTION) {
+    // [quality] - VIS_Fused chromaticity correction (only if non-default),
+    // plus the two gates the core reads. The section is written when any of
+    // the four has something to say.
+    const bool chromaCustom =
+        config.lighting.chromaR_correction != quantiloom::LightingDefaults::CHROMA_R_CORRECTION ||
+        config.lighting.chromaB_correction != quantiloom::LightingDefaults::CHROMA_B_CORRECTION;
+    if (chromaCustom || config.failOnSrgbUpsample || config.logMaterialSources) {
         out << "[quality]\n";
-        out << "chroma_r_correction = " << config.lighting.chromaR_correction << "\n";
-        out << "chroma_b_correction = " << config.lighting.chromaB_correction << "\n";
+        if (chromaCustom) {
+            out << "chroma_r_correction = " << config.lighting.chromaR_correction << "\n";
+            out << "chroma_b_correction = " << config.lighting.chromaB_correction << "\n";
+        }
+        if (config.failOnSrgbUpsample) {
+            out << "fail_on_srgb_upsample = "
+                << (*config.failOnSrgbUpsample ? "true" : "false") << "\n";
+        }
+        if (config.logMaterialSources) {
+            out << "log_material_sources = "
+                << (*config.logMaterialSources ? "true" : "false") << "\n";
+        }
         out << "\n";
     }
 
@@ -655,4 +778,41 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
     out << "enable_nuc = " << (config.sensorParams.enableNUC ? "true" : "false") << "\n";
     out << "nuc_efficiency = " << config.sensorParams.nucEfficiency << "\n";
     out << "\n";
+
+    // Last, because these are the sections a hand-authored quantitative config
+    // brings and no panel edits -- keeping them together at the end makes what
+    // the GUI carried through visible in a diff.
+
+    // [spectral_curves] - material name -> measured reflectance CSV
+    if (!config.spectralCurves.isEmpty()) {
+        out << "[spectral_curves]\n";
+        for (auto it = config.spectralCurves.constBegin();
+             it != config.spectralCurves.constEnd(); ++it) {
+            out << "\"" << it.key() << "\" = \"" << it.value() << "\"\n";
+        }
+        out << "\n";
+    }
+
+    // [refractive_index] - material name -> RefractiveIndex.INFO YAML
+    if (!config.refractiveIndexFiles.isEmpty()) {
+        out << "[refractive_index]\n";
+        for (auto it = config.refractiveIndexFiles.constBegin();
+             it != config.refractiveIndexFiles.constEnd(); ++it) {
+            out << "\"" << it.key() << "\" = \"" << it.value() << "\"\n";
+        }
+        out << "\n";
+    }
+
+    // [hyperspectral] - the offline cube. The viewport honours none of it.
+    if (config.hyperspectral) {
+        const HyperspectralConfig& hs = *config.hyperspectral;
+        out << "[hyperspectral]\n";
+        out << "wavelength_min_nm = " << hs.wavelengthMin_nm << "\n";
+        out << "wavelength_max_nm = " << hs.wavelengthMax_nm << "\n";
+        out << "wavelength_step_nm = " << hs.wavelengthStep_nm << "\n";
+        out << "use_gpu_reconstruction = " << (hs.useGpuReconstruction ? "true" : "false") << "\n";
+        out << "save_intermediates = " << (hs.saveIntermediates ? "true" : "false") << "\n";
+        out << "output_format = \"" << hs.outputFormat << "\"\n";
+        out << "\n";
+    }
 }

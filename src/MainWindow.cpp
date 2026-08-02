@@ -2909,7 +2909,20 @@ void MainWindow::collectCurrentConfig(SceneConfig& config) {
     // Spectral. The panel used to be described as "tracking these internally",
     // which meant nothing read them back and a mode change never reached the
     // exported file.
-    config.spectralMode = m_spectralConfigPanel->spectralMode();
+    //
+    // The panel can only speak for the modes it offers. Multispectral is not
+    // one of them -- a cube cannot be rendered progressively, so the viewport
+    // previews it as RGB (ModeCatalog::spectralModes leaves it out on
+    // purpose). Taking the panel's answer in that case rewrote the document's
+    // mode to "rgb" on the first save, which is the whole config quietly
+    // ceasing to be the hyperspectral one it was written as. A mode the panel
+    // cannot express is not a choice the user made in it, so the document
+    // keeps its own.
+    const bool panelOwnsMode =
+        !m_lastConfig || catalog::spectralModes().contains(m_lastConfig->spectralMode);
+    if (panelOwnsMode) {
+        config.spectralMode = m_spectralConfigPanel->spectralMode();
+    }
     config.wavelength_nm = m_spectralConfigPanel->wavelength();
     config.lambda_min = m_spectralConfigPanel->lambdaMin();
     config.lambda_max = m_spectralConfigPanel->lambdaMax();
