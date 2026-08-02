@@ -1271,7 +1271,10 @@ std::string QuantiloomVulkanRenderer::resolveDefaultModelPackDir() {
 
     for (const QString& dir : candidates) {
         if (QDir(dir).exists()) {
-            return QDir::toNativeSeparators(dir).toStdString();
+            // Qt-style forward slashes, which Windows accepts everywhere this
+            // goes. This string ends up in saved configs via GetAtmosphere(),
+            // and native backslashes made every reader deal with escaping.
+            return dir.toStdString();
         }
     }
     return {};

@@ -30,6 +30,36 @@ static_assert(sizeof(quantiloom::SensorParams) == 84,
               "that saveConfig() still writes every key ParseSensorParams reads "
               "before updating this number.");
 
+// TOML basic strings give the backslash to escape sequences, so streaming a
+// value into quotes raw writes a file the loader refuses to read back: a
+// Windows path like D:\Quantiloom-Qt fails the very next open with
+// "unknown escape sequence '\Q'". Every quoted string writeConfig() emits --
+// values and the quoted keys of [spectral_curves]/[refractive_index] alike --
+// goes through here.
+static QString tomlQuoted(const QString& s) {
+    QString quoted;
+    quoted.reserve(s.size() + 2);
+    quoted += QLatin1Char('"');
+    for (const QChar c : s) {
+        switch (c.unicode()) {
+            case '"':  quoted += QLatin1String("\\\""); break;
+            case '\\': quoted += QLatin1String("\\\\"); break;
+            case '\n': quoted += QLatin1String("\\n");  break;
+            case '\r': quoted += QLatin1String("\\r");  break;
+            case '\t': quoted += QLatin1String("\\t");  break;
+            default:
+                if (c.unicode() < 0x20) {
+                    quoted += QStringLiteral("\\u%1").arg(int(c.unicode()), 4, 16,
+                                                          QLatin1Char('0'));
+                } else {
+                    quoted += c;
+                }
+        }
+    }
+    quoted += QLatin1Char('"');
+    return quoted;
+}
+
 ConfigManager::ConfigManager(QObject* parent)
     : QObject(parent)
 {
@@ -500,10 +530,10 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
     out << "spp = " << config.spp << "\n";
     out << "seed = " << config.samplingSeed << "\n";
     if (!config.outputPath.isEmpty()) {
-        out << "output = \"" << config.outputPath << "\"\n";
+        out << "output = " << tomlQuoted(config.outputPath) << "\n";
     }
     if (!config.environmentMap.isEmpty()) {
-        out << "environment_map = \"" << config.environmentMap << "\"\n";
+        out << "environment_map = " << tomlQuoted(config.environmentMap) << "\n";
     }
     // Written only when off: true is the default, and a key restating a default
     // on every save is noise in the diff of a hand-edited file.
@@ -532,7 +562,7 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
         case quantiloom::SpectralMode::Multispectral: modeStr = "multispectral"; break;
         default: modeStr = "rgb"; break;
     }
-    out << "mode = \"" << modeStr << "\"\n";
+    out << "mode = " << tomlQuoted(modeStr) << "\n";
     // Written for every mode, not just Single: PostprocessConfig reads
     // spectral.wavelength_nm into SensorParams::wavelength_nm regardless of
     // mode, so omitting it here silently reset the sensor's peak wavelength
@@ -545,10 +575,10 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
     // materials_json together -- either alone loads nothing -- so neither is
     // written on its own.
     if (!config.basisFile.isEmpty() && !config.materialsJson.isEmpty()) {
-        out << "basis_file = \"" << config.basisFile << "\"\n";
-        out << "materials_json = \"" << config.materialsJson << "\"\n";
+        out << "basis_file = " << tomlQuoted(config.basisFile) << "\n";
+        out << "materials_json = " << tomlQuoted(config.materialsJson) << "\n";
         if (!config.spectralBand.isEmpty()) {
-            out << "band = \"" << config.spectralBand << "\"\n";
+            out << "band = " << tomlQuoted(config.spectralBand) << "\n";
         }
     }
     out << "\n";
@@ -556,10 +586,10 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
     // [scene]
     out << "[scene]\n";
     if (!config.gltfPath.isEmpty()) {
-        out << "gltf = \"" << config.gltfPath << "\"\n";
+        out << "gltf = " << tomlQuoted(config.gltfPath) << "\n";
     }
     if (!config.usdPath.isEmpty()) {
-        out << "usd = \"" << config.usdPath << "\"\n";
+        out << "usd = " << tomlQuoted(config.usdPath) << "\n";
     }
     out << "world_units_to_meters = " << config.worldUnitsToMeters << "\n";
     // Backfilled onto materials with no IR temperature of their own. Written
@@ -576,7 +606,7 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
             if (i > 0) {
                 out << ", ";
             }
-            out << "\"" << config.removedNodes[i] << "\"";
+            out << tomlQuoted(config.removedNodes[i]);
         }
         out << "]\n";
     }
@@ -625,13 +655,13 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
     // spectral modes render black, so dropping it on save turned a working
     // config into a black frame.
     if (!config.solarLutPath.isEmpty()) {
-        out << "solar_lut = \"" << config.solarLutPath << "\"\n";
+        out << "solar_lut = " << tomlQuoted(config.solarLutPath) << "\n";
         if (config.solarLutColumns.size() >= 2) {
             out << "solar_lut_columns = [" << config.solarLutColumns[0] << ", "
                 << config.solarLutColumns[1] << "]\n";
         }
         if (!config.solarLutNormalise.isEmpty()) {
-            out << "solar_lut_normalise = \"" << config.solarLutNormalise << "\"\n";
+            out << "solar_lut_normalise = " << tomlQuoted(config.solarLutNormalise) << "\n";
         }
         if (config.solarLutDiffuseIsGlobal) {
             out << "solar_lut_diffuse_is_global = true\n";
@@ -643,9 +673,10 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
     // reads all of them (and maps the legacy [atmospheric] names onto the
     // preset), so anything omitted here reverts on the next load.
     out << "[atmosphere]\n";
-    out << "preset = \"" << config.atmosphericPreset << "\"\n";
+    out << "preset = " << tomlQuoted(config.atmosphericPreset) << "\n";
     if (!config.atmosphere.modelPackDir.empty()) {
-        out << "model_pack = \"" << QString::fromStdString(config.atmosphere.modelPackDir) << "\"\n";
+        out << "model_pack = "
+            << tomlQuoted(QString::fromStdString(config.atmosphere.modelPackDir)) << "\n";
     }
     out << "atmos_model = " << config.atmosphere.atmosModel << "\n";
     out << "ihaze = " << config.atmosphere.ihaze << "\n";
@@ -694,7 +725,7 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
         if (matConfig.hasPbr || matConfig.irEmissivity > 0.0f ||
             matConfig.irTransmittance > 0.0f || matConfig.irTemperature_K > 0.0f) {
             out << "[[materials]]\n";
-            out << "name = \"" << matConfig.name << "\"\n";
+            out << "name = " << tomlQuoted(matConfig.name) << "\n";
             if (matConfig.hasPbr) {
                 out << "base_color = [" << matConfig.baseColor.r << ", "
                     << matConfig.baseColor.g << ", " << matConfig.baseColor.b << "]\n";
@@ -721,8 +752,8 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
     // and in creation order, so a copy of a copy follows its source.
     for (const auto& dup : config.duplicateConfigs) {
         out << "[[duplicates]]\n";
-        out << "source = \"" << dup.sourceName << "\"\n";
-        out << "name = \"" << dup.name << "\"\n";
+        out << "source = " << tomlQuoted(dup.sourceName) << "\n";
+        out << "name = " << tomlQuoted(dup.name) << "\n";
         out << "matrix = [\n";
         for (int c = 0; c < 4; ++c) {
             out << "    ";
@@ -742,7 +773,7 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
     // matrix, and decomposing one to write it down does not always round-trip.
     for (const auto& nodeConfig : config.nodeConfigs) {
         out << "[[nodes]]\n";
-        out << "name = \"" << nodeConfig.name << "\"\n";
+        out << "name = " << tomlQuoted(nodeConfig.name) << "\n";
         out << "matrix = [\n";
         for (int c = 0; c < 4; ++c) {
             out << "    ";
@@ -796,7 +827,7 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
         out << "[spectral_curves]\n";
         for (auto it = config.spectralCurves.constBegin();
              it != config.spectralCurves.constEnd(); ++it) {
-            out << "\"" << it.key() << "\" = \"" << it.value() << "\"\n";
+            out << tomlQuoted(it.key()) << " = " << tomlQuoted(it.value()) << "\n";
         }
         out << "\n";
     }
@@ -806,7 +837,7 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
         out << "[refractive_index]\n";
         for (auto it = config.refractiveIndexFiles.constBegin();
              it != config.refractiveIndexFiles.constEnd(); ++it) {
-            out << "\"" << it.key() << "\" = \"" << it.value() << "\"\n";
+            out << tomlQuoted(it.key()) << " = " << tomlQuoted(it.value()) << "\n";
         }
         out << "\n";
     }
@@ -820,7 +851,7 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
         out << "wavelength_step_nm = " << hs.wavelengthStep_nm << "\n";
         out << "use_gpu_reconstruction = " << (hs.useGpuReconstruction ? "true" : "false") << "\n";
         out << "save_intermediates = " << (hs.saveIntermediates ? "true" : "false") << "\n";
-        out << "output_format = \"" << hs.outputFormat << "\"\n";
+        out << "output_format = " << tomlQuoted(hs.outputFormat) << "\n";
         out << "\n";
     }
 }
