@@ -50,6 +50,11 @@ public:
     [[nodiscard]] uint32_t renderHeight() const { return m_height; }
     [[nodiscard]] uint32_t spp() const { return m_targetSPP; }
 
+    /// Whether reaching the target should write an EXR without being asked.
+    /// Session state, like the debug mode: it says what to do with a render,
+    /// not what the scene is (src/config/CLAUDE.md).
+    [[nodiscard]] bool autoExportOnComplete() const;
+
 signals:
     void sppChanged(uint32_t spp);
     /// Asks the shell to run its one image export path. The panel used to
@@ -78,6 +83,7 @@ private:
     QLabel* m_resolutionLabel = nullptr;
     QPushButton* m_exportBtn = nullptr;
     QPushButton* m_resetBtn = nullptr;
+    QCheckBox* m_autoExportCheck = nullptr;
     QGroupBox* m_displayGroup = nullptr;
     QVBoxLayout* m_displayLayout = nullptr;
 };

@@ -223,6 +223,8 @@ void MainWindow::setupUi() {
     // Create Vulkan window
     m_vulkanWindow = new QuantiloomVulkanWindow();
     m_vulkanWindow->setVulkanInstance(m_vulkanInstance);
+    // Before the window is shown, which is when Qt commits to a device.
+    m_vulkanWindow->selectRayTracingDevice();
 
     // Wrap in QWidget container for use as central widget
     m_vulkanContainer = QWidget::createWindowContainer(m_vulkanWindow);
@@ -465,6 +467,13 @@ void MainWindow::setupMenus() {
     m_stopRenderAction = m_renderMenu->addAction(QString(), this, &MainWindow::onStopRender);
     m_stopRenderAction->setShortcut(QKeySequence(Qt::SHIFT | Qt::Key_F5));
 
+    // The third verb. Start has always reset first, so stopping at 900 of
+    // 1024 samples and pressing it again threw away the 900 -- there was no
+    // way to say "carry on from here".
+    m_resumeRenderAction = m_renderMenu->addAction(QString(), this, &MainWindow::onResumeRender);
+    m_resumeRenderAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_F5));
+    m_resumeRenderAction->setEnabled(false);
+
     m_renderMenu->addSeparator();
 
     m_resetAccumulationAction = m_renderMenu->addAction(QString(), this,
@@ -674,6 +683,7 @@ void MainWindow::setupToolBar() {
     m_redoAction->setIcon(s->standardIcon(QStyle::SP_ArrowForward));
     m_startRenderAction->setIcon(s->standardIcon(QStyle::SP_MediaPlay));
     m_stopRenderAction->setIcon(s->standardIcon(QStyle::SP_MediaStop));
+    m_resumeRenderAction->setIcon(s->standardIcon(QStyle::SP_MediaSeekForward));
     m_resetAccumulationAction->setIcon(s->standardIcon(QStyle::SP_BrowserReload));
     m_screenshotAction->setIcon(s->standardIcon(QStyle::SP_DialogSaveAllButton));
 
@@ -689,6 +699,7 @@ void MainWindow::setupToolBar() {
     m_mainToolBar->addAction(m_localSpaceAction);
     m_mainToolBar->addSeparator();
     m_mainToolBar->addAction(m_startRenderAction);
+    m_mainToolBar->addAction(m_resumeRenderAction);
     m_mainToolBar->addAction(m_stopRenderAction);
     m_mainToolBar->addAction(m_resetAccumulationAction);
     m_mainToolBar->addSeparator();
@@ -766,6 +777,17 @@ void MainWindow::applyTargetSpp(uint32_t spp) {
 
     setSceneModified(true);
     updateRenderProgress();
+
+    // Raising the target restarts the render loop from the samples already
+    // accumulated (setSPP does not reset), so this is the start of a new run
+    // as far as the completion message and the ETA are concerned. Without
+    // this, a render that reported "complete" at 16 reached 64 in silence.
+    const uint32_t current = m_vulkanWindow->currentSampleCount();
+    if (spp == 0 || current < spp) {
+        beginRenderTiming();
+        setRenderActionsRunning(!m_vulkanWindow->isRenderPaused());
+    }
+
     if (spp == 0)
         showStatusMessage(tr("Target samples: infinite"));
     else
@@ -1383,6 +1405,10 @@ void MainWindow::setupStatusBar() {
     m_debugValueLabel = new QLabel();
     m_debugValueLabel->setMinimumWidth(250);
     m_styling.bind([this] { uistyle::applyMonospaceStyle(m_debugValueLabel); });
+    // Time left at the measured rate, next to the bar that says how far along
+    // it is. Hidden unless there is a target to count down to.
+    m_etaLabel = new QLabel();
+    m_etaLabel->setVisible(false);
     m_renderProgress = new QProgressBar();
     m_renderProgress->setMaximumWidth(200);
     m_renderProgress->setRange(0, 100);
@@ -1397,6 +1423,7 @@ void MainWindow::setupStatusBar() {
     statusBar()->addPermanentWidget(m_editModeLabel);
     statusBar()->addPermanentWidget(m_sampleCountLabel);
     statusBar()->addPermanentWidget(m_fpsLabel);
+    statusBar()->addPermanentWidget(m_etaLabel);
     statusBar()->addPermanentWidget(m_renderProgress);
 
     // Transient messages expire. Around thirty call sites used to write into
@@ -1440,6 +1467,15 @@ void MainWindow::setupConnections() {
             this, &MainWindow::onFrameRendered);
 
     // Connect scene loaded signal to update panels
+    // Queued for the same reason the sceneLoaded failure branch below is: it
+    // is emitted from inside initResources(), and a modal dialog there would
+    // run a nested event loop in the middle of Qt creating device resources.
+    connect(m_vulkanWindow, &QuantiloomVulkanWindow::renderContextFailed,
+            this, [this](const QString& message) {
+                showStatusMessage(tr("The renderer failed to start"));
+                QMessageBox::critical(this, tr("Renderer Unavailable"), message);
+            }, Qt::QueuedConnection);
+
     connect(m_vulkanWindow, &QuantiloomVulkanWindow::sceneLoaded,
             this, [this](bool success, const QString& message) {
                 if (success) {
@@ -1705,7 +1741,10 @@ void MainWindow::retranslateUi() {
 
     m_renderMenu->setTitle(tr("&Render"));
     m_startRenderAction->setText(tr("&Start Render"));
+    m_startRenderAction->setToolTip(tr("Discard the accumulated samples and render from scratch"));
     m_stopRenderAction->setText(tr("S&top Render"));
+    m_resumeRenderAction->setText(tr("&Resume Render"));
+    m_resumeRenderAction->setToolTip(tr("Carry on from the samples already accumulated"));
     m_resetAccumulationAction->setText(tr("Reset &Accumulation"));
     m_qualityMenu->setTitle(tr("&Quality"));
     {
@@ -2099,8 +2138,8 @@ void MainWindow::onExportImage() {
 void MainWindow::onStartRender() {
     m_vulkanWindow->setRenderPaused(false);
     m_vulkanWindow->resetAccumulation();
-    m_startRenderAction->setEnabled(false);
-    m_stopRenderAction->setEnabled(true);
+    beginRenderTiming();
+    setRenderActionsRunning(true);
     const uint32_t spp = m_renderSettingsPanel->spp();
     if (spp == 0)
         showStatusMessage(tr("Rendering (infinite)"));
@@ -2108,12 +2147,90 @@ void MainWindow::onStartRender() {
         showStatusMessage(tr("Rendering from scratch to %1 samples").arg(spp));
 }
 
+void MainWindow::onResumeRender() {
+    // Start's twin without the reset: the samples already accumulated are
+    // kept and the render carries on from them.
+    const uint32_t already = m_vulkanWindow->currentSampleCount();
+    m_vulkanWindow->setRenderPaused(false);
+    beginRenderTiming();
+    setRenderActionsRunning(true);
+    const uint32_t spp = m_renderSettingsPanel->spp();
+    if (spp == 0)
+        showStatusMessage(tr("Resuming from %1 samples (infinite)").arg(already));
+    else
+        showStatusMessage(tr("Resuming from %1 samples to %2").arg(already).arg(spp));
+}
+
 void MainWindow::onStopRender() {
     m_vulkanWindow->setRenderPaused(true);
-    m_startRenderAction->setEnabled(true);
-    m_stopRenderAction->setEnabled(false);
+    setRenderActionsRunning(false);
     showStatusMessage(tr("Rendering stopped at %1 samples")
                           .arg(m_vulkanWindow->currentSampleCount()));
+}
+
+void MainWindow::setRenderActionsRunning(bool running) {
+    m_startRenderAction->setEnabled(!running);
+    m_stopRenderAction->setEnabled(running);
+    // Resuming is only meaningful when stopped with something to resume from;
+    // at zero samples Start says the same thing without the qualification.
+    m_resumeRenderAction->setEnabled(!running && m_vulkanWindow->currentSampleCount() > 0);
+}
+
+void MainWindow::beginRenderTiming() {
+    // The ETA is measured, not predicted from the sample count: how long a
+    // sample takes depends on the scene, the mode and the window size, and
+    // only this run knows.
+    m_renderStartedAt = QDateTime::currentMSecsSinceEpoch();
+    m_renderStartSamples = m_vulkanWindow->currentSampleCount();
+    m_msPerSample = 0.0;
+    m_renderCompleteReported = false;
+}
+
+void MainWindow::autoExportRender(uint32_t sampleCount) {
+    // The raw accumulation, matching what Export Image writes rather than
+    // what Save Screenshot does: an automatic export is for the physical
+    // values, and display enhancement is a viewing aid.
+    auto image = m_vulkanWindow->captureScreenshot();
+    if (!image) {
+        showStatusMessage(tr("Render complete, but the image could not be captured"));
+        return;
+    }
+
+    // Beside the document when there is one, next to the screenshots
+    // otherwise -- an automatic write should never have to ask where to go.
+    QString directory;
+    QString stem;
+    if (!m_currentConfigFile.isEmpty()) {
+        const QFileInfo info(m_currentConfigFile);
+        directory = info.absolutePath();
+        stem = info.completeBaseName();
+    } else {
+        QSettings settings;
+        directory = settings.value("screenshot_path").toString();
+        if (directory.isEmpty()) {
+            directory = PreferencesDialog::defaultScreenshotPath();
+        }
+        stem = QStringLiteral("render");
+    }
+
+    QDir dir(directory);
+    if (!dir.exists() && !dir.mkpath(QStringLiteral("."))) {
+        showStatusMessage(tr("Render complete, but %1 could not be created").arg(directory));
+        return;
+    }
+
+    // The sample count is in the name: an auto-export at 256 and one at 4096
+    // are different renders and should not overwrite each other.
+    const QString path = dir.filePath(
+        QStringLiteral("%1_%2spp.exr").arg(stem).arg(sampleCount));
+
+    if (quantiloom::ImageIO::WriteEXR(path.toStdString(), *image)) {
+        showStatusMessage(tr("Render complete — %1 samples, exported to %2")
+                              .arg(sampleCount)
+                              .arg(QFileInfo(path).fileName()));
+    } else {
+        showStatusMessage(tr("Render complete, but the export to %1 failed").arg(path));
+    }
 }
 
 void MainWindow::onResetCamera() {
@@ -2614,17 +2731,96 @@ void MainWindow::onDeleteNodes() {
 }
 
 void MainWindow::onFrameRendered(float frameTimeMs, uint32_t sampleCount) {
-    const float fps = (frameTimeMs > 0.0f) ? (1000.0f / frameTimeMs) : 0.0f;
+    // Smoothed, because the per-frame figure jitters too fast to read. The
+    // weight is on the history rather than the newest sample for the same
+    // reason.
+    constexpr float kFpsSmoothing = 0.9f;
+    if (frameTimeMs > 0.0f) {
+        m_smoothedFrameTimeMs = (m_smoothedFrameTimeMs > 0.0f)
+            ? (kFpsSmoothing * m_smoothedFrameTimeMs + (1.0f - kFpsSmoothing) * frameTimeMs)
+            : frameTimeMs;
+    }
+    const float fps = (m_smoothedFrameTimeMs > 0.0f) ? (1000.0f / m_smoothedFrameTimeMs) : 0.0f;
     m_fpsLabel->setText(tr("FPS: %1").arg(fps, 0, 'f', 1));
+    // The GPU figure in the tooltip rather than the label: it answers a
+    // different question ("is this scene expensive?") and only when asked.
+    const float gpuMs = m_vulkanWindow->lastGpuFrameTimeMs();
+    m_fpsLabel->setToolTip(gpuMs > 0.0f
+        ? tr("Frame %1 ms wall clock, %2 ms on the GPU")
+              .arg(m_smoothedFrameTimeMs, 0, 'f', 1).arg(gpuMs, 0, 'f', 1)
+        : tr("Frame %1 ms wall clock").arg(m_smoothedFrameTimeMs, 0, 'f', 1));
     m_sampleCountLabel->setText(tr("Samples: %1").arg(sampleCount));
 
     m_renderSettingsPanel->setSampleCount(sampleCount);
     updateRenderProgress();
 
     const uint32_t target = m_vulkanWindow->targetSPP();
+
+    // Milliseconds per accumulated sample, measured over this run's wall
+    // clock. frameTimeMs is not a substitute: it times one frame, and a frame
+    // carries however many samples per pixel the SPP setting asks for.
+    if (m_renderStartedAt > 0 && sampleCount > m_renderStartSamples) {
+        const qint64 elapsed = QDateTime::currentMSecsSinceEpoch() - m_renderStartedAt;
+        m_msPerSample = static_cast<double>(elapsed) /
+                        static_cast<double>(sampleCount - m_renderStartSamples);
+    }
+    updateRenderEta(sampleCount, target);
+
     if (target > 0 && sampleCount >= target) {
-        m_startRenderAction->setEnabled(true);
-        m_stopRenderAction->setEnabled(false);
+        onRenderReachedTarget(sampleCount);
+    }
+}
+
+void MainWindow::updateRenderEta(uint32_t sampleCount, uint32_t target) {
+    if (!m_etaLabel) {
+        return;
+    }
+    // Nothing to estimate against in infinite mode, before the first sample
+    // lands, or once the target is met.
+    const bool estimable = target > 0 && sampleCount < target &&
+                           m_msPerSample > 0.0 && !m_vulkanWindow->isRenderPaused();
+    m_etaLabel->setVisible(estimable);
+    if (!estimable) {
+        return;
+    }
+    const double remainingMs = m_msPerSample * static_cast<double>(target - sampleCount);
+    m_etaLabel->setText(tr("ETA %1").arg(formatDuration(static_cast<qint64>(remainingMs))));
+}
+
+QString MainWindow::formatDuration(qint64 ms) {
+    const qint64 totalSeconds = ms / 1000;
+    const qint64 hours = totalSeconds / 3600;
+    const qint64 minutes = (totalSeconds % 3600) / 60;
+    const qint64 seconds = totalSeconds % 60;
+    if (hours > 0) {
+        return QStringLiteral("%1:%2:%3")
+            .arg(hours)
+            .arg(minutes, 2, 10, QLatin1Char('0'))
+            .arg(seconds, 2, 10, QLatin1Char('0'));
+    }
+    return QStringLiteral("%1:%2")
+        .arg(minutes)
+        .arg(seconds, 2, 10, QLatin1Char('0'));
+}
+
+void MainWindow::onRenderReachedTarget(uint32_t sampleCount) {
+    // Reached once per run: the frame loop stops requesting updates at the
+    // target, but a stray frame in flight can arrive after it.
+    if (m_renderCompleteReported) {
+        setRenderActionsRunning(false);
+        return;
+    }
+    m_renderCompleteReported = true;
+    setRenderActionsRunning(false);
+
+    const qint64 elapsed = (m_renderStartedAt > 0)
+        ? QDateTime::currentMSecsSinceEpoch() - m_renderStartedAt : 0;
+    showStatusMessage(tr("Render complete — %1 samples in %2")
+                          .arg(sampleCount)
+                          .arg(formatDuration(elapsed)));
+
+    if (m_renderSettingsPanel->autoExportOnComplete()) {
+        autoExportRender(sampleCount);
     }
 }
 
@@ -2726,6 +2922,11 @@ void MainWindow::onDebugModeChanged(quantiloom::DebugVisualizationMode mode) {
 
 void MainWindow::onResetAccumulation() {
     m_vulkanWindow->resetAccumulation();
+    // A fresh run: the target has to be reached again to be announced again,
+    // and the ETA's measurement restarts from zero samples.
+    beginRenderTiming();
+    m_renderCompleteReported = false;
+    setRenderActionsRunning(!m_vulkanWindow->isRenderPaused());
     updateRenderProgress();
     showStatusMessage(tr("Accumulation reset"));
 }

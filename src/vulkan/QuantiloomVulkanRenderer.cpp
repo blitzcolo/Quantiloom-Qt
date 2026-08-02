@@ -81,6 +81,11 @@ void QuantiloomVulkanRenderer::initSwapChainResources() {
     if (!device) {
         qCritical() << "Device is NULL! Qt failed to create Vulkan device.";
         qCritical() << "This usually means required device extensions are not supported.";
+        emit m_window->renderContextFailed(
+            QObject::tr("Qt could not create a Vulkan device. The selected GPU is most "
+                        "likely missing the ray tracing extensions this renderer needs. "
+                        "On a laptop with both an integrated and a discrete GPU, check "
+                        "that Quantiloom is running on the discrete one."));
         return;
     }
 
@@ -130,8 +135,10 @@ void QuantiloomVulkanRenderer::initSwapChainResources() {
 
     auto result = quantiloom::ExternalRenderContext::Create(params);
     if (!result) {
-        qCritical() << "Failed to create ExternalRenderContext:"
-                    << QString::fromStdString(result.error());
+        const QString reason = QString::fromStdString(result.error());
+        qCritical() << "Failed to create ExternalRenderContext:" << reason;
+        emit m_window->renderContextFailed(
+            QObject::tr("The renderer could not start:\n\n%1").arg(reason));
         return;
     }
 
@@ -203,7 +210,13 @@ void QuantiloomVulkanRenderer::startNextFrame() {
     if (!m_renderContext || !m_renderContext->HasScene()) {
         // No scene loaded yet, just present empty frame
         m_window->frameReady();
-        if (!m_paused) {
+        // Idle rather than spin. With nothing to accumulate, re-requesting a
+        // frame forever only burns a core to redraw the same grid; every way
+        // the picture can change from here (orbit, pan, zoom, a scene
+        // arriving) goes through resetAccumulation(), which asks for a frame.
+        // Held movement keys are the exception -- they are integrated over
+        // deltaTime here, so they need the loop running to move at all.
+        if (!m_paused && isCameraMoving()) {
             m_window->requestUpdate();
         }
         return;
@@ -246,9 +259,15 @@ void QuantiloomVulkanRenderer::startNextFrame() {
     // Update sample count
     m_sampleCount = m_renderContext->GetAccumulatedSamples();
 
-    // Calculate frame time
+    // Two different quantities, and the status bar shows both. This one is
+    // wall-clock around the whole callback -- what the user experiences as
+    // responsiveness, and what a sample rate has to be derived from.
     auto frameEnd = std::chrono::high_resolution_clock::now();
     m_lastFrameTimeMs = std::chrono::duration<float, std::milli>(frameEnd - now).count();
+    // The SDK's own figure, which times the trace rather than this thread's
+    // command recording. It is the one to read when asking whether the *scene*
+    // is expensive, and it had no caller at all until now.
+    m_lastGpuFrameTimeMs = m_renderContext->GetLastFrameTimeMs();
 
     // Emit frame rendered signal
     emit m_window->frameRendered(m_lastFrameTimeMs, m_sampleCount);
@@ -752,6 +771,17 @@ void QuantiloomVulkanRenderer::updateCameraMovement(
     m_moveUp = up;
     m_moveDown = down;
     m_moveFast = fast;
+
+    // A key going down has to restart the loop: with no scene the frame
+    // callback now idles, and these flags are only read from inside it.
+    if (!m_paused && isCameraMoving()) {
+        m_window->requestUpdate();
+    }
+}
+
+bool QuantiloomVulkanRenderer::isCameraMoving() const {
+    return m_moveForward || m_moveBackward || m_moveLeft ||
+           m_moveRight || m_moveUp || m_moveDown;
 }
 
 void QuantiloomVulkanRenderer::orbitCamera(float deltaX, float deltaY) {
@@ -857,8 +887,7 @@ void QuantiloomVulkanRenderer::zoomCamera(float delta) {
 }
 
 void QuantiloomVulkanRenderer::updateCamera(float deltaTime) {
-    if (!m_moveForward && !m_moveBackward && !m_moveLeft &&
-        !m_moveRight && !m_moveUp && !m_moveDown) {
+    if (!isCameraMoving()) {
         return;
     }
 

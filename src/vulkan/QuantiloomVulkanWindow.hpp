@@ -175,7 +175,17 @@ public:
     /**
      * @brief Get current sample count
      */
+    /// Prefer a discrete GPU when the machine has more than one device. Call
+    /// after setVulkanInstance() and before the window is shown; Qt otherwise
+    /// takes device 0, which on a hybrid laptop is the integrated GPU and has
+    /// no ray tracing.
+    void selectRayTracingDevice();
+
     uint32_t currentSampleCount() const;
+
+    /// The SDK's own frame timing, which measures the trace rather than this
+    /// thread's command recording.
+    [[nodiscard]] float lastGpuFrameTimeMs() const;
 
     /**
      * @brief Target sample count the accumulation is working towards
@@ -431,6 +441,12 @@ signals:
      * @param message Status message or error description
      */
     void sceneLoaded(bool success, const QString& message);
+
+    /// The render context could not be created, so nothing will ever draw.
+    /// Distinct from sceneLoaded(false, ...): that one means this file did not
+    /// open, this one means the renderer never started. Without it the failure
+    /// was a qCritical line and a black viewport.
+    void renderContextFailed(const QString& message);
 
     /**
      * @brief Emitted when user clicks in viewport (for selection picking)

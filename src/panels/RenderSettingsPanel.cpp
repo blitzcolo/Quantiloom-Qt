@@ -138,16 +138,31 @@ void RenderSettingsPanel::setupUi() {
     connect(m_exportBtn, &QPushButton::clicked, this, &RenderSettingsPanel::exportRequested);
     actionsLayout->addWidget(m_exportBtn);
 
+    // Cheap now that the renderer stops itself at the target: the shell has a
+    // moment where the render is provably finished, which is the only place an
+    // unattended export could be written from.
+    m_autoExportCheck = new QCheckBox(actionsGroup);
+    m_autoExportCheck->setChecked(false);
+    actionsLayout->addWidget(m_autoExportCheck);
+
     bindText([this, actionsGroup] {
         actionsGroup->setTitle(tr("Actions"));
         m_resetBtn->setText(tr("Reset Accumulation"));
         m_resetBtn->setToolTip(tr("Clear accumulated samples and restart rendering"));
         m_exportBtn->setText(tr("Export Image..."));
         m_exportBtn->setToolTip(tr("Save the raw render, without display enhancement"));
+        m_autoExportCheck->setText(tr("Export EXR when the target is reached"));
+        m_autoExportCheck->setToolTip(
+            tr("Writes beside the open configuration, named after it and the sample count. "
+               "Has no effect in Infinite mode, which has no target to reach."));
     });
 
     mainLayout->addWidget(actionsGroup);
     mainLayout->addStretch();
+}
+
+bool RenderSettingsPanel::autoExportOnComplete() const {
+    return m_autoExportCheck && m_autoExportCheck->isChecked();
 }
 
 void RenderSettingsPanel::retranslateUi() {

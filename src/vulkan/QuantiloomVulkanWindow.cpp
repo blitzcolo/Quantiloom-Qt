@@ -120,6 +120,36 @@ QuantiloomVulkanWindow::QuantiloomVulkanWindow(QWindow* parent)
     qDebug() << "QuantiloomVulkanWindow: Requested ray tracing device extensions";
 }
 
+void QuantiloomVulkanWindow::selectRayTracingDevice() {
+    // Qt takes device 0 unless told otherwise. On a laptop that is often the
+    // integrated GPU, which has no ray tracing at all, and the failure lands
+    // much later as a null VkDevice with nothing pointing at the cause.
+    const QList<VkPhysicalDeviceProperties> devices = availablePhysicalDevices();
+    if (devices.size() <= 1) {
+        return;  // No choice to make; leave Qt's default alone.
+    }
+
+    int chosen = -1;
+    for (int i = 0; i < devices.size(); ++i) {
+        qDebug() << "  Vulkan device" << i << ":" << devices[i].deviceName
+                 << "type" << devices[i].deviceType;
+        // First discrete GPU wins. Ray tracing support proper cannot be
+        // queried here -- QVulkanWindow exposes only VkPhysicalDeviceProperties
+        // -- but a discrete GPU is the right guess on every machine where the
+        // two differ, and Qt still validates the extensions when it creates
+        // the device.
+        if (chosen < 0 && devices[i].deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) {
+            chosen = i;
+        }
+    }
+
+    if (chosen >= 0) {
+        qDebug() << "QuantiloomVulkanWindow: selecting discrete GPU"
+                 << devices[chosen].deviceName;
+        setPhysicalDeviceIndex(chosen);
+    }
+}
+
 QuantiloomVulkanWindow::~QuantiloomVulkanWindow() = default;
 
 QVulkanWindowRenderer* QuantiloomVulkanWindow::createRenderer() {
@@ -223,6 +253,10 @@ void QuantiloomVulkanWindow::setWavelength(float wavelength_nm) {
 
 uint32_t QuantiloomVulkanWindow::currentSampleCount() const {
     return m_renderer ? m_renderer->currentSampleCount() : 0;
+}
+
+float QuantiloomVulkanWindow::lastGpuFrameTimeMs() const {
+    return m_renderer ? m_renderer->lastGpuFrameTimeMs() : 0.0f;
 }
 
 quantiloom::LightingParams QuantiloomVulkanWindow::lightingParams() const {

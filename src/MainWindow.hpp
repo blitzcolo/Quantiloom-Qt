@@ -121,6 +121,8 @@ private slots:
     // Render menu actions
     void onStartRender();
     void onStopRender();
+    /// Unpause without discarding what has accumulated.
+    void onResumeRender();
 
     // View menu actions
     void onResetCamera();
@@ -290,6 +292,20 @@ private:
     void showStatusMessage(const QString& message, int timeoutMs = 6000);
     void updateRenderProgress();
 
+    /// Start/Stop/Resume enablement in one place: which of the three is
+    /// available is a function of one bit plus whether there is anything to
+    /// resume from.
+    void setRenderActionsRunning(bool running);
+    /// Mark the start of a run for the ETA, which is measured rather than
+    /// predicted. Called by Start, Resume, and anything that resets.
+    void beginRenderTiming();
+    void updateRenderEta(uint32_t sampleCount, uint32_t target);
+    /// Fires once when the target sample count is met.
+    void onRenderReachedTarget(uint32_t sampleCount);
+    void autoExportRender(uint32_t sampleCount);
+    /// h:mm:ss past an hour, m:ss below it.
+    [[nodiscard]] static QString formatDuration(qint64 ms);
+
     // Vulkan instance (owned by main())
     QVulkanInstance* m_vulkanInstance = nullptr;
 
@@ -335,6 +351,18 @@ private:
     // Status bar widgets
     QLabel* m_statusLabel = nullptr;
     QLabel* m_fpsLabel = nullptr;
+    QLabel* m_etaLabel = nullptr;
+
+    // Render-run timing. The ETA comes from measured milliseconds per
+    // accumulated sample, because how long a sample takes depends on the
+    // scene, the spectral mode and the window size.
+    qint64 m_renderStartedAt = 0;
+    uint32_t m_renderStartSamples = 0;
+    double m_msPerSample = 0.0;
+    float m_smoothedFrameTimeMs = 0.0f;
+    /// Guards the completion message and the auto-export against a frame that
+    /// was already in flight when the target was met.
+    bool m_renderCompleteReported = false;
     QLabel* m_sampleCountLabel = nullptr;
     QLabel* m_editModeLabel = nullptr;    // Shows current transform mode
     QLabel* m_debugValueLabel = nullptr;  // Shows debug value at mouse position
@@ -371,6 +399,7 @@ private:
     QAction* m_resetLayoutAction = nullptr;
     QAction* m_startRenderAction = nullptr;
     QAction* m_stopRenderAction = nullptr;
+    QAction* m_resumeRenderAction = nullptr;
     QAction* m_resetAccumulationAction = nullptr;
     QAction* m_spectralGenAction = nullptr;
     QAction* m_shortcutsAction = nullptr;

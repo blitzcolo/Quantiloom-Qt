@@ -648,6 +648,22 @@ May cause colour shifts.</source>
         </translation>
     </message>
     <message>
+        <source>Frame %1 ms wall clock, %2 ms on the GPU</source>
+        <translation>帧耗时 %1 ms（墙钟），GPU %2 ms</translation>
+    </message>
+    <message>
+        <source>Frame %1 ms wall clock</source>
+        <translation>帧耗时 %1 ms（墙钟）</translation>
+    </message>
+    <message>
+        <source>ETA %1</source>
+        <translation>剩余 %1</translation>
+    </message>
+    <message>
+        <source>Render complete — %1 samples in %2</source>
+        <translation>渲染完成 — %1 采样，用时 %2</translation>
+    </message>
+    <message>
         <source>Node %1</source>
         <translation>节点 %1</translation>
     </message>
@@ -976,6 +992,14 @@ May cause colour shifts.</source>
         <translation>工作区：%1</translation>
     </message>
     <message>
+        <source>The renderer failed to start</source>
+        <translation>渲染器启动失败</translation>
+    </message>
+    <message>
+        <source>Renderer Unavailable</source>
+        <translation>渲染器不可用</translation>
+    </message>
+    <message>
         <source>Local space</source>
         <translation>局部坐标系</translation>
     </message>
@@ -1152,6 +1176,18 @@ May cause colour shifts.</source>
         <translation>在视口中叠加地面网格；不影响渲染结果与累积。</translation>
     </message>
     <message>
+        <source>Discard the accumulated samples and render from scratch</source>
+        <translation>丢弃已累积的采样，从头开始渲染</translation>
+    </message>
+    <message>
+        <source>&amp;Resume Render</source>
+        <translation>继续渲染(&amp;R)</translation>
+    </message>
+    <message>
+        <source>Carry on from the samples already accumulated</source>
+        <translation>从已累积的采样继续</translation>
+    </message>
+    <message>
         <source>Reset &amp;Accumulation</source>
         <translation>重置累积(&amp;A)</translation>
     </message>
@@ -1308,8 +1344,32 @@ May cause colour shifts.</source>
         <translation>正在从头渲染，目标 %1 个采样</translation>
     </message>
     <message>
+        <source>Resuming from %1 samples (infinite)</source>
+        <translation>从 %1 采样继续（无限）</translation>
+    </message>
+    <message>
+        <source>Resuming from %1 samples to %2</source>
+        <translation>从 %1 采样继续至 %2</translation>
+    </message>
+    <message>
         <source>Rendering stopped at %1 samples</source>
         <translation>渲染已在第 %1 个采样处停止</translation>
+    </message>
+    <message>
+        <source>Render complete, but the image could not be captured</source>
+        <translation>渲染完成，但无法捕获图像</translation>
+    </message>
+    <message>
+        <source>Render complete, but %1 could not be created</source>
+        <translation>渲染完成，但无法创建 %1</translation>
+    </message>
+    <message>
+        <source>Render complete — %1 samples, exported to %2</source>
+        <translation>渲染完成 — %1 采样，已导出至 %2</translation>
+    </message>
+    <message>
+        <source>Render complete, but the export to %1 failed</source>
+        <translation>渲染完成，但导出至 %1 失败</translation>
     </message>
     <message>
         <source>Layout reset for %1</source>
@@ -1894,6 +1954,18 @@ Pick a node or a material in the scene tree.</source>
         <translation>Quantiloom SDK 不匹配</translation>
     </message>
     <message>
+        <source>Qt could not create a Vulkan device. The selected GPU is most likely missing the ray tracing extensions this renderer needs. On a laptop with both an integrated and a discrete GPU, check that Quantiloom is running on the discrete one.</source>
+        <translation>Qt 无法创建 Vulkan 设备。所选 GPU 很可能不支持本渲染器所需的光线追踪扩展。若使用同时具备核显与独显的笔记本，请确认 Quantiloom 运行在独立显卡上。</translation>
+    </message>
+    <message>
+        <source>The renderer could not start:
+
+%1</source>
+        <translation>渲染器无法启动：
+
+%1</translation>
+    </message>
+    <message>
         <source>Render context not initialized</source>
         <translation>渲染上下文尚未初始化</translation>
     </message>
@@ -2028,6 +2100,14 @@ This may take a few minutes.</source>
     <message>
         <source>Save the raw render, without display enhancement</source>
         <translation>保存原始渲染结果，不含显示增强</translation>
+    </message>
+    <message>
+        <source>Export EXR when the target is reached</source>
+        <translation>达到目标采样数时导出 EXR</translation>
+    </message>
+    <message>
+        <source>Writes beside the open configuration, named after it and the sample count. Has no effect in Infinite mode, which has no target to reach.</source>
+        <translation>写入到已打开配置的同目录，以配置名和采样数命名。无限模式没有目标采样数，此项不生效。</translation>
     </message>
     <message>
         <source>%1 x %2</source>

@@ -111,6 +111,10 @@ public:
                              const quantiloom::SpectralCurve& sky);
     void resetAccumulation();
     uint32_t currentSampleCount() const { return m_sampleCount; }
+
+    /// The SDK's trace time for the last frame, as distinct from the wall
+    /// clock the frameRendered signal carries.
+    [[nodiscard]] float lastGpuFrameTimeMs() const { return m_lastGpuFrameTimeMs; }
     uint32_t targetSPP() const { return m_targetSPP; }
     uint32_t samplingSeed() const { return m_samplingSeed; }
 
@@ -311,6 +315,9 @@ public:
 
 private:
     void updateCamera(float deltaTime);
+    /// Any of the six movement keys held. The frame loop idles when there is
+    /// no scene, so this is also what keeps it running for WASDQE.
+    [[nodiscard]] bool isCameraMoving() const;
 
     // Check if this is the first run (no pipeline cache)
     bool isFirstRun() const;
@@ -324,9 +331,11 @@ private:
     vkview::OverlayRenderer m_overlay;
     std::vector<editing::GizmoVertex> m_gizmoVertices;  // rebuilt per frame
 
-    // Frame timing
+    // Frame timing. Two figures, deliberately: wall clock around the whole
+    // callback, and the SDK's own trace timing.
     std::chrono::high_resolution_clock::time_point m_lastFrameTime;
     float m_lastFrameTimeMs = 0.0f;
+    float m_lastGpuFrameTimeMs = 0.0f;
 
     // Accumulation state
     uint32_t m_sampleCount = 0;

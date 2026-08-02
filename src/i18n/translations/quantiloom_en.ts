@@ -646,6 +646,22 @@ May cause colour shifts.</source>
         </translation>
     </message>
     <message>
+        <source>Frame %1 ms wall clock, %2 ms on the GPU</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Frame %1 ms wall clock</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>ETA %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Render complete — %1 samples in %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Node %1</source>
         <translation type="unfinished"></translation>
     </message>
@@ -968,6 +984,14 @@ May cause colour shifts.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>The renderer failed to start</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Renderer Unavailable</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Local space</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1132,6 +1156,18 @@ May cause colour shifts.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Discard the accumulated samples and render from scratch</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Resume Render</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Carry on from the samples already accumulated</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Reset &amp;Accumulation</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1286,7 +1322,31 @@ May cause colour shifts.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Resuming from %1 samples (infinite)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Resuming from %1 samples to %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Rendering stopped at %1 samples</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Render complete, but the image could not be captured</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Render complete, but %1 could not be created</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Render complete — %1 samples, exported to %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Render complete, but the export to %1 failed</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1860,6 +1920,16 @@ Pick a node or a material in the scene tree.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Qt could not create a Vulkan device. The selected GPU is most likely missing the ray tracing extensions this renderer needs. On a laptop with both an integrated and a discrete GPU, check that Quantiloom is running on the discrete one.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The renderer could not start:
+
+%1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Render context not initialized</source>
         <translation type="unfinished">Render context not initialized</translation>
     </message>
@@ -1985,6 +2055,14 @@ This may take a few minutes.</translation>
     </message>
     <message>
         <source>Save the raw render, without display enhancement</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Export EXR when the target is reached</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Writes beside the open configuration, named after it and the sample count. Has no effect in Infinite mode, which has no target to reach.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
