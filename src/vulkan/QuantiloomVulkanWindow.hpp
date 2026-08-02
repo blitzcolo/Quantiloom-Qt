@@ -31,6 +31,7 @@ struct Image;
 struct SensorParams;
 struct ComplexRefractiveIndex;
 struct AtmosphereNNConfig;
+struct SolarLutSpec;
 }
 
 class QuantiloomVulkanRenderer;
@@ -164,6 +165,10 @@ public:
      */
     int addComplexRefractiveIndex(const quantiloom::ComplexRefractiveIndex& cri);
     int addSpectralCurve(const quantiloom::SpectralCurve& curve);
+    /// See QuantiloomVulkanRenderer::setSolarLutFromSpec.
+    [[nodiscard]] std::optional<QString> setSolarLutFromSpec(
+        const quantiloom::SolarLutSpec& spec, const QString& baseDir);
+
     void setSolarSpectralLUT(const quantiloom::SpectralCurve& sun,
                              const quantiloom::SpectralCurve& sky);
 

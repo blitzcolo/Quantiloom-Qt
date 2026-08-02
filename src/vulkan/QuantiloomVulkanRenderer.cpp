@@ -430,6 +430,8 @@ void QuantiloomVulkanRenderer::applyConfig(std::shared_ptr<const quantiloom::Con
     m_runtimeRefractiveIndices.clear();
     m_runtimeSpectralCurves.clear();
     m_solarLut.reset();
+    m_solarLutSpec.reset();
+    m_solarLutBaseDir.clear();
     // A config supersedes whatever bare model was open; the scene it names is
     // loaded as part of applying it.
     m_currentScenePath.clear();
@@ -547,7 +549,12 @@ void QuantiloomVulkanRenderer::applyConfigToContext(bool isFreshOpen) {
         for (const auto& curve : m_runtimeSpectralCurves) {
             m_renderContext->AddSpectralCurve(curve);
         }
-        if (m_solarLut) {
+        // The spec wins when there is one: replaying the declaration re-reads
+        // the file, which is what the config path would have done.
+        if (m_solarLutSpec) {
+            (void)m_renderContext->SetSolarSpectralLUTFromSpec(
+                *m_solarLutSpec, m_solarLutBaseDir.toStdString());
+        } else if (m_solarLut) {
             m_renderContext->SetSolarSpectralLUT(m_solarLut->first, m_solarLut->second);
         }
     }
@@ -802,6 +809,30 @@ int QuantiloomVulkanRenderer::addSpectralCurve(const quantiloom::SpectralCurve& 
     if (m_renderContext)
         return m_renderContext->AddSpectralCurve(curve);
     return -1;
+}
+
+std::optional<QString> QuantiloomVulkanRenderer::setSolarLutFromSpec(
+    const quantiloom::SolarLutSpec& spec, const QString& baseDir) {
+    // The declaration is kept, not the curves: a rebuild replays the same
+    // reading rather than a snapshot of what it once produced.
+    m_solarLutSpec = spec;
+    m_solarLutBaseDir = baseDir;
+    m_solarLut.reset();   // superseded; the spec is now the source of truth
+
+    if (!m_renderContext) {
+        return std::nullopt;   // replayed once there is a context
+    }
+    auto result = m_renderContext->SetSolarSpectralLUTFromSpec(
+        spec, baseDir.toStdString());
+    if (!result.has_value()) {
+        return QString::fromStdString(result.error());
+    }
+    // The facade updated LightingParams from the spectrum; take it back so the
+    // shell's copy and the panels do not disagree with the render. The caller
+    // reads lightingParams() afterwards to refresh the widgets.
+    m_lightingParams = m_renderContext->GetLightingParams();
+    m_hasLightingParams = true;
+    return std::nullopt;
 }
 
 void QuantiloomVulkanRenderer::setSolarSpectralLUT(const quantiloom::SpectralCurve& sun,

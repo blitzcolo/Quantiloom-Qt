@@ -11,6 +11,7 @@
 #include <QHBoxLayout>
 #include <QGroupBox>
 #include <QCheckBox>
+#include <QComboBox>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QFontMetrics>
@@ -162,13 +163,153 @@ void LightingPanel::setupUi() {
     envLayout->addWidget(m_doubleCountNotice);
 
     mainLayout->addWidget(m_envGroup);
+
+    // ------------------------------------------------------------------
+    // Illuminant
+    // ------------------------------------------------------------------
+    // The sun's *spectrum*, as distinct from the RGB radiance above. Without
+    // one, the quantitative spectral modes render black -- the core refuses to
+    // substitute a standard spectrum, because a scene that silently acquired
+    // one would report radiance nobody asked for. Until now the only way to
+    // supply it was to hand-edit lighting.solar_lut into the TOML.
+    m_illuminantGroup = new QGroupBox(this);
+    auto* illuminantLayout = new QVBoxLayout(m_illuminantGroup);
+
+    m_illuminantCombo = new QComboBox(m_illuminantGroup);
+    // Data carries the kind; the display text is translated around it.
+    m_illuminantCombo->addItem(QString(), QStringLiteral("none"));
+    m_illuminantCombo->addItem(QString(), QStringLiteral("equal_energy"));
+    m_illuminantCombo->addItem(QString(), QStringLiteral("astm"));
+    m_illuminantCombo->addItem(QString(), QStringLiteral("file"));
+    connect(m_illuminantCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &LightingPanel::onIlluminantChanged);
+    illuminantLayout->addWidget(m_illuminantCombo);
+
+    m_illuminantPathLabel = new QLabel(m_illuminantGroup);
+    m_illuminantPathLabel->setMinimumWidth(1);
+    m_illuminantPathLabel->setVisible(false);
+    bindStyle([this] { uistyle::applyHintStyle(m_illuminantPathLabel); });
+    illuminantLayout->addWidget(m_illuminantPathLabel);
+
+    m_illuminantBrowseButton = new QPushButton(m_illuminantGroup);
+    m_illuminantBrowseButton->setVisible(false);
+    connect(m_illuminantBrowseButton, &QPushButton::clicked,
+            this, &LightingPanel::onBrowseIlluminant);
+    illuminantLayout->addWidget(m_illuminantBrowseButton);
+
+    // Reference spectra are published relative -- D65 is normalised to 100 at
+    // 560 nm -- so their absolute level is arbitrary and this is usually what
+    // is wanted. Both curves scale by the sun's luminance, keeping the ratio.
+    m_normaliseCheck = new QCheckBox(m_illuminantGroup);
+    m_normaliseCheck->setChecked(true);
+    connect(m_normaliseCheck, &QCheckBox::toggled,
+            this, &LightingPanel::onIlluminantChanged);
+    illuminantLayout->addWidget(m_normaliseCheck);
+
+    m_illuminantNotice = new QLabel(m_illuminantGroup);
+    m_illuminantNotice->setWordWrap(true);
+    m_illuminantNotice->setVisible(false);
+    bindStyle([this] { uistyle::applyNoticeStyle(m_illuminantNotice); });
+    illuminantLayout->addWidget(m_illuminantNotice);
+
+    mainLayout->addWidget(m_illuminantGroup);
     mainLayout->addStretch();
+}
+
+void LightingPanel::setSpectralModeIsQuantitative(bool quantitative) {
+    m_spectralModeQuantitative = quantitative;
+    updateIlluminantWidgets();
+}
+
+void LightingPanel::setIlluminant(const IlluminantChoice& choice) {
+    const QSignalBlocker blockCombo(m_illuminantCombo);
+    const QSignalBlocker blockNormalise(m_normaliseCheck);
+
+    m_illuminant = choice;
+    const int index = m_illuminantCombo->findData(choice.kind);
+    m_illuminantCombo->setCurrentIndex(index >= 0 ? index : 0);
+    m_normaliseCheck->setChecked(choice.normaliseUnitLuminance);
+    updateIlluminantWidgets();
+}
+
+LightingPanel::IlluminantChoice LightingPanel::illuminant() const {
+    return m_illuminant;
+}
+
+void LightingPanel::updateIlluminantWidgets() {
+    const QString kind = m_illuminantCombo->currentData().toString();
+    const bool isFile = (kind == QLatin1String("file"));
+
+    m_illuminantBrowseButton->setVisible(isFile);
+    m_illuminantPathLabel->setVisible(isFile);
+    if (isFile) {
+        m_illuminantPathLabel->setText(
+            m_illuminant.path.isEmpty()
+                ? tr("No spectrum chosen")
+                : QFontMetrics(m_illuminantPathLabel->font())
+                      .elidedText(m_illuminant.path, Qt::ElideMiddle,
+                                  std::max(80, m_illuminantPathLabel->width())));
+        m_illuminantPathLabel->setToolTip(m_illuminant.path);
+    }
+    // Normalisation is meaningless with no spectrum to normalise.
+    m_normaliseCheck->setEnabled(kind != QLatin1String("none"));
+
+    // The core's own diagnostic, said before the render rather than after:
+    // a spectral mode with no illuminant is the black-frame case.
+    const bool missing = m_spectralModeQuantitative && kind == QLatin1String("none");
+    m_illuminantNotice->setVisible(missing);
+    if (missing) {
+        m_illuminantNotice->setText(
+            tr("This spectral mode needs an illuminant spectrum. Without one the "
+               "render is black — the renderer will not substitute a standard "
+               "spectrum, because a scene that acquired one silently would report "
+               "radiance nobody asked for."));
+    }
+}
+
+void LightingPanel::onIlluminantChanged() {
+    m_illuminant.kind = m_illuminantCombo->currentData().toString();
+    m_illuminant.normaliseUnitLuminance = m_normaliseCheck->isChecked();
+    updateIlluminantWidgets();
+    // A file chosen but not yet browsed for is not a change worth applying.
+    if (m_illuminant.kind == QLatin1String("file") && m_illuminant.path.isEmpty()) {
+        return;
+    }
+    emit illuminantChanged(m_illuminant);
+}
+
+void LightingPanel::onBrowseIlluminant() {
+    const QString path = QFileDialog::getOpenFileName(
+        this, tr("Choose an Illuminant Spectrum"), QString(),
+        tr("Spectrum files (*.csv *.txt *.dat);;All Files (*)"));
+    if (path.isEmpty()) {
+        return;
+    }
+    m_illuminant.path = path;
+    updateIlluminantWidgets();
+    emit illuminantChanged(m_illuminant);
 }
 
 void LightingPanel::retranslateUi() {
     m_sunDirGroup->setTitle(tr("Sun Direction"));
     m_azimuthCaption->setText(tr("Azimuth:"));
     m_elevationCaption->setText(tr("Elevation:"));
+
+    m_illuminantGroup->setTitle(tr("Illuminant"));
+    m_illuminantCombo->setItemText(0, tr("None — RGB radiance only"));
+    m_illuminantCombo->setItemText(1, tr("Equal energy (CIE E)"));
+    m_illuminantCombo->setItemText(2, tr("ASTM G-173 (bundled)"));
+    m_illuminantCombo->setItemText(3, tr("From file..."));
+    m_illuminantCombo->setToolTip(
+        tr("The sun's spectrum, as distinct from the RGB radiance above. The "
+           "quantitative spectral modes need one to render anything at all."));
+    m_illuminantBrowseButton->setText(tr("Choose Spectrum..."));
+    m_normaliseCheck->setText(tr("Normalise to unit luminance"));
+    m_normaliseCheck->setToolTip(
+        tr("Published reference spectra are relative, so their absolute level is "
+           "arbitrary. Both curves scale by the sun's luminance, which keeps the "
+           "sun-to-sky ratio the measurement actually recorded."));
+    updateIlluminantWidgets();
 
     m_radianceGroup->setTitle(tr("Radiance"));
     m_sunCaption->setText(tr("Sun:"));

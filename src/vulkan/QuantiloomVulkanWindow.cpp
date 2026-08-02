@@ -351,6 +351,14 @@ int QuantiloomVulkanWindow::addSpectralCurve(const quantiloom::SpectralCurve& cu
     return -1;
 }
 
+std::optional<QString> QuantiloomVulkanWindow::setSolarLutFromSpec(
+    const quantiloom::SolarLutSpec& spec, const QString& baseDir) {
+    if (!m_renderer) {
+        return QObject::tr("The renderer is not ready yet.");
+    }
+    return m_renderer->setSolarLutFromSpec(spec, baseDir);
+}
+
 void QuantiloomVulkanWindow::setSolarSpectralLUT(const quantiloom::SpectralCurve& sun,
                                                  const quantiloom::SpectralCurve& sky) {
     if (m_renderer)

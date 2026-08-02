@@ -483,6 +483,22 @@ May cause colour shifts.</source>
         <translation>光照</translation>
     </message>
     <message>
+        <source>No spectrum chosen</source>
+        <translation>未选择光谱文件</translation>
+    </message>
+    <message>
+        <source>This spectral mode needs an illuminant spectrum. Without one the render is black — the renderer will not substitute a standard spectrum, because a scene that acquired one silently would report radiance nobody asked for.</source>
+        <translation>该光谱模式需要光源光谱。没有光源则渲染为全黑——渲染器不会自行代入标准光谱，因为悄悄获得光谱的场景会报出无人要求的辐亮度。</translation>
+    </message>
+    <message>
+        <source>Choose an Illuminant Spectrum</source>
+        <translation>选择光源光谱</translation>
+    </message>
+    <message>
+        <source>Spectrum files (*.csv *.txt *.dat);;All Files (*)</source>
+        <translation>光谱文件 (*.csv *.txt *.dat);;所有文件 (*)</translation>
+    </message>
+    <message>
         <source>Sun Direction</source>
         <translation>太阳方向</translation>
     </message>
@@ -493,6 +509,42 @@ May cause colour shifts.</source>
     <message>
         <source>Elevation:</source>
         <translation>仰角:</translation>
+    </message>
+    <message>
+        <source>Illuminant</source>
+        <translation>光源</translation>
+    </message>
+    <message>
+        <source>None — RGB radiance only</source>
+        <translation>无 — 仅用 RGB 辐亮度</translation>
+    </message>
+    <message>
+        <source>Equal energy (CIE E)</source>
+        <translation>等能光源（CIE E）</translation>
+    </message>
+    <message>
+        <source>ASTM G-173 (bundled)</source>
+        <translation>ASTM G-173（内置）</translation>
+    </message>
+    <message>
+        <source>From file...</source>
+        <translation>从文件选择……</translation>
+    </message>
+    <message>
+        <source>The sun&apos;s spectrum, as distinct from the RGB radiance above. The quantitative spectral modes need one to render anything at all.</source>
+        <translation>太阳的光谱，区别于上方的 RGB 辐亮度。量化光谱模式必须有它才能渲染出任何东西。</translation>
+    </message>
+    <message>
+        <source>Choose Spectrum...</source>
+        <translation>选择光谱……</translation>
+    </message>
+    <message>
+        <source>Normalise to unit luminance</source>
+        <translation>归一化到单位亮度</translation>
+    </message>
+    <message>
+        <source>Published reference spectra are relative, so their absolute level is arbitrary. Both curves scale by the sun&apos;s luminance, which keeps the sun-to-sky ratio the measurement actually recorded.</source>
+        <translation>已发布的参考光谱是相对值，绝对量级是任意的。两条曲线都按太阳的亮度缩放，从而保留测量实际记录下来的日天比。</translation>
     </message>
     <message>
         <source>Radiance</source>
@@ -662,6 +714,28 @@ May cause colour shifts.</source>
     <message>
         <source>Render complete — %1 samples in %2</source>
         <translation>渲染完成 — %1 采样，用时 %2</translation>
+    </message>
+    <message>
+        <source>Select a material in the scene first</source>
+        <translation>请先在场景中选择一个材质</translation>
+    </message>
+    <message>
+        <source>Assign Failed</source>
+        <translation>指派失败</translation>
+    </message>
+    <message>
+        <source>The %1 spectral database was not found beside the application or in the working directory.</source>
+        <translation>在应用程序目录和工作目录下都未找到 %1 光谱数据库。</translation>
+    </message>
+    <message>
+        <source>Could not reconstruct &apos;%1&apos; in the %2 band:
+%3</source>
+        <translation>无法在 %2 波段重建 &apos;%1&apos;：
+%3</translation>
+    </message>
+    <message>
+        <source>Assigned %1 (%2, %3 band)</source>
+        <translation>已指派 %1（%2，%3 波段）</translation>
     </message>
     <message>
         <source>Node %1</source>
@@ -950,6 +1024,32 @@ May cause colour shifts.</source>
     <message>
         <source>Target samples: %1</source>
         <translation>目标采样数：%1</translation>
+    </message>
+    <message>
+        <source>Illuminant: RGB radiance only</source>
+        <translation>光源：仅用 RGB 辐亮度</translation>
+    </message>
+    <message>
+        <source>Illuminant Not Found</source>
+        <translation>未找到光源文件</translation>
+    </message>
+    <message>
+        <source>assets/luts/astmg173.csv was not found beside the application or in the working directory.</source>
+        <translation>在应用程序目录和工作目录下都未找到 assets/luts/astmg173.csv。</translation>
+    </message>
+    <message>
+        <source>Illuminant Failed</source>
+        <translation>光源加载失败</translation>
+    </message>
+    <message>
+        <source>Could not load the illuminant:
+%1</source>
+        <translation>无法加载光源：
+%1</translation>
+    </message>
+    <message>
+        <source>Illuminant loaded</source>
+        <translation>光源已加载</translation>
     </message>
     <message>
         <source>Sensor parameters updated</source>
@@ -2023,6 +2123,10 @@ Pick a node or a material in the scene tree.</source>
         <source>Failed to load configuration: %1</source>
         <translation>加载配置失败：%1</translation>
     </message>
+    <message>
+        <source>The renderer is not ready yet.</source>
+        <translation>渲染器尚未就绪。</translation>
+    </message>
 </context>
 <context>
     <name>QuantiloomVulkanRenderer</name>
@@ -2695,6 +2799,93 @@ Not suitable for quantitative analysis. Load measured spectral materials for acc
     <message>
         <source>Bands: %1</source>
         <translation type="vanished">波段数: %1</translation>
+    </message>
+</context>
+<context>
+    <name>SpectralLibraryPanel</name>
+    <message>
+        <source>%1
+Database: %2
+Coverage — VIS %3%, NIR %4%, SWIR %5%</source>
+        <translation>%1
+数据库：%2
+覆盖度 — VIS %3%，NIR %4%，SWIR %5%</translation>
+    </message>
+    <message>
+        <source>Material</source>
+        <translation>材质</translation>
+    </message>
+    <message>
+        <source>Database</source>
+        <translation>数据库</translation>
+    </message>
+    <message>
+        <source>Category</source>
+        <translation>类别</translation>
+    </message>
+    <message>
+        <source>Coverage</source>
+        <translation>覆盖度</translation>
+    </message>
+    <message>
+        <source>The spectral databases are installed but contain no entries.</source>
+        <translation>光谱数据库已安装，但其中没有条目。</translation>
+    </message>
+    <message>
+        <source>Could not read the spectral databases: %1</source>
+        <translation>无法读取光谱数据库：%1</translation>
+    </message>
+    <message>
+        <source>Spectral Library</source>
+        <translation>光谱库</translation>
+    </message>
+    <message numerus="yes">
+        <source>Search %n material(s)...</source>
+        <translation>
+            <numerusform>搜索 %n 种材质……</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>All databases</source>
+        <translation>全部数据库</translation>
+    </message>
+    <message>
+        <source>Reflectance preview</source>
+        <translation>反射率预览</translation>
+    </message>
+    <message>
+        <source>Band:</source>
+        <translation>波段：</translation>
+    </message>
+    <message>
+        <source>Reflectance</source>
+        <translation>反射率</translation>
+    </message>
+    <message>
+        <source>Select a material to preview its measured spectrum.</source>
+        <translation>选择一个材质以预览其实测光谱。</translation>
+    </message>
+    <message>
+        <source>Assign to Material</source>
+        <translation>指派到材质</translation>
+    </message>
+    <message>
+        <source>Replaces the material&apos;s colour with this measured spectrum. Undoable, and written to the configuration on save.</source>
+        <translation>用这条实测光谱替换该材质的颜色。可撤销，并在保存时写入配置。</translation>
+    </message>
+    <message>
+        <source>Select a material in the scene to assign to.</source>
+        <translation>请在场景中选择要指派的材质。</translation>
+    </message>
+    <message>
+        <source>Assigning to: %1</source>
+        <translation>指派目标：%1</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n material(s) shown</source>
+        <translation>
+            <numerusform>显示 %n 种材质</numerusform>
+        </translation>
     </message>
 </context>
 <context>
@@ -3574,6 +3765,13 @@ Right-drag orbits the camera, middle-drag pans, the wheel zooms; G/R/T switch tr
     <message>
         <source>%1 (%2 spp)</source>
         <translation>%1（%2 采样／像素）</translation>
+    </message>
+</context>
+<context>
+    <name>uiplot::SpectrumPlotWidget</name>
+    <message>
+        <source>Wavelength (nm)</source>
+        <translation>波长 (nm)</translation>
     </message>
 </context>
 </TS>

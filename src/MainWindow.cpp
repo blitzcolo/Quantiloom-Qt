@@ -12,6 +12,7 @@
 #include "panels/LightingPanel.hpp"
 #include "panels/RenderSettingsPanel.hpp"
 #include "panels/SpectralConfigPanel.hpp"
+#include "panels/SpectralLibraryPanel.hpp"
 #include "panels/DebugVisualizationPanel.hpp"
 #include "panels/AtmosphericPanel.hpp"
 #include "panels/SensorPanel.hpp"
@@ -74,6 +75,7 @@
 #include <core/Image.hpp>
 #include <io/ImageIO.hpp>
 #include <io/SpectralIO.hpp>
+#include <renderer/ExternalRenderContext.hpp>
 #include <core/Log.hpp>
 #include <scene/Material.hpp>
 #include <scene/Scene.hpp>
@@ -787,6 +789,14 @@ void MainWindow::applyDebugMode(quantiloom::DebugVisualizationMode mode) {
 }
 
 void MainWindow::applySpectralMode(quantiloom::SpectralMode mode) {
+    // The illuminant warning is about this: a quantitative mode with no
+    // spectrum renders black. RGB and the preview-only fused bands do not
+    // need one.
+    if (m_lightingPanel) {
+        m_lightingPanel->setSpectralModeIsQuantitative(
+            mode != quantiloom::SpectralMode::RGB &&
+            !catalog::spectralModeIsPreviewOnly(mode));
+    }
     m_vulkanWindow->setSpectralMode(mode);
 
     if (QAction* action = m_spectralActions.value(static_cast<int>(mode), nullptr)) {
@@ -915,6 +925,78 @@ void MainWindow::applyEnvironmentMap(const QString& path, bool enabled) {
             ? tr("Lighting from %1").arg(QFileInfo(path).fileName())
             : tr("Environment map off — it contributes no light"));
     }
+}
+
+void MainWindow::applyIlluminant(const LightingPanel::IlluminantChoice& choice) {
+    m_illuminant = choice;
+    m_lightingPanel->setIlluminant(choice);
+
+    // "none" is the RGB fallback: there is nothing to load, and the LUT
+    // already in the context stays until a scene reload clears it. Saying so
+    // is the panel's warning, not an error here.
+    if (choice.kind == QLatin1String("none")) {
+        setSceneModified(true);
+        showStatusMessage(tr("Illuminant: RGB radiance only"));
+        return;
+    }
+
+    quantiloom::SolarLutSpec spec;
+    spec.normaliseUnitLuminance = choice.normaliseUnitLuminance;
+    QString baseDir;
+
+    if (choice.kind == QLatin1String("equal_energy")) {
+        spec.pathOrEqualEnergy = "equal_energy";
+    } else if (choice.kind == QLatin1String("astm")) {
+        // ASTM G-173's column 3 is global irradiance -- direct included -- so
+        // using it as the diffuse sky would count the sun twice. The core
+        // documents this layout; the panel should not have to know it.
+        const QString bundled = resolveBundledIlluminant();
+        if (bundled.isEmpty()) {
+            QMessageBox::warning(this, tr("Illuminant Not Found"),
+                tr("assets/luts/astmg173.csv was not found beside the application "
+                   "or in the working directory."));
+            return;
+        }
+        spec.pathOrEqualEnergy = QDir::toNativeSeparators(bundled).toStdString();
+        spec.directColumn = 4;
+        spec.diffuseColumn = 3;
+        spec.diffuseIsGlobal = true;
+    } else {
+        if (choice.path.isEmpty()) {
+            return;
+        }
+        spec.pathOrEqualEnergy = QDir::toNativeSeparators(choice.path).toStdString();
+        baseDir = QFileInfo(choice.path).absolutePath();
+    }
+
+    if (const auto error = m_vulkanWindow->setSolarLutFromSpec(spec, baseDir)) {
+        QMessageBox::warning(this, tr("Illuminant Failed"),
+            tr("Could not load the illuminant:\n%1").arg(*error));
+        return;
+    }
+
+    // The core derived sun and sky RGB from the spectrum so that both halves
+    // of the renderer describe one sun; take that back into the shell's copy
+    // and the panel, or they would keep showing the values it replaced.
+    *m_lightingParams = m_vulkanWindow->lightingParams();
+    m_lightingPanel->setLightingParams(*m_lightingParams);
+
+    setSceneModified(true);
+    showStatusMessage(tr("Illuminant loaded"));
+}
+
+QString MainWindow::resolveBundledIlluminant() {
+    // Same candidate order as every other bundled asset.
+    const QStringList candidates{
+        QDir::currentPath() + QStringLiteral("/assets/luts/astmg173.csv"),
+        QCoreApplication::applicationDirPath() + QStringLiteral("/assets/luts/astmg173.csv"),
+    };
+    for (const QString& path : candidates) {
+        if (QFileInfo::exists(path)) {
+            return path;
+        }
+    }
+    return {};
 }
 
 void MainWindow::applyAtmosphere(const quantiloom::AtmosphereNNConfig& config) {
@@ -1292,6 +1374,7 @@ void MainWindow::setupDockWidgets() {
     m_lightingPanel = new LightingPanel();
     m_renderSettingsPanel = new RenderSettingsPanel();
     m_spectralConfigPanel = new SpectralConfigPanel();
+    m_spectralLibraryPanel = new SpectralLibraryPanel();
     m_debugVisualizationPanel = new DebugVisualizationPanel();
     m_atmosphericPanel = new AtmosphericPanel();
     m_sensorPanel = new SensorPanel();
@@ -1310,6 +1393,7 @@ void MainWindow::setupDockWidgets() {
     createPanelDock(m_sensorPanel, Qt::RightDockWidgetArea);
     createPanelDock(m_renderSettingsPanel, Qt::RightDockWidgetArea);
     createPanelDock(m_spectralConfigPanel, Qt::RightDockWidgetArea);
+    createPanelDock(m_spectralLibraryPanel, Qt::RightDockWidgetArea);
     createPanelDock(m_debugVisualizationPanel, Qt::RightDockWidgetArea);
 
     // The generator is a full offline workflow -- table, chart, file import and
@@ -1354,6 +1438,11 @@ void MainWindow::setupDockWidgets() {
     connect(m_sceneTreePanel, &SceneTreePanel::materialSelected,
             this, &MainWindow::onMaterialSelected);
 
+    connect(m_spectralLibraryPanel, &SpectralLibraryPanel::previewRequested,
+            this, &MainWindow::onSpectralPreviewRequested);
+    connect(m_spectralLibraryPanel, &SpectralLibraryPanel::assignRequested,
+            this, &MainWindow::onSpectralMaterialAssigned);
+
     connect(m_materialEditorPanel, &MaterialEditorPanel::materialChanged,
             this, &MainWindow::onMaterialChanged);
 
@@ -1382,6 +1471,8 @@ void MainWindow::setupDockWidgets() {
             this, &MainWindow::onLightingChanged);
     connect(m_lightingPanel, &LightingPanel::environmentMapChanged,
             this, &MainWindow::onEnvironmentMapChanged);
+    connect(m_lightingPanel, &LightingPanel::illuminantChanged,
+            this, &MainWindow::applyIlluminant);
 
     // A slider drag applies live but enters the history once, as one entry
     // from where the drag started to where it ended. Snapshot on press,
@@ -3090,6 +3181,9 @@ void MainWindow::onMaterialSelected(int materialIndex) {
         m_materialEditorPanel->setMaterial(materialIndex, &material);
         m_propertiesPanel->showMaterial();
         m_spectralMaterialGenPanel->setCurrentMaterialIndex(materialIndex);
+        m_currentMaterialIndex = materialIndex;
+        m_spectralLibraryPanel->setTargetMaterial(
+            materialIndex, QString::fromStdString(material.name));
         if (QDockWidget* dock = m_docks.value(QStringLiteral("properties"), nullptr)) {
             dock->show();
             dock->raise();
@@ -3145,6 +3239,111 @@ void MainWindow::onMaterialWithCriChanged(int index, const quantiloom::Material&
         updated.complexRefractiveIndexIndex = criIndex;
     }
     onMaterialChanged(index, updated);
+}
+
+std::filesystem::path MainWindow::spectralDatabasePath(const QString& databaseId,
+                                                       bool basisFile) {
+    // Same candidate order as the atmosphere model pack: working directory
+    // first, so a Studio launched from the repo root uses the checked-in
+    // databases, then beside the executable for an installed build.
+    const QString leaf = basisFile
+        ? QStringLiteral("quantiloom_basis_v3_%1.qlbin").arg(databaseId)
+        : QStringLiteral("quantiloom_materials_%1.json").arg(databaseId);
+    const QStringList roots{
+        QDir::currentPath() + QStringLiteral("/assets/spectral"),
+        QCoreApplication::applicationDirPath() + QStringLiteral("/assets/spectral"),
+    };
+    for (const QString& root : roots) {
+        const QString candidate = QDir(root).filePath(leaf);
+        if (QFileInfo::exists(candidate)) {
+            return std::filesystem::path(
+                QDir::toNativeSeparators(candidate).toStdWString());
+        }
+    }
+    return {};
+}
+
+void MainWindow::onSpectralPreviewRequested(const QString& databaseId,
+                                            const QString& materialName,
+                                            const QString& band) {
+    // The panel names what it wants to see; reconstructing it is the shell's
+    // job, through the SDK function the renderer itself uses. A curve drawn
+    // from a second implementation would be a preview of something other than
+    // what renders.
+    const auto basis = spectralDatabasePath(databaseId, /*basisFile=*/true);
+    const auto materials = spectralDatabasePath(databaseId, /*basisFile=*/false);
+    if (basis.empty() || materials.empty()) {
+        m_spectralLibraryPanel->setPreviewCurve({}, QString());
+        return;
+    }
+
+    auto curve = quantiloom::SpectralIO::ReconstructBasisCurve(
+        basis, materials, materialName.toStdString(), band.toStdString());
+    if (!curve.has_value()) {
+        // Not an error dialog: a database that does not carry this band is a
+        // normal thing to click on, and the plot's placeholder says so.
+        m_spectralLibraryPanel->setPreviewCurve({}, QString());
+        return;
+    }
+
+    QVector<QPair<double, double>> points;
+    points.reserve(static_cast<int>(curve.value().samples.size()));
+    for (const auto& [lambda, value] : curve.value().samples) {
+        points.append({static_cast<double>(lambda), static_cast<double>(value)});
+    }
+    m_spectralLibraryPanel->setPreviewCurve(points, materialName);
+}
+
+void MainWindow::onSpectralMaterialAssigned(const QString& databaseId,
+                                            const QString& materialName) {
+    const quantiloom::Scene* scene = m_vulkanWindow->getScene();
+    if (!scene || m_currentMaterialIndex < 0 ||
+        static_cast<size_t>(m_currentMaterialIndex) >= scene->materials.size()) {
+        showStatusMessage(tr("Select a material in the scene first"));
+        return;
+    }
+
+    const auto basis = spectralDatabasePath(databaseId, /*basisFile=*/true);
+    const auto materials = spectralDatabasePath(databaseId, /*basisFile=*/false);
+    if (basis.empty() || materials.empty()) {
+        QMessageBox::warning(this, tr("Assign Failed"),
+            tr("The %1 spectral database was not found beside the application "
+               "or in the working directory.").arg(databaseId));
+        return;
+    }
+
+    // The band the viewport is actually rendering, so what appears is what was
+    // previewed. VIS covers the RGB case, which has no band of its own.
+    const quantiloom::SpectralMode mode = m_vulkanWindow->spectralMode();
+    QString band = QStringLiteral("VIS");
+    if (mode == quantiloom::SpectralMode::NIR_Fused)  band = QStringLiteral("NIR");
+    if (mode == quantiloom::SpectralMode::SWIR_Fused) band = QStringLiteral("SWIR");
+
+    auto curve = quantiloom::SpectralIO::ReconstructBasisCurve(
+        basis, materials, materialName.toStdString(), band.toStdString());
+    if (!curve.has_value()) {
+        QMessageBox::warning(this, tr("Assign Failed"),
+            tr("Could not reconstruct '%1' in the %2 band:\n%3")
+                .arg(materialName, band, QString::fromStdString(curve.error())));
+        return;
+    }
+
+    // The runtime half: the curve joins the pool and the material points at
+    // it. The type and reference are set too, because those are what the
+    // configuration carries -- the curve index is a session-local pool
+    // position, and re-deriving it on load is ApplyConfig's job.
+    quantiloom::Material updated = scene->materials[static_cast<size_t>(m_currentMaterialIndex)];
+    const int curveIndex = m_vulkanWindow->addSpectralCurve(curve.value());
+    if (curveIndex >= 0) {
+        updated.spectralReflectanceCurveIndex = curveIndex;
+    }
+    updated.quantiloomMaterialType = ("quantiloom_" + databaseId).toStdString();
+    updated.quantiloomMaterialRef = materialName.toStdString();
+
+    // Through the ordinary material-edit path, which makes the assignment
+    // undoable and marks the material as edited so it is written on save.
+    onMaterialChanged(m_currentMaterialIndex, updated);
+    showStatusMessage(tr("Assigned %1 (%2, %3 band)").arg(materialName, databaseId, band));
 }
 
 void MainWindow::onCameraChanged() {
@@ -3293,6 +3492,29 @@ void MainWindow::applyConfig(const SceneConfig& config) {
 
     m_lightingPanel->setEnvironmentMap(config.environmentMap, config.environmentMapEnabled);
 
+    // The illuminant the document names, mapped back onto the panel's choice.
+    // The bundled ASTM spectrum is recognised by its column layout rather than
+    // its path, so a config that names its own copy still reads as "ASTM".
+    {
+        LightingPanel::IlluminantChoice choice;
+        if (config.solarLutPath.isEmpty()) {
+            choice.kind = QStringLiteral("none");
+        } else if (config.solarLutPath == QLatin1String("equal_energy")) {
+            choice.kind = QStringLiteral("equal_energy");
+        } else if (config.solarLutDiffuseIsGlobal &&
+                   config.solarLutColumns.size() >= 2 &&
+                   config.solarLutColumns[0] == 4 && config.solarLutColumns[1] == 3) {
+            choice.kind = QStringLiteral("astm");
+        } else {
+            choice.kind = QStringLiteral("file");
+            choice.path = config.solarLutPath;
+        }
+        choice.normaliseUnitLuminance =
+            config.solarLutNormalise == QLatin1String("unit_luminance");
+        m_illuminant = choice;
+        m_lightingPanel->setIlluminant(choice);
+    }
+
     m_atmosphericPanel->setPreset(config.atmosphericPreset);
     m_atmosphericPanel->setAtmosphericConfig(config.atmosphere);
     m_atmosphericPanel->setAnalyticTerms(config.lighting.transmittance,
@@ -3373,6 +3595,36 @@ void MainWindow::collectCurrentConfig(SceneConfig& config) {
     // the carried-forward copy is the only other source and it goes stale the
     // moment anything sets a new one.
     config.samplingSeed = m_vulkanWindow->samplingSeed();
+
+    // The illuminant, as the core's own keys. The panel holds a choice; these
+    // are what a scene file says, and what ResolveSolarLut reads back.
+    if (m_illuminant.kind == QLatin1String("none")) {
+        config.solarLutPath.clear();
+        config.solarLutColumns.clear();
+        config.solarLutNormalise.clear();
+        config.solarLutDiffuseIsGlobal = false;
+    } else if (m_illuminant.kind == QLatin1String("equal_energy")) {
+        config.solarLutPath = QStringLiteral("equal_energy");
+        config.solarLutColumns.clear();
+        config.solarLutDiffuseIsGlobal = false;
+        config.solarLutNormalise = m_illuminant.normaliseUnitLuminance
+            ? QStringLiteral("unit_luminance") : QString();
+    } else if (m_illuminant.kind == QLatin1String("astm")) {
+        config.solarLutPath = QStringLiteral("assets/luts/astmg173.csv");
+        config.solarLutColumns = {4, 3};
+        config.solarLutDiffuseIsGlobal = true;
+        config.solarLutNormalise = m_illuminant.normaliseUnitLuminance
+            ? QStringLiteral("unit_luminance") : QString();
+    } else if (!m_illuminant.path.isEmpty()) {
+        config.solarLutPath = m_illuminant.path;
+        // The core's libRadtran defaults; a file chosen by hand is assumed to
+        // be in that layout, which is the only thing this shell could assume
+        // without reading the file itself.
+        config.solarLutColumns.clear();
+        config.solarLutDiffuseIsGlobal = false;
+        config.solarLutNormalise = m_illuminant.normaliseUnitLuminance
+            ? QStringLiteral("unit_luminance") : QString();
+    }
 
     // Spectral. The panel used to be described as "tracking these internally",
     // which meant nothing read them back and a mode change never reached the

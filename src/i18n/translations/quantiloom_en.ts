@@ -478,6 +478,22 @@ May cause colour shifts.</source>
         <translation type="unfinished">Lighting</translation>
     </message>
     <message>
+        <source>No spectrum chosen</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This spectral mode needs an illuminant spectrum. Without one the render is black — the renderer will not substitute a standard spectrum, because a scene that acquired one silently would report radiance nobody asked for.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose an Illuminant Spectrum</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Spectrum files (*.csv *.txt *.dat);;All Files (*)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Sun Direction</source>
         <translation>Sun Direction</translation>
     </message>
@@ -488,6 +504,42 @@ May cause colour shifts.</source>
     <message>
         <source>Elevation:</source>
         <translation>Elevation:</translation>
+    </message>
+    <message>
+        <source>Illuminant</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>None — RGB radiance only</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Equal energy (CIE E)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>ASTM G-173 (bundled)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>From file...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The sun&apos;s spectrum, as distinct from the RGB radiance above. The quantitative spectral modes need one to render anything at all.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose Spectrum...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Normalise to unit luminance</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Published reference spectra are relative, so their absolute level is arbitrary. Both curves scale by the sun&apos;s luminance, which keeps the sun-to-sky ratio the measurement actually recorded.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Radiance</source>
@@ -659,6 +711,27 @@ May cause colour shifts.</source>
     </message>
     <message>
         <source>Render complete — %1 samples in %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Select a material in the scene first</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Assign Failed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The %1 spectral database was not found beside the application or in the working directory.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Could not reconstruct &apos;%1&apos; in the %2 band:
+%3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Assigned %1 (%2, %3 band)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -943,6 +1016,31 @@ May cause colour shifts.</source>
     </message>
     <message>
         <source>Target samples: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Illuminant: RGB radiance only</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Illuminant Not Found</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>assets/luts/astmg173.csv was not found beside the application or in the working directory.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Illuminant Failed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Could not load the illuminant:
+%1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Illuminant loaded</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1988,6 +2086,10 @@ Pick a node or a material in the scene tree.</source>
         <source>Failed to load configuration: %1</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>The renderer is not ready yet.</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>QuantiloomVulkanRenderer</name>
@@ -2642,6 +2744,93 @@ Not suitable for quantitative analysis. Load measured spectral materials for acc
     <message>
         <source>Bands: %1</source>
         <translation type="vanished">Bands: %1</translation>
+    </message>
+</context>
+<context>
+    <name>SpectralLibraryPanel</name>
+    <message>
+        <source>%1
+Database: %2
+Coverage — VIS %3%, NIR %4%, SWIR %5%</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Material</source>
+        <translation type="unfinished">Material</translation>
+    </message>
+    <message>
+        <source>Database</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Category</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Coverage</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The spectral databases are installed but contain no entries.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Could not read the spectral databases: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Spectral Library</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>Search %n material(s)...</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>All databases</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Reflectance preview</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Band:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Reflectance</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Select a material to preview its measured spectrum.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Assign to Material</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Replaces the material&apos;s colour with this measured spectrum. Undoable, and written to the configuration on save.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Select a material in the scene to assign to.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Assigning to: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>%n material(s) shown</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
     </message>
 </context>
 <context>
@@ -3520,6 +3709,13 @@ Right-drag orbits the camera, middle-drag pans, the wheel zooms; G/R/T switch tr
     <message>
         <source>%1 (%2 spp)</source>
         <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>uiplot::SpectrumPlotWidget</name>
+    <message>
+        <source>Wavelength (nm)</source>
+        <translation type="unfinished">Wavelength (nm)</translation>
     </message>
 </context>
 </TS>

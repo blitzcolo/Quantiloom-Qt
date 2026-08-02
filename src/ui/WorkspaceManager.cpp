@@ -79,9 +79,13 @@ QVector<WorkspaceManager::DockPlacement> WorkspaceManager::preset(const QString&
         // floating window; given a column of its own rather than a strip along
         // the bottom, it earns the space.
         return {
-            {QStringLiteral("scene"),       Qt::LeftDockWidgetArea,  false, 495, 665},
-            {QStringLiteral("properties"),  Qt::LeftDockWidgetArea,  false, 0,   308},
-            {QStringLiteral("spectralgen"), Qt::RightDockWidgetArea, false, 474},
+            {QStringLiteral("scene"),            Qt::LeftDockWidgetArea,  false, 495, 665},
+            {QStringLiteral("properties"),       Qt::LeftDockWidgetArea,  false, 0,   308},
+            // The measured-material databases belong in the workspace where
+            // materials are prepared, beside the generator that makes curves
+            // by hand rather than by measurement.
+            {QStringLiteral("spectral_library"), Qt::RightDockWidgetArea, false, 474, 620},
+            {QStringLiteral("spectralgen"),      Qt::RightDockWidgetArea, false, 474},
         };
     }
     if (id == QLatin1String("debug")) {

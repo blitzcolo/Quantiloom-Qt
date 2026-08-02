@@ -9,6 +9,8 @@
 
 #include "ui/UiStyle.hpp"
 #include "editing/Commands.hpp"
+// For IlluminantChoice, held by value below.
+#include "panels/LightingPanel.hpp"
 
 #include <QMainWindow>
 #include <QVulkanInstance>
@@ -16,6 +18,7 @@
 #include <QMap>
 #include <QSet>
 #include <QStringList>
+#include <filesystem>
 #include <memory>
 #include <vector>
 
@@ -60,6 +63,7 @@ class MaterialEditorPanel;
 class LightingPanel;
 class RenderSettingsPanel;
 class SpectralConfigPanel;
+class SpectralLibraryPanel;
 class DebugVisualizationPanel;
 class AtmosphericPanel;
 class SensorPanel;
@@ -176,6 +180,11 @@ private slots:
     void onMaterialWithCriChanged(int index, const quantiloom::Material& material,
                                   const quantiloom::ComplexRefractiveIndex& cri);
     void onCameraChanged();
+    /// The spectral library asked to see a curve, or to assign one. Panels do
+    /// not touch the SDK; these do the reconstruction and the upload.
+    void onSpectralPreviewRequested(const QString& databaseId,
+                                    const QString& materialName, const QString& band);
+    void onSpectralMaterialAssigned(const QString& databaseId, const QString& materialName);
     void onViewportClicked(const QPointF& screenPos, Qt::KeyboardModifiers modifiers);
     void onSelectionChanged(const QSet<int>& selectedNodes);
     void onGizmoDragStarted();
@@ -321,11 +330,22 @@ private:
     [[nodiscard]] static QString formatDuration(qint64 ms);
     /// The path of a single dropped .toml, or empty for anything else.
     [[nodiscard]] static QString droppedConfigPath(const QMimeData* mime);
+    /// Locate one of the baked NMF databases, or an empty path when the
+    /// assets are not installed.
+    [[nodiscard]] static std::filesystem::path spectralDatabasePath(
+        const QString& databaseId, bool basisFile);
     /// World-space AABB over every live node. False when there is nothing.
     [[nodiscard]] bool computeSceneBounds(glm::vec3& outMin, glm::vec3& outMax) const;
     /// Push the scene's extent to the renderer, which derives the navigation
     /// speed and zoom limits from it.
     void updateSceneScale();
+
+    /// The single place the illuminant is applied: panel, menu and config load
+    /// all come through here. Hands a SolarLutSpec to the core, which does the
+    /// reading -- this shell never decides what a spectrum file means.
+    void applyIlluminant(const LightingPanel::IlluminantChoice& choice);
+    /// assets/luts/astmg173.csv, or empty when it is not installed.
+    [[nodiscard]] static QString resolveBundledIlluminant();
 
     /// Record a settings change in the undo history, applied through its own
     /// dispatcher. A no-op when the value did not actually change, so that
@@ -370,6 +390,13 @@ private:
     LightingPanel* m_lightingPanel = nullptr;
     RenderSettingsPanel* m_renderSettingsPanel = nullptr;
     SpectralConfigPanel* m_spectralConfigPanel = nullptr;
+    SpectralLibraryPanel* m_spectralLibraryPanel = nullptr;
+    /// The material a spectral-library assignment would land on. Separate from
+    /// the node selection: a material is picked in the scene tree or by
+    /// clicking geometry, and stays picked while the library is browsed.
+    int m_currentMaterialIndex = -1;
+    /// The illuminant the document is using, for export and for the panel.
+    LightingPanel::IlluminantChoice m_illuminant;
     DebugVisualizationPanel* m_debugVisualizationPanel = nullptr;
     AtmosphericPanel* m_atmosphericPanel = nullptr;
     SensorPanel* m_sensorPanel = nullptr;

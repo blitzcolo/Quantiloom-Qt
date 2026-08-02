@@ -189,6 +189,8 @@ set(GUI_SOURCES
     src/ui/UiStyle.hpp
     src/ui/CollapsibleGroupBox.cpp
     src/ui/CollapsibleGroupBox.hpp
+    src/ui/SpectrumPlotWidget.cpp
+    src/ui/SpectrumPlotWidget.hpp
     src/ui/ViewportFrame.cpp
     src/ui/ViewportFrame.hpp
     src/ui/WorkspaceManager.cpp
@@ -222,6 +224,8 @@ set(GUI_SOURCES
     src/panels/LightingPanel.hpp
     src/panels/RenderSettingsPanel.cpp
     src/panels/RenderSettingsPanel.hpp
+    src/panels/SpectralLibraryPanel.cpp
+    src/panels/SpectralLibraryPanel.hpp
     src/panels/SpectralConfigPanel.cpp
     src/panels/SpectralConfigPanel.hpp
     src/panels/DebugVisualizationPanel.cpp

@@ -23,6 +23,9 @@
 #include <renderer/LightingParams.hpp>
 #include <atmos/AtmosphereNNConfig.hpp>
 #include <postprocess/SensorModel.hpp>
+// For SolarLutSpec, held by value in an optional below (optional forbids an
+// incomplete type, unlike the unique_ptr<ExternalRenderContext> beside it).
+#include <renderer/ExternalRenderContext.hpp>
 
 #include "OverlayRenderer.hpp"
 
@@ -107,6 +110,12 @@ public:
     // Quantitative spectral data. Without these the context binds zeroed buffers and
     // every material renders through the RGB-upsampled fallback.
     int addSpectralCurve(const quantiloom::SpectralCurve& curve);
+    /// Set the illuminant the way a scene file would, through the core's own
+    /// reading of solar_lut. Returns the core's error when it could not load.
+    /// Kept for replay after a context rebuild, like the curves above.
+    [[nodiscard]] std::optional<QString> setSolarLutFromSpec(
+        const quantiloom::SolarLutSpec& spec, const QString& baseDir);
+
     void setSolarSpectralLUT(const quantiloom::SpectralCurve& sun,
                              const quantiloom::SpectralCurve& sky);
     void resetAccumulation();
@@ -417,6 +426,10 @@ private:
     std::vector<quantiloom::ComplexRefractiveIndex> m_runtimeRefractiveIndices;
     std::vector<quantiloom::SpectralCurve> m_runtimeSpectralCurves;
     std::optional<std::pair<quantiloom::SpectralCurve, quantiloom::SpectralCurve>> m_solarLut;
+    /// The declaration behind m_solarLut when it came from a spec, so a
+    /// rebuild replays the same reading rather than the resolved curves.
+    std::optional<quantiloom::SolarLutSpec> m_solarLutSpec;
+    QString m_solarLutBaseDir;
 
     // Display enhancement (CLAHE)
     bool m_displayEnhancementEnabled = false;

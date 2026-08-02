@@ -17,6 +17,7 @@
 
 QT_BEGIN_NAMESPACE
 class QCheckBox;
+class QComboBox;
 class QDoubleSpinBox;
 class QPushButton;
 class QSlider;
@@ -49,6 +50,30 @@ public:
     /// image-based lighting from the fallback sky unless @p enabled is false.
     void setEnvironmentMap(const QString& path, bool enabled);
 
+    /**
+     * @struct IlluminantChoice
+     * @brief What the user picked for the sun's spectrum
+     *
+     * Deliberately a *choice* rather than the loaded curves: the panel does
+     * not read spectrum files, and the core's own reading of solar_lut is the
+     * only one that may decide what a file means.
+     */
+    struct IlluminantChoice {
+        /// "none", "equal_energy", "astm" or "file". Protocol, not display
+        /// text -- the shell maps these onto the core's SolarLutSpec.
+        QString kind = QStringLiteral("none");
+        /// Only meaningful when kind is "file".
+        QString path;
+        bool normaliseUnitLuminance = true;
+    };
+
+    void setIlluminant(const IlluminantChoice& choice);
+    [[nodiscard]] IlluminantChoice illuminant() const;
+
+    /// Whether the current spectral mode needs a spectrum to render anything.
+    /// Drives the warning; the panel has no other way to know.
+    void setSpectralModeIsQuantitative(bool quantitative);
+
 signals:
     /// Carries a full LightingParams for convenience, but only the sun, sky and
     /// environment-map fields are this panel's to set; the shell keeps the
@@ -66,7 +91,13 @@ signals:
     void editGestureStarted();
     void editGestureFinished();
 
+    /// The illuminant choice changed. The shell turns it into a SolarLutSpec
+    /// and hands it to the core, which does the reading.
+    void illuminantChanged(const IlluminantChoice& choice);
+
 private slots:
+    void onIlluminantChanged();
+    void onBrowseIlluminant();
     void onSunAzimuthChanged(int value);
     void onSunElevationChanged(int value);
     void onSunIntensityChanged(double value);
@@ -83,6 +114,8 @@ protected:
 private:
     void setupUi();
     void emitChanges();
+    /// Show or hide the file row and the missing-illuminant warning.
+    void updateIlluminantWidgets();
     /// Show the path elided to the label's width, with the whole of it in the
     /// tooltip. Also refreshes the double-count notice.
     void updateEnvironmentDisplay();
@@ -126,4 +159,15 @@ private:
     QLabel* m_sunCaption = nullptr;
     QDoubleSpinBox* m_skyIntensitySpin = nullptr;
     QLabel* m_skyCaption = nullptr;
+
+    // Illuminant
+    IlluminantChoice m_illuminant;
+    /// Set by the shell from the spectral mode; drives the warning only.
+    bool m_spectralModeQuantitative = false;
+    QGroupBox* m_illuminantGroup = nullptr;
+    QComboBox* m_illuminantCombo = nullptr;
+    QLabel* m_illuminantPathLabel = nullptr;
+    QPushButton* m_illuminantBrowseButton = nullptr;
+    QCheckBox* m_normaliseCheck = nullptr;
+    QLabel* m_illuminantNotice = nullptr;
 };
