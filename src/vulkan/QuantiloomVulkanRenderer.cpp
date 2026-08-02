@@ -237,15 +237,37 @@ void QuantiloomVulkanRenderer::startNextFrame() {
     VkImage targetImage = m_window->swapChainImage(swapChainIndex);
     QSize swapSize = m_window->swapChainImageSize();
 
-    // Render frame using libQuantiloom
-    // ExternalRenderContext handles layout transitions and blit to swapchain
-    m_renderContext->RenderFrame(
-        cmd,
-        targetImage,
-        VK_IMAGE_LAYOUT_UNDEFINED,  // Qt doesn't guarantee initial layout
-        static_cast<quantiloom::u32>(swapSize.width()),
-        static_cast<quantiloom::u32>(swapSize.height())
-    );
+    // A frame is drawn for two different reasons, and only one of them should
+    // cost a sample. Accumulating is what Start/Resume asked for; redrawing
+    // because the selection or the gizmo changed is the shell's own business,
+    // and charging the user's sample budget for it would make the sample count
+    // of a finished render depend on how often they clicked.
+    //
+    // So past the target, or while paused, the accumulated image is presented
+    // again rather than re-traced. PresentAccumulated returns false when there
+    // is nothing to re-present -- before the first trace, or after a resize --
+    // and then a real frame is the only correct answer.
+    const bool accumulating =
+        !m_paused && !(m_targetSPP > 0 && m_sampleCount >= m_targetSPP);
+    const auto width = static_cast<quantiloom::u32>(swapSize.width());
+    const auto height = static_cast<quantiloom::u32>(swapSize.height());
+
+    bool presentedWithoutTracing = false;
+    if (!accumulating) {
+        presentedWithoutTracing = m_renderContext->PresentAccumulated(
+            cmd, targetImage,
+            VK_IMAGE_LAYOUT_UNDEFINED,  // Qt doesn't guarantee initial layout
+            width, height);
+    }
+    if (!presentedWithoutTracing) {
+        // ExternalRenderContext handles layout transitions and blit to swapchain
+        m_renderContext->RenderFrame(
+            cmd,
+            targetImage,
+            VK_IMAGE_LAYOUT_UNDEFINED,
+            width, height
+        );
+    }
 
     // Editor overlay (grid, gizmo) over the blitted frame, same command
     // buffer. No-op while nothing is visible.
