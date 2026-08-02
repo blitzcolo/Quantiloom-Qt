@@ -419,7 +419,11 @@ void QuantiloomVulkanRenderer::loadScene(const QString& filePath, bool adoptScen
             const quantiloom::Camera& sceneCamera = m_renderContext->GetCamera();
             m_cameraPosition = sceneCamera.GetPosition();
             m_cameraTarget = sceneCamera.GetLookAt();
-            m_cameraUp = sceneCamera.GetUp();
+            // The reference, not GetUp(): the derived up is orthonormalized for
+            // this view direction, and adopting it froze one view's tilt into
+            // m_cameraUp, where orbit turned it into roll and a save wrote it
+            // to disk.
+            m_cameraUp = sceneCamera.GetUpReference();
             m_cameraFovY = sceneCamera.GetFovY();
 
             // Orbit state is derived, and in radians -- see src/vulkan/CLAUDE.md.
@@ -540,7 +544,9 @@ void QuantiloomVulkanRenderer::applyConfigToContext(bool isFreshOpen) {
         const quantiloom::Camera& camera = m_renderContext->GetCamera();
         m_cameraPosition = camera.GetPosition();
         m_cameraTarget = camera.GetLookAt();
-        m_cameraUp = camera.GetUp();
+        // The reference, not GetUp() -- same reason as the adoptSceneCamera
+        // read above.
+        m_cameraUp = camera.GetUpReference();
         m_cameraFovY = camera.GetFovY();
         // Projection too, or the overlay keeps drawing its grid and gizmo in
         // perspective over an orthographic render -- which is visible as grid
