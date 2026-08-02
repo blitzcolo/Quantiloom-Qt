@@ -477,6 +477,135 @@ May cause colour shifts.</source>
     </message>
 </context>
 <context>
+    <name>HyperspectralExportDialog</name>
+    <message>
+        <source>ENVI BSQ (band sequential)</source>
+        <translation>ENVI BSQ（按波段顺序）</translation>
+    </message>
+    <message>
+        <source>ENVI BIL (band interleaved by line)</source>
+        <translation>ENVI BIL（按行交织）</translation>
+    </message>
+    <message>
+        <source>ENVI BIP (band interleaved by pixel)</source>
+        <translation>ENVI BIP（按像素交织）</translation>
+    </message>
+    <message>
+        <source>GeoTIFF</source>
+        <translation>GeoTIFF</translation>
+    </message>
+    <message>
+        <source>Render Hyperspectral Cube</source>
+        <translation>渲染高光谱立方体</translation>
+    </message>
+    <message>
+        <source>Traces every band to completion and streams the result to disk. This is an offline render on a device of its own — the viewport keeps working, and the two share the GPU.</source>
+        <translation>把每个波段都渲染到收敛，并把结果流式写入磁盘。这是在独立设备上的离线渲染——视口仍可继续使用，两者共享 GPU。</translation>
+    </message>
+    <message>
+        <source>Wavelength Range</source>
+        <translation>波长范围</translation>
+    </message>
+    <message>
+        <source> nm</source>
+        <translation> nm</translation>
+    </message>
+    <message>
+        <source>From:</source>
+        <translation>起始：</translation>
+    </message>
+    <message>
+        <source>To:</source>
+        <translation>终止：</translation>
+    </message>
+    <message>
+        <source>Step:</source>
+        <translation>步长：</translation>
+    </message>
+    <message>
+        <source>Output</source>
+        <translation>输出</translation>
+    </message>
+    <message>
+        <source>Samples per pixel, per band. Every band is traced to this count, so the total cost scales with the band count too.</source>
+        <translation>每波段每像素的采样数。每个波段都渲染到该数值，因此总耗时还会随波段数增长。</translation>
+    </message>
+    <message>
+        <source>Samples per band:</source>
+        <translation>每波段采样数：</translation>
+    </message>
+    <message>
+        <source>Format:</source>
+        <translation>格式：</translation>
+    </message>
+    <message>
+        <source>Browse...</source>
+        <translation>浏览……</translation>
+    </message>
+    <message>
+        <source>Base name:</source>
+        <translation>输出基名：</translation>
+    </message>
+    <message>
+        <source>Also save each band as EXR</source>
+        <translation>同时把每个波段另存为 EXR</translation>
+    </message>
+    <message>
+        <source>Writes one image per band beside the cube, for inspecting a single wavelength. Multiplies the output size by the band count.</source>
+        <translation>在立方体旁为每个波段各写一张图，便于查看单一波长。输出体积会乘以波段数。</translation>
+    </message>
+    <message>
+        <source>Render</source>
+        <translation>渲染</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation>关闭</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n band(s) — each traced to completion</source>
+        <translation>
+            <numerusform>%n 个波段 — 每个都渲染到收敛</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Cube Output Base Name</source>
+        <translation>立方体输出基名</translation>
+    </message>
+    <message>
+        <source>All Files (*)</source>
+        <translation>所有文件 (*)</translation>
+    </message>
+    <message>
+        <source>Could not serialise the current document.</source>
+        <translation>无法序列化当前文档。</translation>
+    </message>
+    <message>
+        <source>Preparing — compiling shaders and loading the scene...</source>
+        <translation>准备中 — 正在编译着色器并加载场景……</translation>
+    </message>
+    <message>
+        <source>The document is not valid TOML: %1</source>
+        <translation>文档不是有效的 TOML：%1</translation>
+    </message>
+    <message>
+        <source>Band %1 of %2 — about %3 s remaining</source>
+        <translation>第 %1 / %2 波段 — 约剩余 %3 秒</translation>
+    </message>
+    <message>
+        <source>The render failed: %1</source>
+        <translation>渲染失败：%1</translation>
+    </message>
+    <message>
+        <source>Cube written.</source>
+        <translation>立方体已写出。</translation>
+    </message>
+    <message>
+        <source>Cube Render Failed</source>
+        <translation>立方体渲染失败</translation>
+    </message>
+</context>
+<context>
     <name>LightingPanel</name>
     <message>
         <source>Lighting</source>
@@ -1144,6 +1273,14 @@ May cause colour shifts.</source>
         <translation>导出图像（原始渲染结果）(&amp;I)...</translation>
     </message>
     <message>
+        <source>Render Hyperspectral &amp;Cube...</source>
+        <translation>渲染高光谱立方体(&amp;C)……</translation>
+    </message>
+    <message>
+        <source>Trace every band to completion and stream the cube to disk</source>
+        <translation>把每个波段渲染到收敛并将立方体流式写入磁盘</translation>
+    </message>
+    <message>
         <source>Write the accumulated render without display enhancement.</source>
         <translation>写出累积得到的渲染结果，不含显示增强。</translation>
     </message>
@@ -1444,6 +1581,14 @@ May cause colour shifts.</source>
     <message>
         <source>Saved %1</source>
         <translation>已保存 %1</translation>
+    </message>
+    <message>
+        <source>No Scene</source>
+        <translation>没有场景</translation>
+    </message>
+    <message>
+        <source>Open a scene before rendering a cube.</source>
+        <translation>请先打开场景再渲染立方体。</translation>
     </message>
     <message>
         <source>Export Image (raw render)</source>
@@ -1897,6 +2042,42 @@ PNG：%2</translation>
         <translation>该材质的表面温度。填 0 表示使用场景环境温度；293 K 约为室温，310 K 约为人体皮肤温度。</translation>
     </message>
     <message>
+        <source>Transmission and Volume</source>
+        <translation>透射与体积</translation>
+    </message>
+    <message>
+        <source>Transmission:</source>
+        <translation>透射率：</translation>
+    </message>
+    <message>
+        <source>How much light passes through rather than reflecting. 0 is opaque.</source>
+        <translation>有多少光穿透而非反射。0 表示不透明。</translation>
+    </message>
+    <message>
+        <source>Index of refraction: 1.0 air, 1.33 water, 1.5 glass, 2.4 diamond.</source>
+        <translation>折射率：空气 1.0、水 1.33、玻璃 1.5、金刚石 2.4。</translation>
+    </message>
+    <message>
+        <source>Dispersion:</source>
+        <translation>色散：</translation>
+    </message>
+    <message>
+        <source>Reciprocal Abbe number — how much the index varies with wavelength. 0 is no dispersion; this is what splits white light in a prism, and it is only visible in the spectral modes.</source>
+        <translation>阿贝数的倒数——折射率随波长变化的程度。0 表示无色散；棱镜分解白光靠的就是它，且只在光谱模式下可见。</translation>
+    </message>
+    <message>
+        <source>Attenuation distance:</source>
+        <translation>衰减距离：</translation>
+    </message>
+    <message>
+        <source>Distance inside the medium at which light reaches the attenuation colour (Beer-Lambert). 0 means no absorption at all.</source>
+        <translation>光在介质内走到衰减颜色所需的距离（比尔-朗伯定律）。0 表示完全不吸收。</translation>
+    </message>
+    <message>
+        <source>Attenuation colour:</source>
+        <translation>衰减颜色：</translation>
+    </message>
+    <message>
         <source>Material %1</source>
         <translation>材质 %1</translation>
     </message>
@@ -1923,6 +2104,10 @@ Replace the curves?</source>
     <message>
         <source>Reflectance ρ = %1</source>
         <translation>反射率 ρ = %1</translation>
+    </message>
+    <message>
+        <source>Attenuation Colour</source>
+        <translation>衰减颜色</translation>
     </message>
     <message>
         <source>Emissivity:</source>
@@ -1962,7 +2147,7 @@ Replace the curves?</source>
     </message>
     <message>
         <source>IOR:</source>
-        <translation type="vanished">折射率:</translation>
+        <translation>折射率:</translation>
     </message>
     <message>
         <source>Emission</source>

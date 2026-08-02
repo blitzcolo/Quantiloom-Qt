@@ -472,6 +472,136 @@ May cause colour shifts.</source>
     </message>
 </context>
 <context>
+    <name>HyperspectralExportDialog</name>
+    <message>
+        <source>ENVI BSQ (band sequential)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>ENVI BIL (band interleaved by line)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>ENVI BIP (band interleaved by pixel)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>GeoTIFF</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Render Hyperspectral Cube</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Traces every band to completion and streams the result to disk. This is an offline render on a device of its own — the viewport keeps working, and the two share the GPU.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Wavelength Range</source>
+        <translation type="unfinished">Wavelength Range</translation>
+    </message>
+    <message>
+        <source> nm</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>From:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>To:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Step:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Output</source>
+        <translation type="unfinished">Output</translation>
+    </message>
+    <message>
+        <source>Samples per pixel, per band. Every band is traced to this count, so the total cost scales with the band count too.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Samples per band:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Format:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Browse...</source>
+        <translation type="unfinished">Browse...</translation>
+    </message>
+    <message>
+        <source>Base name:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Also save each band as EXR</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Writes one image per band beside the cube, for inspecting a single wavelength. Multiplies the output size by the band count.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Render</source>
+        <translation type="unfinished">Render</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>%n band(s) — each traced to completion</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Cube Output Base Name</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>All Files (*)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Could not serialise the current document.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Preparing — compiling shaders and loading the scene...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The document is not valid TOML: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Band %1 of %2 — about %3 s remaining</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The render failed: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cube written.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cube Render Failed</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>LightingPanel</name>
     <message>
         <source>Lighting</source>
@@ -1134,6 +1264,14 @@ May cause colour shifts.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Render Hyperspectral &amp;Cube...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Trace every band to completion and stream the cube to disk</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Write the accumulated render without display enhancement.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1420,6 +1558,14 @@ May cause colour shifts.</source>
     </message>
     <message>
         <source>Saved %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No Scene</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open a scene before rendering a cube.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1867,6 +2013,42 @@ PNG: %2</translation>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Transmission and Volume</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Transmission:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>How much light passes through rather than reflecting. 0 is opaque.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Index of refraction: 1.0 air, 1.33 water, 1.5 glass, 2.4 diamond.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Dispersion:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Reciprocal Abbe number — how much the index varies with wavelength. 0 is no dispersion; this is what splits white light in a prism, and it is only visible in the spectral modes.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Attenuation distance:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Distance inside the medium at which light reaches the attenuation colour (Beer-Lambert). 0 means no absorption at all.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Attenuation colour:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Material %1</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1890,6 +2072,10 @@ Replace the curves?</source>
     </message>
     <message>
         <source>Reflectance ρ = %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Attenuation Colour</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1930,7 +2116,7 @@ Replace the curves?</source>
     </message>
     <message>
         <source>IOR:</source>
-        <translation type="vanished">IOR:</translation>
+        <translation>IOR:</translation>
     </message>
     <message>
         <source>Emission</source>

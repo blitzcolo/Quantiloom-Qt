@@ -7,6 +7,7 @@
 
 #include "../ui/UiStyle.hpp"
 #include "../ui/theme/ThemeManager.hpp"
+#include "../ui/CollapsibleGroupBox.hpp"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -207,6 +208,86 @@ void MaterialEditorPanel::setupUi() {
     irLayout->addRow(m_irKirchhoffLabel);
 
     mainLayout->addWidget(m_irGroup);
+
+    // ------------------------------------------------------------------
+    // Transmission and volume
+    // ------------------------------------------------------------------
+    // These fields have always reached the GPU and the shaders have always
+    // consumed them; until the core learned the matching TOML keys, only a
+    // glTF KHR extension could set them, so a piece of glass could be imported
+    // but not authored or edited. Collapsed by default because most materials
+    // are opaque and this is five rows of nothing for them.
+    m_transmissionGroup = new CollapsibleGroupBox(this);
+    auto* transmissionLayout = new QFormLayout();
+
+    m_transmissionSpin = new QDoubleSpinBox();
+    m_transmissionSpin->setRange(0.0, 1.0);
+    m_transmissionSpin->setSingleStep(0.05);
+    m_transmissionSpin->setDecimals(3);
+    connect(m_transmissionSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &MaterialEditorPanel::onTransmissionChanged);
+    auto* transmissionCaption = new QLabel();
+    transmissionLayout->addRow(transmissionCaption, m_transmissionSpin);
+
+    m_iorSpin = new QDoubleSpinBox();
+    m_iorSpin->setRange(1.0, 4.0);
+    m_iorSpin->setSingleStep(0.01);
+    m_iorSpin->setDecimals(3);
+    m_iorSpin->setValue(1.5);
+    connect(m_iorSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &MaterialEditorPanel::onTransmissionChanged);
+    auto* iorCaption = new QLabel();
+    transmissionLayout->addRow(iorCaption, m_iorSpin);
+
+    m_dispersionSpin = new QDoubleSpinBox();
+    m_dispersionSpin->setRange(0.0, 1.0);
+    m_dispersionSpin->setSingleStep(0.005);
+    m_dispersionSpin->setDecimals(4);
+    connect(m_dispersionSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &MaterialEditorPanel::onTransmissionChanged);
+    auto* dispersionCaption = new QLabel();
+    transmissionLayout->addRow(dispersionCaption, m_dispersionSpin);
+
+    m_attenuationDistanceSpin = new QDoubleSpinBox();
+    m_attenuationDistanceSpin->setRange(0.0, 1000.0);
+    m_attenuationDistanceSpin->setSingleStep(0.1);
+    m_attenuationDistanceSpin->setDecimals(3);
+    connect(m_attenuationDistanceSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &MaterialEditorPanel::onTransmissionChanged);
+    auto* attenuationCaption = new QLabel();
+    transmissionLayout->addRow(attenuationCaption, m_attenuationDistanceSpin);
+
+    m_attenuationColorBtn = new QPushButton();
+    m_attenuationColorBtn->setFixedSize(80, 30);
+    connect(m_attenuationColorBtn, &QPushButton::clicked,
+            this, &MaterialEditorPanel::onAttenuationColorClicked);
+    auto* attenuationColourCaption = new QLabel();
+    transmissionLayout->addRow(attenuationColourCaption, m_attenuationColorBtn);
+
+    m_transmissionGroup->setContentLayout(transmissionLayout);
+    mainLayout->addWidget(m_transmissionGroup);
+
+    bindText([this, transmissionCaption, iorCaption, dispersionCaption,
+              attenuationCaption, attenuationColourCaption] {
+        m_transmissionGroup->setTitle(tr("Transmission and Volume"));
+        transmissionCaption->setText(tr("Transmission:"));
+        m_transmissionSpin->setToolTip(
+            tr("How much light passes through rather than reflecting. 0 is opaque."));
+        iorCaption->setText(tr("IOR:"));
+        m_iorSpin->setToolTip(
+            tr("Index of refraction: 1.0 air, 1.33 water, 1.5 glass, 2.4 diamond."));
+        dispersionCaption->setText(tr("Dispersion:"));
+        m_dispersionSpin->setToolTip(
+            tr("Reciprocal Abbe number — how much the index varies with wavelength. "
+               "0 is no dispersion; this is what splits white light in a prism, and "
+               "it is only visible in the spectral modes."));
+        attenuationCaption->setText(tr("Attenuation distance:"));
+        m_attenuationDistanceSpin->setToolTip(
+            tr("Distance inside the medium at which light reaches the attenuation "
+               "colour (Beer-Lambert). 0 means no absorption at all."));
+        attenuationColourCaption->setText(tr("Attenuation colour:"));
+    });
+
     mainLayout->addStretch();
 
     updateKirchhoffLabel();
@@ -264,6 +345,30 @@ void MaterialEditorPanel::setMaterial(int index, const quantiloom::Material* mat
         const QSignalBlocker spin(m_roughnessSpin);
         m_roughnessSlider->setValue(static_cast<int>(m_roughness * 100));
         m_roughnessSpin->setValue(m_roughness);
+    }
+
+    // Transmission and volume, read back so the panel shows what the glTF or
+    // the config actually loaded rather than this editor's defaults.
+    m_transmission = material->transmission;
+    m_ior = material->ior;
+    m_dispersion = material->dispersion;
+    m_attenuationDistance = material->attenuationDistance;
+    m_attenuationColor = material->attenuationColor;
+    {
+        const QSignalBlocker b1(m_transmissionSpin);
+        const QSignalBlocker b2(m_iorSpin);
+        const QSignalBlocker b3(m_dispersionSpin);
+        const QSignalBlocker b4(m_attenuationDistanceSpin);
+        m_transmissionSpin->setValue(m_transmission);
+        m_iorSpin->setValue(m_ior);
+        m_dispersionSpin->setValue(m_dispersion);
+        m_attenuationDistanceSpin->setValue(m_attenuationDistance);
+    }
+    updateColorButton(m_attenuationColorBtn, m_attenuationColor);
+    // Opened when the material is actually transmissive: a glass that arrives
+    // from a glTF should not need to be hunted for behind a collapsed header.
+    if (m_transmission > 0.0f) {
+        m_transmissionGroup->setCollapsed(false);
     }
 
     m_emissive = material->emissiveFactor;
@@ -461,6 +566,28 @@ void MaterialEditorPanel::updateKirchhoffLabel() {
     }
 }
 
+void MaterialEditorPanel::onTransmissionChanged() {
+    m_transmission = static_cast<float>(m_transmissionSpin->value());
+    m_ior = static_cast<float>(m_iorSpin->value());
+    m_dispersion = static_cast<float>(m_dispersionSpin->value());
+    m_attenuationDistance = static_cast<float>(m_attenuationDistanceSpin->value());
+    applyChanges();
+}
+
+void MaterialEditorPanel::onAttenuationColorClicked() {
+    const QColor initial = QColor::fromRgbF(m_attenuationColor.r, m_attenuationColor.g,
+                                            m_attenuationColor.b);
+    const QColor chosen = QColorDialog::getColor(initial, this, tr("Attenuation Colour"));
+    if (!chosen.isValid()) {
+        return;
+    }
+    m_attenuationColor = glm::vec3(static_cast<float>(chosen.redF()),
+                                   static_cast<float>(chosen.greenF()),
+                                   static_cast<float>(chosen.blueF()));
+    updateColorButton(m_attenuationColorBtn, m_attenuationColor);
+    applyChanges();
+}
+
 void MaterialEditorPanel::applyChanges() {
     if (m_currentIndex < 0 || !m_currentMaterial) {
         return;
@@ -472,6 +599,12 @@ void MaterialEditorPanel::applyChanges() {
     modified.metallicFactor = m_metallic;
     modified.roughnessFactor = m_roughness;
     modified.emissiveFactor = m_emissive;
+
+    modified.transmission = m_transmission;
+    modified.ior = m_ior;
+    modified.dispersion = m_dispersion;
+    modified.attenuationDistance = m_attenuationDistance;
+    modified.attenuationColor = m_attenuationColor;
 
     applyIrScalars(modified, m_irEmissivity, m_irTransmittance, m_irTemperature_K);
 

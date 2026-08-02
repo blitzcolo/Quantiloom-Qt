@@ -257,6 +257,8 @@ set(GUI_SOURCES
     src/editing/GizmoModel.cpp
     src/editing/GizmoModel.hpp
     # Dialogs
+    src/dialogs/HyperspectralExportDialog.cpp
+    src/dialogs/HyperspectralExportDialog.hpp
     src/dialogs/PreferencesDialog.cpp
     src/dialogs/PreferencesDialog.hpp
     src/dialogs/HelpDialog.cpp

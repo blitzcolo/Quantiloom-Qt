@@ -124,6 +124,8 @@ private slots:
     bool onSaveScene();
     bool onSaveSceneAs();
     void onExportImage();
+    /// Offline cube render, in a dialog of its own.
+    void onExportHyperspectralCube();
 
     // Render menu actions
     void onStartRender();
@@ -486,6 +488,7 @@ private:
     QAction* m_startRenderAction = nullptr;
     QAction* m_stopRenderAction = nullptr;
     QAction* m_resumeRenderAction = nullptr;
+    QAction* m_exportCubeAction = nullptr;
     QAction* m_resetAccumulationAction = nullptr;
     QAction* m_spectralGenAction = nullptr;
     QAction* m_shortcutsAction = nullptr;

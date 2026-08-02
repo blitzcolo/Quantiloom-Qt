@@ -26,6 +26,7 @@
 #include "editing/UndoStack.hpp"
 #include "editing/Commands.hpp"
 #include "dialogs/PreferencesDialog.hpp"
+#include "dialogs/HyperspectralExportDialog.hpp"
 #include "dialogs/HelpDialog.hpp"
 #include "i18n/LanguageManager.hpp"
 #include "ui/ModeCatalog.hpp"
@@ -372,6 +373,10 @@ void MainWindow::setupMenus() {
     m_fileMenu->addSeparator();
 
     m_exportImageAction = m_fileMenu->addAction(QString(), this, &MainWindow::onExportImage);
+    // The cube the viewport cannot show. An offline render on a device of its
+    // own, so it is a File action rather than anything under Render.
+    m_exportCubeAction = m_fileMenu->addAction(QString(), this,
+                                               &MainWindow::onExportHyperspectralCube);
     m_exportImageAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_E));
 
     m_screenshotAction = m_fileMenu->addAction(QString(), this, &MainWindow::onTakeScreenshot);
@@ -1890,6 +1895,9 @@ void MainWindow::retranslateUi() {
     m_saveAction->setText(tr("&Save"));
     m_saveAsAction->setText(tr("Save &As..."));
     m_exportImageAction->setText(tr("Export &Image (raw render)..."));
+    m_exportCubeAction->setText(tr("Render Hyperspectral &Cube..."));
+    m_exportCubeAction->setToolTip(
+        tr("Trace every band to completion and stream the cube to disk"));
     m_exportImageAction->setToolTip(
         tr("Write the accumulated render without display enhancement."));
     m_screenshotAction->setText(tr("Save Screensho&t (as displayed)"));
@@ -2363,6 +2371,20 @@ bool MainWindow::writeConfig(const QString& filePath) {
     setCurrentDocument(filePath);
     showStatusMessage(tr("Saved %1").arg(QFileInfo(filePath).fileName()));
     return true;
+}
+
+void MainWindow::onExportHyperspectralCube() {
+    if (!m_vulkanWindow->getScene()) {
+        QMessageBox::information(this, tr("No Scene"),
+            tr("Open a scene before rendering a cube."));
+        return;
+    }
+    // The document as it stands, panels included -- the cube is of what is on
+    // screen, not of what the file said when it was opened.
+    SceneConfig config;
+    collectCurrentConfig(config);
+    HyperspectralExportDialog dialog(config, this);
+    dialog.exec();
 }
 
 void MainWindow::onExportImage() {

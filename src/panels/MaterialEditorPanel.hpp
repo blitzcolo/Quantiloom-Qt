@@ -70,6 +70,8 @@ signals:
 
 private slots:
     void onBaseColorClicked();
+    void onTransmissionChanged();
+    void onAttenuationColorClicked();
     void onMetallicChanged(int value);
     void onMetallicSpinChanged(double value);
     void onRoughnessChanged(int value);
@@ -92,6 +94,19 @@ private:
     // UI elements
     QLabel* m_materialName = nullptr;
     QPushButton* m_baseColorBtn = nullptr;
+    // Transmission and volume
+    float m_transmission = 0.0f;
+    float m_ior = 1.5f;
+    float m_dispersion = 0.0f;
+    float m_attenuationDistance = 0.0f;
+    glm::vec3 m_attenuationColor{1.0f, 1.0f, 1.0f};
+    class CollapsibleGroupBox* m_transmissionGroup = nullptr;
+    QDoubleSpinBox* m_transmissionSpin = nullptr;
+    QDoubleSpinBox* m_iorSpin = nullptr;
+    QDoubleSpinBox* m_dispersionSpin = nullptr;
+    QDoubleSpinBox* m_attenuationDistanceSpin = nullptr;
+    QPushButton* m_attenuationColorBtn = nullptr;
+
     QSlider* m_metallicSlider = nullptr;
     QDoubleSpinBox* m_metallicSpin = nullptr;
     QSlider* m_roughnessSlider = nullptr;
