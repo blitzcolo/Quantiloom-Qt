@@ -456,6 +456,7 @@ void QuantiloomVulkanWindow::setDisplayEnhancement(bool enabled, float clipLimit
 
 void QuantiloomVulkanWindow::setGridVisible(bool visible) {
     withRenderer([visible](QuantiloomVulkanRenderer& r) { r.setGridVisible(visible); });
+    requestOverlayRedraw();
 }
 
 bool QuantiloomVulkanWindow::isGridVisible() const {
@@ -472,6 +473,23 @@ void QuantiloomVulkanWindow::setEditingComponents(SelectionManager* selection,
     m_selection = selection;
     m_gizmo = gizmo;
     m_undoStack = undoStack;
+
+    // What the overlay draws is a function of these two, and neither resets
+    // accumulation -- selecting an object does not change the render, only
+    // what is composited over it. So each one has to ask for the frame that
+    // shows the result.
+    if (m_selection) {
+        connect(m_selection, &SelectionManager::selectionChanged,
+                this, [this] { requestOverlayRedraw(); });
+        connect(m_selection, &SelectionManager::selectionCleared,
+                this, [this] { requestOverlayRedraw(); });
+    }
+    if (m_gizmo) {
+        connect(m_gizmo, &TransformGizmo::modeChanged,
+                this, [this] { requestOverlayRedraw(); });
+        connect(m_gizmo, &TransformGizmo::spaceChanged,
+                this, [this] { requestOverlayRedraw(); });
+    }
 }
 
 void QuantiloomVulkanWindow::setNodeTransform(int nodeIndex, const glm::mat4& transform) {
@@ -711,6 +729,8 @@ void QuantiloomVulkanWindow::setEditingToolsEnabled(bool enabled) {
     if (!enabled) {
         m_hoveredHandle = editing::GizmoHandle::None;
     }
+    // The gizmo and the selection box appear and disappear with the workspace.
+    requestOverlayRedraw();
 }
 
 bool QuantiloomVulkanWindow::gizmoOnScreen() const {
@@ -777,9 +797,15 @@ bool QuantiloomVulkanWindow::buildGizmoDrawList(
     return !out.empty();
 }
 
+void QuantiloomVulkanWindow::requestOverlayRedraw() {
+    // Unconditional: a paused or finished render still has to show the user
+    // what they just selected, and one frame is what that costs.
+    requestUpdate();
+}
+
 void QuantiloomVulkanWindow::setSelectionBoxColor(const glm::vec4& color) {
     m_selectionBoxColor = color;
-    requestUpdate();
+    requestOverlayRedraw();
 }
 
 bool QuantiloomVulkanWindow::beginGizmoDragAt(const QPointF& devicePos) {
@@ -904,8 +930,10 @@ bool QuantiloomVulkanWindow::event(QEvent* event) {
         emit mouseHovered(static_cast<int>(device.x()), static_cast<int>(device.y()));
 
         // Gizmo hover highlight: the same hit-test the grab uses, so a handle
-        // that lights up is a handle that will respond. Overlay-only state --
-        // it never resets accumulation, and the render loop repaints anyway.
+        // that lights up is a handle that will respond. Overlay-only state, so
+        // it never resets accumulation -- and since the loop stops at the
+        // target sample count, it has to ask for the frame that shows the
+        // change rather than assuming one is coming.
         if (!m_transformDragging) {
             editing::GizmoHandle hovered = editing::GizmoHandle::None;
             if (gizmoOnScreen()) {
@@ -915,7 +943,10 @@ bool QuantiloomVulkanWindow::event(QEvent* event) {
                     static_cast<float>(device.x()), static_cast<float>(device.y()));
                 hovered = editing::hitTestGizmo(ray, frame, m_gizmo->mode());
             }
-            m_hoveredHandle = hovered;
+            if (hovered != m_hoveredHandle) {
+                m_hoveredHandle = hovered;
+                requestOverlayRedraw();
+            }
         }
         // Don't accept - let base class handle too
     }

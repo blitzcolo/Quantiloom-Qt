@@ -197,6 +197,23 @@ public:
     [[nodiscard]] bool cameraIsOrthographic() const;
     [[nodiscard]] float cameraOrthoHeight() const;
 
+    /**
+     * @brief Draw one more frame because the overlay changed
+     *
+     * The grid, the gizmo and the selection box are rebuilt inside
+     * startNextFrame(), so they only appear when a frame is drawn. Everything
+     * that changes the *scene* resets accumulation, which asks for one; the
+     * things that change only what is composited on top -- selecting an
+     * object, hovering a handle, switching gizmo mode, toggling the grid --
+     * do not, and used to rely on the render loop running continuously.
+     *
+     * It stopped running continuously when auto-stop at the target sample
+     * count arrived: past the target the loop idles, so a selection made after
+     * a render finished stayed invisible until the camera moved. Anything that
+     * mutates overlay-only state calls this.
+     */
+    void requestOverlayRedraw();
+
     /// Colour of the wireframe box drawn around the selection. Linear RGBA --
     /// the overlay writes into an sRGB target that encodes on write. Driven
     /// from the theme's accent, so it changes with the theme like everything
