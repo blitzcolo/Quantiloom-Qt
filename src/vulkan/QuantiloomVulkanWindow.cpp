@@ -255,6 +255,18 @@ uint32_t QuantiloomVulkanWindow::currentSampleCount() const {
     return m_renderer ? m_renderer->currentSampleCount() : 0;
 }
 
+void QuantiloomVulkanWindow::frameBounds(const glm::vec3& min, const glm::vec3& max) {
+    if (m_renderer) {
+        m_renderer->frameBounds(min, max);
+    }
+}
+
+void QuantiloomVulkanWindow::setSceneScale(float radius) {
+    if (m_renderer) {
+        m_renderer->setSceneScale(radius);
+    }
+}
+
 float QuantiloomVulkanWindow::lastGpuFrameTimeMs() const {
     return m_renderer ? m_renderer->lastGpuFrameTimeMs() : 0.0f;
 }
@@ -716,10 +728,28 @@ bool QuantiloomVulkanWindow::buildGizmoDrawList(
         return false;
     }
     const editing::GizmoFrame frame = currentGizmoFrame(camera);
+
+    // The selection box first, so the gizmo's handles draw over it. Without
+    // this the only sign of what was selected was a gizmo at the median
+    // point, which for a multi-selection is a point in mid-air.
+    if (const auto* scene = getScene()) {
+        glm::vec3 min, max;
+        m_selection->computeSelectionBounds(scene, min, max);
+        // Hairline width, held constant on screen the same way the gizmo is,
+        // so it does not vanish on a large scene or swallow a small one.
+        const float radius = frame.scale * 0.008f;
+        editing::buildSelectionBoxGeometry(min, max, m_selectionBoxColor, radius, out);
+    }
+
     const glm::vec3 viewDir = glm::normalize(frame.origin - camera.position());
     editing::buildGizmoGeometry(m_gizmo->mode(), frame, m_hoveredHandle,
                                 m_activeHandle, viewDir, out);
     return !out.empty();
+}
+
+void QuantiloomVulkanWindow::setSelectionBoxColor(const glm::vec4& color) {
+    m_selectionBoxColor = color;
+    requestUpdate();
 }
 
 bool QuantiloomVulkanWindow::beginGizmoDragAt(const QPointF& devicePos) {

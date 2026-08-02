@@ -137,9 +137,16 @@ private:
     struct Caption {
         QLabel* label;
         const char* source;
+        /// Explanation shown on both the caption and the field. This is the
+        /// most jargon-dense panel in the application -- PRNU, DSNU, NUC, well
+        /// capacity, e-/DN -- and it was the only one with no tooltips at all.
+        /// Null where the caption speaks for itself.
+        QWidget* field = nullptr;
+        const char* tip = nullptr;
     };
     QVector<Caption> m_captions;
-    QLabel* addRow(class QFormLayout* layout, const char* source, QWidget* field);
+    QLabel* addRow(class QFormLayout* layout, const char* source, QWidget* field,
+                   const char* tip = nullptr);
 
     quantiloom::SensorParams m_params;
     bool m_updatingUi = false;

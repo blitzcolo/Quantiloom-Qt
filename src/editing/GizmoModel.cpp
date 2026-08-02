@@ -234,6 +234,40 @@ float GizmoFrame::screenScale(const glm::vec3& cameraPos, const glm::vec3& origi
     return 0.22f * distance * fovScale;
 }
 
+void buildSelectionBoxGeometry(const glm::vec3& min, const glm::vec3& max,
+                               const glm::vec4& color, float edgeRadius,
+                               std::vector<GizmoVertex>& out) {
+    // A degenerate box would make appendCylinder normalize a zero vector.
+    const glm::vec3 extent = max - min;
+    if (extent.x < 1e-5f && extent.y < 1e-5f && extent.z < 1e-5f) {
+        return;
+    }
+
+    const glm::vec3 c[8] = {
+        {min.x, min.y, min.z}, {max.x, min.y, min.z},
+        {max.x, max.y, min.z}, {min.x, max.y, min.z},
+        {min.x, min.y, max.z}, {max.x, min.y, max.z},
+        {max.x, max.y, max.z}, {min.x, max.y, max.z},
+    };
+    static constexpr int kEdges[12][2] = {
+        {0, 1}, {1, 2}, {2, 3}, {3, 0},   // min-z face
+        {4, 5}, {5, 6}, {6, 7}, {7, 4},   // max-z face
+        {0, 4}, {1, 5}, {2, 6}, {3, 7},   // the four uprights
+    };
+
+    // Four sides, not the cylinder default of eight: these are hairlines, and
+    // twelve edges of an eight-sided tube is 768 triangles rebuilt every frame
+    // for something the eye reads as a line.
+    for (const auto& edge : kEdges) {
+        const glm::vec3& a = c[edge[0]];
+        const glm::vec3& b = c[edge[1]];
+        if (glm::length(b - a) < 1e-5f) {
+            continue;   // a flat box still has eight corners, some coincident
+        }
+        appendCylinder(out, a, b, edgeRadius, color, 4);
+    }
+}
+
 void buildGizmoGeometry(TransformGizmo::Mode mode, const GizmoFrame& frame,
                         GizmoHandle hovered, GizmoHandle active,
                         const glm::vec3& viewDir,

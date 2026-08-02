@@ -1112,6 +1112,18 @@ May cause colour shifts.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>&amp;Frame Selected</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Orbit around the selection and pull back to fit it</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Frame &amp;All</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>&amp;Front</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1347,6 +1359,17 @@ May cause colour shifts.</source>
     </message>
     <message>
         <source>Render complete, but the export to %1 failed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>Framed %n object(s)</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Framed the scene</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -2221,6 +2244,10 @@ This may take a few minutes.</translation>
         <translation>Node</translation>
     </message>
     <message>
+        <source>Filter by name...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Open a scene to see its contents.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -2305,24 +2332,52 @@ Rebuild with:
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Lens focal length. With the pixel pitch it sets the angular size of a pixel, and so how much of the scene one pixel averages.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>f-number, focal length divided by entrance pupil diameter. Lower collects more light: irradiance on the detector goes as 1/f-number squared.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Pixel Pitch:</source>
         <translation>Pixel Pitch:</translation>
+    </message>
+    <message>
+        <source>Centre-to-centre spacing of the detector elements. Sets how much area collects photons for one pixel.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Quantum Efficiency:</source>
         <translation>Quantum Efficiency:</translation>
     </message>
     <message>
+        <source>Fraction of arriving photons that become signal electrons. 1.0 would convert every photon.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Well Capacity:</source>
         <translation>Well Capacity:</translation>
+    </message>
+    <message>
+        <source>Electrons a pixel can hold before it saturates. Anything brighter clips to white.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Bit Depth:</source>
         <translation>Bit Depth:</translation>
     </message>
     <message>
+        <source>Bits per pixel out of the converter. Sets how finely the electron count is quantised.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Integration Time:</source>
         <translation>Integration Time:</translation>
+    </message>
+    <message>
+        <source>Temperature of the detector itself. Drives dark current, and for thermal bands the self-emission the optics see.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>ADC</source>
@@ -2337,8 +2392,20 @@ Rebuild with:
         <translation>Noise Model</translation>
     </message>
     <message>
+        <source>How long the detector collects per frame. Longer gathers more signal and more dark current with it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Electrons per digital number. Lower means finer steps, at the cost of clipping sooner.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Read Noise:</source>
         <translation>Read Noise:</translation>
+    </message>
+    <message>
+        <source>Noise the readout electronics add per pixel, in electrons RMS. Independent of exposure -- it is what limits the darkest tones.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Dark Current:</source>
@@ -2365,8 +2432,16 @@ Rebuild with:
         <translation>FPN Parameters</translation>
     </message>
     <message>
+        <source>Electrons generated thermally per second with no light at all. Multiplied by the integration time, and roughly doubles every 7 K.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>PRNU Sigma:</source>
         <translation>PRNU Sigma:</translation>
+    </message>
+    <message>
+        <source>Photo-Response Non-Uniformity: pixel-to-pixel spread in sensitivity, as a fraction. A fixed multiplicative pattern, visible in bright areas.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>DSNU Sigma:</source>
@@ -2377,12 +2452,20 @@ Rebuild with:
         <translation>Enable NUC</translation>
     </message>
     <message>
+        <source>Dark Signal Non-Uniformity: pixel-to-pixel spread in dark current, in electrons. A fixed additive pattern, visible in dark areas.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>NUC Efficiency:</source>
         <translation>NUC Efficiency:</translation>
     </message>
     <message>
         <source>IR Detector</source>
         <translation>IR Detector</translation>
+    </message>
+    <message>
+        <source>How much of the fixed pattern the Non-Uniformity Correction removes. 1.0 removes all of it, which no real calibration does.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Detector Temperature:</source>

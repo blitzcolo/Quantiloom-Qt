@@ -88,6 +88,12 @@ public:
     /// the top of each startNextFrame.
     void finishCaptureIfReady(QVulkanWindow* window);
 
+    /// A capture is requested or recorded but not yet written. The frame loop
+    /// has to keep running while this is true: a capture needs one frame to
+    /// record and a few more to clear the frames in flight, and the loop now
+    /// stops on its own at the target sample count.
+    [[nodiscard]] bool capturePending() const { return !m_capturePath.isEmpty(); }
+
 private:
     struct OwnedImage {
         VkImage image = VK_NULL_HANDLE;

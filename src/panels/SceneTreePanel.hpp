@@ -49,9 +49,17 @@ public:
 signals:
     void nodeSelected(int nodeIndex);
     void materialSelected(int materialIndex);
+    /// A multi-selection made in the tree, for the shell to mirror into the
+    /// SelectionManager. Distinct from nodeSelected, which is one click.
+    void nodesSelected(const QSet<int>& nodeIndices);
+    /// Right-click in the tree. The panel owns no scene operations, so the
+    /// shell builds and shows the menu.
+    void contextMenuRequested(const QPoint& globalPos);
 
 private slots:
     void onItemClicked(QTreeWidgetItem* item, int column);
+    void onTreeSelectionChanged();
+    void applyFilter(const QString& text);
 
 private:
     void populateTree();
@@ -59,7 +67,12 @@ private:
     QTreeWidgetItem* findNodeItem(int nodeIndex);
 
     QTreeWidget* m_tree = nullptr;
+    class QLineEdit* m_filterEdit = nullptr;
     class QLabel* m_emptyLabel = nullptr;
     const quantiloom::Scene* m_scene = nullptr;
     QSet<int> m_highlightedNodes;
+    QString m_filter;
+    /// True while the shell's selection is being written into the tree, so
+    /// the resulting itemSelectionChanged is not mistaken for a user action.
+    bool m_syncingSelection = false;
 };

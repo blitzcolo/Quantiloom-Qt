@@ -181,6 +181,18 @@ public:
     /// no ray tracing.
     void selectRayTracingDevice();
 
+    /// See QuantiloomVulkanRenderer::frameBounds.
+    void frameBounds(const glm::vec3& min, const glm::vec3& max);
+
+    /// See QuantiloomVulkanRenderer::setSceneScale.
+    void setSceneScale(float radius);
+
+    /// Colour of the wireframe box drawn around the selection. Linear RGBA --
+    /// the overlay writes into an sRGB target that encodes on write. Driven
+    /// from the theme's accent, so it changes with the theme like everything
+    /// else the shell draws.
+    void setSelectionBoxColor(const glm::vec4& color);
+
     uint32_t currentSampleCount() const;
 
     /// The SDK's own frame timing, which measures the trace rather than this
@@ -593,5 +605,7 @@ private:
 
     // Gizmo interaction state, fed to the overlay for highlight colors
     editing::GizmoHandle m_hoveredHandle = editing::GizmoHandle::None;
+    /// Linear RGBA; the shell overwrites it from the theme accent.
+    glm::vec4 m_selectionBoxColor{0.29f, 0.56f, 0.85f, 0.85f};
     editing::GizmoHandle m_activeHandle = editing::GizmoHandle::None;
 };

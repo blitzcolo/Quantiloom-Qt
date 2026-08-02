@@ -1132,6 +1132,18 @@ May cause colour shifts.</source>
         <translation>重置视角(&amp;R)</translation>
     </message>
     <message>
+        <source>&amp;Frame Selected</source>
+        <translation>聚焦选中(&amp;F)</translation>
+    </message>
+    <message>
+        <source>Orbit around the selection and pull back to fit it</source>
+        <translation>以选中对象为轴心，并拉远至完整可见</translation>
+    </message>
+    <message>
+        <source>Frame &amp;All</source>
+        <translation>聚焦全部(&amp;A)</translation>
+    </message>
+    <message>
         <source>&amp;Front</source>
         <translation>前视图(&amp;F)</translation>
     </message>
@@ -1370,6 +1382,16 @@ May cause colour shifts.</source>
     <message>
         <source>Render complete, but the export to %1 failed</source>
         <translation>渲染完成，但导出至 %1 失败</translation>
+    </message>
+    <message numerus="yes">
+        <source>Framed %n object(s)</source>
+        <translation>
+            <numerusform>已聚焦 %n 个对象</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Framed the scene</source>
+        <translation>已聚焦整个场景</translation>
     </message>
     <message>
         <source>Layout reset for %1</source>
@@ -2265,6 +2287,10 @@ This may take a few minutes.</source>
         <translation>节点</translation>
     </message>
     <message>
+        <source>Filter by name...</source>
+        <translation>按名称过滤……</translation>
+    </message>
+    <message>
         <source>Open a scene to see its contents.</source>
         <translation>打开场景后可在此查看其内容。</translation>
     </message>
@@ -2359,24 +2385,52 @@ Rebuild with:
         <translation>传感器</translation>
     </message>
     <message>
+        <source>Lens focal length. With the pixel pitch it sets the angular size of a pixel, and so how much of the scene one pixel averages.</source>
+        <translation>镜头焦距。与像元间距共同决定单个像素的角尺寸，也就决定了一个像素平均了多大范围的场景。</translation>
+    </message>
+    <message>
+        <source>f-number, focal length divided by entrance pupil diameter. Lower collects more light: irradiance on the detector goes as 1/f-number squared.</source>
+        <translation>f 数，即焦距除以入瞳直径。数值越小进光越多：探测器上的辐照度与 f 数的平方成反比。</translation>
+    </message>
+    <message>
         <source>Pixel Pitch:</source>
         <translation>像元尺寸:</translation>
+    </message>
+    <message>
+        <source>Centre-to-centre spacing of the detector elements. Sets how much area collects photons for one pixel.</source>
+        <translation>探测器单元的中心间距。决定单个像素用多大面积收集光子。</translation>
     </message>
     <message>
         <source>Quantum Efficiency:</source>
         <translation>量子效率:</translation>
     </message>
     <message>
+        <source>Fraction of arriving photons that become signal electrons. 1.0 would convert every photon.</source>
+        <translation>入射光子转化为信号电子的比例。1.0 表示每个光子都被转换。</translation>
+    </message>
+    <message>
         <source>Well Capacity:</source>
         <translation>满阱容量:</translation>
+    </message>
+    <message>
+        <source>Electrons a pixel can hold before it saturates. Anything brighter clips to white.</source>
+        <translation>像素饱和前可容纳的电子数。更亮的部分将被截断为白色。</translation>
     </message>
     <message>
         <source>Bit Depth:</source>
         <translation>位深:</translation>
     </message>
     <message>
+        <source>Bits per pixel out of the converter. Sets how finely the electron count is quantised.</source>
+        <translation>模数转换输出的每像素位数。决定电子数被量化的精细程度。</translation>
+    </message>
+    <message>
         <source>Integration Time:</source>
         <translation>积分时间:</translation>
+    </message>
+    <message>
+        <source>Temperature of the detector itself. Drives dark current, and for thermal bands the self-emission the optics see.</source>
+        <translation>探测器自身的温度。决定暗电流；在热成像波段还决定光学系统看到的自发辐射。</translation>
     </message>
     <message>
         <source>ADC</source>
@@ -2391,8 +2445,20 @@ Rebuild with:
         <translation>噪声模型</translation>
     </message>
     <message>
+        <source>How long the detector collects per frame. Longer gathers more signal and more dark current with it.</source>
+        <translation>每帧的积分时长。时间越长收集的信号越多，暗电流也随之增加。</translation>
+    </message>
+    <message>
+        <source>Electrons per digital number. Lower means finer steps, at the cost of clipping sooner.</source>
+        <translation>每个数字量化单位对应的电子数。数值越小量化步长越细，但也更早截断。</translation>
+    </message>
+    <message>
         <source>Read Noise:</source>
         <translation>读出噪声:</translation>
+    </message>
+    <message>
+        <source>Noise the readout electronics add per pixel, in electrons RMS. Independent of exposure -- it is what limits the darkest tones.</source>
+        <translation>读出电路为每个像素引入的噪声，单位为电子均方根。与曝光无关，是暗部细节的极限所在。</translation>
     </message>
     <message>
         <source>Dark Current:</source>
@@ -2419,8 +2485,16 @@ Rebuild with:
         <translation>FPN 参数</translation>
     </message>
     <message>
+        <source>Electrons generated thermally per second with no light at all. Multiplied by the integration time, and roughly doubles every 7 K.</source>
+        <translation>完全无光时每秒热激发产生的电子数。与积分时间相乘，温度每升高约 7 K 翻一倍。</translation>
+    </message>
+    <message>
         <source>PRNU Sigma:</source>
         <translation>PRNU 标准差:</translation>
+    </message>
+    <message>
+        <source>Photo-Response Non-Uniformity: pixel-to-pixel spread in sensitivity, as a fraction. A fixed multiplicative pattern, visible in bright areas.</source>
+        <translation>光响应非均匀性：像素间灵敏度的相对离散度。属于固定的乘性图案，在亮区可见。</translation>
     </message>
     <message>
         <source>DSNU Sigma:</source>
@@ -2431,12 +2505,20 @@ Rebuild with:
         <translation>启用非均匀性校正</translation>
     </message>
     <message>
+        <source>Dark Signal Non-Uniformity: pixel-to-pixel spread in dark current, in electrons. A fixed additive pattern, visible in dark areas.</source>
+        <translation>暗信号非均匀性：像素间暗电流的离散度，单位为电子。属于固定的加性图案，在暗区可见。</translation>
+    </message>
+    <message>
         <source>NUC Efficiency:</source>
         <translation>NUC 校正效率:</translation>
     </message>
     <message>
         <source>IR Detector</source>
         <translation>红外探测器</translation>
+    </message>
+    <message>
+        <source>How much of the fixed pattern the Non-Uniformity Correction removes. 1.0 removes all of it, which no real calibration does.</source>
+        <translation>非均匀性校正能消除的固定图案比例。1.0 表示完全消除，实际标定无法做到。</translation>
     </message>
     <message>
         <source>Detector Temperature:</source>

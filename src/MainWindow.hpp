@@ -30,6 +30,9 @@ QT_BEGIN_NAMESPACE
 class QActionGroup;
 class QComboBox;
 class QDockWidget;
+class QDragEnterEvent;
+class QDropEvent;
+class QMimeData;
 class QTabWidget;
 class QStatusBar;
 class QProgressBar;
@@ -126,6 +129,17 @@ private slots:
 
     // View menu actions
     void onResetCamera();
+    /// Orbit around the selection, or the whole scene when nothing is picked.
+    void onFrameSelected();
+    void onFrameAll();
+
+protected:
+    // Dropping a .toml opens it. Models and images are not accepted: see
+    // droppedConfigPath().
+    void dragEnterEvent(QDragEnterEvent* event) override;
+    void dropEvent(QDropEvent* event) override;
+
+private slots:
     void onResetLayout();
     void onTakeScreenshot();
 
@@ -305,6 +319,13 @@ private:
     void autoExportRender(uint32_t sampleCount);
     /// h:mm:ss past an hour, m:ss below it.
     [[nodiscard]] static QString formatDuration(qint64 ms);
+    /// The path of a single dropped .toml, or empty for anything else.
+    [[nodiscard]] static QString droppedConfigPath(const QMimeData* mime);
+    /// World-space AABB over every live node. False when there is nothing.
+    [[nodiscard]] bool computeSceneBounds(glm::vec3& outMin, glm::vec3& outMax) const;
+    /// Push the scene's extent to the renderer, which derives the navigation
+    /// speed and zoom limits from it.
+    void updateSceneScale();
 
     // Vulkan instance (owned by main())
     QVulkanInstance* m_vulkanInstance = nullptr;
@@ -396,6 +417,8 @@ private:
     QAction* m_deleteAction = nullptr;
     QAction* m_preferencesAction = nullptr;
     QAction* m_resetCameraAction = nullptr;
+    QAction* m_frameSelectedAction = nullptr;
+    QAction* m_frameAllAction = nullptr;
     QAction* m_resetLayoutAction = nullptr;
     QAction* m_startRenderAction = nullptr;
     QAction* m_stopRenderAction = nullptr;

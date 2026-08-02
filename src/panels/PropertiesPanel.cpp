@@ -99,6 +99,10 @@ void PropertiesPanel::setupUi() {
     auto makeTriple = [this](QDoubleSpinBox* (&fields)[3], double minimum, double maximum,
                              double step, int decimals) {
         auto* row = new QHBoxLayout();
+        // X/Y/Z are axis symbols, kept verbatim in every locale by the same
+        // glossary decision as the emissive R/G/B. Three anonymous spinboxes
+        // said nothing about which was which.
+        static const char* const kAxisNames[3] = {"X", "Y", "Z"};
         for (int axis = 0; axis < 3; ++axis) {
             auto* spin = new QDoubleSpinBox();
             spin->setRange(minimum, maximum);
@@ -108,7 +112,8 @@ void PropertiesPanel::setupUi() {
             connect(spin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
                     this, &PropertiesPanel::onTransformFieldChanged);
             fields[axis] = spin;
-            row->addWidget(spin);
+            row->addWidget(new QLabel(QString::fromLatin1(kAxisNames[axis])));
+            row->addWidget(spin, 1);
         }
         return row;
     };

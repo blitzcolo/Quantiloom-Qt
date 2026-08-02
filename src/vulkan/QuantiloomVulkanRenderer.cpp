@@ -277,7 +277,10 @@ void QuantiloomVulkanRenderer::startNextFrame() {
     // swapchain image -- so a pause takes effect from the next frame on.
     m_window->frameReady();
     const bool atTarget = m_targetSPP > 0 && m_sampleCount >= m_targetSPP;
-    if (!m_paused && !atTarget) {
+    // A pending composited capture keeps the loop alive past the target: it
+    // records in one frame and is written a few frames later, so stopping at
+    // the target left the request recorded and never saved.
+    if (!m_paused && (!atTarget || m_overlay.capturePending())) {
         m_window->requestUpdate();
     }
 }
@@ -560,6 +563,69 @@ void QuantiloomVulkanRenderer::applyConfigToContext(bool isFreshOpen) {
     m_configAppliedToContext = true;
     resetAccumulation();
     emit m_window->sceneLoaded(true, QObject::tr("Scene loaded successfully"));
+}
+
+void QuantiloomVulkanRenderer::setSceneScale(float radius) {
+    // One number from the scene's bounding sphere drives every navigation
+    // constant. Guarded because an empty or degenerate scene has no radius,
+    // and the old fixed values are a reasonable stand-in for "unknown".
+    m_sceneRadius = (radius > 1e-4f && std::isfinite(radius)) ? radius : 0.0f;
+}
+
+float QuantiloomVulkanRenderer::minOrbitDistance() const {
+    return (m_sceneRadius > 0.0f) ? m_sceneRadius * 0.01f : 0.1f;
+}
+
+float QuantiloomVulkanRenderer::maxOrbitDistance() const {
+    return (m_sceneRadius > 0.0f) ? m_sceneRadius * 100.0f : 1000.0f;
+}
+
+float QuantiloomVulkanRenderer::cameraBaseSpeed() const {
+    // Cross the scene in roughly two seconds at walking pace, which reads the
+    // same whether the scene is a coin or a carrier.
+    return (m_sceneRadius > 0.0f) ? m_sceneRadius : 5.0f;
+}
+
+void QuantiloomVulkanRenderer::frameBounds(const glm::vec3& min, const glm::vec3& max) {
+    const glm::vec3 centre = (min + max) * 0.5f;
+    const glm::vec3 extent = max - min;
+    const float radius = glm::length(extent) * 0.5f;
+
+    // A degenerate box (a single point, or a mesh with no bounds) still has a
+    // centre worth orbiting; only the distance has nothing to say.
+    const float safeRadius = (radius > 1e-4f) ? radius : 1.0f;
+
+    // Far enough that the bounding sphere fits the vertical field of view,
+    // with a margin so the object does not touch the frame edges.
+    constexpr float kMargin = 1.35f;
+    const float halfFov = m_cameraFovY * 0.5f;
+    const float distance = (halfFov > 1e-4f)
+        ? (safeRadius / std::sin(halfFov)) * kMargin
+        : safeRadius * 3.0f;
+
+    // Keep the direction the camera is already looking from -- framing moves
+    // the pivot and the range, not the angle, which is what makes it feel
+    // like "look at this" rather than "jump somewhere".
+    glm::vec3 direction = m_cameraPosition - m_cameraTarget;
+    if (glm::length(direction) < 1e-4f) {
+        direction = glm::vec3(0.0f, 0.0f, 1.0f);
+    }
+    direction = glm::normalize(direction);
+
+    m_cameraTarget = centre;
+    m_cameraPosition = centre + direction * distance;
+    m_orbitDistance = distance;
+
+    // Radians -- see src/vulkan/CLAUDE.md. Derived from the new offset rather
+    // than left alone, or the first drag afterwards snaps back.
+    m_orbitPitch = std::asin(glm::clamp(direction.y, -1.0f, 1.0f));
+    m_orbitYaw = std::atan2(direction.x, direction.z);
+
+    if (m_renderContext) {
+        m_renderContext->SetCameraLookAt(m_cameraPosition, m_cameraTarget, m_cameraUp);
+        resetAccumulation();
+    }
+    emit m_window->cameraChanged();
 }
 
 void QuantiloomVulkanRenderer::resetCamera() {
@@ -870,7 +936,12 @@ void QuantiloomVulkanRenderer::zoomCamera(float delta) {
     const float zoomSpeed = 0.5f;
 
     m_orbitDistance *= (1.0f - delta * zoomSpeed * 0.1f);
-    m_orbitDistance = glm::clamp(m_orbitDistance, 0.1f, 1000.0f);
+    // Derived from the scene rather than the hardcoded 0.1 to 1000 that used
+    // to be here: assets/models holds both an avocado a few centimetres
+    // across and an aircraft carrier, and one pair of constants cannot serve
+    // both -- the near clamp stopped the zoom well outside the avocado, and
+    // the far one inside the carrier.
+    m_orbitDistance = glm::clamp(m_orbitDistance, minOrbitDistance(), maxOrbitDistance());
 
     // Recalculate camera position
     float x = m_orbitDistance * std::cos(m_orbitPitch) * std::sin(m_orbitYaw);
@@ -891,7 +962,7 @@ void QuantiloomVulkanRenderer::updateCamera(float deltaTime) {
         return;
     }
 
-    const float baseSpeed = 5.0f;
+    const float baseSpeed = cameraBaseSpeed();
     float speed = m_moveFast ? baseSpeed * 3.0f : baseSpeed;
 
     glm::vec3 forward = glm::normalize(m_cameraTarget - m_cameraPosition);

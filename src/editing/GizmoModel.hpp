@@ -59,6 +59,14 @@ struct GizmoVertex {
     glm::vec4 color;  // linear, alpha-blended
 };
 
+/// Append a wireframe box around a world-space AABB, as thin tubes on the
+/// same vertex list the gizmo uses. This is what makes a selection visible:
+/// with only a gizmo at the median point, a multi-selection gave no clue
+/// which objects were in it.
+void buildSelectionBoxGeometry(const glm::vec3& min, const glm::vec3& max,
+                               const glm::vec4& color, float edgeRadius,
+                               std::vector<GizmoVertex>& out);
+
 /// Append the triangle list for `mode`'s handle set. `hovered` draws yellow,
 /// `active` white; `viewDir` (camera toward origin) dims ring back halves.
 void buildGizmoGeometry(TransformGizmo::Mode mode, const GizmoFrame& frame,

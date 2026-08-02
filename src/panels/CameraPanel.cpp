@@ -37,6 +37,8 @@ void CameraPanel::setupUi() {
 
     auto makeTriple = [this](QDoubleSpinBox* (&fields)[3]) {
         auto* row = new QHBoxLayout();
+        // Axis symbols, verbatim in every locale -- see PropertiesPanel.
+        static const char* const kAxisNames[3] = {"X", "Y", "Z"};
         for (int axis = 0; axis < 3; ++axis) {
             auto* spin = new QDoubleSpinBox();
             spin->setRange(-1e6, 1e6);
@@ -46,7 +48,8 @@ void CameraPanel::setupUi() {
             connect(spin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
                     this, &CameraPanel::onPoseFieldChanged);
             fields[axis] = spin;
-            row->addWidget(spin);
+            row->addWidget(new QLabel(QString::fromLatin1(kAxisNames[axis])));
+            row->addWidget(spin, 1);
         }
         return row;
     };

@@ -14,6 +14,7 @@
 #include <QLabel>
 #include <QSlider>
 #include <QDoubleSpinBox>
+#include <cmath>
 #include <QPushButton>
 #include <QColorDialog>
 #include <QFormLayout>
@@ -71,15 +72,23 @@ void MaterialEditorPanel::setupUi() {
     bindText([pbrGroup] { pbrGroup->setTitle(tr("PBR Properties")); });
     auto* pbrLayout = new QFormLayout(pbrGroup);
 
+    // Slider plus spinbox, the pattern SpectralConfigPanel's wavelength row
+    // established: the slider is for exploring, the spinbox for saying 0.35
+    // exactly. A read-only label could do neither.
     auto* metallicRow = new QHBoxLayout();
     m_metallicSlider = new QSlider(Qt::Horizontal);
     m_metallicSlider->setRange(0, 100);
     m_metallicSlider->setValue(0);
-    m_metallicLabel = new QLabel(QStringLiteral("0.00"));
-    m_metallicLabel->setMinimumWidth(40);
+    m_metallicSpin = new QDoubleSpinBox();
+    m_metallicSpin->setRange(0.0, 1.0);
+    m_metallicSpin->setSingleStep(0.01);
+    m_metallicSpin->setDecimals(2);
+    m_metallicSpin->setValue(0.0);
     connect(m_metallicSlider, &QSlider::valueChanged, this, &MaterialEditorPanel::onMetallicChanged);
-    metallicRow->addWidget(m_metallicSlider);
-    metallicRow->addWidget(m_metallicLabel);
+    connect(m_metallicSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &MaterialEditorPanel::onMetallicSpinChanged);
+    metallicRow->addWidget(m_metallicSlider, 1);
+    metallicRow->addWidget(m_metallicSpin);
     auto* metallicCaption = new QLabel(pbrGroup);
     bindText([metallicCaption] { metallicCaption->setText(tr("Metallic:")); });
     pbrLayout->addRow(metallicCaption, metallicRow);
@@ -88,11 +97,16 @@ void MaterialEditorPanel::setupUi() {
     m_roughnessSlider = new QSlider(Qt::Horizontal);
     m_roughnessSlider->setRange(0, 100);
     m_roughnessSlider->setValue(100);
-    m_roughnessLabel = new QLabel(QStringLiteral("1.00"));
-    m_roughnessLabel->setMinimumWidth(40);
+    m_roughnessSpin = new QDoubleSpinBox();
+    m_roughnessSpin->setRange(0.0, 1.0);
+    m_roughnessSpin->setSingleStep(0.01);
+    m_roughnessSpin->setDecimals(2);
+    m_roughnessSpin->setValue(1.0);
     connect(m_roughnessSlider, &QSlider::valueChanged, this, &MaterialEditorPanel::onRoughnessChanged);
-    roughnessRow->addWidget(m_roughnessSlider);
-    roughnessRow->addWidget(m_roughnessLabel);
+    connect(m_roughnessSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &MaterialEditorPanel::onRoughnessSpinChanged);
+    roughnessRow->addWidget(m_roughnessSlider, 1);
+    roughnessRow->addWidget(m_roughnessSpin);
     auto* roughnessCaption = new QLabel(pbrGroup);
     bindText([roughnessCaption] { roughnessCaption->setText(tr("Roughness:")); });
     pbrLayout->addRow(roughnessCaption, roughnessRow);
@@ -238,17 +252,19 @@ void MaterialEditorPanel::setMaterial(int index, const quantiloom::Material* mat
 
     m_metallic = material->metallicFactor;
     {
-        const QSignalBlocker blocker(m_metallicSlider);
+        const QSignalBlocker slider(m_metallicSlider);
+        const QSignalBlocker spin(m_metallicSpin);
         m_metallicSlider->setValue(static_cast<int>(m_metallic * 100));
+        m_metallicSpin->setValue(m_metallic);
     }
-    m_metallicLabel->setText(QString::number(m_metallic, 'f', 2));
 
     m_roughness = material->roughnessFactor;
     {
-        const QSignalBlocker blocker(m_roughnessSlider);
+        const QSignalBlocker slider(m_roughnessSlider);
+        const QSignalBlocker spin(m_roughnessSpin);
         m_roughnessSlider->setValue(static_cast<int>(m_roughness * 100));
+        m_roughnessSpin->setValue(m_roughness);
     }
-    m_roughnessLabel->setText(QString::number(m_roughness, 'f', 2));
 
     m_emissive = material->emissiveFactor;
     {
@@ -349,13 +365,39 @@ void MaterialEditorPanel::onBaseColorClicked() {
 
 void MaterialEditorPanel::onMetallicChanged(int value) {
     m_metallic = value / 100.0f;
-    m_metallicLabel->setText(QString::number(m_metallic, 'f', 2));
+    {
+        const QSignalBlocker blocker(m_metallicSpin);
+        m_metallicSpin->setValue(m_metallic);
+    }
+    applyChanges();
+}
+
+void MaterialEditorPanel::onMetallicSpinChanged(double value) {
+    m_metallic = static_cast<float>(value);
+    {
+        // The slider is the coarser of the two, so it follows without
+        // rounding the typed value back.
+        const QSignalBlocker blocker(m_metallicSlider);
+        m_metallicSlider->setValue(static_cast<int>(std::lround(value * 100.0)));
+    }
     applyChanges();
 }
 
 void MaterialEditorPanel::onRoughnessChanged(int value) {
     m_roughness = value / 100.0f;
-    m_roughnessLabel->setText(QString::number(m_roughness, 'f', 2));
+    {
+        const QSignalBlocker blocker(m_roughnessSpin);
+        m_roughnessSpin->setValue(m_roughness);
+    }
+    applyChanges();
+}
+
+void MaterialEditorPanel::onRoughnessSpinChanged(double value) {
+    m_roughness = static_cast<float>(value);
+    {
+        const QSignalBlocker blocker(m_roughnessSlider);
+        m_roughnessSlider->setValue(static_cast<int>(std::lround(value * 100.0)));
+    }
     applyChanges();
 }
 

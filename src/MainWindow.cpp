@@ -38,6 +38,10 @@
 #include <QApplication>
 #include <QGuiApplication>
 #include <QClipboard>
+#include <QDragEnterEvent>
+#include <QDropEvent>
+#include <QMimeData>
+#include <QUrl>
 #include <QMenuBar>
 #include <QMenu>
 #include <QAction>
@@ -136,6 +140,9 @@ MainWindow::MainWindow(QVulkanInstance* vulkanInstance, QWidget* parent)
     setupStatusBar();
     setupEditingSystem();
     setupConnections();
+
+    // Dropping a configuration onto the window opens it.
+    setAcceptDrops(true);
 
     // Progressive accumulation is already running when the window opens, so
     // "start" is the entry that has nothing to do yet.
@@ -243,6 +250,22 @@ void MainWindow::setupUi() {
     // come from the palette and the palette changes with the theme.
     m_styling.bind([this] { setStyleSheet(uistyle::shellStyleSheet()); });
 
+    // The selection box is drawn by the overlay, not by a stylesheet, so the
+    // colour has to be pushed to it on every theme switch. Converted to
+    // linear here because the overlay writes into an sRGB target.
+    m_styling.bind([this] {
+        const QColor accent = palette().color(QPalette::Highlight);
+        auto toLinear = [](float c) {
+            return (c <= 0.04045f) ? (c / 12.92f)
+                                   : std::pow((c + 0.055f) / 1.055f, 2.4f);
+        };
+        m_vulkanWindow->setSelectionBoxColor(glm::vec4(
+            toLinear(static_cast<float>(accent.redF())),
+            toLinear(static_cast<float>(accent.greenF())),
+            toLinear(static_cast<float>(accent.blueF())),
+            0.85f));
+    });
+
     m_viewportFrame = new ViewportFrame(m_vulkanContainer, this);
     connect(m_viewportFrame, &ViewportFrame::openSceneRequested,
             this, &MainWindow::onOpenScene);
@@ -272,6 +295,11 @@ bool MainWindow::eventFilter(QObject* watched, QEvent* event) {
         case Qt::Key_R:     action = m_rotateAction;     break;
         case Qt::Key_T:     action = m_scaleAction;      break;
         case Qt::Key_Space: action = m_localSpaceAction; break;
+        // The only pair here that Shift distinguishes rather than modifies.
+        case Qt::Key_F:
+            action = (keyEvent->modifiers() & Qt::ShiftModifier)
+                ? m_frameAllAction : m_frameSelectedAction;
+            break;
         default: break;
     }
 
@@ -522,6 +550,16 @@ void MainWindow::setupMenus() {
 
 void MainWindow::buildCameraMenu(QMenu* menu) {
     m_resetCameraAction = menu->addAction(QString(), this, &MainWindow::onResetCamera);
+
+    // The most-used viewport command in every DCC tool, and the orbit pivot
+    // had no way to reach the selection at all: it stayed wherever the config
+    // put it, so after panning across a scene, orbiting spun about a point
+    // nowhere near what was being looked at.
+    m_frameSelectedAction = menu->addAction(QString(), this, &MainWindow::onFrameSelected);
+    m_frameSelectedAction->setShortcut(QKeySequence(Qt::Key_F));
+    m_frameAllAction = menu->addAction(QString(), this, &MainWindow::onFrameAll);
+    m_frameAllAction->setShortcut(QKeySequence(Qt::SHIFT | Qt::Key_F));
+
     menu->addSeparator();
 
     // Direction the camera sits in relative to its target. Y is up.
@@ -1265,6 +1303,26 @@ void MainWindow::setupDockWidgets() {
                 bool addToSelection = QGuiApplication::keyboardModifiers() & Qt::ControlModifier;
                 m_selectionManager->select(nodeIndex, addToSelection);
             });
+    connect(m_sceneTreePanel, &SceneTreePanel::nodesSelected,
+            this, [this](const QSet<int>& nodes) {
+                // A multi-selection made in the tree replaces the current one
+                // wholesale; the tree's own Ctrl/Shift handling has already
+                // decided what it should be.
+                m_selectionManager->selectMultiple(nodes);
+            });
+    connect(m_sceneTreePanel, &SceneTreePanel::contextMenuRequested,
+            this, [this](const QPoint& globalPos) {
+                // The same actions as the Edit menu, so there is one
+                // definition of what each does and the shortcuts show through.
+                QMenu menu(this);
+                menu.addAction(m_frameSelectedAction);
+                menu.addSeparator();
+                menu.addAction(m_copyAction);
+                menu.addAction(m_pasteAction);
+                menu.addAction(m_duplicateAction);
+                menu.addAction(m_deleteAction);
+                menu.exec(globalPos);
+            });
     connect(m_sceneTreePanel, &SceneTreePanel::materialSelected,
             this, &MainWindow::onMaterialSelected);
 
@@ -1711,6 +1769,10 @@ void MainWindow::retranslateUi() {
     }
     m_cameraMenu->setTitle(tr("&Camera"));
     m_resetCameraAction->setText(tr("&Reset View"));
+    m_frameSelectedAction->setText(tr("&Frame Selected"));
+    m_frameSelectedAction->setToolTip(
+        tr("Orbit around the selection and pull back to fit it"));
+    m_frameAllAction->setText(tr("Frame &All"));
     for (QAction* action : std::as_const(m_viewPresetActions)) {
         const QString id = action->data().toString();
         if (id == QLatin1String("front"))       action->setText(tr("&Front"));
@@ -1987,6 +2049,47 @@ void MainWindow::onOpenScene() {
     }
 }
 
+void MainWindow::dragEnterEvent(QDragEnterEvent* event) {
+    // Configurations only. A dropped model would have to invent a document
+    // around itself -- which file dialog Open does deliberately, with a
+    // confirmation -- and a dropped .exr has no unambiguous meaning either
+    // (environment map? something to compare against?). Both stay on the
+    // routes that ask.
+    if (droppedConfigPath(event->mimeData()).isEmpty()) {
+        return;
+    }
+    event->acceptProposedAction();
+}
+
+void MainWindow::dropEvent(QDropEvent* event) {
+    const QString path = droppedConfigPath(event->mimeData());
+    if (path.isEmpty()) {
+        return;
+    }
+    event->acceptProposedAction();
+    if (!confirmDiscardChanges()) {
+        return;
+    }
+    openPath(path);
+}
+
+QString MainWindow::droppedConfigPath(const QMimeData* mime) {
+    if (!mime || !mime->hasUrls()) {
+        return {};
+    }
+    const QList<QUrl> urls = mime->urls();
+    // One file. A multi-file drop has no sensible reading when the window
+    // holds a single document.
+    if (urls.size() != 1 || !urls.first().isLocalFile()) {
+        return {};
+    }
+    const QString path = urls.first().toLocalFile();
+    if (!path.endsWith(QLatin1String(".toml"), Qt::CaseInsensitive)) {
+        return {};
+    }
+    return path;
+}
+
 void MainWindow::openFromCommandLine(const QString& filePath) {
     if (!QFileInfo::exists(filePath)) {
         showStatusMessage(tr("No such file: %1").arg(filePath));
@@ -2238,6 +2341,76 @@ void MainWindow::onResetCamera() {
     showStatusMessage(tr("Camera reset"));
 }
 
+void MainWindow::onFrameSelected() {
+    const quantiloom::Scene* scene = m_vulkanWindow->getScene();
+    if (!scene) {
+        return;
+    }
+    // Nothing selected is not an error -- it is the case where "frame what
+    // matters" means the whole scene, which is what the user gets.
+    if (m_selectionManager->selectedNodes().isEmpty()) {
+        onFrameAll();
+        return;
+    }
+
+    glm::vec3 min, max;
+    m_selectionManager->computeSelectionBounds(scene, min, max);
+    m_vulkanWindow->frameBounds(min, max);
+    showStatusMessage(tr("Framed %n object(s)", "", m_selectionManager->selectedNodes().size()));
+}
+
+bool MainWindow::computeSceneBounds(glm::vec3& outMin, glm::vec3& outMax) const {
+    const quantiloom::Scene* scene = m_vulkanWindow->getScene();
+    if (!scene) {
+        return false;
+    }
+
+    outMin = glm::vec3(std::numeric_limits<float>::max());
+    outMax = glm::vec3(std::numeric_limits<float>::lowest());
+    bool any = false;
+
+    // Tombstoned nodes are excluded: a deleted object should not keep the
+    // camera pulled back to include where it used to be.
+    for (const auto& node : scene->nodes) {
+        if (!node.active || node.meshIndex >= scene->meshes.size()) {
+            continue;
+        }
+        glm::vec3 meshMin, meshMax;
+        scene->meshes[node.meshIndex].ComputeBounds(meshMin, meshMax);
+        const glm::vec3 corners[8] = {
+            {meshMin.x, meshMin.y, meshMin.z}, {meshMax.x, meshMin.y, meshMin.z},
+            {meshMin.x, meshMax.y, meshMin.z}, {meshMax.x, meshMax.y, meshMin.z},
+            {meshMin.x, meshMin.y, meshMax.z}, {meshMax.x, meshMin.y, meshMax.z},
+            {meshMin.x, meshMax.y, meshMax.z}, {meshMax.x, meshMax.y, meshMax.z}};
+        for (const auto& corner : corners) {
+            const glm::vec3 world(node.transform * glm::vec4(corner, 1.0f));
+            outMin = glm::min(outMin, world);
+            outMax = glm::max(outMax, world);
+        }
+        any = true;
+    }
+    return any;
+}
+
+void MainWindow::onFrameAll() {
+    glm::vec3 min, max;
+    if (!computeSceneBounds(min, max)) {
+        return;
+    }
+    m_vulkanWindow->frameBounds(min, max);
+    showStatusMessage(tr("Framed the scene"));
+}
+
+void MainWindow::updateSceneScale() {
+    // Navigation constants follow the scene: fly speed, and the near and far
+    // ends of the zoom. Pushed on load and after topology edits, since both
+    // can change the extent by orders of magnitude.
+    glm::vec3 min, max;
+    const float radius = computeSceneBounds(min, max)
+        ? glm::length(max - min) * 0.5f : 0.0f;
+    m_vulkanWindow->setSceneScale(radius);
+}
+
 void MainWindow::onResetLayout() {
     // Per workspace, not globally: a user who has rearranged the debug
     // workspace should not lose their layout work everywhere else.
@@ -2437,6 +2610,9 @@ void MainWindow::refreshAfterTopologyChange() {
     const auto* scene = m_vulkanWindow->getScene();
 
     m_sceneTreePanel->refresh();
+    // Pasting or deleting can change the scene's extent, and the navigation
+    // limits are derived from it.
+    updateSceneScale();
 
     int active = 0;
     QSet<int> pruned;
@@ -2938,6 +3114,9 @@ void MainWindow::updatePanelsFromScene() {
     m_spectralMaterialGenPanel->setScene(scene);
     m_materialEditorPanel->clear();
     m_propertiesPanel->showEmptyState();
+    // A new document: the fly speed and zoom range are read off its extent,
+    // so an avocado and an aircraft carrier navigate the same way.
+    updateSceneScale();
 
     if (scene) {
         // Seed the panel from the struct the renderer is actually running on,

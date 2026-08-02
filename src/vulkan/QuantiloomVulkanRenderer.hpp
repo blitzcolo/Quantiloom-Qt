@@ -112,6 +112,15 @@ public:
     void resetAccumulation();
     uint32_t currentSampleCount() const { return m_sampleCount; }
 
+    /// Orbit around a world-space box and pull back far enough to see all of
+    /// it. Keeps the current viewing direction: framing changes what the
+    /// camera looks at, not where it looks from.
+    void frameBounds(const glm::vec3& min, const glm::vec3& max);
+
+    /// The scene's bounding-sphere radius, from which the fly speed and the
+    /// zoom clamps are derived. Zero restores the fixed fallbacks.
+    void setSceneScale(float radius);
+
     /// The SDK's trace time for the last frame, as distinct from the wall
     /// clock the frameRendered signal carries.
     [[nodiscard]] float lastGpuFrameTimeMs() const { return m_lastGpuFrameTimeMs; }
@@ -319,6 +328,11 @@ private:
     /// no scene, so this is also what keeps it running for WASDQE.
     [[nodiscard]] bool isCameraMoving() const;
 
+    // Navigation limits, derived from m_sceneRadius (see setSceneScale).
+    [[nodiscard]] float minOrbitDistance() const;
+    [[nodiscard]] float maxOrbitDistance() const;
+    [[nodiscard]] float cameraBaseSpeed() const;
+
     // Check if this is the first run (no pipeline cache)
     bool isFirstRun() const;
 
@@ -350,6 +364,8 @@ private:
 
     // Orbit camera state
     float m_orbitDistance = 5.0f;
+    /// Bounding-sphere radius of the open scene, 0 when unknown.
+    float m_sceneRadius = 0.0f;
     float m_orbitYaw = 0.0f;    // Horizontal angle
     float m_orbitPitch = 0.0f;  // Vertical angle
 

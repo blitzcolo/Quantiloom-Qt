@@ -8,6 +8,8 @@
 #include "../ui/UiStyle.hpp"
 
 #include <QTreeWidget>
+#include <QLineEdit>
+#include <QSignalBlocker>
 #include <QVBoxLayout>
 #include <QHeaderView>
 #include <QBrush>
@@ -28,10 +30,21 @@ SceneTreePanel::SceneTreePanel(QWidget* parent)
     layout->setContentsMargins(4, 4, 4, 4);
     layout->setSpacing(4);
 
+    // Filter first: a scene with a thousand nodes is a scroll, not a list.
+    m_filterEdit = new QLineEdit(this);
+    m_filterEdit->setClearButtonEnabled(true);
+    bindText([this] { m_filterEdit->setPlaceholderText(tr("Filter by name...")); });
+    connect(m_filterEdit, &QLineEdit::textChanged, this, &SceneTreePanel::applyFilter);
+    layout->addWidget(m_filterEdit);
+
     m_tree = new QTreeWidget();
     m_tree->header()->setStretchLastSection(true);
     m_tree->setAlternatingRowColors(true);
-    m_tree->setSelectionMode(QAbstractItemView::SingleSelection);
+    // The shell has supported multi-selection since Select All and Invert
+    // arrived; the tree was still single-select, so it could neither show a
+    // multi-selection nor make one.
+    m_tree->setSelectionMode(QAbstractItemView::ExtendedSelection);
+    m_tree->setContextMenuPolicy(Qt::CustomContextMenu);
     bindText([this] {
         m_tree->setHeaderLabels({tr("Name"), tr("Type")});
     });
@@ -56,6 +69,14 @@ SceneTreePanel::SceneTreePanel(QWidget* parent)
     bindStyle([this] { applySelectionHighlight(); });
 
     connect(m_tree, &QTreeWidget::itemClicked, this, &SceneTreePanel::onItemClicked);
+    connect(m_tree, &QTreeWidget::itemSelectionChanged,
+            this, &SceneTreePanel::onTreeSelectionChanged);
+    connect(m_tree, &QTreeWidget::customContextMenuRequested,
+            this, [this](const QPoint& pos) {
+                // The panel does not know what a scene operation is; the shell
+                // owns those actions and builds the menu.
+                emit contextMenuRequested(m_tree->viewport()->mapToGlobal(pos));
+            });
 
     populateTree();
 }
@@ -83,6 +104,7 @@ void SceneTreePanel::populateTree() {
 
     m_emptyLabel->setVisible(m_scene == nullptr);
     m_tree->setVisible(m_scene != nullptr);
+    m_filterEdit->setVisible(m_scene != nullptr);
 
     if (!m_scene) {
         return;
@@ -190,8 +212,9 @@ void SceneTreePanel::populateTree() {
     m_tree->resizeColumnToContents(0);
 
     // The tree was just rebuilt from scratch (refresh, or a language switch),
-    // so the highlight has to be painted back onto the new items.
+    // so the highlight and the filter have to be applied to the new items.
     applySelectionHighlight();
+    applyFilter(m_filter);
 }
 
 void SceneTreePanel::onItemClicked(QTreeWidgetItem* item, int /*column*/) {
@@ -206,18 +229,73 @@ void SceneTreePanel::onItemClicked(QTreeWidgetItem* item, int /*column*/) {
 }
 
 void SceneTreePanel::setSelectedNodes(const QSet<int>& nodeIndices) {
+    // Everything below selects items, which the selection-changed handler
+    // would otherwise read back out as a user action.
+    const QSignalBlocker blocker(m_tree);
+    m_syncingSelection = true;
+
     // Clear previous highlight
     clearSelectionHighlight();
 
     m_highlightedNodes = nodeIndices;
 
     applySelectionHighlight();
+    m_syncingSelection = false;
 
     // Ensure the first highlighted item is visible
     for (int nodeIndex : nodeIndices) {
         if (QTreeWidgetItem* item = findNodeItem(nodeIndex)) {
             m_tree->scrollToItem(item);
             break;
+        }
+    }
+}
+
+void SceneTreePanel::onTreeSelectionChanged() {
+    // Guarded: setSelectedNodes() selects items itself, and without this the
+    // shell's answer would come straight back as a fresh user selection.
+    if (m_syncingSelection) {
+        return;
+    }
+    QSet<int> nodes;
+    const auto selected = m_tree->selectedItems();
+    for (const QTreeWidgetItem* item : selected) {
+        if (item->data(0, Qt::UserRole + 1).toString() == QLatin1String("node")) {
+            nodes.insert(item->data(0, Qt::UserRole).toInt());
+        }
+    }
+    // Only for node selections. Clicking a material or a heading is not a way
+    // of clearing the scene selection.
+    if (!nodes.isEmpty()) {
+        emit nodesSelected(nodes);
+    }
+}
+
+void SceneTreePanel::applyFilter(const QString& text) {
+    m_filter = text.trimmed();
+    // Applied to the live items rather than by rebuilding: rebuilding would
+    // drop the selection on every keystroke.
+    QTreeWidgetItem* sceneRoot = m_tree->topLevelItem(0);
+    if (!sceneRoot) {
+        return;
+    }
+    for (int i = 0; i < sceneRoot->childCount(); ++i) {
+        QTreeWidgetItem* group = sceneRoot->child(i);
+        int visibleChildren = 0;
+        for (int j = 0; j < group->childCount(); ++j) {
+            QTreeWidgetItem* child = group->child(j);
+            const bool matches =
+                m_filter.isEmpty() ||
+                child->text(0).contains(m_filter, Qt::CaseInsensitive);
+            child->setHidden(!matches);
+            visibleChildren += matches ? 1 : 0;
+        }
+        // A group with nothing left in it is noise, but a group that never had
+        // children (Statistics) is not something the filter should hide.
+        group->setHidden(group->childCount() > 0 && visibleChildren == 0 &&
+                         !m_filter.isEmpty());
+        if (!m_filter.isEmpty() && visibleChildren > 0) {
+            group->setExpanded(true);
         }
     }
 }

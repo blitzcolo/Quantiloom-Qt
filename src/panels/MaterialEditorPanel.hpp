@@ -71,7 +71,9 @@ signals:
 private slots:
     void onBaseColorClicked();
     void onMetallicChanged(int value);
+    void onMetallicSpinChanged(double value);
     void onRoughnessChanged(int value);
+    void onRoughnessSpinChanged(double value);
     void onEmissiveChanged();
     void onIRPropertyChanged();
     void applyChanges();
@@ -91,9 +93,9 @@ private:
     QLabel* m_materialName = nullptr;
     QPushButton* m_baseColorBtn = nullptr;
     QSlider* m_metallicSlider = nullptr;
-    QLabel* m_metallicLabel = nullptr;
+    QDoubleSpinBox* m_metallicSpin = nullptr;
     QSlider* m_roughnessSlider = nullptr;
-    QLabel* m_roughnessLabel = nullptr;
+    QDoubleSpinBox* m_roughnessSpin = nullptr;
     QDoubleSpinBox* m_emissiveR = nullptr;
     QDoubleSpinBox* m_emissiveG = nullptr;
     QDoubleSpinBox* m_emissiveB = nullptr;

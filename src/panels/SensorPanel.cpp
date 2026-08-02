@@ -32,9 +32,10 @@ QString SensorPanel::panelTitle() const {
     return tr("Sensor");
 }
 
-QLabel* SensorPanel::addRow(QFormLayout* layout, const char* source, QWidget* field) {
+QLabel* SensorPanel::addRow(QFormLayout* layout, const char* source, QWidget* field,
+                            const char* tip) {
     auto* label = new QLabel();
-    m_captions.append({label, source});
+    m_captions.append({label, source, field, tip});
     layout->addRow(label, field);
     return label;
 }
@@ -61,6 +62,13 @@ void SensorPanel::retranslateUi() {
 
     for (const Caption& caption : std::as_const(m_captions)) {
         caption.label->setText(tr(caption.source));
+        if (caption.tip) {
+            const QString tip = tr(caption.tip);
+            caption.label->setToolTip(tip);
+            if (caption.field) {
+                caption.field->setToolTip(tip);
+            }
+        }
     }
 }
 
@@ -84,7 +92,8 @@ void SensorPanel::setupUi() {
     m_focalLength->setSingleStep(1.0);
     m_focalLength->setSuffix(" mm");
     m_focalLength->setValue(50.0);
-    addRow(opticsLayout, QT_TR_NOOP("Focal Length:"), m_focalLength);
+    addRow(opticsLayout, QT_TR_NOOP("Focal Length:"), m_focalLength,
+           QT_TR_NOOP("Lens focal length. With the pixel pitch it sets the angular size of a pixel, and so how much of the scene one pixel averages."));
 
     m_fNumber = new QDoubleSpinBox();
     m_fNumber->setRange(0.5, 64.0);
@@ -92,7 +101,8 @@ void SensorPanel::setupUi() {
     m_fNumber->setSingleStep(0.1);
     m_fNumber->setPrefix("f/");
     m_fNumber->setValue(2.8);
-    addRow(opticsLayout, QT_TR_NOOP("Aperture:"), m_fNumber);
+    addRow(opticsLayout, QT_TR_NOOP("Aperture:"), m_fNumber,
+           QT_TR_NOOP("f-number, focal length divided by entrance pupil diameter. Lower collects more light: irradiance on the detector goes as 1/f-number squared."));
 
     mainLayout->addWidget(m_opticsGroup);
 
@@ -108,14 +118,16 @@ void SensorPanel::setupUi() {
     m_pixelPitch->setSingleStep(0.1);
     m_pixelPitch->setSuffix(QString::fromUtf8(" \u03BCm"));  // μm
     m_pixelPitch->setValue(5.0);
-    addRow(detectorLayout, QT_TR_NOOP("Pixel Pitch:"), m_pixelPitch);
+    addRow(detectorLayout, QT_TR_NOOP("Pixel Pitch:"), m_pixelPitch,
+           QT_TR_NOOP("Centre-to-centre spacing of the detector elements. Sets how much area collects photons for one pixel."));
 
     m_quantumEfficiency = new QDoubleSpinBox();
     m_quantumEfficiency->setRange(0.0, 1.0);
     m_quantumEfficiency->setDecimals(2);
     m_quantumEfficiency->setSingleStep(0.01);
     m_quantumEfficiency->setValue(0.8);
-    addRow(detectorLayout, QT_TR_NOOP("Quantum Efficiency:"), m_quantumEfficiency);
+    addRow(detectorLayout, QT_TR_NOOP("Quantum Efficiency:"), m_quantumEfficiency,
+           QT_TR_NOOP("Fraction of arriving photons that become signal electrons. 1.0 would convert every photon."));
 
     m_wellCapacity = new QDoubleSpinBox();
     m_wellCapacity->setRange(100, 1e9);
@@ -123,13 +135,15 @@ void SensorPanel::setupUi() {
     m_wellCapacity->setSingleStep(1000);
     m_wellCapacity->setSuffix(" e-");
     m_wellCapacity->setValue(50000);
-    addRow(detectorLayout, QT_TR_NOOP("Well Capacity:"), m_wellCapacity);
+    addRow(detectorLayout, QT_TR_NOOP("Well Capacity:"), m_wellCapacity,
+           QT_TR_NOOP("Electrons a pixel can hold before it saturates. Anything brighter clips to white."));
 
     m_bitDepth = new QSpinBox();
     m_bitDepth->setRange(8, 32);
     m_bitDepth->setValue(14);
     m_bitDepth->setSuffix(" bit");
-    addRow(detectorLayout, QT_TR_NOOP("Bit Depth:"), m_bitDepth);
+    addRow(detectorLayout, QT_TR_NOOP("Bit Depth:"), m_bitDepth,
+           QT_TR_NOOP("Bits per pixel out of the converter. Sets how finely the electron count is quantised."));
 
     m_integrationTime = new QDoubleSpinBox();
     m_integrationTime->setRange(0.0001, 10.0);
@@ -137,7 +151,8 @@ void SensorPanel::setupUi() {
     m_integrationTime->setSingleStep(0.001);
     m_integrationTime->setSuffix(" s");
     m_integrationTime->setValue(0.01);
-    addRow(detectorLayout, QT_TR_NOOP("Integration Time:"), m_integrationTime);
+    addRow(detectorLayout, QT_TR_NOOP("Integration Time:"), m_integrationTime,
+           QT_TR_NOOP("How long the detector collects per frame. Longer gathers more signal and more dark current with it."));
 
     mainLayout->addWidget(m_detectorGroup);
 
@@ -153,7 +168,8 @@ void SensorPanel::setupUi() {
     m_gain->setSingleStep(0.1);
     m_gain->setSuffix(" e-/DN");
     m_gain->setValue(3.0);
-    addRow(adcLayout, QT_TR_NOOP("Gain:"), m_gain);
+    addRow(adcLayout, QT_TR_NOOP("Gain:"), m_gain,
+           QT_TR_NOOP("Electrons per digital number. Lower means finer steps, at the cost of clipping sooner."));
 
     mainLayout->addWidget(m_adcGroup);
 
@@ -169,7 +185,8 @@ void SensorPanel::setupUi() {
     m_readNoise->setSingleStep(0.1);
     m_readNoise->setSuffix(" e- RMS");
     m_readNoise->setValue(10.0);
-    addRow(noiseLayout, QT_TR_NOOP("Read Noise:"), m_readNoise);
+    addRow(noiseLayout, QT_TR_NOOP("Read Noise:"), m_readNoise,
+           QT_TR_NOOP("Noise the readout electronics add per pixel, in electrons RMS. Independent of exposure -- it is what limits the darkest tones."));
 
     m_darkCurrent = new QDoubleSpinBox();
     m_darkCurrent->setRange(0.0, 10000.0);
@@ -177,7 +194,8 @@ void SensorPanel::setupUi() {
     m_darkCurrent->setSingleStep(1.0);
     m_darkCurrent->setSuffix(" e-/s");
     m_darkCurrent->setValue(50.0);
-    addRow(noiseLayout, QT_TR_NOOP("Dark Current:"), m_darkCurrent);
+    addRow(noiseLayout, QT_TR_NOOP("Dark Current:"), m_darkCurrent,
+           QT_TR_NOOP("Electrons generated thermally per second with no light at all. Multiplied by the integration time, and roughly doubles every 7 K."));
 
     m_poissonNoise = new QCheckBox();
     m_poissonNoise->setChecked(true);
@@ -209,7 +227,8 @@ void SensorPanel::setupUi() {
     m_prnuSigma->setDecimals(3);
     m_prnuSigma->setSingleStep(0.001);
     m_prnuSigma->setValue(0.01);
-    addRow(fpnLayout, QT_TR_NOOP("PRNU Sigma:"), m_prnuSigma);
+    addRow(fpnLayout, QT_TR_NOOP("PRNU Sigma:"), m_prnuSigma,
+           QT_TR_NOOP("Photo-Response Non-Uniformity: pixel-to-pixel spread in sensitivity, as a fraction. A fixed multiplicative pattern, visible in bright areas."));
 
     m_dsnuSigma = new QDoubleSpinBox();
     m_dsnuSigma->setRange(0.1, 1000.0);
@@ -217,7 +236,8 @@ void SensorPanel::setupUi() {
     m_dsnuSigma->setSingleStep(1.0);
     m_dsnuSigma->setSuffix(" e-");
     m_dsnuSigma->setValue(5.0);
-    addRow(fpnLayout, QT_TR_NOOP("DSNU Sigma:"), m_dsnuSigma);
+    addRow(fpnLayout, QT_TR_NOOP("DSNU Sigma:"), m_dsnuSigma,
+           QT_TR_NOOP("Dark Signal Non-Uniformity: pixel-to-pixel spread in dark current, in electrons. A fixed additive pattern, visible in dark areas."));
 
     m_nucEnable = new QCheckBox();
     m_nucEnable->setChecked(false);
@@ -229,7 +249,8 @@ void SensorPanel::setupUi() {
     m_nucEfficiency->setSingleStep(0.01);
     m_nucEfficiency->setValue(0.98);
     m_nucEfficiency->setEnabled(false);  // Disabled until NUC is enabled
-    addRow(fpnLayout, QT_TR_NOOP("NUC Efficiency:"), m_nucEfficiency);
+    addRow(fpnLayout, QT_TR_NOOP("NUC Efficiency:"), m_nucEfficiency,
+           QT_TR_NOOP("How much of the fixed pattern the Non-Uniformity Correction removes. 1.0 removes all of it, which no real calibration does."));
 
     m_fpnGroup->setContentLayout(fpnLayout);
     m_fpnGroup->setEnabled(false);  // Disabled until FPN is enabled
@@ -247,7 +268,8 @@ void SensorPanel::setupUi() {
     m_detectorTemp->setSingleStep(1.0);
     m_detectorTemp->setSuffix(" K");
     m_detectorTemp->setValue(77.0);
-    addRow(irLayout, QT_TR_NOOP("Detector Temperature:"), m_detectorTemp);
+    addRow(irLayout, QT_TR_NOOP("Detector Temperature:"), m_detectorTemp,
+           QT_TR_NOOP("Temperature of the detector itself. Drives dark current, and for thermal bands the self-emission the optics see."));
 
     mainLayout->addWidget(m_irGroup);
 
