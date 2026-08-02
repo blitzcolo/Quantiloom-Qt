@@ -13,6 +13,9 @@
 #include <QFuture>
 #include <memory>
 #include <chrono>
+#include <optional>
+#include <utility>
+#include <vector>
 
 #include <glm/glm.hpp>
 #include <core/SpectralData.hpp>
@@ -20,7 +23,6 @@
 #include <renderer/LightingParams.hpp>
 #include <atmos/AtmosphereNNConfig.hpp>
 #include <postprocess/SensorModel.hpp>
-#include <postprocess/GenericSensor.hpp>
 
 #include "OverlayRenderer.hpp"
 
@@ -380,7 +382,16 @@ private:
     bool m_sensorEnabled = false;
     uint32_t m_samplingSeed = quantiloom::constants::DEFAULT_SAMPLING_SEED;
     quantiloom::SensorParams m_sensorParams;
-    std::unique_ptr<quantiloom::GenericSensor> m_sensor;
+    // A CPU GenericSensor used to be instantiated alongside the GPU sensor as
+    // a "fallback" and was never read by anything. Removed: sensor simulation
+    // lives on the GPU side of ExternalRenderContext (sdk_export_audit D-3).
+
+    // Spectral data pushed at runtime rather than named by the config, kept so
+    // it survives a context rebuild (see the setters for why order matters).
+    // Cleared when a different document is opened -- they belong to that one.
+    std::vector<quantiloom::ComplexRefractiveIndex> m_runtimeRefractiveIndices;
+    std::vector<quantiloom::SpectralCurve> m_runtimeSpectralCurves;
+    std::optional<std::pair<quantiloom::SpectralCurve, quantiloom::SpectralCurve>> m_solarLut;
 
     // Display enhancement (CLAHE)
     bool m_displayEnhancementEnabled = false;

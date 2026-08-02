@@ -269,9 +269,6 @@ bool MainWindow::eventFilter(QObject* watched, QEvent* event) {
         case Qt::Key_G:     action = m_translateAction;  break;
         case Qt::Key_R:     action = m_rotateAction;     break;
         case Qt::Key_T:     action = m_scaleAction;      break;
-        case Qt::Key_X:     action = m_axisXAction;      break;
-        case Qt::Key_Y:     action = m_axisYAction;      break;
-        case Qt::Key_Z:     action = m_axisZAction;      break;
         case Qt::Key_Space: action = m_localSpaceAction; break;
         default: break;
     }
@@ -561,21 +558,11 @@ void MainWindow::buildTransformMenu(QMenu* menu) {
     m_scaleAction     = addMode(TransformGizmo::Mode::Scale,     QKeySequence(Qt::Key_T));
     m_translateAction->setChecked(true);
 
-    menu->addSeparator();
-
-    auto addAxis = [&](TransformGizmo::Axis axis, const QKeySequence& shortcut) {
-        QAction* action = menu->addAction(QString());
-        action->setCheckable(true);
-        action->setShortcut(shortcut);
-        connect(action, &QAction::triggered, this, [this, axis]() {
-            m_transformGizmo->toggleAxisConstraint(axis);
-        });
-        return action;
-    };
-
-    m_axisXAction = addAxis(TransformGizmo::Axis::X, QKeySequence(Qt::Key_X));
-    m_axisYAction = addAxis(TransformGizmo::Axis::Y, QKeySequence(Qt::Key_Y));
-    m_axisZAction = addAxis(TransformGizmo::Axis::Z, QKeySequence(Qt::Key_Z));
+    // "Constrain to X/Y/Z" used to sit here on X/Y/Z. The state it set was read
+    // by nothing -- a drag is constrained by the handle it grabs, not by this
+    // -- so the entries ticked and did nothing. Removed rather than left
+    // lying: restoring them means building modal transforms (press G, then X,
+    // then move the mouse), which is a feature, not a reconnection.
 
     menu->addSeparator();
 
@@ -1158,7 +1145,6 @@ void MainWindow::applyWorkspaceEditingScope(const QString& workspaceId) {
         m_transformMenu->menuAction()->setEnabled(layout);
     }
     for (QAction* action : {m_translateAction, m_rotateAction, m_scaleAction,
-                            m_axisXAction, m_axisYAction, m_axisZAction,
                             m_localSpaceAction}) {
         if (action) {
             action->setEnabled(layout);
@@ -1602,17 +1588,6 @@ void MainWindow::setupEditingSystem() {
                 showStatusMessage(local ? tr("Local space") : tr("World space"));
             });
 
-    connect(m_transformGizmo, &TransformGizmo::axisConstraintChanged,
-            this, [this](TransformGizmo::Axis axis) {
-                const QSignalBlocker bx(m_axisXAction);
-                const QSignalBlocker by(m_axisYAction);
-                const QSignalBlocker bz(m_axisZAction);
-                // XYZ means unconstrained, so none of the three is ticked.
-                m_axisXAction->setChecked(axis == TransformGizmo::Axis::X);
-                m_axisYAction->setChecked(axis == TransformGizmo::Axis::Y);
-                m_axisZAction->setChecked(axis == TransformGizmo::Axis::Z);
-            });
-
     // Sync selection with scene tree panel (highlight selected items)
     connect(m_selectionManager, &SelectionManager::selectionChanged,
             m_sceneTreePanel, &SceneTreePanel::setSelectedNodes);
@@ -1664,9 +1639,6 @@ void MainWindow::retranslateUi() {
     m_translateAction->setText(tr("&Translate"));
     m_rotateAction->setText(tr("&Rotate"));
     m_scaleAction->setText(tr("&Scale"));
-    m_axisXAction->setText(tr("Constrain to &X"));
-    m_axisYAction->setText(tr("Constrain to &Y"));
-    m_axisZAction->setText(tr("Constrain to &Z"));
     m_localSpaceAction->setText(tr("&Local Space"));
     m_localSpaceAction->setToolTip(tr("Transform along the object's own axes instead of the world's"));
     m_selectAllAction->setText(tr("Select &All"));
@@ -2102,15 +2074,16 @@ void MainWindow::onExportImage() {
         return;
     }
 
+    // Any extension other than the two we can actually write gets .exr
+    // appended rather than kept: "render.jpg" used to pass the no-dot test and
+    // receive EXR bytes under a name that promised JPEG.
     bool success = false;
     if (fileName.endsWith(QLatin1String(".exr"), Qt::CaseInsensitive)) {
         success = quantiloom::ImageIO::WriteEXR(fileName.toStdString(), *image);
     } else if (fileName.endsWith(QLatin1String(".png"), Qt::CaseInsensitive)) {
         success = quantiloom::ImageIO::WritePNG(fileName.toStdString(), *image);
     } else {
-        if (!fileName.contains(QLatin1Char('.'))) {
-            fileName += QStringLiteral(".exr");
-        }
+        fileName += QStringLiteral(".exr");
         success = quantiloom::ImageIO::WriteEXR(fileName.toStdString(), *image);
     }
 

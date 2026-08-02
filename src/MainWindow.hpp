@@ -404,9 +404,6 @@ private:
     QAction* m_translateAction = nullptr;
     QAction* m_rotateAction = nullptr;
     QAction* m_scaleAction = nullptr;
-    QAction* m_axisXAction = nullptr;
-    QAction* m_axisYAction = nullptr;
-    QAction* m_axisZAction = nullptr;
     QAction* m_localSpaceAction = nullptr;
 
     QList<QAction*> m_viewPresetActions;      ///< front/back/left/right/top/bottom

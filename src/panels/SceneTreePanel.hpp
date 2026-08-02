@@ -55,6 +55,7 @@ private slots:
 
 private:
     void populateTree();
+    void applySelectionHighlight();
     QTreeWidgetItem* findNodeItem(int nodeIndex);
 
     QTreeWidget* m_tree = nullptr;

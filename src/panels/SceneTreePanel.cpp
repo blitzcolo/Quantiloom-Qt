@@ -51,6 +51,10 @@ SceneTreePanel::SceneTreePanel(QWidget* parent)
     // Shortcuts, where it is generated from the bindings that are actually
     // registered instead of retyped and left to drift.
 
+    // The selection highlight paints palette colours onto items, so it has to
+    // be laid down again whenever the theme changes.
+    bindStyle([this] { applySelectionHighlight(); });
+
     connect(m_tree, &QTreeWidget::itemClicked, this, &SceneTreePanel::onItemClicked);
 
     populateTree();
@@ -102,6 +106,10 @@ void SceneTreePanel::populateTree() {
     auto* nodesRoot = new QTreeWidgetItem(sceneRoot);
     nodesRoot->setText(0, tr("Nodes (%1)").arg(activeNodes));
     nodesRoot->setText(1, tr("Group"));
+    // Role tag, not the display text: the heading is translated, so matching
+    // on it broke selection highlighting outright (the tag was never set) and
+    // would have broken again in Chinese.
+    nodesRoot->setData(0, Qt::UserRole + 1, QStringLiteral("group:nodes"));
     nodesRoot->setExpanded(true);
 
     for (size_t i = 0; i < m_scene->nodes.size(); ++i) {
@@ -129,6 +137,7 @@ void SceneTreePanel::populateTree() {
     auto* materialsRoot = new QTreeWidgetItem(sceneRoot);
     materialsRoot->setText(0, tr("Materials (%1)").arg(m_scene->materials.size()));
     materialsRoot->setText(1, tr("Group"));
+    materialsRoot->setData(0, Qt::UserRole + 1, QStringLiteral("group:materials"));
     materialsRoot->setExpanded(true);
 
     for (size_t i = 0; i < m_scene->materials.size(); ++i) {
@@ -149,6 +158,7 @@ void SceneTreePanel::populateTree() {
     auto* texturesRoot = new QTreeWidgetItem(sceneRoot);
     texturesRoot->setText(0, tr("Textures (%1)").arg(m_scene->textures.size()));
     texturesRoot->setText(1, tr("Group"));
+    texturesRoot->setData(0, Qt::UserRole + 1, QStringLiteral("group:textures"));
 
     for (size_t i = 0; i < m_scene->textures.size(); ++i) {
         const auto& tex = m_scene->textures[i];
@@ -178,6 +188,10 @@ void SceneTreePanel::populateTree() {
     addStat(tr("Vertices"), QString::number(m_scene->GetTotalVertexCount()));
 
     m_tree->resizeColumnToContents(0);
+
+    // The tree was just rebuilt from scratch (refresh, or a language switch),
+    // so the highlight has to be painted back onto the new items.
+    applySelectionHighlight();
 }
 
 void SceneTreePanel::onItemClicked(QTreeWidgetItem* item, int /*column*/) {
@@ -197,19 +211,31 @@ void SceneTreePanel::setSelectedNodes(const QSet<int>& nodeIndices) {
 
     m_highlightedNodes = nodeIndices;
 
-    // Apply highlight to selected nodes
+    applySelectionHighlight();
+
+    // Ensure the first highlighted item is visible
     for (int nodeIndex : nodeIndices) {
+        if (QTreeWidgetItem* item = findNodeItem(nodeIndex)) {
+            m_tree->scrollToItem(item);
+            break;
+        }
+    }
+}
+
+void SceneTreePanel::applySelectionHighlight() {
+    // Colours come from the palette so the highlight follows the nine themes;
+    // this runs again on every theme switch, and is idempotent because it
+    // assigns absolute palette values rather than deriving from current ones.
+    const QColor bg = palette().color(QPalette::Highlight);
+    const QColor fg = palette().color(QPalette::HighlightedText);
+
+    for (int nodeIndex : m_highlightedNodes) {
         QTreeWidgetItem* item = findNodeItem(nodeIndex);
         if (item) {
-            item->setBackground(0, QColor(74, 144, 217));  // Blue highlight
-            item->setBackground(1, QColor(74, 144, 217));
-            item->setForeground(0, Qt::white);
-            item->setForeground(1, Qt::white);
-
-            // Ensure the item is visible
-            m_tree->scrollToItem(item);
-
-            // Select it in the tree as well
+            item->setBackground(0, bg);
+            item->setBackground(1, bg);
+            item->setForeground(0, fg);
+            item->setForeground(1, fg);
             item->setSelected(true);
         }
     }
@@ -238,8 +264,7 @@ QTreeWidgetItem* SceneTreePanel::findNodeItem(int nodeIndex) {
     // First child of scene root should be Nodes group
     for (int i = 0; i < sceneRoot->childCount(); ++i) {
         QTreeWidgetItem* groupItem = sceneRoot->child(i);
-        if (groupItem->data(0, Qt::UserRole + 1).toString() == "Group" &&
-            groupItem->text(0).startsWith(tr("Nodes"))) {
+        if (groupItem->data(0, Qt::UserRole + 1).toString() == QLatin1String("group:nodes")) {
             // Search in the nodes group
             for (int j = 0; j < groupItem->childCount(); ++j) {
                 QTreeWidgetItem* nodeItem = groupItem->child(j);

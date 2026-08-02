@@ -11,7 +11,6 @@
  *
  * UX (bindings registered as QActions by MainWindow):
  * - G: Translate mode, R: Rotate mode, T: Scale mode
- * - X/Y/Z: axis constraint entries (menu state; handles carry the axis)
  * - Ctrl: snap (0.5 units / 15 deg / 0.1 scale; with Shift 0.05 / 5 deg)
  * - Shift: fine control (deltas at 10%)
  * - Space: toggle world/local coordinates
@@ -66,19 +65,6 @@ public:
         Local
     };
 
-    // Axis flags (menu/legacy constraint state; the drawn handles carry the
-    // actual constraint of a drag)
-    enum Axis : int {
-        None = 0,
-        X = 1 << 0,
-        Y = 1 << 1,
-        Z = 1 << 2,
-        XY = X | Y,
-        XZ = X | Z,
-        YZ = Y | Z,
-        XYZ = X | Y | Z
-    };
-
     explicit TransformGizmo(QObject* parent = nullptr);
 
     // Mode control
@@ -89,11 +75,6 @@ public:
     void setSpace(Space space);
     void toggleSpace();
     [[nodiscard]] Space space() const { return m_space; }
-
-    // Axis constraint (menu state)
-    void setAxisConstraint(Axis axis);
-    void toggleAxisConstraint(Axis axis);
-    [[nodiscard]] Axis axisConstraint() const { return m_axisConstraint; }
 
     // Fine control (Shift key): deltas at 10%
     void setFineControl(bool fine) { m_fineControl = fine; }
@@ -142,10 +123,6 @@ signals:
     void modeChanged(Mode mode);
     void spaceChanged(Space space);
 
-    // Emitted when the axis constraint changes, so the Edit ▸ Transform
-    // entries and the toolbar buttons can show which one is active
-    void axisConstraintChanged(Axis axis);
-
     /// A handle was grabbed: snapshot the start transforms NOW (not at
     /// selection time -- panel edits between selection and drag would
     /// otherwise be reverted by the first gizmo move)
@@ -167,7 +144,6 @@ private:
 
     Mode m_mode = Mode::Translate;
     Space m_space = Space::World;
-    Axis m_axisConstraint = Axis::XYZ;
 
     bool m_isDragging = false;
     bool m_fineControl = false;

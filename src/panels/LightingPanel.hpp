@@ -68,6 +68,11 @@ private slots:
     void onBrowseEnvironmentMap();
     void onClearEnvironmentMap();
 
+protected:
+    // The environment-map path is elided to the label's current width, so the
+    // elision has to be recomputed when the dock is resized.
+    void resizeEvent(QResizeEvent* event) override;
+
 private:
     void setupUi();
     void emitChanges();

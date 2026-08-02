@@ -1024,18 +1024,6 @@ May cause colour shifts.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Constrain to &amp;X</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Constrain to &amp;Y</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Constrain to &amp;Z</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>&amp;Local Space</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1948,10 +1936,6 @@ This may take a few minutes.</translation>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Accumulate samples over multiple frames</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Preset:</source>
         <translation type="vanished">Preset:</translation>
     </message>
@@ -1969,10 +1953,6 @@ This may take a few minutes.</translation>
     </message>
     <message>
         <source>Custom samples:</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Progressive rendering</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -2116,7 +2096,7 @@ This may take a few minutes.</translation>
     </message>
     <message>
         <source>Nodes</source>
-        <translation>Nodes</translation>
+        <translation type="vanished">Nodes</translation>
     </message>
     <message>
         <source>%1 (%2 triangles)</source>
@@ -2563,15 +2543,23 @@ Not suitable for quantitative analysis. Load measured spectral materials for acc
     </message>
     <message>
         <source>Start (nm):</source>
-        <translation>Start (nm):</translation>
+        <translation type="vanished">Start (nm):</translation>
     </message>
     <message>
         <source>End (nm):</source>
-        <translation>End (nm):</translation>
+        <translation type="vanished">End (nm):</translation>
     </message>
     <message>
         <source>Output Steps:</source>
         <translation>Output Steps:</translation>
+    </message>
+    <message>
+        <source> nm</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Start must be below End, and Output Steps at least 2, for a curve to be generated.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Anchor Points</source>
@@ -2596,6 +2584,10 @@ Not suitable for quantitative analysis. Load measured spectral materials for acc
     <message>
         <source>Interpolation:</source>
         <translation>Interpolation:</translation>
+    </message>
+    <message>
+        <source>Linear</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Preview</source>
@@ -2636,6 +2628,18 @@ Not suitable for quantitative analysis. Load measured spectral materials for acc
     <message>
         <source>Actions</source>
         <translation>Actions</translation>
+    </message>
+    <message>
+        <source> K</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Start:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>End:</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Save CSV</source>

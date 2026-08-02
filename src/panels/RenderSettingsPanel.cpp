@@ -75,16 +75,15 @@ void RenderSettingsPanel::setupUi() {
     auto* customCaption = new QLabel(qualityGroup);
     qualityLayout->addRow(customCaption, m_customSpp);
 
-    m_progressiveCheck = new QCheckBox(qualityGroup);
-    m_progressiveCheck->setChecked(true);
-    qualityLayout->addRow(m_progressiveCheck);
+    // A "Progressive rendering" checkbox used to sit here. It was connected to
+    // nothing and read by nothing -- accumulation over frames is how the
+    // renderer works, not a mode. Removed rather than wired up, same reasoning
+    // as the read-only resolution group below.
 
     bindText([this, qualityGroup, targetCaption, customCaption] {
         qualityGroup->setTitle(tr("Quality"));
         targetCaption->setText(tr("Target samples:"));
         customCaption->setText(tr("Custom samples:"));
-        m_progressiveCheck->setText(tr("Progressive rendering"));
-        m_progressiveCheck->setToolTip(tr("Accumulate samples over multiple frames"));
 
         const auto presets = catalog::qualityPresets();
         for (int i = 0; i < presets.size() && i < m_sppPreset->count(); ++i) {

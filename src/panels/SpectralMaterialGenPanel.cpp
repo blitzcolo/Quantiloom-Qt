@@ -5,6 +5,8 @@
 
 #include "SpectralMaterialGenPanel.hpp"
 
+#include "../ui/UiStyle.hpp"
+
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QGroupBox>
@@ -37,6 +39,13 @@
 
 #include <algorithm>
 #include <cmath>
+
+namespace {
+// The span the generator's own range spinboxes may cover -- wider than the
+// viewport's, because it also produces LWIR curves.
+constexpr double kGenLambdaFloor = 100.0;
+constexpr double kGenLambdaCeil  = 20000.0;
+}  // namespace
 
 SpectralMaterialGenPanel::SpectralMaterialGenPanel(QWidget* parent)
     : PanelBase(parent)
@@ -78,50 +87,64 @@ void SpectralMaterialGenPanel::setupUi() {
 
     // --- Auto IR Generation group (SpectraForge) ---
     {
-        auto* group = new QGroupBox(tr("Auto IR Generation (SpectraForge)"));
+        auto* group = new QGroupBox(this);
         auto* form = new QFormLayout(group);
         form->setContentsMargins(6, 10, 6, 6);
 
         // Mode selection
         auto* modeRow = new QHBoxLayout();
-        m_autoIRSingleRadio = new QRadioButton(tr("Current Material"));
-        m_autoIRAllRadio = new QRadioButton(tr("All Materials"));
+        m_autoIRSingleRadio = new QRadioButton(group);
+        m_autoIRAllRadio = new QRadioButton(group);
         m_autoIRSingleRadio->setChecked(true);
         modeRow->addWidget(m_autoIRSingleRadio);
         modeRow->addWidget(m_autoIRAllRadio);
-        form->addRow(tr("Mode:"), modeRow);
+        auto* modeCaption = new QLabel(group);
+        form->addRow(modeCaption, modeRow);
 
         // Cluster count
         m_clusterCountSpin = new QSpinBox();
         m_clusterCountSpin->setRange(1, 12);
         m_clusterCountSpin->setValue(5);
-        m_clusterCountSpin->setToolTip(tr("K-means cluster count for texture color analysis"));
-        form->addRow(tr("Clusters (K):"), m_clusterCountSpin);
+        auto* clusterCaption = new QLabel(group);
+        form->addRow(clusterCaption, m_clusterCountSpin);
 
         // Temperature
         m_temperatureSpin = new QDoubleSpinBox();
         m_temperatureSpin->setRange(100.0, 5000.0);
         m_temperatureSpin->setValue(300.0);
-        m_temperatureSpin->setSuffix(" K");
-        m_temperatureSpin->setToolTip(
-            tr("Surface temperature assigned to the materials generated from each cluster"));
-        form->addRow(tr("Cluster temperature:"), m_temperatureSpin);
+        auto* tempCaption = new QLabel(group);
+        form->addRow(tempCaption, m_temperatureSpin);
 
         // Overwrite existing
-        m_overwriteCheck = new QCheckBox(tr("Overwrite existing IR data"));
+        m_overwriteCheck = new QCheckBox(group);
         m_overwriteCheck->setChecked(false);
         form->addRow(m_overwriteCheck);
 
         // Generate button
-        auto* generateBtn = new QPushButton(tr("Generate IR Materials"));
+        auto* generateBtn = new QPushButton(group);
         form->addRow(generateBtn);
 
         // Result text
         m_autoIRResultText = new QTextEdit();
         m_autoIRResultText->setReadOnly(true);
         m_autoIRResultText->setMaximumHeight(100);
-        m_autoIRResultText->setPlaceholderText(tr("Results will appear here..."));
         form->addRow(m_autoIRResultText);
+
+        bindText([this, group, modeCaption, clusterCaption, tempCaption, generateBtn] {
+            group->setTitle(tr("Auto IR Generation (SpectraForge)"));
+            m_autoIRSingleRadio->setText(tr("Current Material"));
+            m_autoIRAllRadio->setText(tr("All Materials"));
+            modeCaption->setText(tr("Mode:"));
+            clusterCaption->setText(tr("Clusters (K):"));
+            m_clusterCountSpin->setToolTip(tr("K-means cluster count for texture color analysis"));
+            tempCaption->setText(tr("Cluster temperature:"));
+            m_temperatureSpin->setSuffix(tr(" K"));
+            m_temperatureSpin->setToolTip(
+                tr("Surface temperature assigned to the materials generated from each cluster"));
+            m_overwriteCheck->setText(tr("Overwrite existing IR data"));
+            generateBtn->setText(tr("Generate IR Materials"));
+            m_autoIRResultText->setPlaceholderText(tr("Results will appear here..."));
+        });
 
         mainLayout->addWidget(group);
 
@@ -131,19 +154,32 @@ void SpectralMaterialGenPanel::setupUi() {
 
     // --- Material Type group ---
     {
-        auto* group = new QGroupBox(tr("Material Type"));
+        auto* group = new QGroupBox(this);
         auto* form = new QFormLayout(group);
         form->setContentsMargins(6, 10, 6, 6);
 
         m_materialTypeCombo = new QComboBox();
-        m_materialTypeCombo->addItems({tr("Conductor"), tr("Dielectric"), tr("Semiconductor")});
-        form->addRow(tr("Type:"), m_materialTypeCombo);
+        m_materialTypeCombo->addItems({QString(), QString(), QString()});
+        auto* typeCaption = new QLabel(group);
+        form->addRow(typeCaption, m_materialTypeCombo);
 
         m_roughnessSpin = new QDoubleSpinBox();
         m_roughnessSpin->setRange(0.0, 1.0);
         m_roughnessSpin->setSingleStep(0.01);
         m_roughnessSpin->setValue(0.5);
-        form->addRow(tr("Roughness:"), m_roughnessSpin);
+        auto* roughCaption = new QLabel(group);
+        form->addRow(roughCaption, m_roughnessSpin);
+
+        bindText([this, group, typeCaption, roughCaption] {
+            group->setTitle(tr("Material Type"));
+            typeCaption->setText(tr("Type:"));
+            roughCaption->setText(tr("Roughness:"));
+            // Item text rather than a rebuilt list: the current index is the
+            // panel's state and must survive a language switch.
+            m_materialTypeCombo->setItemText(0, tr("Conductor"));
+            m_materialTypeCombo->setItemText(1, tr("Dielectric"));
+            m_materialTypeCombo->setItemText(2, tr("Semiconductor"));
+        });
 
         mainLayout->addWidget(group);
 
@@ -153,26 +189,48 @@ void SpectralMaterialGenPanel::setupUi() {
 
     // --- Wavelength Range group ---
     {
-        auto* group = new QGroupBox(tr("Wavelength Range"));
+        auto* group = new QGroupBox(this);
         auto* form = new QFormLayout(group);
         form->setContentsMargins(6, 10, 6, 6);
 
         m_lambdaStartSpin = new QDoubleSpinBox();
-        m_lambdaStartSpin->setRange(100.0, 20000.0);
+        m_lambdaStartSpin->setRange(kGenLambdaFloor, kGenLambdaCeil);
         m_lambdaStartSpin->setValue(380.0);
-        m_lambdaStartSpin->setSuffix(" nm");
-        form->addRow(tr("Start (nm):"), m_lambdaStartSpin);
+        auto* startCaption = new QLabel(group);
+        form->addRow(startCaption, m_lambdaStartSpin);
 
         m_lambdaEndSpin = new QDoubleSpinBox();
-        m_lambdaEndSpin->setRange(100.0, 20000.0);
+        m_lambdaEndSpin->setRange(kGenLambdaFloor, kGenLambdaCeil);
         m_lambdaEndSpin->setValue(780.0);
-        m_lambdaEndSpin->setSuffix(" nm");
-        form->addRow(tr("End (nm):"), m_lambdaEndSpin);
+        auto* endCaption = new QLabel(group);
+        form->addRow(endCaption, m_lambdaEndSpin);
 
         m_outputStepsSpin = new QSpinBox();
         m_outputStepsSpin->setRange(8, 512);
         m_outputStepsSpin->setValue(64);
-        form->addRow(tr("Output Steps:"), m_outputStepsSpin);
+        auto* stepsCaption = new QLabel(group);
+        form->addRow(stepsCaption, m_outputStepsSpin);
+
+        // Interpolation used to give up silently on an inverted range, leaving
+        // the last good curve on the chart with nothing to say why it stopped
+        // following the spinboxes.
+        m_rangeWarning = new QLabel(group);
+        m_rangeWarning->setWordWrap(true);
+        m_rangeWarning->setVisible(false);
+        bindStyle([this] { uistyle::applyNoticeStyle(m_rangeWarning); });
+        form->addRow(m_rangeWarning);
+
+        bindText([this, group, startCaption, endCaption, stepsCaption] {
+            group->setTitle(tr("Wavelength Range"));
+            startCaption->setText(tr("Start:"));
+            endCaption->setText(tr("End:"));
+            stepsCaption->setText(tr("Output Steps:"));
+            m_lambdaStartSpin->setSuffix(tr(" nm"));
+            m_lambdaEndSpin->setSuffix(tr(" nm"));
+            m_rangeWarning->setText(
+                tr("Start must be below End, and Output Steps at least 2, "
+                   "for a curve to be generated."));
+        });
 
         mainLayout->addWidget(group);
 
@@ -186,7 +244,7 @@ void SpectralMaterialGenPanel::setupUi() {
 
     // --- Anchor Points group ---
     {
-        auto* group = new QGroupBox(tr("Anchor Points"));
+        auto* group = new QGroupBox(this);
         auto* vlay = new QVBoxLayout(group);
         vlay->setContentsMargins(6, 10, 6, 6);
 
@@ -201,10 +259,10 @@ void SpectralMaterialGenPanel::setupUi() {
         vlay->addWidget(m_anchorTable);
 
         auto* btnRow = new QHBoxLayout();
-        auto* addBtn = new QPushButton(tr("Add Point"));
-        auto* removeBtn = new QPushButton(tr("Remove Point"));
-        auto* loadCsvBtn = new QPushButton(tr("Load CSV"));
-        auto* loadYamlBtn = new QPushButton(tr("Load YAML"));
+        auto* addBtn = new QPushButton(group);
+        auto* removeBtn = new QPushButton(group);
+        auto* loadCsvBtn = new QPushButton(group);
+        auto* loadYamlBtn = new QPushButton(group);
         btnRow->addWidget(addBtn);
         btnRow->addWidget(removeBtn);
         btnRow->addWidget(loadCsvBtn);
@@ -212,12 +270,24 @@ void SpectralMaterialGenPanel::setupUi() {
         vlay->addLayout(btnRow);
 
         auto* interpRow = new QHBoxLayout();
-        interpRow->addWidget(new QLabel(tr("Interpolation:")));
+        auto* interpCaption = new QLabel(group);
+        interpRow->addWidget(interpCaption);
         m_interpCombo = new QComboBox();
-        m_interpCombo->addItems({"Linear", "PCHIP"});
+        m_interpCombo->addItems({QString(), QStringLiteral("PCHIP")});
         m_interpCombo->setCurrentIndex(1);  // Default PCHIP
         interpRow->addWidget(m_interpCombo);
         vlay->addLayout(interpRow);
+
+        bindText([this, group, addBtn, removeBtn, loadCsvBtn, loadYamlBtn, interpCaption] {
+            group->setTitle(tr("Anchor Points"));
+            addBtn->setText(tr("Add Point"));
+            removeBtn->setText(tr("Remove Point"));
+            loadCsvBtn->setText(tr("Load CSV"));
+            loadYamlBtn->setText(tr("Load YAML"));
+            interpCaption->setText(tr("Interpolation:"));
+            // PCHIP stays Latin by glossary decision; "Linear" does not.
+            m_interpCombo->setItemText(0, tr("Linear"));
+        });
 
         mainLayout->addWidget(group);
 
@@ -233,7 +303,8 @@ void SpectralMaterialGenPanel::setupUi() {
 
     // --- Preview Chart group ---
     {
-        m_previewGroup = new QGroupBox(tr("Preview"));
+        m_previewGroup = new QGroupBox(this);
+        bindText([this] { m_previewGroup->setTitle(tr("Preview")); });
         auto* vlay = new QVBoxLayout(m_previewGroup);
         vlay->setContentsMargins(2, 10, 2, 2);
 
@@ -247,25 +318,38 @@ void SpectralMaterialGenPanel::setupUi() {
         m_chartView->setMinimumHeight(200);
         vlay->addWidget(m_chartView);
 
+        // The chart paints itself, so it does not follow the shell style sheet
+        // the way the ordinary widgets do -- it has to be repainted by hand on
+        // every theme switch.
+        bindStyle([this] { applyChartTheme(); });
+
         mainLayout->addWidget(m_previewGroup, 1);
     }
 
     // --- Actions group ---
     {
-        auto* group = new QGroupBox(tr("Actions"));
+        auto* group = new QGroupBox(this);
         auto* form = new QFormLayout(group);
         form->setContentsMargins(6, 10, 6, 6);
 
-        auto* saveCsvBtn = new QPushButton(tr("Save CSV"));
+        auto* saveCsvBtn = new QPushButton(group);
         form->addRow(saveCsvBtn);
 
         m_targetMaterialSpin = new QSpinBox();
         m_targetMaterialSpin->setRange(0, 255);
         m_targetMaterialSpin->setValue(0);
-        form->addRow(tr("Target Material Index:"), m_targetMaterialSpin);
+        auto* targetCaption = new QLabel(group);
+        form->addRow(targetCaption, m_targetMaterialSpin);
 
-        auto* applyBtn = new QPushButton(tr("Apply to Material"));
+        auto* applyBtn = new QPushButton(group);
         form->addRow(applyBtn);
+
+        bindText([this, group, saveCsvBtn, targetCaption, applyBtn] {
+            group->setTitle(tr("Actions"));
+            saveCsvBtn->setText(tr("Save CSV"));
+            targetCaption->setText(tr("Target Material Index:"));
+            applyBtn->setText(tr("Apply to Material"));
+        });
 
         mainLayout->addWidget(group);
 
@@ -466,7 +550,15 @@ void SpectralMaterialGenPanel::reinterpolate() {
     float start = static_cast<float>(m_lambdaStartSpin->value());
     float end   = static_cast<float>(m_lambdaEndSpin->value());
     int   steps = m_outputStepsSpin->value();
-    if (start >= end || steps < 2) return;
+    const bool rangeUsable = (start < end) && (steps >= 2);
+    if (m_rangeWarning) {
+        m_rangeWarning->setVisible(!rangeUsable);
+    }
+    if (!rangeUsable) {
+        m_interpolatedCRI = quantiloom::ComplexRefractiveIndex{};
+        updateChart();
+        return;
+    }
 
     std::vector<float> xq(steps);
     for (int i = 0; i < steps; ++i)
@@ -603,15 +695,12 @@ void SpectralMaterialGenPanel::updateChart() {
     // that. Only the descriptive axis titles are translated.
     auto* seriesR0 = new QLineSeries();
     seriesR0->setName(QStringLiteral("R0"));
-    seriesR0->setColor(Qt::red);
 
     auto* seriesN = new QLineSeries();
     seriesN->setName(QStringLiteral("n"));
-    seriesN->setColor(Qt::blue);
 
     auto* seriesK = new QLineSeries();
     seriesK->setName(QStringLiteral("k"));
-    seriesK->setColor(Qt::darkGreen);
 
     float nMax = 0, kMax = 0;
     const auto& wl = m_interpolatedCRI.wavelengths_nm;
@@ -659,6 +748,64 @@ void SpectralMaterialGenPanel::updateChart() {
     axisYRight->setRange(0.0, std::max(0.1f, kMax * 1.1f));
     chart->addAxis(axisYRight, Qt::AlignRight);
     seriesK->attachAxis(axisYRight);
+
+    // The series and axes were just recreated, so they carry Qt's defaults
+    // until this paints the current theme onto them.
+    applyChartTheme();
+}
+
+void SpectralMaterialGenPanel::applyChartTheme() {
+    if (!m_chartView) {
+        return;
+    }
+    auto* chart = m_chartView->chart();
+
+    // QtCharts draws with its own defaults, which are a light chart however
+    // dark the theme is. Everything below comes from the palette, and is
+    // assigned absolutely rather than derived from the chart's current colours,
+    // so re-running it on each theme switch is idempotent.
+    const QColor text    = palette().color(QPalette::WindowText);
+    const QColor base    = palette().color(QPalette::Base);
+    const QColor window  = palette().color(QPalette::Window);
+    const bool darkTheme = window.lightnessF() < 0.5;
+
+    chart->setBackgroundBrush(base);
+    chart->setBackgroundPen(Qt::NoPen);
+    chart->setPlotAreaBackgroundBrush(base);
+    chart->setTitleBrush(text);
+    if (chart->legend()) {
+        chart->legend()->setLabelColor(text);
+        chart->legend()->setBackgroundVisible(false);
+    }
+
+    // Grid lines read as texture, not content: a low-contrast blend of the
+    // text colour into the background.
+    QColor grid = text;
+    grid.setAlphaF(0.25);
+
+    const auto axes = chart->axes();
+    for (auto* axis : axes) {
+        axis->setLabelsColor(text);
+        axis->setTitleBrush(text);
+        axis->setLinePenColor(text);
+        axis->setGridLineColor(grid);
+    }
+
+    // Three hues that stay legible against both a near-white and a near-black
+    // plot area; the dark-theme set is lightened rather than a different hue,
+    // so the curves keep their identity across themes.
+    const QColor r0Colour = darkTheme ? QColor(0xFF, 0x7A, 0x7A) : QColor(0xC0, 0x21, 0x21);
+    const QColor nColour  = darkTheme ? QColor(0x7A, 0xB8, 0xFF) : QColor(0x1A, 0x4F, 0xC4);
+    const QColor kColour  = darkTheme ? QColor(0x74, 0xD6, 0x9C) : QColor(0x1B, 0x7A, 0x43);
+
+    const auto seriesList = chart->series();
+    for (auto* series : seriesList) {
+        auto* line = qobject_cast<QLineSeries*>(series);
+        if (!line) continue;
+        if (line->name() == QStringLiteral("R0"))     line->setColor(r0Colour);
+        else if (line->name() == QStringLiteral("n")) line->setColor(nColour);
+        else if (line->name() == QStringLiteral("k")) line->setColor(kColour);
+    }
 }
 
 // ============================================================================

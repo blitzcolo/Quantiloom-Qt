@@ -104,19 +104,6 @@ void TransformGizmo::toggleSpace() {
     setSpace(m_space == Space::World ? Space::Local : Space::World);
 }
 
-void TransformGizmo::setAxisConstraint(Axis axis) {
-    if (m_axisConstraint == axis) {
-        return;
-    }
-    m_axisConstraint = axis;
-    emit axisConstraintChanged(m_axisConstraint);
-}
-
-void TransformGizmo::toggleAxisConstraint(Axis axis) {
-    // Toggling the active constraint off goes back to all axes.
-    setAxisConstraint(m_axisConstraint == axis ? Axis::XYZ : axis);
-}
-
 editing::GizmoHandle TransformGizmo::activeHandle() const {
     return m_isDragging ? static_cast<editing::GizmoHandle>(m_activeHandleValue)
                         : editing::GizmoHandle::None;

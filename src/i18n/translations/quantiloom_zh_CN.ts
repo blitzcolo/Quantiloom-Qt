@@ -1033,15 +1033,15 @@ May cause colour shifts.</source>
     </message>
     <message>
         <source>Constrain to &amp;X</source>
-        <translation>约束到 X 轴(&amp;X)</translation>
+        <translation type="vanished">约束到 X 轴(&amp;X)</translation>
     </message>
     <message>
         <source>Constrain to &amp;Y</source>
-        <translation>约束到 Y 轴(&amp;Y)</translation>
+        <translation type="vanished">约束到 Y 轴(&amp;Y)</translation>
     </message>
     <message>
         <source>Constrain to &amp;Z</source>
-        <translation>约束到 Z 轴(&amp;Z)</translation>
+        <translation type="vanished">约束到 Z 轴(&amp;Z)</translation>
     </message>
     <message>
         <source>&amp;Local Space</source>
@@ -1971,7 +1971,7 @@ This may take a few minutes.</source>
     </message>
     <message>
         <source>Accumulate samples over multiple frames</source>
-        <translation>跨多帧累积采样</translation>
+        <translation type="vanished">跨多帧累积采样</translation>
     </message>
     <message>
         <source>Preset:</source>
@@ -1995,7 +1995,7 @@ This may take a few minutes.</source>
     </message>
     <message>
         <source>Progressive rendering</source>
-        <translation>渐进式渲染</translation>
+        <translation type="vanished">渐进式渲染</translation>
     </message>
     <message>
         <source>Render resolution:</source>
@@ -2138,7 +2138,7 @@ This may take a few minutes.</source>
     </message>
     <message>
         <source>Nodes</source>
-        <translation>节点</translation>
+        <translation type="vanished">节点</translation>
     </message>
     <message>
         <source>%1 (%2 triangles)</source>
@@ -2595,15 +2595,23 @@ Not suitable for quantitative analysis. Load measured spectral materials for acc
     </message>
     <message>
         <source>Start (nm):</source>
-        <translation>起始 (nm):</translation>
+        <translation type="vanished">起始 (nm):</translation>
     </message>
     <message>
         <source>End (nm):</source>
-        <translation>终止 (nm):</translation>
+        <translation type="vanished">终止 (nm):</translation>
     </message>
     <message>
         <source>Output Steps:</source>
         <translation>输出步数:</translation>
+    </message>
+    <message>
+        <source> nm</source>
+        <translation> nm</translation>
+    </message>
+    <message>
+        <source>Start must be below End, and Output Steps at least 2, for a curve to be generated.</source>
+        <translation>起始波长须小于终止波长，且输出步数不少于 2，才能生成曲线。</translation>
     </message>
     <message>
         <source>Anchor Points</source>
@@ -2628,6 +2636,10 @@ Not suitable for quantitative analysis. Load measured spectral materials for acc
     <message>
         <source>Interpolation:</source>
         <translation>插值方法:</translation>
+    </message>
+    <message>
+        <source>Linear</source>
+        <translation>线性</translation>
     </message>
     <message>
         <source>Preview</source>
@@ -2668,6 +2680,18 @@ Not suitable for quantitative analysis. Load measured spectral materials for acc
     <message>
         <source>Actions</source>
         <translation>操作</translation>
+    </message>
+    <message>
+        <source> K</source>
+        <translation> K</translation>
+    </message>
+    <message>
+        <source>Start:</source>
+        <translation>起始：</translation>
+    </message>
+    <message>
+        <source>End:</source>
+        <translation>终止：</translation>
     </message>
     <message>
         <source>Save CSV</source>

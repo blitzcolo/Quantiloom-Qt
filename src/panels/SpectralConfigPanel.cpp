@@ -19,6 +19,13 @@
 #include <QFormLayout>
 #include <cmath>
 
+namespace {
+// The span the hyperspectral range spinboxes may cover. They also bound each
+// other inside it, so min can never exceed max.
+constexpr double kLambdaFloor = 300.0;
+constexpr double kLambdaCeil  = 2500.0;
+}  // namespace
+
 SpectralConfigPanel::SpectralConfigPanel(QWidget* parent)
     : PanelBase(parent)
 {
@@ -143,7 +150,7 @@ void SpectralConfigPanel::setupUi() {
     auto* rangeLayout = new QFormLayout(rangeGroup);
 
     m_lambdaMinSpin = new QDoubleSpinBox();
-    m_lambdaMinSpin->setRange(300.0, 2500.0);
+    m_lambdaMinSpin->setRange(kLambdaFloor, kLambdaCeil);
     m_lambdaMinSpin->setValue(380.0);
     connect(m_lambdaMinSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &SpectralConfigPanel::onRangeChanged);
@@ -151,7 +158,7 @@ void SpectralConfigPanel::setupUi() {
     rangeLayout->addRow(minCaption, m_lambdaMinSpin);
 
     m_lambdaMaxSpin = new QDoubleSpinBox();
-    m_lambdaMaxSpin->setRange(300.0, 2500.0);
+    m_lambdaMaxSpin->setRange(kLambdaFloor, kLambdaCeil);
     m_lambdaMaxSpin->setValue(760.0);
     connect(m_lambdaMaxSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &SpectralConfigPanel::onRangeChanged);
@@ -252,13 +259,16 @@ void SpectralConfigPanel::setWavelengthRange(float min_nm, float max_nm, float d
     m_deltaLambda = delta_nm;
 
     {
-        const QSignalBlocker blocker(m_lambdaMinSpin);
+        // Widen both back to the full span before assigning, or the bounds
+        // left by the previous pair would clamp the incoming one.
+        const QSignalBlocker blockMin(m_lambdaMinSpin);
+        const QSignalBlocker blockMax(m_lambdaMaxSpin);
+        m_lambdaMinSpin->setRange(kLambdaFloor, kLambdaCeil);
+        m_lambdaMaxSpin->setRange(kLambdaFloor, kLambdaCeil);
         m_lambdaMinSpin->setValue(min_nm);
-    }
-    {
-        const QSignalBlocker blocker(m_lambdaMaxSpin);
         m_lambdaMaxSpin->setValue(max_nm);
     }
+    syncRangeBounds();
     {
         const QSignalBlocker blocker(m_deltaSpin);
         m_deltaSpin->setValue(delta_nm);
@@ -340,7 +350,19 @@ void SpectralConfigPanel::onWavelengthSpinChanged(double value) {
     emit wavelengthChanged(m_wavelength);
 }
 
+void SpectralConfigPanel::syncRangeBounds() {
+    // Min and max bound each other, so an inverted pair cannot be entered and
+    // reach the renderer as a negative band count. Blocked because setMinimum
+    // clamps the value, which would otherwise re-enter this slot.
+    const QSignalBlocker blockMin(m_lambdaMinSpin);
+    const QSignalBlocker blockMax(m_lambdaMaxSpin);
+    m_lambdaMaxSpin->setMinimum(m_lambdaMinSpin->value());
+    m_lambdaMinSpin->setMaximum(m_lambdaMaxSpin->value());
+}
+
 void SpectralConfigPanel::onRangeChanged() {
+    syncRangeBounds();
+
     m_lambdaMin = static_cast<float>(m_lambdaMinSpin->value());
     m_lambdaMax = static_cast<float>(m_lambdaMaxSpin->value());
     m_deltaLambda = static_cast<float>(m_deltaSpin->value());

@@ -403,6 +403,11 @@ void QuantiloomVulkanRenderer::applyConfig(std::shared_ptr<const quantiloom::Con
     m_currentConfig = std::move(config);
     m_currentConfigBaseDir = baseDir;
     m_configAppliedToContext = false;
+    // Curves loaded from panels describe the document that was open, not this
+    // one; carrying them over would replay them onto an unrelated scene.
+    m_runtimeRefractiveIndices.clear();
+    m_runtimeSpectralCurves.clear();
+    m_solarLut.reset();
     // A config supersedes whatever bare model was open; the scene it names is
     // loaded as part of applying it.
     m_currentScenePath.clear();
@@ -509,6 +514,20 @@ void QuantiloomVulkanRenderer::applyConfigToContext(bool isFreshOpen) {
         applyAtmosphereToContext();
         m_renderContext->SetCameraLookAt(m_cameraPosition, m_cameraTarget, m_cameraUp);
         m_renderContext->SetCameraFOV(m_cameraFovY);
+
+        // Curves and the illuminant loaded from panels this session. ApplyConfig
+        // above restored only the ones the file named, and these were appended
+        // after it, so they are re-appended in the same order to keep the
+        // indices materials hold pointing at the same curves.
+        for (const auto& cri : m_runtimeRefractiveIndices) {
+            m_renderContext->AddComplexRefractiveIndex(cri);
+        }
+        for (const auto& curve : m_runtimeSpectralCurves) {
+            m_renderContext->AddSpectralCurve(curve);
+        }
+        if (m_solarLut) {
+            m_renderContext->SetSolarSpectralLUT(m_solarLut->first, m_solarLut->second);
+        }
     }
 
     // Anything the config could not be honoured on, in the log next to the
@@ -678,13 +697,23 @@ void QuantiloomVulkanRenderer::updateMaterial(int index, const quantiloom::Mater
     }
 }
 
+// The three below are pools and an illuminant added at runtime, from panels
+// rather than from the config. ApplyConfig restores only what the *file*
+// declared, so each is kept here and re-pushed after a context rebuild --
+// otherwise a minimise silently drops every curve the user has loaded this
+// session, and the materials pointing at them fall back to their base colour.
+// Order matters: replay appends in the same order, so the indices handed out
+// the first time stay valid.
+
 int QuantiloomVulkanRenderer::addComplexRefractiveIndex(const quantiloom::ComplexRefractiveIndex& cri) {
+    m_runtimeRefractiveIndices.push_back(cri);
     if (m_renderContext)
         return m_renderContext->AddComplexRefractiveIndex(cri);
     return -1;
 }
 
 int QuantiloomVulkanRenderer::addSpectralCurve(const quantiloom::SpectralCurve& curve) {
+    m_runtimeSpectralCurves.push_back(curve);
     if (m_renderContext)
         return m_renderContext->AddSpectralCurve(curve);
     return -1;
@@ -692,8 +721,12 @@ int QuantiloomVulkanRenderer::addSpectralCurve(const quantiloom::SpectralCurve& 
 
 void QuantiloomVulkanRenderer::setSolarSpectralLUT(const quantiloom::SpectralCurve& sun,
                                                    const quantiloom::SpectralCurve& sky) {
-    if (m_renderContext)
+    m_solarLut = std::make_pair(sun, sky);
+    if (m_renderContext) {
         m_renderContext->SetSolarSpectralLUT(sun, sky);
+        // Unlike the two pools above, this one changes every pixel at once.
+        resetAccumulation();
+    }
 }
 
 const quantiloom::Scene* QuantiloomVulkanRenderer::getScene() const {
@@ -1131,12 +1164,6 @@ void QuantiloomVulkanRenderer::setSensorEnabled(bool enabled) {
         m_renderContext->SetGPUSensorEnabled(enabled);
     }
 
-    // Keep CPU sensor for fallback/comparison (optional)
-    if (enabled && !m_sensor) {
-        m_sensor = std::make_unique<quantiloom::GenericSensor>();
-        qDebug() << "[Sensor] Created GenericSensor instance (CPU fallback)";
-    }
-
     qDebug() << "[Sensor] GPU sensor simulation" << (enabled ? "ENABLED" : "DISABLED");
 }
 
@@ -1146,12 +1173,6 @@ void QuantiloomVulkanRenderer::setSensorParams(const quantiloom::SensorParams& p
     // Update GPU sensor params in libQuantiloom
     if (m_renderContext) {
         m_renderContext->SetGPUSensorParams(params);
-    }
-
-    // Keep CPU sensor for fallback/comparison (optional)
-    if (!m_sensor) {
-        m_sensor = std::make_unique<quantiloom::GenericSensor>();
-        qDebug() << "[Sensor] Created GenericSensor instance (CPU fallback)";
     }
 
     qDebug() << "[Sensor] GPU params updated:"

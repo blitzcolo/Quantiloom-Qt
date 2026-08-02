@@ -14,6 +14,7 @@
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QFontMetrics>
+#include <QResizeEvent>
 #include <QLabel>
 #include <QPushButton>
 #include <QSlider>
@@ -194,6 +195,11 @@ void LightingPanel::setEnvironmentMap(const QString& path, bool enabled) {
         const QSignalBlocker block(m_envEnabledCheck);
         m_envEnabledCheck->setChecked(enabled);
     }
+    updateEnvironmentDisplay();
+}
+
+void LightingPanel::resizeEvent(QResizeEvent* event) {
+    PanelBase::resizeEvent(event);
     updateEnvironmentDisplay();
 }
 

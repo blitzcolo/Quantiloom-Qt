@@ -78,7 +78,6 @@ private:
     QLabel* m_resolutionLabel = nullptr;
     QPushButton* m_exportBtn = nullptr;
     QPushButton* m_resetBtn = nullptr;
-    QCheckBox* m_progressiveCheck = nullptr;
     QGroupBox* m_displayGroup = nullptr;
     QVBoxLayout* m_displayLayout = nullptr;
 };

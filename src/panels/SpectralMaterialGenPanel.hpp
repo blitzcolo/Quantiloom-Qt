@@ -81,6 +81,7 @@ private:
     void setupUi();
     void reinterpolate();
     void updateChart();
+    void applyChartTheme();
 
     static std::vector<float> pchipInterpolate(
         const std::vector<float>& xs, const std::vector<float>& ys,
@@ -111,6 +112,7 @@ private:
     // dragging it out of the window is the same gesture with none of the
     // widget-reparenting this class used to do by hand.
     QGroupBox* m_previewGroup = nullptr;
+    QLabel* m_rangeWarning = nullptr;
 
     // Interpolated data
     quantiloom::ComplexRefractiveIndex m_interpolatedCRI;
