@@ -220,6 +220,10 @@ public:
     quantiloom::SpectralMode spectralMode() const;
     float wavelength() const;
     quantiloom::AtmosphereNNConfig atmosphericConfig() const;
+    /// The sensor state currently in effect, for callers that need the value
+    /// a change is replacing (the undo history does).
+    [[nodiscard]] bool sensorEnabled() const;
+    [[nodiscard]] quantiloom::SensorParams sensorParams() const;
     quantiloom::DebugVisualizationMode debugMode() const;
 
     /**

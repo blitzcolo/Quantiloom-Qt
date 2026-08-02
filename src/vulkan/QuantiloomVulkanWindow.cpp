@@ -261,6 +261,14 @@ void QuantiloomVulkanWindow::frameBounds(const glm::vec3& min, const glm::vec3& 
     }
 }
 
+bool QuantiloomVulkanWindow::sensorEnabled() const {
+    return m_renderer && m_renderer->isSensorEnabled();
+}
+
+quantiloom::SensorParams QuantiloomVulkanWindow::sensorParams() const {
+    return m_renderer ? m_renderer->getSensorParams() : quantiloom::SensorParams{};
+}
+
 void QuantiloomVulkanWindow::setSceneScale(float radius) {
     if (m_renderer) {
         m_renderer->setSceneScale(radius);

@@ -59,6 +59,13 @@ signals:
     /// @p enabled true means the fallback sky.
     void environmentMapChanged(const QString& path, bool enabled);
 
+    /// A slider drag began and ended. The shell snapshots on the first and
+    /// pushes one undo entry on the second, so a drag is one step rather than
+    /// forty -- and so the panel is not written back to mid-drag, which would
+    /// round azimuth to whole degrees and fight the drag.
+    void editGestureStarted();
+    void editGestureFinished();
+
 private slots:
     void onSunAzimuthChanged(int value);
     void onSunElevationChanged(int value);

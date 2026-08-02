@@ -32,7 +32,70 @@ enum class CommandId {
     ModifyLighting = 3,
     MultiTransform = 4,
     PasteNodes = 5,
-    RemoveNodes = 6
+    RemoveNodes = 6,
+    // The settings below reached the renderer without ever entering the
+    // history: changing the sun, the atmosphere or the spectral mode could
+    // not be undone, and Ctrl+Z silently skipped past them to whatever
+    // transform came before.
+    ModifyAtmosphere = 7,
+    ModifySensor = 8,
+    ModifySpectralMode = 9,
+    ModifyWavelength = 10,
+    ModifyEnvironmentMap = 11,
+};
+
+/**
+ * @class SettingCommand
+ * @brief A whole-value snapshot of one setting, applied through its dispatcher
+ *
+ * Every setting in this shell already has a single idempotent `apply*`
+ * function that writes both the renderer and the widgets (the "one dispatcher
+ * per setting" rule). That makes undo for all of them the same command:
+ * remember the value before and after, and call the dispatcher with whichever
+ * one the stack asks for. Twenty bespoke command classes would have differed
+ * only in their type.
+ *
+ * Merging is by gesture, following TransformNodeCommand: commands stamped with
+ * the same gesture id collapse into one entry, so a slider drag is a single
+ * undo step whose "before" is the value from before the drag started. A combo
+ * or a checkbox never merges, which is correct -- each click is its own step.
+ */
+template <typename T>
+class SettingCommand : public Command {
+public:
+    SettingCommand(CommandId commandId, int gestureId, const QString& description,
+                   T oldValue, T newValue, std::function<void(const T&)> apply)
+        : Command(description)
+        , m_id(commandId)
+        , m_gestureId(gestureId)
+        , m_old(std::move(oldValue))
+        , m_new(std::move(newValue))
+        , m_apply(std::move(apply)) {}
+
+    void execute() override { m_apply(m_new); }
+    void undo() override { m_apply(m_old); }
+
+    bool mergeWith(const Command* other) override {
+        const auto* typed = dynamic_cast<const SettingCommand<T>*>(other);
+        // Unstamped (-1) never merges, matching TransformNodeCommand. The id
+        // check is the stack's job, but a different gesture is ours.
+        if (!typed || m_gestureId < 0 || typed->m_gestureId != m_gestureId) {
+            return false;
+        }
+        // Keep this command's "before" and adopt the newer "after": the whole
+        // gesture becomes one step from where it started to where it ended.
+        m_new = typed->m_new;
+        return true;
+    }
+
+    [[nodiscard]] int id() const override { return static_cast<int>(m_id); }
+
+private:
+    CommandId m_id;
+    int m_gestureId = -1;
+    T m_old;
+    T m_new;
+    std::function<void(const T&)> m_apply;
 };
 
 /**

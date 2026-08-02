@@ -832,6 +832,34 @@ void MainWindow::applyTargetSpp(uint32_t spp) {
         showStatusMessage(tr("Target samples: %1").arg(spp));
 }
 
+template <typename T, typename Apply>
+void MainWindow::pushSettingCommand(CommandId id, const QString& description,
+                                    const T& before, const T& after, Apply&& apply) {
+    // Loading a document and reading the renderer back both drive the panels,
+    // and neither is something the user should be able to undo.
+    if (m_suppressHistory) {
+        return;
+    }
+    // Structs without operator== are compared bytewise. They are plain
+    // aggregates of floats and enums from the SDK's layout-contract headers,
+    // so this is well-defined for them; the point is only to notice "nothing
+    // changed" and leave the history alone.
+    if constexpr (std::equality_comparable<T>) {
+        if (before == after) {
+            return;
+        }
+    } else {
+        if (std::memcmp(&before, &after, sizeof(T)) == 0) {
+            return;
+        }
+    }
+    // -1: these are whole-gesture snapshots already, so there is nothing left
+    // to merge. Consecutive changes are genuinely separate steps.
+    m_undoStack->push(std::make_unique<SettingCommand<T>>(
+        id, /*gestureId=*/-1, description, before, after,
+        std::function<void(const T&)>(std::forward<Apply>(apply))));
+}
+
 void MainWindow::applyWavelength(float wavelength_nm) {
     m_vulkanWindow->setWavelength(wavelength_nm);
     m_spectralConfigPanel->setWavelength(wavelength_nm);
@@ -1355,6 +1383,27 @@ void MainWindow::setupDockWidgets() {
     connect(m_lightingPanel, &LightingPanel::environmentMapChanged,
             this, &MainWindow::onEnvironmentMapChanged);
 
+    // A slider drag applies live but enters the history once, as one entry
+    // from where the drag started to where it ended. Snapshot on press,
+    // push on release.
+    connect(m_lightingPanel, &LightingPanel::editGestureStarted,
+            this, [this] {
+                m_lightingBeforeGesture =
+                    std::make_unique<quantiloom::LightingParams>(*m_lightingParams);
+            });
+    connect(m_lightingPanel, &LightingPanel::editGestureFinished,
+            this, [this] {
+                if (!m_lightingBeforeGesture) {
+                    return;   // release without a press: nothing was dragged
+                }
+                pushSettingCommand(CommandId::ModifyLighting, tr("Lighting"),
+                                   *m_lightingBeforeGesture, *m_lightingParams,
+                                   [this](const quantiloom::LightingParams& v) {
+                                       applyLightingParams(v);
+                                   });
+                m_lightingBeforeGesture.reset();
+            });
+
     connect(m_renderSettingsPanel, &RenderSettingsPanel::sppChanged,
             this, &MainWindow::onSppChanged);
     connect(m_renderSettingsPanel, &RenderSettingsPanel::resetAccumulationRequested,
@@ -1365,10 +1414,23 @@ void MainWindow::setupDockWidgets() {
     connect(m_renderSettingsPanel, &RenderSettingsPanel::exportRequested,
             this, &MainWindow::onExportImage);
 
+    // Each of these routes through its dispatcher as before; the difference is
+    // that the change is now recorded, so Ctrl+Z no longer skips silently past
+    // a spectral mode or a sensor setting to whatever transform came before it.
     connect(m_spectralConfigPanel, &SpectralConfigPanel::spectralModeChanged,
-            this, &MainWindow::onSpectralModeChanged);
+            this, [this](quantiloom::SpectralMode mode) {
+                pushSettingCommand(CommandId::ModifySpectralMode, tr("Spectral mode"),
+                                   m_vulkanWindow->spectralMode(), mode,
+                                   [this](const quantiloom::SpectralMode& v) {
+                                       applySpectralMode(v);
+                                   });
+            });
     connect(m_spectralConfigPanel, &SpectralConfigPanel::wavelengthChanged,
-            this, &MainWindow::onWavelengthChanged);
+            this, [this](float wavelength_nm) {
+                pushSettingCommand(CommandId::ModifyWavelength, tr("Wavelength"),
+                                   m_vulkanWindow->wavelength(), wavelength_nm,
+                                   [this](const float& v) { applyWavelength(v); });
+            });
 
     connect(m_debugVisualizationPanel, &DebugVisualizationPanel::debugModeChanged,
             this, &MainWindow::onDebugModeChanged);
@@ -1379,7 +1441,13 @@ void MainWindow::setupDockWidgets() {
                 showStatusMessage(tr("Atmospheric preset: %1").arg(preset));
             });
     connect(m_atmosphericPanel, &AtmosphericPanel::configChanged,
-            this, &MainWindow::applyAtmosphere);
+            this, [this](const quantiloom::AtmosphereNNConfig& config) {
+                pushSettingCommand(CommandId::ModifyAtmosphere, tr("Atmosphere"),
+                                   m_vulkanWindow->atmosphericConfig(), config,
+                                   [this](const quantiloom::AtmosphereNNConfig& v) {
+                                       applyAtmosphere(v);
+                                   });
+            });
     // The two analytic terms moved here from the lighting panel; they still
     // belong to LightingParams, so they are merged into the copy the shell
     // holds rather than sent on their own.
@@ -1392,9 +1460,19 @@ void MainWindow::setupDockWidgets() {
 
     // Sensor panel signals
     connect(m_sensorPanel, &SensorPanel::enabledChanged,
-            this, &MainWindow::applySensorEnabled);
+            this, [this](bool enabled) {
+                pushSettingCommand(CommandId::ModifySensor, tr("Sensor simulation"),
+                                   m_vulkanWindow->sensorEnabled(), enabled,
+                                   [this](const bool& v) { applySensorEnabled(v); });
+            });
     connect(m_sensorPanel, &SensorPanel::paramsChanged,
-            this, &MainWindow::applySensorParams);
+            this, [this](const quantiloom::SensorParams& params) {
+                pushSettingCommand(CommandId::ModifySensor, tr("Sensor parameters"),
+                                   m_vulkanWindow->sensorParams(), params,
+                                   [this](const quantiloom::SensorParams& v) {
+                                       applySensorParams(v);
+                                   });
+            });
 
     // Display enhancement panel signals
     connect(m_displayEnhancementPanel, &DisplayEnhancementPanel::enhancementChanged,
@@ -3172,6 +3250,13 @@ void MainWindow::seedPastedNodesFromDocument() {
 // ============================================================================
 
 void MainWindow::applyConfig(const SceneConfig& config) {
+    // Seeding widgets is not an edit. Panel setters are careful, but not
+    // uniformly so -- AtmosphericPanel::setPreset deliberately re-enters its
+    // own change handler to recompute the nine weather features -- so the
+    // guard sits here, where the intent is unambiguous, rather than being
+    // chased through every panel.
+    const HistorySuppressor noHistory(m_suppressHistory);
+
     // Panels only. The render context is configured by the SDK, from the raw
     // TOML, in openPath() -- this repo no longer decides what any key means.
     // What is left here is the document's presentation: showing the same values
@@ -3237,6 +3322,9 @@ void MainWindow::applyConfig(const SceneConfig& config) {
 }
 
 void MainWindow::syncPanelsFromRenderer() {
+    // Reading the renderer back into the widgets is not an edit either.
+    const HistorySuppressor noHistory(m_suppressHistory);
+
     // Read back what the SDK actually applied. Before ApplyConfig existed this
     // was unnecessary because the shell was the thing applying it; now the
     // config's reading happens in the core, and a panel showing this repo's

@@ -747,11 +747,11 @@ May cause colour shifts.</source>
     </message>
     <message>
         <source>Lighting</source>
-        <translation type="vanished">Lighting</translation>
+        <translation>Lighting</translation>
     </message>
     <message>
         <source>Atmosphere</source>
-        <translation type="obsolete">Atmosphere</translation>
+        <translation type="unfinished">Atmosphere</translation>
     </message>
     <message>
         <source>Render</source>
@@ -977,6 +977,22 @@ May cause colour shifts.</source>
     </message>
     <message>
         <source>MCP :%1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Spectral mode</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Wavelength</source>
+        <translation type="unfinished">Wavelength</translation>
+    </message>
+    <message>
+        <source>Sensor simulation</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sensor parameters</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

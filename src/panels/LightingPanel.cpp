@@ -72,6 +72,8 @@ void LightingPanel::setupUi() {
     m_azimuthLabel = new QLabel(QStringLiteral("180°"));
     m_azimuthLabel->setMinimumWidth(45);
     connect(m_azimuthSlider, &QSlider::valueChanged, this, &LightingPanel::onSunAzimuthChanged);
+    connect(m_azimuthSlider, &QSlider::sliderPressed, this, &LightingPanel::editGestureStarted);
+    connect(m_azimuthSlider, &QSlider::sliderReleased, this, &LightingPanel::editGestureFinished);
     azimuthRow->addWidget(m_azimuthSlider);
     azimuthRow->addWidget(m_azimuthLabel);
     m_azimuthCaption = new QLabel(m_sunDirGroup);
@@ -84,6 +86,8 @@ void LightingPanel::setupUi() {
     m_elevationLabel = new QLabel(QStringLiteral("45°"));
     m_elevationLabel->setMinimumWidth(45);
     connect(m_elevationSlider, &QSlider::valueChanged, this, &LightingPanel::onSunElevationChanged);
+    connect(m_elevationSlider, &QSlider::sliderPressed, this, &LightingPanel::editGestureStarted);
+    connect(m_elevationSlider, &QSlider::sliderReleased, this, &LightingPanel::editGestureFinished);
     elevationRow->addWidget(m_elevationSlider);
     elevationRow->addWidget(m_elevationLabel);
     m_elevationCaption = new QLabel(m_sunDirGroup);

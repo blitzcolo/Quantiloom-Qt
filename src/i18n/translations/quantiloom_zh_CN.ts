@@ -749,11 +749,11 @@ May cause colour shifts.</source>
     </message>
     <message>
         <source>Lighting</source>
-        <translation type="vanished">光照</translation>
+        <translation>光照</translation>
     </message>
     <message>
         <source>Atmosphere</source>
-        <translation type="obsolete">大气</translation>
+        <translation>大气</translation>
     </message>
     <message>
         <source>Render</source>
@@ -986,6 +986,22 @@ May cause colour shifts.</source>
     <message>
         <source>MCP :%1</source>
         <translation>MCP :%1</translation>
+    </message>
+    <message>
+        <source>Spectral mode</source>
+        <translation>光谱模式</translation>
+    </message>
+    <message>
+        <source>Wavelength</source>
+        <translation>波长</translation>
+    </message>
+    <message>
+        <source>Sensor simulation</source>
+        <translation>传感器仿真</translation>
+    </message>
+    <message>
+        <source>Sensor parameters</source>
+        <translation>传感器参数</translation>
     </message>
     <message>
         <source>Workspace: %1</source>

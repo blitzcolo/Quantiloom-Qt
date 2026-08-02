@@ -327,6 +327,19 @@ private:
     /// speed and zoom limits from it.
     void updateSceneScale();
 
+    /// Record a settings change in the undo history, applied through its own
+    /// dispatcher. A no-op when the value did not actually change, so that
+    /// re-emitting the same value (which panels do) leaves no entry.
+    ///
+    /// The dispatchers stay the single place each setting is applied: this
+    /// wraps one, it does not replace it. Loading a config and reading panels
+    /// back still call apply* directly and correctly leave no history.
+    /// `Apply` is a separate parameter because a lambda does not deduce T
+    /// through std::function.
+    template <typename T, typename Apply>
+    void pushSettingCommand(CommandId id, const QString& description,
+                            const T& before, const T& after, Apply&& apply);
+
     // Vulkan instance (owned by main())
     QVulkanInstance* m_vulkanInstance = nullptr;
 
@@ -373,6 +386,29 @@ private:
     QLabel* m_statusLabel = nullptr;
     QLabel* m_fpsLabel = nullptr;
     QLabel* m_etaLabel = nullptr;
+
+    /// Lighting as it stood when a slider drag began, so the whole drag
+    /// becomes one undo entry rather than one per tick. Held by pointer for
+    /// the same reason m_lightingParams is: the struct is only forward
+    /// declared here.
+    std::unique_ptr<quantiloom::LightingParams> m_lightingBeforeGesture;
+
+    /// True while widgets are being driven by the shell rather than by the
+    /// user, so pushSettingCommand() records nothing. Nesting-safe: a scene
+    /// load runs syncPanelsFromRenderer() inside applyConfig()'s scope.
+    int m_suppressHistory = 0;
+
+    /// RAII counter for m_suppressHistory -- an early return in the middle of
+    /// applyConfig() must not leave the history switched off for good.
+    class HistorySuppressor {
+    public:
+        explicit HistorySuppressor(int& counter) : m_counter(counter) { ++m_counter; }
+        ~HistorySuppressor() { --m_counter; }
+        HistorySuppressor(const HistorySuppressor&) = delete;
+        HistorySuppressor& operator=(const HistorySuppressor&) = delete;
+    private:
+        int& m_counter;
+    };
 
     // Render-run timing. The ETA comes from measured milliseconds per
     // accumulated sample, because how long a sample takes depends on the
