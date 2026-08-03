@@ -201,7 +201,9 @@ public:
     /// Show or hide the ground grid. Display-only: deliberately does NOT
     /// resetAccumulation(), the exception to this file's every-setter rule --
     /// the scene is unchanged, only what is composited over the frame is.
-    void setGridVisible(bool visible) { m_overlay.setGridVisible(visible); }
+    /// It still requests a frame, or a toggle after the render loop stops at
+    /// its target would not show until the camera moved.
+    void setGridVisible(bool visible);
     [[nodiscard]] bool isGridVisible() const { return m_overlay.gridVisible(); }
 
     /// The camera the frame on screen was rendered with, as matrices and
@@ -370,6 +372,11 @@ private:
     uint32_t m_sampleCount = 0;
     uint32_t m_targetSPP = 4;  // Default SPP for preview
     bool m_paused = false;
+    /// One-shot: the next non-accumulating frame goes through
+    /// ReprocessAccumulated rather than PresentAccumulated, so a display-stage
+    /// change (sensor, CLAHE) shows without costing a sample. Set by
+    /// requestDisplayReprocess(), consumed by startNextFrame().
+    bool m_reprocessPending = false;
 
     // Camera state
     glm::vec3 m_cameraPosition{0.0f, 1.0f, 5.0f};
@@ -406,6 +413,12 @@ private:
 
     // Atmosphere configuration (NN MODTRAN surrogate)
     quantiloom::AtmosphereNNConfig m_atmosphericConfig;  // Default: disabled
+
+    /// A display-stage setting changed (sensor, CLAHE): arm m_reprocessPending
+    /// and ask for a frame, so the change shows on the accumulation as it
+    /// stands. The counterpart to resetAccumulation() for settings that do not
+    /// invalidate the accumulation.
+    void requestDisplayReprocess();
 
     // Push m_atmosphericConfig to the render context, resolving the model
     // pack directory and downgrading to disabled on failure

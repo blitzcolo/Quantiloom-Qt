@@ -254,11 +254,22 @@ void QuantiloomVulkanRenderer::startNextFrame() {
 
     bool presentedWithoutTracing = false;
     if (!accumulating) {
-        presentedWithoutTracing = m_renderContext->PresentAccumulated(
-            cmd, targetImage,
-            VK_IMAGE_LAYOUT_UNDEFINED,  // Qt doesn't guarantee initial layout
-            width, height);
+        // A pending display reprocess re-runs the sensor chain and CLAHE over
+        // the unchanged accumulation; the plain re-present shows the
+        // post-processed images as they were. Same refusals, same fallback.
+        presentedWithoutTracing = m_reprocessPending
+            ? m_renderContext->ReprocessAccumulated(
+                  cmd, targetImage,
+                  VK_IMAGE_LAYOUT_UNDEFINED,  // Qt doesn't guarantee initial layout
+                  width, height)
+            : m_renderContext->PresentAccumulated(
+                  cmd, targetImage,
+                  VK_IMAGE_LAYOUT_UNDEFINED,
+                  width, height);
     }
+    // Consumed on every path: when a real frame is traced instead, RenderFrame
+    // re-runs the post-processing chains anyway.
+    m_reprocessPending = false;
     if (!presentedWithoutTracing) {
         // ExternalRenderContext handles layout transitions and blit to swapchain
         m_renderContext->RenderFrame(
@@ -802,8 +813,11 @@ void QuantiloomVulkanRenderer::setSamplingSeed(uint32_t seed) {
     m_samplingSeed = seed;
     if (m_renderContext) {
         // SetSamplingSeed resets accumulation itself, so the next pass starts
-        // from the new sequence rather than mixing two of them.
+        // from the new sequence rather than mixing two of them. Going through
+        // resetAccumulation() too keeps this class's sample count in step and
+        // restarts a loop that had stopped at its target.
         m_renderContext->SetSamplingSeed(seed);
+        resetAccumulation();
     }
 }
 
@@ -890,6 +904,9 @@ std::optional<QString> QuantiloomVulkanRenderer::setSolarLutFromSpec(
     // reads lightingParams() afterwards to refresh the widgets.
     m_lightingParams = m_renderContext->GetLightingParams();
     m_hasLightingParams = true;
+    // Same reasoning as setSolarSpectralLUT below: a new illuminant changes
+    // every pixel at once.
+    resetAccumulation();
     return std::nullopt;
 }
 
@@ -1089,6 +1106,28 @@ void QuantiloomVulkanRenderer::resetAccumulation() {
     }
 }
 
+void QuantiloomVulkanRenderer::requestDisplayReprocess() {
+    m_reprocessPending = true;
+    // Unlike resetAccumulation(), pause is no reason to hold the frame: the
+    // reprocess branch draws once without adding a sample and the loop stops
+    // again. The one combination kept waiting -- paused with nothing traced
+    // yet -- is the one where drawing would cost a sample, and also the one
+    // with nothing to reprocess.
+    if (!m_paused || m_sampleCount > 0) {
+        m_window->requestUpdate();
+    }
+}
+
+void QuantiloomVulkanRenderer::setGridVisible(bool visible) {
+    m_overlay.setGridVisible(visible);
+    // One redraw so the toggle shows after the loop stopped at its target.
+    // Past-target frames re-present the accumulation, so this costs no
+    // sample; the guard is the same trade as requestDisplayReprocess()'s.
+    if (!m_paused || m_sampleCount > 0) {
+        m_window->requestUpdate();
+    }
+}
+
 bool QuantiloomVulkanRenderer::isFirstRun() const {
     // No cache file means no pipeline has ever been compiled on this machine,
     // so the next load pays for all of them.
@@ -1253,6 +1292,12 @@ std::unique_ptr<quantiloom::Image> QuantiloomVulkanRenderer::captureDisplayImage
 void QuantiloomVulkanRenderer::setAtmosphericConfig(const quantiloom::AtmosphereNNConfig& config) {
     m_atmosphericConfig = config;
     applyAtmosphereToContext();
+    // SetAtmosphere resets accumulation on the SDK side when the config
+    // changed; this keeps the sample count shown here in step and restarts a
+    // loop that had stopped at its target.
+    if (m_renderContext) {
+        resetAccumulation();
+    }
 }
 
 std::string QuantiloomVulkanRenderer::resolveDefaultModelPackDir() {
@@ -1354,6 +1399,11 @@ void QuantiloomVulkanRenderer::setSensorEnabled(bool enabled) {
     // Use GPU sensor via libQuantiloom (real-time)
     if (m_renderContext) {
         m_renderContext->SetGPUSensorEnabled(enabled);
+        // Display-stage: the accumulation is still valid, so no
+        // resetAccumulation() -- but the image on screen no longer shows the
+        // current settings, and a loop stopped at its target would never
+        // redraw it.
+        requestDisplayReprocess();
     }
 
     qDebug() << "[Sensor] GPU sensor simulation" << (enabled ? "ENABLED" : "DISABLED");
@@ -1365,6 +1415,7 @@ void QuantiloomVulkanRenderer::setSensorParams(const quantiloom::SensorParams& p
     // Update GPU sensor params in libQuantiloom
     if (m_renderContext) {
         m_renderContext->SetGPUSensorParams(params);
+        requestDisplayReprocess();
     }
 
     qDebug() << "[Sensor] GPU params updated:"
@@ -1403,6 +1454,7 @@ void QuantiloomVulkanRenderer::setDisplayEnhancement(bool enabled, float clipLim
         params.luminanceOnly = luminanceOnly;
         params.normalizeOutput = true;
         m_renderContext->SetCLAHEParams(params);
+        requestDisplayReprocess();
     }
 
     qDebug() << "Display enhancement:" << (enabled ? "ENABLED" : "disabled")
