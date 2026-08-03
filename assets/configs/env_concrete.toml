@@ -1,0 +1,153 @@
+# ============================================================================
+# Quantiloom - Environment: Concrete pad (水泥地)
+# ============================================================================
+# Flat concrete test pad with 2 m expansion joints, urban haze atmosphere.
+#
+# Geometry: scripts/gen_env_scenes.py builds the GLB -- procedural terrain and
+# textures merged with SU7 (5.0 m), CesiumMan (1.76 m) and the glass/chrome
+# look-dev sphere pair, all at real-world scale (1 unit = 1 m).
+#
+# Spectral: the ground and building materials are bound to measured USGS
+# splib07a curves (VIS/NIR/SWIR coverage 1.00 on every one); metals and glass
+# carry measured n(lambda), k(lambda) instead. Verify a candidate curve with
+#     python3 scripts/spectral_preview.py usgs "<ref>"
+# ============================================================================
+
+[renderer]
+resolution = [1600, 900]
+spp = 64
+seed = 42
+output = "env_concrete.exr"
+# Lighting is the sun + NN atmosphere sky; keep the IBL off so the two are not
+# counted twice.
+environment_map = ""
+environment_map_enabled = false
+
+[spectral]
+# "rgb" is the mode that currently renders these scenes correctly.
+#
+# Switching to "vis_fused" activates everything below -- the binding itself is
+# complete and loads without a warning -- but the visible-band integration
+# currently returns nearly the same radiance whatever curve a material carries
+# (binding the ground to carbon black, rho = 0.019, instead of grass, rho =
+# 0.12, moves the rendered ground by 2/255). Until that is resolved, treat a
+# vis_fused render of these scenes as not yet trustworthy.
+mode = "rgb"
+band = "VIS"
+# NMF basis + material index. BOTH are required for any quantiloom_* binding;
+# naming only one silently disables all of them.
+basis_file = "../spectral/quantiloom_basis_v3_usgs.qlbin"
+materials_json = "../spectral/quantiloom_materials_usgs.json"
+
+[scene]
+gltf = "../models/env/concrete.glb"
+world_units_to_meters = 1.0
+default_temperature_k = 303.0
+
+[camera]
+position = [6.5, 1.7, 9.0]
+look_at = [0.0, 1.0, 0.0]
+up = [0.0, 1.0, 0.0]
+fov_y = 45.0
+
+[lighting]
+# ~52 deg elevation from the south-west.
+sun_direction = [-0.45, 0.79, 0.42]
+sun_radiance = [3.1, 3.05, 2.95]
+sky_radiance = [0.45, 0.55, 0.75]   # RGB mode only; the spectral modes read the LUT
+
+# ASTM G-173 solar spectrum. A spectral mode with a non-zero sun is REFUSED by
+# the CLI without this -- the sun's spectrum is user data like a reflectance
+# curve, and an absent LUT renders black rather than inventing one. Column 4 is
+# direct+circumsolar, column 3 is global tilt, and global tilt already contains
+# the direct beam, hence diffuse_is_global.
+solar_lut = "../luts/astmg173.csv"
+solar_lut_columns = [4, 3]
+solar_lut_diffuse_is_global = true
+# Left in absolute W*m^-2*nm^-1 as published. `solar_lut_normalise =
+# "unit_luminance"` divides by the sun's own luminance, which on this LUT is a
+# large number -- it takes the frame several stops DOWN, not to a neutral
+# exposure. It is not an exposure control.
+
+[atmosphere]
+preset = "urban_haze"         # vis 8 km, warmer, hazier city air
+t_ground_K = 303.15
+
+[material]
+albedo = [0.8, 0.8, 0.8]
+
+# ============================================================================
+# Measured spectral reflectance (USGS splib07a, reconstructed from the NMF basis)
+# ============================================================================
+# Each ref is the exact key in quantiloom_materials_usgs.json. A ref that does
+# not match falls back to RGB upsampling with only a warning, so keep the
+# strings verbatim -- including the punctuation.
+#
+# Deliberately NOT bound:
+#   - GlassSphere / WindowGlass / Car_Car_window: transmissive. Their physics is
+#     the measured n(lambda) below plus Fresnel; a library "reflectance" here
+#     would double count the surface term.
+#   - the CesiumMan figure: none of the three databases has skin, and its
+#     texture is a stylised decal, so it stays RGB-upsampled on purpose.
+# ============================================================================
+
+[[materials]]
+name = "ConcreteGround"
+spectral_material_type = "quantiloom_usgs"
+spectral_material_ref = "Concrete GDS375 Lt Gry Road"
+
+[[materials]]
+name = "ConcreteBlock"
+spectral_material_type = "quantiloom_usgs"
+spectral_material_ref = "Concrete GDS375 Lt Gry Road"
+
+[[materials]]
+name = "HouseWall"
+spectral_material_type = "quantiloom_usgs"
+spectral_material_ref = "Titanium_dioxide GDS798 TiO2"   # the pigment in white wall paint
+
+[[materials]]
+name = "HouseRoof"
+spectral_material_type = "quantiloom_usgs"
+spectral_material_ref = "Brick GDS350 Dk Red Building"
+
+[[materials]]
+name = "HouseDoor"
+spectral_material_type = "quantiloom_usgs"
+spectral_material_ref = "Wood_Beam GDS363 Nw Pine 2X4"
+
+# --- SU7 --------------------------------------------------------------------
+
+[[materials]]
+name = "Car_Car_body"
+spectral_material_type = "quantiloom_usgs"
+spectral_material_ref = "Titanium_dioxide GDS798 TiO2"   # white automotive paint pigment
+
+[[materials]]
+name = "Car_M_Wheel_ALL.002"
+spectral_material_type = "quantiloom_usgs"
+spectral_material_ref = "Carbon_Black GDS68"             # tyre carbon black
+
+[[materials]]
+name = "Car_M_BODY_black.004"
+spectral_material_type = "quantiloom_usgs"
+spectral_material_ref = "Plastic_ABS GDS341 BlackPipe"
+
+# ============================================================================
+# Measured complex refractive index (refractiveindex.info)
+# ============================================================================
+# Replaces the metallic/albedo guess for F0 with
+# [(n-1)^2 + k^2] / [(n+1)^2 + k^2] evaluated per wavelength, and enables the
+# dispersive hero-wavelength path on the dielectrics. Only "tabulated nk" and
+# "tabulated n" files parse -- the Sellmeier "formula" entries that most of the
+# RII glass catalogue uses do not, which is why the glass here is the measured
+# NSG Opti-White float glass rather than a named optical crown.
+# ============================================================================
+
+[refractive_index]
+ChromeSphere = "D:/Quantiloom-dev/assets/refractiveindex/database/data/main/Cr/nk/Rakic-LD.yml"
+"Car_M_IRON.004" = "D:/Quantiloom-dev/assets/refractiveindex/database/data/main/Al/nk/Rakic.yml"
+# NSG Opti-White low-iron float glass, tabulated n,k over 301-1498 nm.
+GlassSphere = "D:/Quantiloom-dev/assets/refractiveindex/database/data/glass/misc/Pilkington-Optiwhite/nk/Treharne.yml"
+WindowGlass = "D:/Quantiloom-dev/assets/refractiveindex/database/data/glass/misc/Pilkington-Optiwhite/nk/Treharne.yml"
+"Car_Car_window" = "D:/Quantiloom-dev/assets/refractiveindex/database/data/glass/misc/Pilkington-Optiwhite/nk/Treharne.yml"

@@ -1,0 +1,165 @@
+# ============================================================================
+# Quantiloom - Environment: Seaside (海边)
+# ============================================================================
+# Beach sloping into the sea, late-afternoon sun out over the water so the
+# wave mesh returns glints toward the camera. The shoreline runs along z=0:
+# land (z>0) rises to +1.6 m, the seabed drops to -3 m, and the SeaWater
+# mesh sits at y=0 with KHR transmission (IOR 1.33) plus volume absorption,
+# so the sand stays visible through the shallows.
+#
+# Geometry: scripts/gen_env_scenes.py builds the GLB -- procedural terrain and
+# textures merged with SU7 (5.0 m), CesiumMan (1.76 m) and the glass/chrome
+# look-dev sphere pair, all at real-world scale (1 unit = 1 m).
+#
+# Spectral: the ground and building materials are bound to measured USGS
+# splib07a curves (VIS/NIR/SWIR coverage 1.00 on every one); metals and glass
+# carry measured n(lambda), k(lambda) instead. Verify a candidate curve with
+#     python3 scripts/spectral_preview.py usgs "<ref>"
+# ============================================================================
+
+[renderer]
+resolution = [1600, 900]
+spp = 96
+seed = 42
+output = "env_seaside.exr"
+# Lighting is the sun + NN atmosphere sky; keep the IBL off so the two are not
+# counted twice.
+environment_map = ""
+environment_map_enabled = false
+
+[spectral]
+# "rgb" is the mode that currently renders these scenes correctly.
+#
+# Switching to "vis_fused" activates everything below -- the binding itself is
+# complete and loads without a warning -- but the visible-band integration
+# currently returns nearly the same radiance whatever curve a material carries
+# (binding the ground to carbon black, rho = 0.019, instead of grass, rho =
+# 0.12, moves the rendered ground by 2/255). Until that is resolved, treat a
+# vis_fused render of these scenes as not yet trustworthy.
+mode = "rgb"
+band = "VIS"
+# NMF basis + material index. BOTH are required for any quantiloom_* binding;
+# naming only one silently disables all of them.
+basis_file = "../spectral/quantiloom_basis_v3_usgs.qlbin"
+materials_json = "../spectral/quantiloom_materials_usgs.json"
+
+[scene]
+gltf = "../models/env/seaside.glb"
+world_units_to_meters = 1.0
+default_temperature_k = 295.0
+
+[camera]
+# On the beach looking out over the shallows toward open water.
+position = [10.0, 4.0, 19.0]
+look_at = [-3.0, 0.2, -10.0]
+up = [0.0, 1.0, 0.0]
+fov_y = 45.0
+
+[lighting]
+# Late afternoon, ~21 deg elevation, sun beyond the water.
+sun_direction = [0.28, 0.36, -0.89]
+sun_radiance = [3.4, 2.8, 2.0]
+sky_radiance = [0.5, 0.55, 0.7]   # RGB mode only; the spectral modes read the LUT
+
+# ASTM G-173 solar spectrum. A spectral mode with a non-zero sun is REFUSED by
+# the CLI without this -- the sun's spectrum is user data like a reflectance
+# curve, and an absent LUT renders black rather than inventing one. Column 4 is
+# direct+circumsolar, column 3 is global tilt, and global tilt already contains
+# the direct beam, hence diffuse_is_global.
+solar_lut = "../luts/astmg173.csv"
+solar_lut_columns = [4, 3]
+solar_lut_diffuse_is_global = true
+# Left in absolute W*m^-2*nm^-1 as published. `solar_lut_normalise =
+# "unit_luminance"` divides by the sun's own luminance, which on this LUT is a
+# large number -- it takes the frame several stops DOWN, not to a neutral
+# exposure. It is not an exposure control.
+
+[atmosphere]
+preset = "clear"
+rh = 0.7                      # humid marine air
+vis_km = 30.0
+t_ground_K = 295.15
+
+[material]
+albedo = [0.8, 0.8, 0.8]
+
+# ============================================================================
+# Measured spectral reflectance (USGS splib07a, reconstructed from the NMF basis)
+# ============================================================================
+# Each ref is the exact key in quantiloom_materials_usgs.json. A ref that does
+# not match falls back to RGB upsampling with only a warning, so keep the
+# strings verbatim -- including the punctuation.
+#
+# Deliberately NOT bound:
+#   - SeaWater: also transmissive. Its appearance is Fresnel at IOR 1.33
+#     plus the volume absorption already in the GLB; a remote-sensing water
+#     reflectance is the water-leaving signal and would double count it.
+#     Tune it by name instead -- roughness, attenuation_color,
+#     attenuation_distance -- with no GLB rebuild.
+#   - GlassSphere / WindowGlass / Car_Car_window: transmissive. Their physics is
+#     the measured n(lambda) below plus Fresnel; a library "reflectance" here
+#     would double count the surface term.
+#   - the CesiumMan figure: none of the three databases has skin, and its
+#     texture is a stylised decal, so it stays RGB-upsampled on purpose.
+# ============================================================================
+
+[[materials]]
+name = "BeachSand"
+spectral_material_type = "quantiloom_usgs"
+spectral_material_ref = "Sand DWO-3-DEL2b wet no oil"  # wet foreshore sand
+
+[[materials]]
+name = "Rock"
+spectral_material_type = "quantiloom_usgs"
+spectral_material_ref = "Pyroxene_Basalt CU01-20A"
+
+[[materials]]
+name = "HouseWall"
+spectral_material_type = "quantiloom_usgs"
+spectral_material_ref = "Titanium_dioxide GDS798 TiO2"   # the pigment in white wall paint
+
+[[materials]]
+name = "HouseRoof"
+spectral_material_type = "quantiloom_usgs"
+spectral_material_ref = "Brick GDS350 Dk Red Building"
+
+[[materials]]
+name = "HouseDoor"
+spectral_material_type = "quantiloom_usgs"
+spectral_material_ref = "Wood_Beam GDS363 Nw Pine 2X4"
+
+# --- SU7 --------------------------------------------------------------------
+
+[[materials]]
+name = "Car_Car_body"
+spectral_material_type = "quantiloom_usgs"
+spectral_material_ref = "Titanium_dioxide GDS798 TiO2"   # white automotive paint pigment
+
+[[materials]]
+name = "Car_M_Wheel_ALL.002"
+spectral_material_type = "quantiloom_usgs"
+spectral_material_ref = "Carbon_Black GDS68"             # tyre carbon black
+
+[[materials]]
+name = "Car_M_BODY_black.004"
+spectral_material_type = "quantiloom_usgs"
+spectral_material_ref = "Plastic_ABS GDS341 BlackPipe"
+
+# ============================================================================
+# Measured complex refractive index (refractiveindex.info)
+# ============================================================================
+# Replaces the metallic/albedo guess for F0 with
+# [(n-1)^2 + k^2] / [(n+1)^2 + k^2] evaluated per wavelength, and enables the
+# dispersive hero-wavelength path on the dielectrics. Only "tabulated nk" and
+# "tabulated n" files parse -- the Sellmeier "formula" entries that most of the
+# RII glass catalogue uses do not, which is why the glass here is the measured
+# NSG Opti-White float glass rather than a named optical crown.
+# ============================================================================
+
+[refractive_index]
+ChromeSphere = "D:/Quantiloom-dev/assets/refractiveindex/database/data/main/Cr/nk/Rakic-LD.yml"
+"Car_M_IRON.004" = "D:/Quantiloom-dev/assets/refractiveindex/database/data/main/Al/nk/Rakic.yml"
+# NSG Opti-White low-iron float glass, tabulated n,k over 301-1498 nm.
+GlassSphere = "D:/Quantiloom-dev/assets/refractiveindex/database/data/glass/misc/Pilkington-Optiwhite/nk/Treharne.yml"
+WindowGlass = "D:/Quantiloom-dev/assets/refractiveindex/database/data/glass/misc/Pilkington-Optiwhite/nk/Treharne.yml"
+"Car_Car_window" = "D:/Quantiloom-dev/assets/refractiveindex/database/data/glass/misc/Pilkington-Optiwhite/nk/Treharne.yml"
