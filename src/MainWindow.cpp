@@ -3833,6 +3833,22 @@ void MainWindow::collectCurrentConfig(SceneConfig& config) {
         matConfig.irTransmittance = material.irTransmittanceCurve.empty()
             ? 0.0f : material.irTransmittanceCurve[0].second;
         matConfig.irTemperature_K = material.irTemperature_K;
+
+        // The spectral binding, from the material rather than from whatever
+        // the file said: assigning one in the library panel writes it onto the
+        // Material, and this is the only path by which it reaches the config.
+        // Written for every edited material, including back to empty -- an
+        // unbinding has to survive a save as much as a binding does.
+        matConfig.spectralMaterialType =
+            QString::fromStdString(material.quantiloomMaterialType);
+        matConfig.spectralMaterialRefs.clear();
+        if (material.HasQuantiloomRef()) {
+            matConfig.spectralMaterialRefs
+                << QString::fromStdString(material.quantiloomMaterialRef);
+            for (const auto& extra : material.quantiloomExtraRefs) {
+                matConfig.spectralMaterialRefs << QString::fromStdString(extra);
+            }
+        }
     }
 }
 

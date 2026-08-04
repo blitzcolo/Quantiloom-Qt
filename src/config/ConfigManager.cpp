@@ -307,6 +307,22 @@ void ConfigManager::extractSceneConfig(const quantiloom::Config& config, SceneCo
             matConfig.hasPbr = true;
         }
 
+        // The spectral binding, read so the writer can put it back. Both forms
+        // land in the same list; which one gets written out depends only on
+        // how many entries there are.
+        matConfig.spectralMaterialType =
+            QString::fromStdString(matTable.GetString("spectral_material_type", ""));
+        if (const auto ref = matTable.GetString("spectral_material_ref", ""); !ref.empty()) {
+            matConfig.spectralMaterialRefs << QString::fromStdString(ref);
+        }
+        for (const auto& ref : matTable.GetStringArray("spectral_material_refs")) {
+            matConfig.spectralMaterialRefs << QString::fromStdString(ref);
+        }
+        matConfig.spectralUnmix =
+            QString::fromStdString(matTable.GetString("spectral_unmix", ""));
+        matConfig.spectralWeightTexture =
+            QString::fromStdString(matTable.GetString("spectral_weight_texture", ""));
+
         out.materialConfigs.append(matConfig);
 
         qDebug() << "Loaded material config:" << matConfig.name
@@ -722,7 +738,7 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
 
     // [[materials]] - material overrides, IR and PBR
     for (const auto& matConfig : config.materialConfigs) {
-        if (matConfig.hasPbr || matConfig.irEmissivity > 0.0f ||
+        if (matConfig.hasPbr || matConfig.hasSpectral() || matConfig.irEmissivity > 0.0f ||
             matConfig.irTransmittance > 0.0f || matConfig.irTemperature_K > 0.0f) {
             out << "[[materials]]\n";
             out << "name = " << tomlQuoted(matConfig.name) << "\n";
@@ -742,6 +758,34 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
             }
             if (matConfig.irTemperature_K > 0.0f) {
                 out << "ir_temperature_k = " << matConfig.irTemperature_K << "\n";
+            }
+            if (matConfig.hasSpectral()) {
+                if (!matConfig.spectralMaterialType.isEmpty()) {
+                    out << "spectral_material_type = "
+                        << tomlQuoted(matConfig.spectralMaterialType) << "\n";
+                }
+                // Singular for one, plural for a mixture. The core treats them
+                // as the same key with the same first entry, and writing a
+                // one-element array would rewrite nearly every existing config
+                // for no change in meaning.
+                if (matConfig.spectralMaterialRefs.size() == 1) {
+                    out << "spectral_material_ref = "
+                        << tomlQuoted(matConfig.spectralMaterialRefs.first()) << "\n";
+                } else {
+                    out << "spectral_material_refs = [";
+                    for (int i = 0; i < matConfig.spectralMaterialRefs.size(); ++i) {
+                        if (i > 0) out << ", ";
+                        out << tomlQuoted(matConfig.spectralMaterialRefs.at(i));
+                    }
+                    out << "]\n";
+                }
+                if (!matConfig.spectralUnmix.isEmpty()) {
+                    out << "spectral_unmix = " << tomlQuoted(matConfig.spectralUnmix) << "\n";
+                }
+                if (!matConfig.spectralWeightTexture.isEmpty()) {
+                    out << "spectral_weight_texture = "
+                        << tomlQuoted(matConfig.spectralWeightTexture) << "\n";
+                }
             }
             out << "\n";
         }

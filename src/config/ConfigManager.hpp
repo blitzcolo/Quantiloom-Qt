@@ -38,6 +38,23 @@ struct MaterialConfig {
     float metallic = 0.0f;
     float roughness = 1.0f;
     glm::vec3 emissive{0.0f, 0.0f, 0.0f};
+
+    /// Which measured spectral curves this surface stands for. Carried, never
+    /// interpreted: the core matches the strings against its libraries and
+    /// decides what they mean. Before these existed the writer dropped them,
+    /// so opening a scene with spectral bindings and saving it silently
+    /// deleted them.
+    ///
+    /// One entry is written back as `spectral_material_ref`, several as
+    /// `spectral_material_refs` -- the singular form is what older configs and
+    /// the majority of materials use, and rewriting every one of them as a
+    /// one-element array would be a large diff that says nothing.
+    QString spectralMaterialType;   // "quantiloom_usgs", "quantiloom_ecostress", ...
+    QStringList spectralMaterialRefs;
+    QString spectralUnmix;          // "auto" | "texture" | "off"; empty = leave unwritten
+    QString spectralWeightTexture;
+
+    [[nodiscard]] bool hasSpectral() const { return !spectralMaterialRefs.isEmpty(); }
 };
 
 /**
