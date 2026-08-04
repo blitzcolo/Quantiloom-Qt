@@ -9,7 +9,9 @@
 #
 # Spectral: the ground and building materials are bound to measured USGS
 # splib07a curves (VIS/NIR/SWIR coverage 1.00 on every one); metals and glass
-# carry measured n(lambda), k(lambda) instead. Verify a candidate curve with
+# carry measured n(lambda), k(lambda) instead. Several are bound to a mixture
+# of curves rather than one, which is what keeps their texture in the spectral
+# modes. Verify a candidate curve with
 #     python3 scripts/spectral_preview.py usgs "<ref>"
 # ============================================================================
 
@@ -28,11 +30,26 @@ environment_map_enabled = false
 # wavelengths against the measured curves below and is the physically correct
 # path; switching is this one line, everything else is already in place.
 #
-# Two things change with it. It renders in absolute W*m^-2*nm^-1, so the frame
+# One thing changes with it: it renders in absolute W*m^-2*nm^-1, so the frame
 # is dimmer than the rgb preview and the sky is the ASTM diffuse component
-# alone. And a bound curve replaces the material's base-colour texture
-# outright, so the ground reads as one flat measured reflectance rather than
-# as the procedural pattern.
+# alone.
+#
+# The textures survive. A material bound to several measured curves renders as
+# a mixture of them, and how much of each is where is unmixed from its own
+# base-colour texture at load -- the spectra stay exactly as measured, and the
+# texture decides the proportions. With one curve that reduces to brightness
+# modulation of that curve. Set spectral_unmix = "off" on a material to get the
+# old flat behaviour back.
+#
+# The render log reports each mixture's split, e.g. "endmember split 48% / 52%".
+# Read it: an endmember can only pick up weight where the texture shows its
+# colour, and endmembers that differ only in brightness are not separable at
+# all -- any of them, scaled, makes the same colour. The procedural textures
+# these scenes ship with are near-uniform in hue, so most mixtures below
+# currently land on one endmember and read 100% / 0%. They are written as
+# mixtures because that is what the surface physically is, and because
+# dropping in a photographic texture makes them split without touching this
+# file. The beach, whose texture already varies wet to dry, splits today.
 mode = "rgb"
 band = "VIS"
 # NMF basis + material index. BOTH are required for any quantiloom_* binding;
@@ -97,7 +114,12 @@ albedo = [0.8, 0.8, 0.8]
 [[materials]]
 name = "GrassGround"
 spectral_material_type = "quantiloom_usgs"
-spectral_material_ref = "Spar.patens CRMS322v06 grn.a"   # saltmeadow cordgrass, green sample
+# Green cordgrass and dry golden grass. The ground texture decides how much of
+# each is where, so the meadow is patchy in the measurement, not just in RGB.
+spectral_material_refs = [
+    "Spar.patens CRMS322v06 grn.a",   # saltmeadow cordgrass, green sample
+    "Grass_Golden_Dry GDS480",        # sun-dried grass
+]
 
 [[materials]]
 name = "Rock"
