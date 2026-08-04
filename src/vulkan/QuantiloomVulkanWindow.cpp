@@ -365,6 +365,14 @@ int QuantiloomVulkanWindow::addSpectralCurve(const quantiloom::SpectralCurve& cu
     return -1;
 }
 
+quantiloom::Result<int, std::string> QuantiloomVulkanWindow::buildEndmemberWeightTexture(
+    uint32_t materialIndex, const std::vector<glm::vec3>& endmemberColors) {
+    if (!m_renderer) {
+        return quantiloom::Result<int, std::string>::Err("The renderer is not ready yet.");
+    }
+    return m_renderer->buildEndmemberWeightTexture(materialIndex, endmemberColors);
+}
+
 std::optional<QString> QuantiloomVulkanWindow::setSolarLutFromSpec(
     const quantiloom::SolarLutSpec& spec, const QString& baseDir) {
     if (!m_renderer) {

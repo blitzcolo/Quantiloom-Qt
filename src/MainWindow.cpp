@@ -524,6 +524,28 @@ void MainWindow::setupMenus() {
     // reaching it meant finding one panel among ten.
     m_spectralMenu = m_renderMenu->addMenu(QString());
 
+    // Binding a measured spectrum is a menu verb like any other. The library
+    // panel's two buttons are a shortcut to these, never the only route.
+    m_renderMenu->addSeparator();
+
+    m_assignSpectrumAction = m_renderMenu->addAction(QString(), this, [this]() {
+        const auto entry = m_spectralLibraryPanel->highlightedEntry();
+        if (!entry.first.isEmpty()) {
+            applySpectralEndmembers(m_currentMaterialIndex, entry.first, {entry.second});
+        }
+    });
+    m_assignSpectrumAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_A));
+    m_assignSpectrumAction->setEnabled(false);
+
+    m_addEndmemberAction = m_renderMenu->addAction(QString(), this, [this]() {
+        const auto entry = m_spectralLibraryPanel->highlightedEntry();
+        if (!entry.first.isEmpty()) {
+            onSpectralEndmemberAdded(entry.first, entry.second);
+        }
+    });
+    m_addEndmemberAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_E));
+    m_addEndmemberAction->setEnabled(false);
+
     // --- Tools ----------------------------------------------------------
     m_toolsMenu = m_menuBar->addMenu(QString());
     m_spectralGenAction = m_toolsMenu->addAction(QString(), this, [this]() {
@@ -1427,6 +1449,16 @@ void MainWindow::setupDockWidgets() {
             this, &MainWindow::onSpectralPreviewRequested);
     connect(m_spectralLibraryPanel, &SpectralLibraryPanel::assignRequested,
             this, &MainWindow::onSpectralMaterialAssigned);
+    connect(m_spectralLibraryPanel, &SpectralLibraryPanel::endmemberAddRequested,
+            this, &MainWindow::onSpectralEndmemberAdded);
+    connect(m_spectralLibraryPanel, &SpectralLibraryPanel::endmemberRemoveRequested,
+            this, &MainWindow::onSpectralEndmemberRemoved);
+    // The menu entries act on whatever row is highlighted, so their enabled
+    // state has to follow the highlight as well as the selection.
+    connect(m_spectralLibraryPanel, &SpectralLibraryPanel::previewRequested,
+            this, [this](const QString&, const QString&, const QString&) {
+                updateSpectralMenuState();
+            });
 
     connect(m_materialEditorPanel, &MaterialEditorPanel::materialChanged,
             this, &MainWindow::onMaterialChanged);
@@ -2000,6 +2032,15 @@ void MainWindow::retranslateUi() {
         const auto mode = static_cast<quantiloom::DebugVisualizationMode>(itemData.toInt());
         m_debugCombo->setItemText(i, catalog::debugModeName(mode));
     }
+
+    m_assignSpectrumAction->setText(tr("&Assign Measured Spectrum"));
+    m_assignSpectrumAction->setToolTip(
+        tr("Bind the material selected in the scene to the spectrum highlighted "
+           "in the Spectral Library, replacing anything already bound"));
+    m_addEndmemberAction->setText(tr("Add Spectral &Endmember"));
+    m_addEndmemberAction->setToolTip(
+        tr("Add the highlighted spectrum alongside the ones already bound, so "
+           "the surface renders as a mixture of measured materials"));
 
     m_toolsMenu->setTitle(tr("&Tools"));
     m_spectralGenAction->setText(tr("Spectral Material &Generator"));
@@ -3199,8 +3240,7 @@ void MainWindow::onMaterialSelected(int materialIndex) {
         m_propertiesPanel->showMaterial();
         m_spectralMaterialGenPanel->setCurrentMaterialIndex(materialIndex);
         m_currentMaterialIndex = materialIndex;
-        m_spectralLibraryPanel->setTargetMaterial(
-            materialIndex, QString::fromStdString(material.name));
+        refreshSpectralLibraryTarget();
         if (QDockWidget* dock = m_docks.value(QStringLiteral("properties"), nullptr)) {
             dock->show();
             dock->raise();
@@ -3313,10 +3353,79 @@ void MainWindow::onSpectralPreviewRequested(const QString& databaseId,
 
 void MainWindow::onSpectralMaterialAssigned(const QString& databaseId,
                                             const QString& materialName) {
+    // Replace: whatever the material was made of, it is this now.
+    applySpectralEndmembers(m_currentMaterialIndex, databaseId, {materialName});
+}
+
+void MainWindow::onSpectralEndmemberAdded(const QString& databaseId,
+                                          const QString& materialName) {
+    applySpectralEndmembers(m_currentMaterialIndex, databaseId,
+                            currentSpectralRefs() << materialName);
+}
+
+void MainWindow::onSpectralEndmemberRemoved(int slot) {
+    QStringList refs = currentSpectralRefs();
+    if (slot < 0 || slot >= refs.size()) {
+        return;
+    }
+    refs.removeAt(slot);
+    applySpectralEndmembers(m_currentMaterialIndex, currentSpectralDatabaseId(), refs);
+}
+
+QStringList MainWindow::currentSpectralRefs() const {
     const quantiloom::Scene* scene = m_vulkanWindow->getScene();
     if (!scene || m_currentMaterialIndex < 0 ||
         static_cast<size_t>(m_currentMaterialIndex) >= scene->materials.size()) {
+        return {};
+    }
+    const auto& material = scene->materials[static_cast<size_t>(m_currentMaterialIndex)];
+    QStringList refs;
+    if (material.HasQuantiloomRef()) {
+        refs << QString::fromStdString(material.quantiloomMaterialRef);
+        for (const auto& extra : material.quantiloomExtraRefs) {
+            refs << QString::fromStdString(extra);
+        }
+    }
+    return refs;
+}
+
+QString MainWindow::currentSpectralDatabaseId() const {
+    const quantiloom::Scene* scene = m_vulkanWindow->getScene();
+    if (!scene || m_currentMaterialIndex < 0 ||
+        static_cast<size_t>(m_currentMaterialIndex) >= scene->materials.size()) {
+        return {};
+    }
+    // Stored as "quantiloom_usgs"; the panel and the loaders speak "usgs".
+    const QString type = QString::fromStdString(
+        scene->materials[static_cast<size_t>(m_currentMaterialIndex)].quantiloomMaterialType);
+    return type.startsWith(QStringLiteral("quantiloom_")) ? type.mid(11) : type;
+}
+
+void MainWindow::applySpectralEndmembers(int materialIndex, const QString& databaseId,
+                                         const QStringList& refs) {
+    const quantiloom::Scene* scene = m_vulkanWindow->getScene();
+    if (!scene || materialIndex < 0 ||
+        static_cast<size_t>(materialIndex) >= scene->materials.size()) {
         showStatusMessage(tr("Select a material in the scene first"));
+        return;
+    }
+
+    quantiloom::Material updated = scene->materials[static_cast<size_t>(materialIndex)];
+
+    // Unbinding: back to rendering from the material's own colour.
+    if (refs.isEmpty()) {
+        updated.quantiloomMaterialType.clear();
+        updated.quantiloomMaterialRef.clear();
+        updated.quantiloomExtraRefs.clear();
+        updated.spectralReflectanceCurveIndex = -1;
+        updated.endmemberCurveIndex1 = -1;
+        updated.endmemberCurveIndex2 = -1;
+        updated.endmemberCurveIndex3 = -1;
+        updated.weightTextureIndex = -1;
+        onMaterialChanged(materialIndex, updated);
+        refreshSpectralLibraryTarget();
+        showStatusMessage(tr("Removed the measured spectrum from '%1'")
+                              .arg(QString::fromStdString(updated.name)));
         return;
     }
 
@@ -3336,31 +3445,105 @@ void MainWindow::onSpectralMaterialAssigned(const QString& databaseId,
     if (mode == quantiloom::SpectralMode::NIR_Fused)  band = QStringLiteral("NIR");
     if (mode == quantiloom::SpectralMode::SWIR_Fused) band = QStringLiteral("SWIR");
 
-    auto curve = quantiloom::SpectralIO::ReconstructBasisCurve(
-        basis, materials, materialName.toStdString(), band.toStdString());
-    if (!curve.has_value()) {
-        QMessageBox::warning(this, tr("Assign Failed"),
-            tr("Could not reconstruct '%1' in the %2 band:\n%3")
-                .arg(materialName, band, QString::fromStdString(curve.error())));
-        return;
+    const int wanted = std::min<int>(refs.size(), quantiloom::Material::MAX_ENDMEMBERS);
+    std::vector<int> curveIndices;
+    std::vector<glm::vec3> colours;
+    QStringList bound;
+
+    for (int i = 0; i < wanted; ++i) {
+        auto curve = quantiloom::SpectralIO::ReconstructBasisCurve(
+            basis, materials, refs.at(i).toStdString(), band.toStdString());
+        if (!curve.has_value()) {
+            QMessageBox::warning(this, tr("Assign Failed"),
+                tr("Could not reconstruct '%1' in the %2 band:\n%3")
+                    .arg(refs.at(i), band, QString::fromStdString(curve.error())));
+            return;
+        }
+        const int curveIndex = m_vulkanWindow->addSpectralCurve(curve.value());
+        if (curveIndex < 0) {
+            QMessageBox::warning(this, tr("Assign Failed"),
+                tr("Could not upload the spectrum for '%1'.").arg(refs.at(i)));
+            return;
+        }
+        curveIndices.push_back(curveIndex);
+        bound << refs.at(i);
+
+        // The colour each endmember would appear as under D65 -- what the
+        // unmixer compares against the base-colour texels. Always the VIS
+        // band, whatever is being rendered: a weight is a spatial abundance
+        // and the texture that suggests it is a visible-light image.
+        auto visCurve = quantiloom::SpectralIO::ReconstructBasisCurve(
+            basis, materials, refs.at(i).toStdString(), "VIS");
+        colours.push_back(visCurve.has_value()
+                              ? quantiloom::ReflectanceToLinearSrgbD65(visCurve.value())
+                              : glm::vec3(0.0f));
     }
 
-    // The runtime half: the curve joins the pool and the material points at
-    // it. The type and reference are set too, because those are what the
-    // configuration carries -- the curve index is a session-local pool
-    // position, and re-deriving it on load is ApplyConfig's job.
-    quantiloom::Material updated = scene->materials[static_cast<size_t>(m_currentMaterialIndex)];
-    const int curveIndex = m_vulkanWindow->addSpectralCurve(curve.value());
-    if (curveIndex >= 0) {
-        updated.spectralReflectanceCurveIndex = curveIndex;
-    }
     updated.quantiloomMaterialType = ("quantiloom_" + databaseId).toStdString();
-    updated.quantiloomMaterialRef = materialName.toStdString();
+    updated.quantiloomMaterialRef = bound.first().toStdString();
+    updated.quantiloomExtraRefs.clear();
+    for (int i = 1; i < bound.size(); ++i) {
+        updated.quantiloomExtraRefs.push_back(bound.at(i).toStdString());
+    }
+
+    // Curve indices are session-local pool positions; the references above are
+    // what the configuration carries, and re-deriving the indices on load is
+    // ApplyConfig's job.
+    updated.spectralReflectanceCurveIndex = curveIndices[0];
+    updated.endmemberCurveIndex1 = curveIndices.size() > 1 ? curveIndices[1] : -1;
+    updated.endmemberCurveIndex2 = curveIndices.size() > 2 ? curveIndices[2] : -1;
+    updated.endmemberCurveIndex3 = curveIndices.size() > 3 ? curveIndices[3] : -1;
+
+    // The weights that make the mixture vary across the surface. Failing here
+    // is not fatal: without a weight map the shader reads the first curve
+    // flat, which is what a bound material did before mixing existed -- so say
+    // what happened and carry on rather than refusing the assignment.
+    updated.weightTextureIndex = -1;
+    auto weights = m_vulkanWindow->buildEndmemberWeightTexture(
+        static_cast<uint32_t>(materialIndex), colours);
+    if (weights.has_value()) {
+        updated.weightTextureIndex = weights.value();
+    } else {
+        showStatusMessage(tr("Bound the spectrum, but the surface renders flat: %1")
+                              .arg(QString::fromStdString(weights.error())));
+    }
 
     // Through the ordinary material-edit path, which makes the assignment
     // undoable and marks the material as edited so it is written on save.
-    onMaterialChanged(m_currentMaterialIndex, updated);
-    showStatusMessage(tr("Assigned %1 (%2, %3 band)").arg(materialName, databaseId, band));
+    onMaterialChanged(materialIndex, updated);
+    refreshSpectralLibraryTarget();
+
+    if (updated.weightTextureIndex >= 0) {
+        showStatusMessage(bound.size() == 1
+            ? tr("Assigned %1 (%2, %3 band)").arg(bound.first(), databaseId, band)
+            : tr("Mixed %n endmember(s) on '%1' (%2, %3 band)", "", static_cast<int>(bound.size()))
+                  .arg(QString::fromStdString(updated.name), databaseId, band));
+    }
+}
+
+void MainWindow::updateSpectralMenuState() {
+    const bool haveMaterial = m_currentMaterialIndex >= 0;
+    const bool haveRow = !m_spectralLibraryPanel->highlightedEntry().first.isEmpty();
+    const int bound = m_spectralLibraryPanel->endmemberCount();
+
+    m_assignSpectrumAction->setEnabled(haveMaterial && haveRow);
+    // Same rule the panel's button follows: adding needs something to add to,
+    // and stops at the mixture limit.
+    m_addEndmemberAction->setEnabled(haveMaterial && haveRow && bound > 0 &&
+                                     bound < quantiloom::Material::MAX_ENDMEMBERS);
+}
+
+void MainWindow::refreshSpectralLibraryTarget() {
+    const quantiloom::Scene* scene = m_vulkanWindow->getScene();
+    if (!scene || m_currentMaterialIndex < 0 ||
+        static_cast<size_t>(m_currentMaterialIndex) >= scene->materials.size()) {
+        m_spectralLibraryPanel->setTargetMaterial(-1, QString());
+        return;
+    }
+    const auto& material = scene->materials[static_cast<size_t>(m_currentMaterialIndex)];
+    m_spectralLibraryPanel->setTargetMaterial(
+        m_currentMaterialIndex, QString::fromStdString(material.name), currentSpectralRefs());
+    updateSpectralMenuState();
 }
 
 void MainWindow::onCameraChanged() {

@@ -849,6 +849,10 @@ May cause colour shifts.</source>
         <translation>请先在场景中选择一个材质</translation>
     </message>
     <message>
+        <source>Removed the measured spectrum from &apos;%1&apos;</source>
+        <translation>已移除“%1”的实测光谱</translation>
+    </message>
+    <message>
         <source>Assign Failed</source>
         <translation>指派失败</translation>
     </message>
@@ -863,8 +867,22 @@ May cause colour shifts.</source>
 %3</translation>
     </message>
     <message>
+        <source>Could not upload the spectrum for &apos;%1&apos;.</source>
+        <translation>无法上传“%1”的光谱。</translation>
+    </message>
+    <message>
+        <source>Bound the spectrum, but the surface renders flat: %1</source>
+        <translation>光谱已绑定，但表面渲染为均一反射率：%1</translation>
+    </message>
+    <message>
         <source>Assigned %1 (%2, %3 band)</source>
         <translation>已指派 %1（%2，%3 波段）</translation>
+    </message>
+    <message numerus="yes">
+        <source>Mixed %n endmember(s) on &apos;%1&apos; (%2, %3 band)</source>
+        <translation>
+            <numerusform>已在“%1”上混合 %n 个端元（%2，%3 波段）</numerusform>
+        </translation>
     </message>
     <message>
         <source>Node %1</source>
@@ -1483,6 +1501,22 @@ May cause colour shifts.</source>
     <message>
         <source> Debug: </source>
         <translation> 调试：</translation>
+    </message>
+    <message>
+        <source>&amp;Assign Measured Spectrum</source>
+        <translation>指派实测光谱(&amp;A)</translation>
+    </message>
+    <message>
+        <source>Bind the material selected in the scene to the spectrum highlighted in the Spectral Library, replacing anything already bound</source>
+        <translation>把场景中选中的材质绑定到光谱库里高亮的那条光谱，并替换已绑定的全部端元</translation>
+    </message>
+    <message>
+        <source>Add Spectral &amp;Endmember</source>
+        <translation>添加光谱端元(&amp;E)</translation>
+    </message>
+    <message>
+        <source>Add the highlighted spectrum alongside the ones already bound, so the surface renders as a mixture of measured materials</source>
+        <translation>在已绑定的光谱之外再加上高亮的这条，使表面渲染为多种实测材质的混合</translation>
     </message>
     <message>
         <source>Spectral Material &amp;Generator</source>
@@ -3071,12 +3105,46 @@ Coverage — VIS %3%, NIR %4%, SWIR %5%</source>
         <translation>指派到材质</translation>
     </message>
     <message>
+        <source>Replaces the material&apos;s colour with this measured spectrum, and any endmembers already bound. Undoable, and written to the configuration on save.</source>
+        <translation>用这条实测光谱替换材质的颜色，以及已绑定的全部端元。可撤销，并在保存时写入配置。</translation>
+    </message>
+    <message>
+        <source>Endmembers</source>
+        <translation>端元</translation>
+    </message>
+    <message>
+        <source>Add Endmember</source>
+        <translation>添加端元</translation>
+    </message>
+    <message>
+        <source>Adds this spectrum alongside the ones already bound. The surface then renders as a mixture of them, in proportions read out of its base-colour texture -- which is how a measured material keeps its texture instead of rendering as one flat reflectance.</source>
+        <translation>在已绑定的光谱之外再加上这一条。表面随后渲染为它们的混合，各自的比例由基色贴图逐像素解算得出——实测材质正是这样保留住自己的纹理，而不是渲染成一片均一的反射率。</translation>
+    </message>
+    <message>
+        <source>Remove Endmember</source>
+        <translation>移除端元</translation>
+    </message>
+    <message>
+        <source>%1. %2</source>
+        <translation>%1. %2</translation>
+    </message>
+    <message>
+        <source>None -- this material renders from its colour</source>
+        <translation>无——该材质按自身颜色渲染</translation>
+    </message>
+    <message>
         <source>Replaces the material&apos;s colour with this measured spectrum. Undoable, and written to the configuration on save.</source>
-        <translation>用这条实测光谱替换该材质的颜色。可撤销，并在保存时写入配置。</translation>
+        <translation type="vanished">用这条实测光谱替换该材质的颜色。可撤销，并在保存时写入配置。</translation>
     </message>
     <message>
         <source>Select a material in the scene to assign to.</source>
         <translation>请在场景中选择要指派的材质。</translation>
+    </message>
+    <message numerus="yes">
+        <source>Assigning to: %1 (at the limit of %n endmember(s))</source>
+        <translation>
+            <numerusform>指派到：%1（已达 %n 个端元的上限）</numerusform>
+        </translation>
     </message>
     <message>
         <source>Assigning to: %1</source>

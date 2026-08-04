@@ -110,6 +110,11 @@ public:
     // Quantitative spectral data. Without these the context binds zeroed buffers and
     // every material renders through the RGB-upsampled fallback.
     int addSpectralCurve(const quantiloom::SpectralCurve& curve);
+    /// Unmix a material's base colour into endmember weights, upload it, and
+    /// return the texture index; see
+    /// ExternalRenderContext::BuildEndmemberWeightTexture.
+    [[nodiscard]] quantiloom::Result<int, std::string> buildEndmemberWeightTexture(
+        uint32_t materialIndex, const std::vector<glm::vec3>& endmemberColors);
     /// Set the illuminant the way a scene file would, through the core's own
     /// reading of solar_lut. Returns the core's error when it could not load.
     /// Kept for replay after a context rebuild, like the curves above.

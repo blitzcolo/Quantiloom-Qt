@@ -189,6 +189,8 @@ private slots:
     void onSpectralPreviewRequested(const QString& databaseId,
                                     const QString& materialName, const QString& band);
     void onSpectralMaterialAssigned(const QString& databaseId, const QString& materialName);
+    void onSpectralEndmemberAdded(const QString& databaseId, const QString& materialName);
+    void onSpectralEndmemberRemoved(int slot);
     void onViewportClicked(const QPointF& screenPos, Qt::KeyboardModifiers modifiers);
     void onSelectionChanged(const QSet<int>& selectedNodes);
     void onGizmoDragStarted();
@@ -264,6 +266,25 @@ private:
     void applyCameraPose(const glm::vec3& position, const glm::vec3& target);
     void applyCameraFov(float fovYDegrees);
     void applyMaterial(int index, const quantiloom::Material& material);
+    /// Bind a material to a set of measured spectra, replacing whatever it had.
+    ///
+    /// The single point every route goes through: the panel's two buttons, the
+    /// two menu entries, and the removal path all end here with the list they
+    /// want. An empty list unbinds. Reconstructs each curve in the band being
+    /// rendered, uploads them, unmixes the base colour into weights so the
+    /// mixture varies across the surface, and applies the result through
+    /// applyMaterial so it is undoable and saved.
+    void applySpectralEndmembers(int materialIndex, const QString& databaseId,
+                                 const QStringList& refs);
+    /// The endmembers the selected material currently carries, and the
+    /// database they came from. Read back off the Material rather than kept
+    /// beside it, so an undo cannot leave the two disagreeing.
+    [[nodiscard]] QStringList currentSpectralRefs() const;
+    [[nodiscard]] QString currentSpectralDatabaseId() const;
+    /// Push the selection's current bindings back into the library panel and
+    /// the menu, after anything that could have changed them.
+    void refreshSpectralLibraryTarget();
+    void updateSpectralMenuState();
     void applyNodeTransform(int nodeIndex, const glm::mat4& transform);
 
     // --- MCP -------------------------------------------------------------
@@ -497,6 +518,8 @@ private:
     QAction* m_exportCubeAction = nullptr;
     QAction* m_resetAccumulationAction = nullptr;
     QAction* m_spectralGenAction = nullptr;
+    QAction* m_assignSpectrumAction = nullptr;
+    QAction* m_addEndmemberAction = nullptr;
     QAction* m_shortcutsAction = nullptr;
     QAction* m_debugReferenceAction = nullptr;
     QAction* m_aboutAction = nullptr;

@@ -883,6 +883,14 @@ int QuantiloomVulkanRenderer::addSpectralCurve(const quantiloom::SpectralCurve& 
     return -1;
 }
 
+quantiloom::Result<int, std::string> QuantiloomVulkanRenderer::buildEndmemberWeightTexture(
+    uint32_t materialIndex, const std::vector<glm::vec3>& endmemberColors) {
+    if (!m_renderContext) {
+        return quantiloom::Result<int, std::string>::Err("The render context is not ready yet.");
+    }
+    return m_renderContext->BuildEndmemberWeightTexture(materialIndex, endmemberColors);
+}
+
 std::optional<QString> QuantiloomVulkanRenderer::setSolarLutFromSpec(
     const quantiloom::SolarLutSpec& spec, const QString& baseDir) {
     // The declaration is kept, not the curves: a rebuild replays the same

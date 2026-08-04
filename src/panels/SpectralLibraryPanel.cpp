@@ -20,6 +20,7 @@
 #include <QLineEdit>
 #include <QComboBox>
 #include <QPushButton>
+#include <QListWidget>
 #include <QFile>
 #include <QFileInfo>
 #include <QTextStream>
@@ -341,10 +342,40 @@ void SpectralLibraryPanel::setupUi() {
     bindStyle([this] { uistyle::applyHintStyle(m_targetLabel); });
     mainLayout->addWidget(m_targetLabel);
 
+    // --- endmembers ------------------------------------------------------
+    // What the target is currently made of. A surface can stand for a mixture
+    // of up to Material::MAX_ENDMEMBERS measured materials, in proportions
+    // read out of its own base-colour texture, which is what lets a measured
+    // material keep its texture instead of rendering as one flat reflectance.
+    m_endmemberGroup = new QGroupBox(this);
+    auto* endmemberLayout = new QVBoxLayout(m_endmemberGroup);
+
+    m_endmemberList = new QListWidget(m_endmemberGroup);
+    m_endmemberList->setMaximumHeight(96);
+    connect(m_endmemberList, &QListWidget::itemSelectionChanged,
+            this, &SpectralLibraryPanel::updateAssignEnabled);
+    endmemberLayout->addWidget(m_endmemberList);
+
+    m_removeEndmemberButton = new QPushButton(m_endmemberGroup);
+    m_removeEndmemberButton->setEnabled(false);
+    connect(m_removeEndmemberButton, &QPushButton::clicked,
+            this, &SpectralLibraryPanel::onRemoveEndmemberClicked);
+    endmemberLayout->addWidget(m_removeEndmemberButton);
+
+    mainLayout->addWidget(m_endmemberGroup);
+
+    auto* assignRow = new QHBoxLayout();
     m_assignButton = new QPushButton(this);
     m_assignButton->setEnabled(false);
     connect(m_assignButton, &QPushButton::clicked, this, &SpectralLibraryPanel::onAssignClicked);
-    mainLayout->addWidget(m_assignButton);
+    assignRow->addWidget(m_assignButton, 1);
+
+    m_addEndmemberButton = new QPushButton(this);
+    m_addEndmemberButton->setEnabled(false);
+    connect(m_addEndmemberButton, &QPushButton::clicked,
+            this, &SpectralLibraryPanel::onAddEndmemberClicked);
+    assignRow->addWidget(m_addEndmemberButton, 1);
+    mainLayout->addLayout(assignRow);
 
     bindText([this, previewGroup, bandCaption] {
         m_searchEdit->setPlaceholderText(tr("Search %n material(s)...", "",
@@ -356,8 +387,18 @@ void SpectralLibraryPanel::setupUi() {
         m_plot->setPlaceholderText(tr("Select a material to preview its measured spectrum."));
         m_assignButton->setText(tr("Assign to Material"));
         m_assignButton->setToolTip(
-            tr("Replaces the material's colour with this measured spectrum. "
-               "Undoable, and written to the configuration on save."));
+            tr("Replaces the material's colour with this measured spectrum, "
+               "and any endmembers already bound. Undoable, and written to the "
+               "configuration on save."));
+        m_endmemberGroup->setTitle(tr("Endmembers"));
+        m_addEndmemberButton->setText(tr("Add Endmember"));
+        m_addEndmemberButton->setToolTip(
+            tr("Adds this spectrum alongside the ones already bound. The surface "
+               "then renders as a mixture of them, in proportions read out of its "
+               "base-colour texture -- which is how a measured material keeps its "
+               "texture instead of rendering as one flat reflectance."));
+        m_removeEndmemberButton->setText(tr("Remove Endmember"));
+        updateEndmemberList();
         onFilterChanged();      // the count line is translated too
         updateAssignEnabled();
     });
@@ -374,21 +415,50 @@ void SpectralLibraryPanel::retranslateUi() {
     PanelBase::retranslateUi();
 }
 
-void SpectralLibraryPanel::setTargetMaterial(int index, const QString& name) {
+void SpectralLibraryPanel::setTargetMaterial(int index, const QString& name,
+                                             const QStringList& currentRefs) {
     m_targetMaterial = index;
     m_targetMaterialName = name;
+    m_currentRefs = currentRefs;
+    updateEndmemberList();
     updateAssignEnabled();
+}
+
+void SpectralLibraryPanel::updateEndmemberList() {
+    m_endmemberList->clear();
+    for (int i = 0; i < m_currentRefs.size(); ++i) {
+        // Numbered from 1: the list is what the surface is made of, and
+        // "endmember 0" is an implementation detail of where it is stored.
+        m_endmemberList->addItem(tr("%1. %2").arg(i + 1).arg(m_currentRefs.at(i)));
+    }
+    if (m_currentRefs.isEmpty()) {
+        auto* placeholder = new QListWidgetItem(tr("None -- this material renders from its colour"));
+        placeholder->setFlags(Qt::NoItemFlags);
+        m_endmemberList->addItem(placeholder);
+    }
 }
 
 void SpectralLibraryPanel::updateAssignEnabled() {
     const bool haveRow = currentSourceRow() >= 0;
     const bool haveTarget = m_targetMaterial >= 0;
+    const bool roomForMore = m_currentRefs.size() < kMaxEndmembers;
+
     m_assignButton->setEnabled(haveRow && haveTarget);
+    // Adding needs somewhere to add to: a material with nothing bound gets its
+    // first spectrum through Assign, which is also the only button that can
+    // clear a mixture.
+    m_addEndmemberButton->setEnabled(haveRow && haveTarget && !m_currentRefs.isEmpty() &&
+                                     roomForMore);
+
+    const int selected = m_endmemberList->currentRow();
+    m_removeEndmemberButton->setEnabled(haveTarget && !m_currentRefs.isEmpty() &&
+                                        selected >= 0 && selected < m_currentRefs.size());
 
     if (!haveTarget) {
         m_targetLabel->setText(tr("Select a material in the scene to assign to."));
-    } else if (!haveRow) {
-        m_targetLabel->setText(tr("Assigning to: %1").arg(m_targetMaterialName));
+    } else if (m_currentRefs.size() >= kMaxEndmembers) {
+        m_targetLabel->setText(tr("Assigning to: %1 (at the limit of %n endmember(s))", "",
+                                  kMaxEndmembers).arg(m_targetMaterialName));
     } else {
         m_targetLabel->setText(tr("Assigning to: %1").arg(m_targetMaterialName));
     }
@@ -435,6 +505,27 @@ void SpectralLibraryPanel::onAssignClicked() {
         return;
     }
     emit assignRequested(entry->database, entry->name);
+}
+
+QPair<QString, QString> SpectralLibraryPanel::highlightedEntry() const {
+    const auto* entry = m_model->entryAt(currentSourceRow());
+    return entry ? qMakePair(entry->database, entry->name) : qMakePair(QString(), QString());
+}
+
+void SpectralLibraryPanel::onAddEndmemberClicked() {
+    const auto* entry = m_model->entryAt(currentSourceRow());
+    if (!entry || m_targetMaterial < 0 || m_currentRefs.size() >= kMaxEndmembers) {
+        return;
+    }
+    emit endmemberAddRequested(entry->database, entry->name);
+}
+
+void SpectralLibraryPanel::onRemoveEndmemberClicked() {
+    const int slot = m_endmemberList->currentRow();
+    if (m_targetMaterial < 0 || slot < 0 || slot >= m_currentRefs.size()) {
+        return;
+    }
+    emit endmemberRemoveRequested(slot);
 }
 
 void SpectralLibraryPanel::onFilterChanged() {

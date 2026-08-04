@@ -848,6 +848,10 @@ May cause colour shifts.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Removed the measured spectrum from &apos;%1&apos;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Assign Failed</source>
         <translation type="unfinished"></translation>
     </message>
@@ -861,8 +865,23 @@ May cause colour shifts.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Could not upload the spectrum for &apos;%1&apos;.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Bound the spectrum, but the surface renders flat: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Assigned %1 (%2, %3 band)</source>
         <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>Mixed %n endmember(s) on &apos;%1&apos; (%2, %3 band)</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
     </message>
     <message>
         <source>Node %1</source>
@@ -1461,6 +1480,22 @@ May cause colour shifts.</source>
     </message>
     <message>
         <source> Debug: </source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Assign Measured Spectrum</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Bind the material selected in the scene to the spectrum highlighted in the Spectral Library, replacing anything already bound</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add Spectral &amp;Endmember</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add the highlighted spectrum alongside the ones already bound, so the surface renders as a mixture of measured materials</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -3016,12 +3051,43 @@ Coverage — VIS %3%, NIR %4%, SWIR %5%</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Replaces the material&apos;s colour with this measured spectrum. Undoable, and written to the configuration on save.</source>
+        <source>Replaces the material&apos;s colour with this measured spectrum, and any endmembers already bound. Undoable, and written to the configuration on save.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Endmembers</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add Endmember</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Adds this spectrum alongside the ones already bound. The surface then renders as a mixture of them, in proportions read out of its base-colour texture -- which is how a measured material keeps its texture instead of rendering as one flat reflectance.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove Endmember</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1. %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>None -- this material renders from its colour</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Select a material in the scene to assign to.</source>
         <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>Assigning to: %1 (at the limit of %n endmember(s))</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
     </message>
     <message>
         <source>Assigning to: %1</source>

@@ -165,6 +165,12 @@ public:
      */
     int addComplexRefractiveIndex(const quantiloom::ComplexRefractiveIndex& cri);
     int addSpectralCurve(const quantiloom::SpectralCurve& curve);
+    /// Unmix a material's base colour into endmember weights and upload the
+    /// result; see ExternalRenderContext::BuildEndmemberWeightTexture. Returns
+    /// the texture index, or a message explaining what the material was
+    /// missing -- most often base-colour pixels that were released on upload.
+    [[nodiscard]] quantiloom::Result<int, std::string> buildEndmemberWeightTexture(
+        uint32_t materialIndex, const std::vector<glm::vec3>& endmemberColors);
     /// See QuantiloomVulkanRenderer::setSolarLutFromSpec.
     [[nodiscard]] std::optional<QString> setSolarLutFromSpec(
         const quantiloom::SolarLutSpec& spec, const QString& baseDir);
