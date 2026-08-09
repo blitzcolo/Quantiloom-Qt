@@ -830,11 +830,11 @@ May cause colour shifts.</source>
     </message>
     <message>
         <source>Frame %1 ms wall clock, %2 ms on the GPU</source>
-        <translation>帧耗时 %1 ms（墙钟），GPU %2 ms</translation>
+        <translation type="vanished">帧耗时 %1 ms（墙钟），GPU %2 ms</translation>
     </message>
     <message>
         <source>Frame %1 ms wall clock</source>
-        <translation>帧耗时 %1 ms（墙钟）</translation>
+        <translation type="vanished">帧耗时 %1 ms（墙钟）</translation>
     </message>
     <message>
         <source>ETA %1</source>
@@ -1002,7 +1002,7 @@ May cause colour shifts.</source>
     </message>
     <message>
         <source>FPS: --</source>
-        <translation>帧率: --</translation>
+        <translation type="vanished">帧率: --</translation>
     </message>
     <message>
         <source>Samples: 0</source>
@@ -1134,7 +1134,7 @@ May cause colour shifts.</source>
     </message>
     <message>
         <source>FPS: %1</source>
-        <translation>帧率: %1</translation>
+        <translation type="vanished">帧率: %1</translation>
     </message>
     <message>
         <source>Samples: %1</source>
@@ -1151,6 +1151,26 @@ May cause colour shifts.</source>
     <message>
         <source>Material modified</source>
         <translation>材质已修改</translation>
+    </message>
+    <message>
+        <source>-- spp/s</source>
+        <translation>-- spp/s</translation>
+    </message>
+    <message>
+        <source>%1 spp/s</source>
+        <translation>%1 spp/s</translation>
+    </message>
+    <message>
+        <source>Samples accumulated per second of wall clock</source>
+        <translation>每墙钟秒累积的采样数</translation>
+    </message>
+    <message>
+        <source>Samples per second of wall clock. %1 frames/s, %2 ms per frame, %3 ms of it on the GPU</source>
+        <translation>每墙钟秒累积的采样数。%1 帧/秒，每帧 %2 ms，其中 GPU %3 ms</translation>
+    </message>
+    <message>
+        <source>Samples per second of wall clock. %1 frames/s, %2 ms per frame</source>
+        <translation>每墙钟秒累积的采样数。%1 帧/秒，每帧 %2 ms</translation>
     </message>
     <message>
         <source>Lighting updated</source>

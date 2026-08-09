@@ -296,11 +296,13 @@ void QuantiloomVulkanRenderer::startNextFrame() {
     // Update sample count
     m_sampleCount = m_renderContext->GetAccumulatedSamples();
 
-    // Two different quantities, and the status bar shows both. This one is
-    // wall-clock around the whole callback -- what the user experiences as
-    // responsiveness, and what a sample rate has to be derived from.
-    auto frameEnd = std::chrono::high_resolution_clock::now();
-    m_lastFrameTimeMs = std::chrono::duration<float, std::milli>(frameEnd - now).count();
+    // Two different quantities, and the status bar shows both. This one is the
+    // interval between consecutive callbacks -- the cadence at which frames
+    // actually reach the screen. Timing from here back to the top of the
+    // function instead would measure command recording, which returns long
+    // before the GPU has run any of it: microseconds, and a frame rate derived
+    // from it read five figures.
+    m_lastFrameTimeMs = deltaTime * 1000.0f;
     // The SDK's own figure, which times the trace rather than this thread's
     // command recording. It is the one to read when asking whether the *scene*
     // is expensive, and it had no caller at all until now.

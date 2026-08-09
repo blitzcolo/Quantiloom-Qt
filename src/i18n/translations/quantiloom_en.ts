@@ -828,14 +828,6 @@ May cause colour shifts.</source>
         </translation>
     </message>
     <message>
-        <source>Frame %1 ms wall clock, %2 ms on the GPU</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Frame %1 ms wall clock</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>ETA %1</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1001,7 +993,7 @@ May cause colour shifts.</source>
     </message>
     <message>
         <source>FPS: --</source>
-        <translation>FPS: --</translation>
+        <translation type="vanished">FPS: --</translation>
     </message>
     <message>
         <source>Samples: 0</source>
@@ -1129,7 +1121,7 @@ May cause colour shifts.</source>
     </message>
     <message>
         <source>FPS: %1</source>
-        <translation>FPS: %1</translation>
+        <translation type="vanished">FPS: %1</translation>
     </message>
     <message>
         <source>Samples: %1</source>
@@ -1845,6 +1837,26 @@ May cause colour shifts.</source>
     <message>
         <source>Wavelength: %1 nm</source>
         <translation>Wavelength: %1 nm</translation>
+    </message>
+    <message>
+        <source>-- spp/s</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 spp/s</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Samples accumulated per second of wall clock</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Samples per second of wall clock. %1 frames/s, %2 ms per frame, %3 ms of it on the GPU</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Samples per second of wall clock. %1 frames/s, %2 ms per frame</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Accumulation reset</source>

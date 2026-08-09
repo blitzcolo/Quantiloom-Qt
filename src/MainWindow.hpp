@@ -20,6 +20,7 @@
 #include <QStringList>
 #include <concepts>
 #include <cstring>
+#include <deque>
 #include <filesystem>
 #include <memory>
 #include <vector>
@@ -348,6 +349,12 @@ private:
     /// predicted. Called by Start, Resume, and anything that resets.
     void beginRenderTiming();
     void updateRenderEta(uint32_t sampleCount, uint32_t target);
+
+    /// Recomputes the status bar's sample rate from m_sampleRateWindow and
+    /// repaints the label. Driven both by arriving frames and by a timer,
+    /// because a render that has stopped delivers no more frames to report
+    /// its own stopping with.
+    void refreshSampleRateLabel();
     /// Fires once when the target sample count is met.
     void onRenderReachedTarget(uint32_t sampleCount);
     void autoExportRender(uint32_t sampleCount);
@@ -439,7 +446,7 @@ private:
 
     // Status bar widgets
     QLabel* m_statusLabel = nullptr;
-    QLabel* m_fpsLabel = nullptr;
+    QLabel* m_sampleRateLabel = nullptr;
     QLabel* m_etaLabel = nullptr;
 
     /// Lighting as it stood when a slider drag began, so the whole drag
@@ -472,6 +479,20 @@ private:
     uint32_t m_renderStartSamples = 0;
     double m_msPerSample = 0.0;
     float m_smoothedFrameTimeMs = 0.0f;
+
+    /// Wall clock paired with the accumulated sample count, one entry per
+    /// frame, trimmed to the last second. The rate in the status bar is the
+    /// slope across the window rather than a per-frame division: samples
+    /// arrive in whatever batch the SDK chose, and dividing one batch by one
+    /// frame would swing with the batching instead of with the render. The
+    /// lifetime average in m_msPerSample stays separate -- an ETA wants the
+    /// stabler figure, a throughput readout wants the current one.
+    struct SampleRatePoint {
+        qint64 wallClockMs = 0;
+        uint32_t samples = 0;
+    };
+    std::deque<SampleRatePoint> m_sampleRateWindow;
+    class QTimer* m_sampleRateTimer = nullptr;
     /// Guards the completion message and the auto-export against a frame that
     /// was already in flight when the target was met.
     bool m_renderCompleteReported = false;

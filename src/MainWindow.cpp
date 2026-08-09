@@ -1642,7 +1642,7 @@ void MainWindow::setupWorkspaces() {
 
 void MainWindow::setupStatusBar() {
     m_statusLabel = new QLabel();
-    m_fpsLabel = new QLabel();
+    m_sampleRateLabel = new QLabel();
     m_sampleCountLabel = new QLabel();
     m_editModeLabel = new QLabel();
     m_styling.bind([this] { uistyle::applyChipStyle(m_editModeLabel, uistyle::ChipTone::Accent); });
@@ -1666,9 +1666,20 @@ void MainWindow::setupStatusBar() {
     statusBar()->addPermanentWidget(m_debugValueLabel);
     statusBar()->addPermanentWidget(m_editModeLabel);
     statusBar()->addPermanentWidget(m_sampleCountLabel);
-    statusBar()->addPermanentWidget(m_fpsLabel);
+    statusBar()->addPermanentWidget(m_sampleRateLabel);
     statusBar()->addPermanentWidget(m_etaLabel);
     statusBar()->addPermanentWidget(m_renderProgress);
+
+    // The sample rate has to fall to zero when accumulation stops, and it
+    // cannot learn that from a frame: past the target, or while paused, the
+    // render loop stops asking for frames, so the last one ever delivered
+    // would leave its rate standing on screen indefinitely. Ticking drains the
+    // window whether or not anything is rendering.
+    m_sampleRateTimer = new QTimer(this);
+    m_sampleRateTimer->setInterval(250);
+    connect(m_sampleRateTimer, &QTimer::timeout,
+            this, &MainWindow::refreshSampleRateLabel);
+    m_sampleRateTimer->start();
 
     // Transient messages expire. Around thirty call sites used to write into
     // this label with no timeout, so whatever happened last stayed there
@@ -2061,7 +2072,10 @@ void MainWindow::retranslateUi() {
     if (m_statusLabel->text().isEmpty() || !m_statusTimer->isActive()) {
         m_statusLabel->setText(tr("Ready"));
     }
-    m_fpsLabel->setText(tr("FPS: --"));
+    // Repainted from the measurement rather than blanked: a language switch
+    // while nothing is rendering has no frame coming along afterwards to put
+    // the figure back.
+    refreshSampleRateLabel();
     m_sampleCountLabel->setText(tr("Samples: %1").arg(
         m_vulkanWindow ? m_vulkanWindow->currentSampleCount() : 0));
     m_debugValueLabel->setText(tr("Hover the viewport to inspect"));
@@ -3136,22 +3150,31 @@ void MainWindow::onDeleteNodes() {
 void MainWindow::onFrameRendered(float frameTimeMs, uint32_t sampleCount) {
     // Smoothed, because the per-frame figure jitters too fast to read. The
     // weight is on the history rather than the newest sample for the same
-    // reason.
-    constexpr float kFpsSmoothing = 0.9f;
-    if (frameTimeMs > 0.0f) {
+    // reason. An interval longer than a second is the render loop starting up
+    // again after it had stopped -- an idle gap, not a frame that took that
+    // long -- and averaging it in would poison the figure for several seconds.
+    constexpr float kFrameTimeSmoothing = 0.9f;
+    constexpr float kMaxPlausibleFrameMs = 1000.0f;
+    if (frameTimeMs > 0.0f && frameTimeMs < kMaxPlausibleFrameMs) {
         m_smoothedFrameTimeMs = (m_smoothedFrameTimeMs > 0.0f)
-            ? (kFpsSmoothing * m_smoothedFrameTimeMs + (1.0f - kFpsSmoothing) * frameTimeMs)
+            ? (kFrameTimeSmoothing * m_smoothedFrameTimeMs +
+               (1.0f - kFrameTimeSmoothing) * frameTimeMs)
             : frameTimeMs;
     }
-    const float fps = (m_smoothedFrameTimeMs > 0.0f) ? (1000.0f / m_smoothedFrameTimeMs) : 0.0f;
-    m_fpsLabel->setText(tr("FPS: %1").arg(fps, 0, 'f', 1));
-    // The GPU figure in the tooltip rather than the label: it answers a
-    // different question ("is this scene expensive?") and only when asked.
-    const float gpuMs = m_vulkanWindow->lastGpuFrameTimeMs();
-    m_fpsLabel->setToolTip(gpuMs > 0.0f
-        ? tr("Frame %1 ms wall clock, %2 ms on the GPU")
-              .arg(m_smoothedFrameTimeMs, 0, 'f', 1).arg(gpuMs, 0, 'f', 1)
-        : tr("Frame %1 ms wall clock").arg(m_smoothedFrameTimeMs, 0, 'f', 1));
+
+    // The label reports samples per second, not frames per second. For a
+    // progressive integrator the two are not interchangeable: a frame that
+    // re-presents the accumulation costs nothing and a frame that traces a
+    // heavy scene costs everything, so a frame rate says nothing about how
+    // fast the image is converging. Frames per second survives in the tooltip.
+    if (!m_sampleRateWindow.empty() && sampleCount < m_sampleRateWindow.back().samples) {
+        // Accumulation was reset. A window straddling the reset would read the
+        // drop as an enormous gain, the counts being unsigned.
+        m_sampleRateWindow.clear();
+    }
+    m_sampleRateWindow.push_back({QDateTime::currentMSecsSinceEpoch(), sampleCount});
+    refreshSampleRateLabel();
+
     m_sampleCountLabel->setText(tr("Samples: %1").arg(sampleCount));
 
     m_renderSettingsPanel->setSampleCount(sampleCount);
@@ -3171,6 +3194,67 @@ void MainWindow::onFrameRendered(float frameTimeMs, uint32_t sampleCount) {
 
     if (target > 0 && sampleCount >= target) {
         onRenderReachedTarget(sampleCount);
+    }
+}
+
+void MainWindow::refreshSampleRateLabel() {
+    // One second of history. Short enough to follow a scene change, long
+    // enough that a heavy scene delivering a sample every few hundred
+    // milliseconds still has two points to draw a line through.
+    constexpr qint64 kRateWindowMs = 1000;
+
+    const qint64 now = QDateTime::currentMSecsSinceEpoch();
+    // Everything older than the window goes, except that the oldest survivor
+    // is left one step behind the window edge -- otherwise the span shrinks to
+    // whatever fraction of the second the newest frames happen to cover, and
+    // the rate is computed over a few milliseconds of noise.
+    while (m_sampleRateWindow.size() >= 2 &&
+           now - m_sampleRateWindow[1].wallClockMs > kRateWindowMs) {
+        m_sampleRateWindow.pop_front();
+    }
+
+    // A render that has stopped -- paused, at its target, or wedged -- drains
+    // to a single point within one window length and reads zero, which is the
+    // honest answer: it is producing no samples. Frames that arrive without
+    // advancing the count, as they do when the accumulation is only being
+    // re-presented, reach the same zero by a shorter route.
+    double samplesPerSecond = 0.0;
+    if (m_sampleRateWindow.size() >= 2) {
+        const qint64 spanMs = m_sampleRateWindow.back().wallClockMs -
+                              m_sampleRateWindow.front().wallClockMs;
+        const uint32_t gained = m_sampleRateWindow.back().samples -
+                                m_sampleRateWindow.front().samples;
+        if (spanMs > 0) {
+            samplesPerSecond =
+                1000.0 * static_cast<double>(gained) / static_cast<double>(spanMs);
+        }
+    }
+
+    // Two decimals below ten, because a scene slow enough to matter renders at
+    // a fraction of a sample per second and one decimal would round it to nil.
+    m_sampleRateLabel->setText(m_sampleRateWindow.empty()
+        ? tr("-- spp/s")
+        : tr("%1 spp/s").arg(samplesPerSecond, 0, 'f', samplesPerSecond < 10.0 ? 2 : 1));
+
+    // Frame timing in the tooltip rather than the label: it answers a
+    // different question -- is the viewport responsive, and is the scene
+    // expensive -- and only when asked.
+    const float gpuMs = m_vulkanWindow ? m_vulkanWindow->lastGpuFrameTimeMs() : 0.0f;
+    if (m_smoothedFrameTimeMs <= 0.0f) {
+        m_sampleRateLabel->setToolTip(
+            tr("Samples accumulated per second of wall clock"));
+    } else if (gpuMs > 0.0f) {
+        m_sampleRateLabel->setToolTip(
+            tr("Samples per second of wall clock. %1 frames/s, %2 ms per frame, "
+               "%3 ms of it on the GPU")
+                .arg(1000.0f / m_smoothedFrameTimeMs, 0, 'f', 1)
+                .arg(m_smoothedFrameTimeMs, 0, 'f', 1)
+                .arg(gpuMs, 0, 'f', 1));
+    } else {
+        m_sampleRateLabel->setToolTip(
+            tr("Samples per second of wall clock. %1 frames/s, %2 ms per frame")
+                .arg(1000.0f / m_smoothedFrameTimeMs, 0, 'f', 1)
+                .arg(m_smoothedFrameTimeMs, 0, 'f', 1));
     }
 }
 
