@@ -612,12 +612,32 @@ May cause colour shifts.</source>
         <translation>光照</translation>
     </message>
     <message>
+        <source>ASTM G-173 is an absolute spectrum — 900 W/m² direct, 1000 W/m² global. Normalising divides both curves by the sun&apos;s luminance (%1), discarding the scale that is the reason to use this spectrum: it takes the frame several stops down rather than to a neutral exposure. It is not an exposure control — display enhancement and the sensor model are.</source>
+        <translation>ASTM G-173 是绝对光谱——直射 900 W/m²，总辐射 1000 W/m²。归一化会把两条曲线同时除以太阳亮度（%1），丢弃的正是选用这条光谱的理由：画面会被压暗好几档，而不是回到中性曝光。它不是曝光控制——显示增强和传感器模型才是。</translation>
+    </message>
+    <message>
         <source>No spectrum chosen</source>
         <translation>未选择光谱文件</translation>
     </message>
     <message>
         <source>This spectral mode needs an illuminant spectrum. Without one the render is black — the renderer will not substitute a standard spectrum, because a scene that acquired one silently would report radiance nobody asked for.</source>
         <translation>该光谱模式需要光源光谱。没有光源则渲染为全黑——渲染器不会自行代入标准光谱，因为悄悄获得光谱的场景会报出无人要求的辐亮度。</translation>
+    </message>
+    <message>
+        <source>ASTM G-173 spans %1–%2 nm but this mode renders %3–%4 nm. The spectrum is held flat at its last value across the gap rather than left dark, so the result will look reasonable and mean nothing.</source>
+        <translation>ASTM G-173 覆盖 %1–%2 nm，而本模式渲染 %3–%4 nm。缺口部分不会置零，而是按曲线最后一个值压平延伸，因此结果看起来合理，实则毫无意义。</translation>
+    </message>
+    <message>
+        <source>Equal energy is defined at unit luminance, so normalising it divides by 1 and changes nothing.</source>
+        <translation>等能光源本身就定义在单位亮度上，归一化相当于除以 1，不产生任何变化。</translation>
+    </message>
+    <message>
+        <source>ASTM G-173 is an absolute spectrum — 900 W/m² direct, 1000 W/m² global. Normalising divides both curves by the sun&apos;s luminance (%1), which discards the absolute scale this mode exists to report.</source>
+        <translation type="vanished">ASTM G-173 是绝对光谱——直射 900 W/m²，总辐射 1000 W/m²。归一化会把两条曲线同时除以太阳亮度（%1），而这恰好丢弃了本模式要报告的绝对量级。</translation>
+    </message>
+    <message>
+        <source>Un-normalised, ASTM G-173 puts the sun about %1× above the display range and the viewport clips to white. Normalise it, or set the exposure with display enhancement or the sensor model.</source>
+        <translation type="vanished">不归一化时，ASTM G-173 会让太阳超出显示范围约 %1 倍，视口将被裁剪为纯白。请勾选归一化，或用显示增强、传感器模型来设定曝光。</translation>
     </message>
     <message>
         <source>Choose an Illuminant Spectrum</source>
@@ -672,8 +692,28 @@ May cause colour shifts.</source>
         <translation>归一化到单位亮度</translation>
     </message>
     <message>
+        <source>Published reference spectra are relative, so their absolute level is arbitrary. Both curves scale by the sun&apos;s luminance, which keeps the sun-to-sky ratio the measurement actually recorded.
+
+That divisor is a visible-light quantity. It is the right correction for a relative spectrum being turned into a picture, and the wrong one for an absolute spectrum being reported as radiance — so the box is re-picked for you when the mode or the illuminant changes, and you can still override it.</source>
+        <translation type="vanished">已发表的参考光谱都是相对光谱，绝对量级是任意的。两条曲线按太阳亮度同时缩放，从而保留测量真正记录下来的日天比。
+
+这个除数是可见光量。把相对光谱变成图像时它是正确的修正，把绝对光谱作为辐亮度报告时它是错误的——所以切换模式或光源时会为你重新选择该选项，你仍可自行覆盖。</translation>
+    </message>
+    <message>
         <source>Published reference spectra are relative, so their absolute level is arbitrary. Both curves scale by the sun&apos;s luminance, which keeps the sun-to-sky ratio the measurement actually recorded.</source>
-        <translation>已发布的参考光谱是相对值，绝对量级是任意的。两条曲线都按太阳的亮度缩放，从而保留测量实际记录下来的日天比。</translation>
+        <translation type="vanished">已发布的参考光谱是相对值，绝对量级是任意的。两条曲线都按太阳的亮度缩放，从而保留测量实际记录下来的日天比。</translation>
+    </message>
+    <message>
+        <source>Published reference spectra are relative, so their absolute level is arbitrary. Both curves scale by the sun&apos;s luminance, which keeps the sun-to-sky ratio the measurement actually recorded.
+
+Whether it is right depends on the spectrum, not on the render mode: a relative one such as D65 wants it, an absolute one such as ASTM G-173 is ruined by it. It is picked for you when the illuminant changes, and you can still override it.
+
+It is not an exposure control — display enhancement and the sensor model are.</source>
+        <translation>已发表的参考光谱都是相对光谱，绝对量级是任意的。两条曲线按太阳亮度同时缩放，从而保留测量真正记录下来的日天比。
+
+该不该用取决于光谱本身，而非渲染模式：D65 这类相对光谱需要它，ASTM G-173 这类绝对光谱则会被它毁掉。切换光源时会为你自动选择，你仍可自行覆盖。
+
+它不是曝光控制——显示增强和传感器模型才是。</translation>
     </message>
     <message>
         <source>Radiance</source>

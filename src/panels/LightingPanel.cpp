@@ -5,6 +5,7 @@
 
 #include "LightingPanel.hpp"
 
+#include "../ui/ModeCatalog.hpp"
 #include "../ui/UiStyle.hpp"
 
 #include <QVBoxLayout>
@@ -182,7 +183,7 @@ void LightingPanel::setupUi() {
     m_illuminantCombo->addItem(QString(), QStringLiteral("astm"));
     m_illuminantCombo->addItem(QString(), QStringLiteral("file"));
     connect(m_illuminantCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this, &LightingPanel::onIlluminantChanged);
+            this, &LightingPanel::onIlluminantKindChanged);
     illuminantLayout->addWidget(m_illuminantCombo);
 
     m_illuminantPathLabel = new QLabel(m_illuminantGroup);
@@ -203,7 +204,7 @@ void LightingPanel::setupUi() {
     m_normaliseCheck = new QCheckBox(m_illuminantGroup);
     m_normaliseCheck->setChecked(true);
     connect(m_normaliseCheck, &QCheckBox::toggled,
-            this, &LightingPanel::onIlluminantChanged);
+            this, &LightingPanel::onNormaliseToggled);
     illuminantLayout->addWidget(m_normaliseCheck);
 
     m_illuminantNotice = new QLabel(m_illuminantGroup);
@@ -216,9 +217,112 @@ void LightingPanel::setupUi() {
     mainLayout->addStretch();
 }
 
-void LightingPanel::setSpectralModeIsQuantitative(bool quantitative) {
-    m_spectralModeQuantitative = quantitative;
+namespace {
+
+/// The span of the bundled ASTM G-173 table, assets/luts/astmg173.csv. Written
+/// down because the panel does not read spectrum files -- and because it is the
+/// whole point of the coverage notice that this stops well below the thermal
+/// bands.
+constexpr float kAstmMinNm = 280.0f;
+constexpr float kAstmMaxNm = 4000.0f;
+
+/// The direct beam's CIE luminance: what "normalise to unit luminance" divides
+/// the ASTM curves by. Quoted in the notice so the cost is a number rather than
+/// an adjective. Integrating the bundled table against the renderer's own CIE
+/// table gives linear sRGB (164.8, 138.6, 112.1), Y = 142.2, at chromaticity
+/// x = 0.3391 y = 0.3501 -- which is the figure SpectralData.hpp quotes for the
+/// same curve, so the two agree.
+constexpr int kAstmDirectLuminance = 142;
+
+}  // namespace
+
+void LightingPanel::setSpectralMode(quantiloom::SpectralMode mode) {
+    m_spectralMode = mode;
     updateIlluminantWidgets();
+}
+
+bool LightingPanel::spectralModeIsQuantitative() const {
+    return m_spectralMode != quantiloom::SpectralMode::RGB &&
+           !catalog::spectralModeIsPreviewOnly(m_spectralMode);
+}
+
+// What decides this is the spectrum, not the render mode. A published
+// *relative* spectrum -- D65 is normalised to 100 at 560 nm -- has an arbitrary
+// level that normalising fixes; an *absolute* one carries W/m²/nm that
+// normalising destroys. assets/luts/README.md pairs D65 with unit_luminance and
+// leaves ASTM G-173 as published, and both of the scenes doing so render in
+// RGB, so the mode tells you nothing about which case you are in.
+//
+// Empty wherever the panel cannot know: a user's own file, whose level only the
+// file knows, or an illuminant where the setting does nothing at all.
+std::optional<bool> LightingPanel::recommendedNormalise() const {
+    const QString kind = m_illuminantCombo->currentData().toString();
+
+    // Nothing to normalise, and nothing normalising would do: CIE E is built at
+    // unit luminance already (a flat spectrum of height 1/106.856), so the
+    // division is by 1.0 exactly.
+    if (kind == QLatin1String("none") || kind == QLatin1String("equal_energy")) {
+        return std::nullopt;
+    }
+    // A file's absolute level is the file's business. It could be a relative
+    // reference spectrum, which wants normalising, or a radiometric measurement,
+    // which does not, and the panel cannot tell them apart without reading it --
+    // which is the core's job, not this panel's.
+    if (kind == QLatin1String("file")) {
+        return std::nullopt;
+    }
+    // ASTM G-173: absolute, in every mode.
+    return false;
+}
+
+QStringList LightingPanel::illuminantNotices() const {
+    const QString kind = m_illuminantCombo->currentData().toString();
+    const bool normalising = m_normaliseCheck->isChecked();
+    QStringList notices;
+
+    // The core's own diagnostic, said before the render rather than after:
+    // a spectral mode with no illuminant is the black-frame case.
+    if (spectralModeIsQuantitative() && kind == QLatin1String("none")) {
+        notices << tr("This spectral mode needs an illuminant spectrum. Without one the "
+                      "render is black — the renderer will not substitute a standard "
+                      "spectrum, because a scene that acquired one silently would report "
+                      "radiance nobody asked for.");
+        return notices;   // nothing below applies without a spectrum
+    }
+
+    // Does the spectrum reach the wavelengths being rendered? The core warns
+    // about this at load time and the log is the only place it has ever been
+    // visible. Only checkable for the bundled spectrum, whose span is known.
+    if (kind == QLatin1String("astm")) {
+        if (const auto band = quantiloom::GetFusedBandInfo(m_spectralMode);
+            band && (kAstmMinNm > band->lambdaMinNm || kAstmMaxNm < band->lambdaMaxNm)) {
+            notices << tr("ASTM G-173 spans %1–%2 nm but this mode renders %3–%4 nm. The "
+                          "spectrum is held flat at its last value across the gap rather "
+                          "than left dark, so the result will look reasonable and mean "
+                          "nothing.")
+                           .arg(static_cast<int>(kAstmMinNm))
+                           .arg(static_cast<int>(kAstmMaxNm))
+                           .arg(static_cast<int>(band->lambdaMinNm))
+                           .arg(static_cast<int>(band->lambdaMaxNm));
+        }
+    }
+
+    if (kind == QLatin1String("equal_energy")) {
+        notices << tr("Equal energy is defined at unit luminance, so normalising it "
+                      "divides by 1 and changes nothing.");
+    }
+
+    if (kind == QLatin1String("astm") && normalising) {
+        notices << tr("ASTM G-173 is an absolute spectrum — 900 W/m² direct, 1000 W/m² "
+                      "global. Normalising divides both curves by the sun's luminance "
+                      "(%1), discarding the scale that is the reason to use this "
+                      "spectrum: it takes the frame several stops down rather than to a "
+                      "neutral exposure. It is not an exposure control — display "
+                      "enhancement and the sensor model are.")
+                       .arg(kAstmDirectLuminance);
+    }
+
+    return notices;
 }
 
 void LightingPanel::setIlluminant(const IlluminantChoice& choice) {
@@ -251,27 +355,48 @@ void LightingPanel::updateIlluminantWidgets() {
                                   std::max(80, m_illuminantPathLabel->width())));
         m_illuminantPathLabel->setToolTip(m_illuminant.path);
     }
-    // Normalisation is meaningless with no spectrum to normalise.
-    m_normaliseCheck->setEnabled(kind != QLatin1String("none"));
+    // Normalisation is meaningless with no spectrum to normalise, and a no-op
+    // for the one illuminant that is already at unit luminance. Both are left
+    // switched off rather than hidden: the value still round-trips through the
+    // configuration, and a control that vanished would look like it had been
+    // decided rather than like it does not apply.
+    m_normaliseCheck->setEnabled(kind != QLatin1String("none") &&
+                                 kind != QLatin1String("equal_energy"));
 
-    // The core's own diagnostic, said before the render rather than after:
-    // a spectral mode with no illuminant is the black-frame case.
-    const bool missing = m_spectralModeQuantitative && kind == QLatin1String("none");
-    m_illuminantNotice->setVisible(missing);
-    if (missing) {
-        m_illuminantNotice->setText(
-            tr("This spectral mode needs an illuminant spectrum. Without one the "
-               "render is black — the renderer will not substitute a standard "
-               "spectrum, because a scene that acquired one silently would report "
-               "radiance nobody asked for."));
-    }
+    const QStringList notices = illuminantNotices();
+    m_illuminantNotice->setVisible(!notices.isEmpty());
+    m_illuminantNotice->setText(notices.join(QStringLiteral("\n\n")));
 }
 
-void LightingPanel::onIlluminantChanged() {
+void LightingPanel::onIlluminantKindChanged() {
     m_illuminant.kind = m_illuminantCombo->currentData().toString();
-    m_illuminant.normaliseUnitLuminance = m_normaliseCheck->isChecked();
+
+    // A change of illuminant re-picks the normalisation, for the same reason a
+    // change of mode does: switching to ASTM in a quantitative mode should not
+    // silently keep a normalisation that was right for the illuminant before
+    // it. The user can still override it afterwards, and that override sticks.
+    if (const std::optional<bool> wanted = recommendedNormalise(); wanted.has_value()) {
+        m_illuminant.normaliseUnitLuminance = *wanted;
+        const QSignalBlocker blocker(m_normaliseCheck);
+        m_normaliseCheck->setChecked(*wanted);
+    } else {
+        m_illuminant.normaliseUnitLuminance = m_normaliseCheck->isChecked();
+    }
+
     updateIlluminantWidgets();
     // A file chosen but not yet browsed for is not a change worth applying.
+    if (m_illuminant.kind == QLatin1String("file") && m_illuminant.path.isEmpty()) {
+        return;
+    }
+    emit illuminantChanged(m_illuminant);
+}
+
+void LightingPanel::onNormaliseToggled() {
+    // Deliberately does not consult recommendedNormalise(): this *is* the user
+    // disagreeing with it, and a recommendation that reasserted itself here
+    // would be a checkbox that could not be unticked.
+    m_illuminant.normaliseUnitLuminance = m_normaliseCheck->isChecked();
+    updateIlluminantWidgets();
     if (m_illuminant.kind == QLatin1String("file") && m_illuminant.path.isEmpty()) {
         return;
     }
@@ -308,7 +433,13 @@ void LightingPanel::retranslateUi() {
     m_normaliseCheck->setToolTip(
         tr("Published reference spectra are relative, so their absolute level is "
            "arbitrary. Both curves scale by the sun's luminance, which keeps the "
-           "sun-to-sky ratio the measurement actually recorded."));
+           "sun-to-sky ratio the measurement actually recorded.\n\n"
+           "Whether it is right depends on the spectrum, not on the render mode: a "
+           "relative one such as D65 wants it, an absolute one such as ASTM G-173 is "
+           "ruined by it. It is picked for you when the illuminant changes, and you "
+           "can still override it.\n\n"
+           "It is not an exposure control — display enhancement and the sensor model "
+           "are."));
     updateIlluminantWidgets();
 
     m_radianceGroup->setTitle(tr("Radiance"));

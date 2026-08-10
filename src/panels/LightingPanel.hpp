@@ -13,7 +13,10 @@
 
 #include "../ui/PanelBase.hpp"
 
+#include <core/Types.hpp>
 #include <glm/glm.hpp>
+
+#include <optional>
 
 QT_BEGIN_NAMESPACE
 class QCheckBox;
@@ -70,9 +73,20 @@ public:
     void setIlluminant(const IlluminantChoice& choice);
     [[nodiscard]] IlluminantChoice illuminant() const;
 
-    /// Whether the current spectral mode needs a spectrum to render anything.
-    /// Drives the warning; the panel has no other way to know.
-    void setSpectralModeIsQuantitative(bool quantitative);
+    /**
+     * @brief The mode the viewport is rendering, which the illuminant answers to
+     *
+     * The panel has no other way to know, and three things depend on it: whether
+     * a spectrum is needed at all, whether normalising one is right, and whether
+     * the spectrum reaches the wavelengths being rendered.
+     *
+     * Pure: it refreshes the notices and emits nothing. Loading a configuration
+     * goes through this and setIlluminant(), and neither may overrule what the
+     * document said -- a panel that quietly disagreed with a file would make
+     * this application render it differently from the CLI, which is the
+     * divergence class the config reading exists to prevent.
+     */
+    void setSpectralMode(quantiloom::SpectralMode mode);
 
 signals:
     /// Carries a full LightingParams for convenience, but only the sun, sky and
@@ -96,7 +110,11 @@ signals:
     void illuminantChanged(const IlluminantChoice& choice);
 
 private slots:
-    void onIlluminantChanged();
+    /// The combo changed. Distinct from the checkbox because only a change of
+    /// illuminant re-picks the recommended normalisation -- toggling the box
+    /// is the user overriding that recommendation, and must stick.
+    void onIlluminantKindChanged();
+    void onNormaliseToggled();
     void onBrowseIlluminant();
     void onSunAzimuthChanged(int value);
     void onSunElevationChanged(int value);
@@ -114,8 +132,21 @@ protected:
 private:
     void setupUi();
     void emitChanges();
-    /// Show or hide the file row and the missing-illuminant warning.
+    /// Show or hide the file row, and rebuild the notice from illuminantNotices().
     void updateIlluminantWidgets();
+
+    /// What the normalisation should be for the illuminant now chosen, or empty
+    /// where the panel cannot know. Applied when the *illuminant* changes, never
+    /// when a document is loaded and never when the user toggles the box.
+    [[nodiscard]] std::optional<bool> recommendedNormalise() const;
+
+    /// Everything currently worth telling the user about the illuminant, most
+    /// severe first. Empty hides the notice.
+    [[nodiscard]] QStringList illuminantNotices() const;
+
+    /// Whether the current mode reports radiance rather than a picture. False
+    /// for RGB and for the preview-only fused IR bands.
+    [[nodiscard]] bool spectralModeIsQuantitative() const;
     /// Show the path elided to the label's width, with the whole of it in the
     /// tooltip. Also refreshes the double-count notice.
     void updateEnvironmentDisplay();
@@ -162,8 +193,9 @@ private:
 
     // Illuminant
     IlluminantChoice m_illuminant;
-    /// Set by the shell from the spectral mode; drives the warning only.
-    bool m_spectralModeQuantitative = false;
+    /// Set by the shell. Drives the notices and the recommended normalisation;
+    /// the panel never renders anything itself.
+    quantiloom::SpectralMode m_spectralMode = quantiloom::SpectralMode::RGB;
     QGroupBox* m_illuminantGroup = nullptr;
     QComboBox* m_illuminantCombo = nullptr;
     QLabel* m_illuminantPathLabel = nullptr;

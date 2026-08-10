@@ -832,13 +832,12 @@ void MainWindow::applyDebugMode(quantiloom::DebugVisualizationMode mode) {
 }
 
 void MainWindow::applySpectralMode(quantiloom::SpectralMode mode) {
-    // The illuminant warning is about this: a quantitative mode with no
-    // spectrum renders black. RGB and the preview-only fused bands do not
-    // need one.
+    // The illuminant notices are about this: a quantitative mode with no
+    // spectrum renders black, ASTM G-173 must keep its absolute scale in one
+    // and lose it in another, and a spectrum that stops at 4000 nm says nothing
+    // about the thermal bands. The panel works all three out from the mode.
     if (m_lightingPanel) {
-        m_lightingPanel->setSpectralModeIsQuantitative(
-            mode != quantiloom::SpectralMode::RGB &&
-            !catalog::spectralModeIsPreviewOnly(mode));
+        m_lightingPanel->setSpectralMode(mode);
     }
     m_vulkanWindow->setSpectralMode(mode);
 
@@ -3818,6 +3817,12 @@ void MainWindow::applyConfig(const SceneConfig& config) {
     m_spectralConfigPanel->setWavelength(config.wavelength_nm);
     m_spectralConfigPanel->setWavelengthRange(config.lambda_min, config.lambda_max,
                                               config.delta_lambda);
+    // The lighting panel needs it too -- every illuminant notice it shows is
+    // about the mode. It had no way to know here before, so a configuration
+    // opened into a quantitative mode with no spectrum said nothing about the
+    // black frame it was about to render. No repickNormalisation() to go with
+    // it: this is the document speaking, and it is not to be argued with.
+    m_lightingPanel->setSpectralMode(config.spectralMode);
 
     // The shell holds the merged lighting struct; the panels each get the half
     // they own.
@@ -3902,6 +3907,7 @@ void MainWindow::syncPanelsFromRenderer() {
 
     m_spectralConfigPanel->setSpectralMode(m_vulkanWindow->spectralMode());
     m_spectralConfigPanel->setWavelength(m_vulkanWindow->wavelength());
+    m_lightingPanel->setSpectralMode(m_vulkanWindow->spectralMode());
     m_atmosphericPanel->setAtmosphericConfig(m_vulkanWindow->atmosphericConfig());
 
     // The camera panel is not in this list: the renderer emits cameraChanged()
