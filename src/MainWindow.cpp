@@ -841,6 +841,15 @@ void MainWindow::applySpectralMode(quantiloom::SpectralMode mode) {
     }
     m_vulkanWindow->setSpectralMode(mode);
 
+    // After the mode is in force, not before: re-picking loads the spectrum
+    // again, and the core writes its coverage diagnostic against whatever mode
+    // is current when it does. Deliberately here rather than inside the panel's
+    // setter -- this is the *user* switching mode, which may move the setting,
+    // and applyConfig's call to the same setter must not.
+    if (m_lightingPanel) {
+        m_lightingPanel->repickNormalisation();
+    }
+
     if (QAction* action = m_spectralActions.value(static_cast<int>(mode), nullptr)) {
         action->setChecked(true);
     }

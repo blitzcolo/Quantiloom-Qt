@@ -88,6 +88,16 @@ public:
      */
     void setSpectralMode(quantiloom::SpectralMode mode);
 
+    /**
+     * @brief Re-pick the normalisation for the mode now in force
+     *
+     * The other half of setSpectralMode, kept separate because only a *user*
+     * switching mode may move the setting; a document being loaded may not.
+     * The shell calls this from its applySpectralMode dispatcher and nowhere
+     * else. Emits illuminantChanged when it actually moves.
+     */
+    void repickNormalisation();
+
 signals:
     /// Carries a full LightingParams for convenience, but only the sun, sky and
     /// environment-map fields are this panel's to set; the shell keeps the

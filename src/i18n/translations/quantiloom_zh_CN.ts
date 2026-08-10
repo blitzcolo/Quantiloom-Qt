@@ -613,7 +613,7 @@ May cause colour shifts.</source>
     </message>
     <message>
         <source>ASTM G-173 is an absolute spectrum — 900 W/m² direct, 1000 W/m² global. Normalising divides both curves by the sun&apos;s luminance (%1), discarding the scale that is the reason to use this spectrum: it takes the frame several stops down rather than to a neutral exposure. It is not an exposure control — display enhancement and the sensor model are.</source>
-        <translation>ASTM G-173 是绝对光谱——直射 900 W/m²，总辐射 1000 W/m²。归一化会把两条曲线同时除以太阳亮度（%1），丢弃的正是选用这条光谱的理由：画面会被压暗好几档，而不是回到中性曝光。它不是曝光控制——显示增强和传感器模型才是。</translation>
+        <translation type="vanished">ASTM G-173 是绝对光谱——直射 900 W/m²，总辐射 1000 W/m²。归一化会把两条曲线同时除以太阳亮度（%1），丢弃的正是选用这条光谱的理由：画面会被压暗好几档，而不是回到中性曝光。它不是曝光控制——显示增强和传感器模型才是。</translation>
     </message>
     <message>
         <source>No spectrum chosen</source>
@@ -709,11 +709,27 @@ That divisor is a visible-light quantity. It is the right correction for a relat
 Whether it is right depends on the spectrum, not on the render mode: a relative one such as D65 wants it, an absolute one such as ASTM G-173 is ruined by it. It is picked for you when the illuminant changes, and you can still override it.
 
 It is not an exposure control — display enhancement and the sensor model are.</source>
-        <translation>已发表的参考光谱都是相对光谱，绝对量级是任意的。两条曲线按太阳亮度同时缩放，从而保留测量真正记录下来的日天比。
+        <translation type="vanished">已发表的参考光谱都是相对光谱，绝对量级是任意的。两条曲线按太阳亮度同时缩放，从而保留测量真正记录下来的日天比。
 
 该不该用取决于光谱本身，而非渲染模式：D65 这类相对光谱需要它，ASTM G-173 这类绝对光谱则会被它毁掉。切换光源时会为你自动选择，你仍可自行覆盖。
 
 它不是曝光控制——显示增强和传感器模型才是。</translation>
+    </message>
+    <message>
+        <source>ASTM G-173 is an absolute spectrum — 900 W/m² direct, 1000 W/m² global. Normalising divides both curves by the sun&apos;s luminance (%1) and discards the absolute scale this mode exists to report. The spectral path is already exposed for it; use display enhancement if the viewport reads dark.</source>
+        <translation>ASTM G-173 是绝对光谱——直射 900 W/m²，总辐射 1000 W/m²。归一化会把两条曲线同时除以太阳亮度（%1），丢弃本模式本就要报告的绝对量级。光谱路径的曝光已经与之匹配；若视口偏暗，请改用显示增强。</translation>
+    </message>
+    <message>
+        <source>This mode multiplies the illuminant&apos;s colour in directly, and un-normalised ASTM G-173 is about %1× the display range — the frame will be white almost everywhere. Normalise it here; the absolute scale only means something in the quantitative spectral modes.</source>
+        <translation>本模式会直接乘上光源颜色，而未归一化的 ASTM G-173 约为显示范围的 %1 倍——画面几乎全白。此处请勾选归一化；绝对量级只在量化光谱模式下才有意义。</translation>
+    </message>
+    <message>
+        <source>Published reference spectra are relative, so their absolute level is arbitrary. Both curves scale by the sun&apos;s luminance, which keeps the sun-to-sky ratio the measurement actually recorded.
+
+Whether it is right depends on the render mode. RGB and the preview bands multiply the illuminant&apos;s colour in directly and need an absolute spectrum normalised or the frame is white; the quantitative spectral modes integrate per wavelength, are already exposed for it, and are the reason to keep the absolute scale. It is picked for you when the mode or the illuminant changes, and you can still override it.</source>
+        <translation>已发表的参考光谱都是相对光谱，绝对量级是任意的。两条曲线按太阳亮度同时缩放，从而保留测量真正记录下来的日天比。
+
+该不该用取决于渲染模式。RGB 和预览波段会直接乘上光源颜色，绝对光谱必须归一化，否则画面全白；量化光谱模式按波长积分，曝光本就与之匹配，正是保留绝对量级的理由。切换模式或光源时会为你自动选择，你仍可自行覆盖。</translation>
     </message>
     <message>
         <source>Radiance</source>

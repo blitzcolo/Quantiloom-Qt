@@ -241,17 +241,40 @@ void LightingPanel::setSpectralMode(quantiloom::SpectralMode mode) {
     updateIlluminantWidgets();
 }
 
+void LightingPanel::repickNormalisation() {
+    // Only where there is a defensible answer, and only when it disagrees with
+    // what is set -- a user who overrode the recommendation and changed nothing
+    // since keeps their override.
+    const std::optional<bool> wanted = recommendedNormalise();
+    if (!wanted.has_value() || *wanted == m_illuminant.normaliseUnitLuminance) {
+        return;
+    }
+    m_illuminant.normaliseUnitLuminance = *wanted;
+    {
+        const QSignalBlocker blocker(m_normaliseCheck);
+        m_normaliseCheck->setChecked(*wanted);
+    }
+    updateIlluminantWidgets();
+    emit illuminantChanged(m_illuminant);
+}
+
 bool LightingPanel::spectralModeIsQuantitative() const {
     return m_spectralMode != quantiloom::SpectralMode::RGB &&
            !catalog::spectralModeIsPreviewOnly(m_spectralMode);
 }
 
-// What decides this is the spectrum, not the render mode. A published
-// *relative* spectrum -- D65 is normalised to 100 at 560 nm -- has an arbitrary
-// level that normalising fixes; an *absolute* one carries W/m²/nm that
-// normalising destroys. assets/luts/README.md pairs D65 with unit_luminance and
-// leaves ASTM G-173 as published, and both of the scenes doing so render in
-// RGB, so the mode tells you nothing about which case you are in.
+// The render mode decides this, because the two halves of the renderer consume
+// the illuminant on completely different scales. RGB multiplies the curve's
+// integrated colour in directly -- ASTM G-173's direct beam is linear sRGB
+// (164.8, 138.6, 112.1), so an un-normalised RGB frame is white everywhere but
+// the shadows. The spectral path integrates per nanometre and stores band
+// radiance averaged over the band; the same scene and the same un-normalised
+// spectrum land at about 0.05 in VIS_Fused, correctly exposed and carrying real
+// W/m²/sr. Measured both ways on env_seaside: white against a readable image.
+//
+// So an absolute spectrum has to lose its scale to be a picture and has to keep
+// it to be a measurement, and which of those is being asked for is exactly what
+// the mode says.
 //
 // Empty wherever the panel cannot know: a user's own file, whose level only the
 // file knows, or an illuminant where the setting does nothing at all.
@@ -271,8 +294,9 @@ std::optional<bool> LightingPanel::recommendedNormalise() const {
     if (kind == QLatin1String("file")) {
         return std::nullopt;
     }
-    // ASTM G-173: absolute, in every mode.
-    return false;
+    // ASTM G-173, the one absolute spectrum on offer: keep the scale where the
+    // mode reports radiance, lose it where the mode makes a picture.
+    return !spectralModeIsQuantitative();
 }
 
 QStringList LightingPanel::illuminantNotices() const {
@@ -312,13 +336,21 @@ QStringList LightingPanel::illuminantNotices() const {
                       "divides by 1 and changes nothing.");
     }
 
-    if (kind == QLatin1String("astm") && normalising) {
+    // The two ways to get an absolute spectrum's scale wrong, one per direction.
+    if (kind == QLatin1String("astm") && spectralModeIsQuantitative() && normalising) {
         notices << tr("ASTM G-173 is an absolute spectrum — 900 W/m² direct, 1000 W/m² "
                       "global. Normalising divides both curves by the sun's luminance "
-                      "(%1), discarding the scale that is the reason to use this "
-                      "spectrum: it takes the frame several stops down rather than to a "
-                      "neutral exposure. It is not an exposure control — display "
-                      "enhancement and the sensor model are.")
+                      "(%1) and discards the absolute scale this mode exists to report. "
+                      "The spectral path is already exposed for it; use display "
+                      "enhancement if the viewport reads dark.")
+                       .arg(kAstmDirectLuminance);
+    } else if (kind == QLatin1String("astm") && !spectralModeIsQuantitative() &&
+               !normalising) {
+        notices << tr("This mode multiplies the illuminant's colour in directly, and "
+                      "un-normalised ASTM G-173 is about %1× the display range — the "
+                      "frame will be white almost everywhere. Normalise it here; the "
+                      "absolute scale only means something in the quantitative spectral "
+                      "modes.")
                        .arg(kAstmDirectLuminance);
     }
 
@@ -434,12 +466,12 @@ void LightingPanel::retranslateUi() {
         tr("Published reference spectra are relative, so their absolute level is "
            "arbitrary. Both curves scale by the sun's luminance, which keeps the "
            "sun-to-sky ratio the measurement actually recorded.\n\n"
-           "Whether it is right depends on the spectrum, not on the render mode: a "
-           "relative one such as D65 wants it, an absolute one such as ASTM G-173 is "
-           "ruined by it. It is picked for you when the illuminant changes, and you "
-           "can still override it.\n\n"
-           "It is not an exposure control — display enhancement and the sensor model "
-           "are."));
+           "Whether it is right depends on the render mode. RGB and the preview bands "
+           "multiply the illuminant's colour in directly and need an absolute spectrum "
+           "normalised or the frame is white; the quantitative spectral modes integrate "
+           "per wavelength, are already exposed for it, and are the reason to keep the "
+           "absolute scale. It is picked for you when the mode or the illuminant "
+           "changes, and you can still override it."));
     updateIlluminantWidgets();
 
     m_radianceGroup->setTitle(tr("Radiance"));
