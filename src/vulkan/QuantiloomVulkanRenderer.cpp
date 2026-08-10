@@ -27,6 +27,7 @@
 #include <QApplication>
 #include <QTimer>
 #include <cmath>
+#include <iterator>
 
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -1114,6 +1115,101 @@ void QuantiloomVulkanRenderer::resetAccumulation() {
     if (!m_paused) {
         m_window->requestUpdate();
     }
+}
+
+namespace {
+
+/// Trace times at or below this are already smooth enough that a softer image
+/// would be a worse trade -- roughly 80 samples/s, which is where the scenes
+/// this exists for are not.
+constexpr float kMotionScaleFreeMs = 12.0f;
+/// What a gesture is aimed at. Not the same number: the gap between them is
+/// what keeps a scene sitting near the threshold from downgrading for nothing.
+constexpr float kMotionScaleBudgetMs = 8.0f;
+/// The scale is quantized to these so that repeating a gesture on the same
+/// scene picks the same extent, and each step is a recognisable softness
+/// rather than a continuum of slightly different ones.
+constexpr float kMotionScaleSteps[] = {0.75f, 0.5f, 0.375f, 0.25f};
+
+}  // namespace
+
+float QuantiloomVulkanRenderer::chooseMotionScale() const {
+    // The SDK's trace timing lags a frame or two, which is exactly right here:
+    // read on the rising edge of a gesture it describes the steady state just
+    // before it, not the transient the gesture is about to cause. Zero before
+    // the first resolved timestamp, which reads as "fast" and downgrades
+    // nothing -- the next gesture has a real figure.
+    const float gpuMs = m_lastGpuFrameTimeMs;
+    if (gpuMs <= kMotionScaleFreeMs) {
+        return 1.0f;
+    }
+    // Pixels scale with the square of the linear extent, so the extent that
+    // fits the budget is the square root of the ratio.
+    const float ideal = std::sqrt(kMotionScaleBudgetMs / gpuMs);
+    for (const float step : kMotionScaleSteps) {
+        if (ideal >= step) {
+            return step;
+        }
+    }
+    return kMotionScaleSteps[std::size(kMotionScaleSteps) - 1];
+}
+
+void QuantiloomVulkanRenderer::applyRenderScale(float scale) {
+    if (!m_renderContext || scale == m_renderContext->GetRenderScale()) {
+        return;
+    }
+    m_renderContext->SetRenderScale(scale);
+    // The extent changes on the next RenderFrame, and until it does the SDK
+    // refuses to re-present -- so a loop stopped at its target has to be asked
+    // for that frame, exactly like setGridVisible has to.
+    if (!m_paused || m_sampleCount > 0) {
+        m_window->requestUpdate();
+    }
+}
+
+void QuantiloomVulkanRenderer::setViewportMotionActive(bool active) {
+    if (active == m_motionActive) {
+        return;
+    }
+    m_motionActive = active;
+    if (!m_motionAdaptiveResolution) {
+        return;
+    }
+    // Chosen once here and held: every change of extent costs a device wait
+    // and throws the accumulation away, so following the trace time frame by
+    // frame would spend the gesture resizing.
+    m_motionScale = active ? chooseMotionScale() : 1.0f;
+    applyRenderScale(m_motionScale);
+}
+
+void QuantiloomVulkanRenderer::setMotionAdaptiveResolution(bool enabled) {
+    m_motionAdaptiveResolution = enabled;
+    if (!enabled) {
+        m_motionScale = 1.0f;
+        applyRenderScale(1.0f);
+    } else if (m_motionActive) {
+        m_motionScale = chooseMotionScale();
+        applyRenderScale(m_motionScale);
+    }
+}
+
+float QuantiloomVulkanRenderer::currentRenderScale() const {
+    return m_renderContext ? m_renderContext->GetRenderScale() : 1.0f;
+}
+
+QSize QuantiloomVulkanRenderer::currentRenderSize() const {
+    if (!m_renderContext) {
+        // Explicitly 0x0, not a default-constructed QSize: that one is -1x-1,
+        // which reaches the status tool as a resolution of minus one pixel.
+        return {0, 0};
+    }
+    return {static_cast<int>(m_renderContext->GetRenderWidth()),
+            static_cast<int>(m_renderContext->GetRenderHeight())};
+}
+
+void QuantiloomVulkanRenderer::overrideRenderScale(float scale) {
+    m_motionScale = scale;
+    applyRenderScale(scale);
 }
 
 void QuantiloomVulkanRenderer::requestDisplayReprocess() {

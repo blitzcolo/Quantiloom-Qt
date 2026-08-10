@@ -252,6 +252,7 @@ private:
     void applyTargetSpp(uint32_t spp);
     void applyDisplayEnhancementEnabled(bool enabled);
     void applyGridVisible(bool visible);
+    void applyMotionAdaptiveResolution(bool enabled);
     /// Scope the scene-editing tools to the Layout workspace: grid, gizmo and
     /// the transform shortcuts exist there and nowhere else. The grid menu
     /// entry follows the workspace; the user's on/off preference survives.
@@ -547,6 +548,7 @@ private:
     QAction* m_aboutQtAction = nullptr;
     QAction* m_displayEnhancementAction = nullptr;
     QAction* m_showGridAction = nullptr;
+    QAction* m_motionAdaptiveResolutionAction = nullptr;
 
     // Mode submenus. Each holds one exclusive action group, and each group is
     // mirrored by a toolbar combo box showing the same selection.
@@ -661,6 +663,11 @@ private:
     // the Layout workspace being active -- the preference survives visits to
     // the other workspaces, where the grid never draws.
     bool m_gridUserVisible = true;
+
+    // Whether a camera or gizmo gesture may trace at a reduced extent. Mirrors
+    // the renderer's own flag so the status bar can say so without reaching
+    // through a renderer that may not exist yet.
+    bool m_motionAdaptiveResolution = true;
 
     // Last configuration seen by applyConfig(), used as the base for
     // collectCurrentConfig(). Not every field has a panel behind it -- the

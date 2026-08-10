@@ -141,8 +141,8 @@ void MainWindow::registerMcpTools() {
         tool.name = "ql_get_status";
         tool.description =
             "What Studio is rendering right now: accumulated and target samples, spectral mode, "
-            "wavelength, debug visualisation mode, whether a scene is loaded and whether the "
-            "document has unsaved changes.\n"
+            "wavelength, debug visualisation mode, the extent being traced, whether a scene is "
+            "loaded and whether the document has unsaved changes.\n"
             "\n"
             "Cheap. Prefer it to ql_capture_viewport when a number would answer the question -- "
             "poll it to watch accumulation converge, since there is no convergence metric to wait "
@@ -163,6 +163,14 @@ void MainWindow::registerMcpTools() {
             out["wavelength_nm"] = m_vulkanWindow->wavelength();
             out["debug_mode"] = catalog::debugModeId(m_vulkanWindow->debugMode());
             out["display_enhancement"] = m_displayEnhancementEnabled;
+            // The extent being traced, which is below the viewport's while a
+            // camera or gizmo gesture is in progress. A capture taken then is
+            // this size, not the viewport's.
+            const QSize renderSize = m_vulkanWindow->currentRenderSize();
+            out["render_scale"] = m_vulkanWindow->currentRenderScale();
+            out["render_width"] = renderSize.width();
+            out["render_height"] = renderSize.height();
+            out["motion_adaptive_resolution"] = m_motionAdaptiveResolution;
             return Json(out);
         };
         add(tool);
@@ -1017,6 +1025,48 @@ void MainWindow::registerMcpTools() {
             out["clip_limit"] = m_claheClipLimit;
             out["tile_size"] = m_claheTileSize;
             out["luminance_only"] = m_claheLuminanceOnly;
+            out["session_only"] = true;
+            return Json(out);
+        };
+        add(tool);
+    }
+
+    {
+        mcp::ToolDef tool;
+        tool.name = "ql_set_render_scale";
+        tool.description =
+            "Force the fraction of the viewport extent that is actually traced.\n"
+            "\n"
+            "A test hook for the motion-adaptive resolution path, which normally only engages "
+            "while a camera or gizmo gesture is in progress -- and no tool call can hold a drag "
+            "open. Setting a scale below 1 makes every frame from now on trace at that fraction "
+            "and magnify on present, exactly as a drag would; ql_capture_viewport then returns "
+            "an image of the reduced size.\n"
+            "\n"
+            "Session state, and not sticky: the next camera or gizmo gesture chooses its own "
+            "scale and restores 1.0 when it ends. Resets the accumulation, like any change of "
+            "extent.";
+        tool.inputSchemaJson = R"({
+  "type": "object",
+  "properties": {
+    "scale": {"type": "number", "minimum": 0.25, "maximum": 1, "description": "Clamped to [0.25, 1]. 1 traces at the full viewport extent."}
+  },
+  "required": ["scale"]
+})";
+        tool.handler = [this](const quantiloom::String& argumentsJson) {
+            QJsonObject args;
+            mcp::ToolResult error;
+            if (!ParseArgs(argumentsJson, args, error)) {
+                return error;
+            }
+            m_vulkanWindow->overrideRenderScale(
+                static_cast<float>(args.value(QStringLiteral("scale")).toDouble(1.0)));
+
+            // Deliberately no extent here: it changes on the next frame, and
+            // reading it now would report the extent being replaced. Poll
+            // ql_get_status for render_width and render_height.
+            QJsonObject out;
+            out["render_scale"] = m_vulkanWindow->currentRenderScale();
             out["session_only"] = true;
             return Json(out);
         };

@@ -34,6 +34,8 @@ struct AtmosphereNNConfig;
 struct SolarLutSpec;
 }
 
+class QTimer;
+
 class QuantiloomVulkanRenderer;
 class SelectionManager;
 class TransformGizmo;
@@ -377,6 +379,24 @@ public:
 
     [[nodiscard]] bool isGridVisible() const;
 
+    /**
+     * @brief Trace at a reduced extent while the user is moving the view
+     *
+     * Queued through withRenderer() like every setter here, so a value
+     * restored from settings before the renderer exists is not lost.
+     */
+    void setMotionAdaptiveResolution(bool enabled);
+    [[nodiscard]] bool motionAdaptiveResolution() const;
+
+    /// What the SDK is tracing at right now, and at what extent. 1.0 and the
+    /// swapchain extent unless a gesture is in progress.
+    [[nodiscard]] float currentRenderScale() const;
+    [[nodiscard]] QSize currentRenderSize() const;
+
+    /// Force a render scale, ignoring the motion state. The MCP test hook --
+    /// no tool call can hold a drag open. The next gesture overwrites it.
+    void overrideRenderScale(float scale);
+
     // ========================================================================
     // Scene Editing
     // ========================================================================
@@ -592,6 +612,29 @@ private:
      */
     void withRenderer(std::function<void(QuantiloomVulkanRenderer&)> call);
 
+    /**
+     * @brief Report that the user is moving the view or an object right now
+     *
+     * Called on every event that starts, continues or ends a camera or gizmo
+     * gesture. It puts the renderer into its motion state -- where it traces
+     * at a reduced extent -- and restarts a 250 ms decay timer.
+     *
+     * The decay is not a nicety. The wheel has no release event, so a zoom is
+     * a burst of presses with no end, and the only way to know a burst is over
+     * is that no further one arrived. Every other gesture goes through the
+     * timer too, so that a click-drag-click sequence does not flap the render
+     * extent -- and each flap costs a device wait and the accumulation.
+     *
+     * Deliberately not driven from startNextFrame(): the render loop stops
+     * when the accumulation reaches its target, which is often the moment the
+     * user stopped moving, so a check there would never run.
+     */
+    void noteViewportMotion();
+
+    /// Whether a button or a fly key is still down, in which case the gesture
+    /// is not over however quiet it has been.
+    [[nodiscard]] bool viewportMotionHeld() const;
+
     QuantiloomVulkanRenderer* m_renderer = nullptr;
     std::vector<std::function<void(QuantiloomVulkanRenderer&)>> m_deferredCalls;
     QString m_pendingScenePath;
@@ -618,6 +661,11 @@ private:
     bool m_keyQ = false;
     bool m_keyE = false;
     bool m_shiftHeld = false;
+
+    /// Single-shot, restarted by every motion event; see noteViewportMotion().
+    /// Created lazily because this window outlives no event loop of its own.
+    QTimer* m_motionDecayTimer = nullptr;
+    bool m_motionActive = false;
 
     // Vulkan feature structures (must persist during device creation)
     VkPhysicalDeviceBufferDeviceAddressFeatures m_bufferDeviceAddressFeatures{};

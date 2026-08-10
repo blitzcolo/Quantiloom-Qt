@@ -1161,6 +1161,10 @@ May cause colour shifts.</source>
         <translation>%1 spp/s</translation>
     </message>
     <message>
+        <source>%1 ×%2</source>
+        <translation>%1 ×%2</translation>
+    </message>
+    <message>
         <source>Samples accumulated per second of wall clock</source>
         <translation>每墙钟秒累积的采样数</translation>
     </message>
@@ -1171,6 +1175,10 @@ May cause colour shifts.</source>
     <message>
         <source>Samples per second of wall clock. %1 frames/s, %2 ms per frame</source>
         <translation>每墙钟秒累积的采样数。%1 帧/秒，每帧 %2 ms</translation>
+    </message>
+    <message>
+        <source>Tracing at %1x%2 while the view is moving.</source>
+        <translation>视图移动期间按 %1x%2 追踪。</translation>
     </message>
     <message>
         <source>Lighting updated</source>
@@ -1485,6 +1493,14 @@ May cause colour shifts.</source>
     <message>
         <source>Ground grid overlay in the viewport; does not affect renders or accumulation.</source>
         <translation>在视口中叠加地面网格；不影响渲染结果与累积。</translation>
+    </message>
+    <message>
+        <source>&amp;Adaptive Resolution During Motion</source>
+        <translation>运动时自适应分辨率(&amp;A)</translation>
+    </message>
+    <message>
+        <source>Trace fewer pixels while the camera or a gizmo is being dragged, for a smoother viewport. The image sharpens again when the gesture ends; exported images are never affected.</source>
+        <translation>拖动相机或变换手柄时减少追踪的像素数，让视口更流畅。手势结束后图像重新变清晰；导出图像始终不受影响。</translation>
     </message>
     <message>
         <source>Discard the accumulated samples and render from scratch</source>

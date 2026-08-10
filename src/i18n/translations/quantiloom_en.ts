@@ -828,6 +828,14 @@ May cause colour shifts.</source>
         </translation>
     </message>
     <message>
+        <source>%1 ×%2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Tracing at %1x%2 while the view is moving.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>ETA %1</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1436,6 +1444,14 @@ May cause colour shifts.</source>
     </message>
     <message>
         <source>Ground grid overlay in the viewport; does not affect renders or accumulation.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Adaptive Resolution During Motion</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Trace fewer pixels while the camera or a gizmo is being dragged, for a smoother viewport. The image sharpens again when the gesture ends; exported images are never affected.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

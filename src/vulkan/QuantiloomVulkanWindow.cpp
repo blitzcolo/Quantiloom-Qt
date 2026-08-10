@@ -20,6 +20,7 @@
 #include <QMouseEvent>
 #include <QWheelEvent>
 #include <QHoverEvent>
+#include <QTimer>
 #include <QDebug>
 
 #include <renderer/ExternalRenderContext.hpp>
@@ -471,6 +472,30 @@ bool QuantiloomVulkanWindow::isGridVisible() const {
     return m_renderer && m_renderer->isGridVisible();
 }
 
+void QuantiloomVulkanWindow::setMotionAdaptiveResolution(bool enabled) {
+    withRenderer([enabled](QuantiloomVulkanRenderer& r) {
+        r.setMotionAdaptiveResolution(enabled);
+    });
+}
+
+bool QuantiloomVulkanWindow::motionAdaptiveResolution() const {
+    return m_renderer && m_renderer->motionAdaptiveResolution();
+}
+
+float QuantiloomVulkanWindow::currentRenderScale() const {
+    return m_renderer ? m_renderer->currentRenderScale() : 1.0f;
+}
+
+QSize QuantiloomVulkanWindow::currentRenderSize() const {
+    return m_renderer ? m_renderer->currentRenderSize() : QSize(0, 0);
+}
+
+void QuantiloomVulkanWindow::overrideRenderScale(float scale) {
+    withRenderer([scale](QuantiloomVulkanRenderer& r) {
+        r.overrideRenderScale(scale);
+    });
+}
+
 // ============================================================================
 // Scene Editing
 // ============================================================================
@@ -622,6 +647,7 @@ void QuantiloomVulkanWindow::keyPressEvent(QKeyEvent* event) {
             m_gizmo->cancelDrag();
             m_transformDragging = false;
             m_activeHandle = editing::GizmoHandle::None;
+            noteViewportMotion();
         } else if (m_selection) {
             m_selection->clearSelection();
         }
@@ -660,6 +686,7 @@ void QuantiloomVulkanWindow::keyPressEvent(QKeyEvent* event) {
             return;
     }
 
+    noteViewportMotion();
     if (m_renderer) {
         m_renderer->updateCameraMovement(
             m_keyW, m_keyS, m_keyA, m_keyD, m_keyQ, m_keyE, m_shiftHeld);
@@ -683,6 +710,7 @@ void QuantiloomVulkanWindow::keyReleaseEvent(QKeyEvent* event) {
             return;
     }
 
+    noteViewportMotion();
     if (m_renderer) {
         m_renderer->updateCameraMovement(
             m_keyW, m_keyS, m_keyA, m_keyD, m_keyQ, m_keyE, m_shiftHeld);
@@ -715,6 +743,7 @@ void QuantiloomVulkanWindow::mousePressEvent(QMouseEvent* event) {
     if (event->button() == Qt::RightButton || event->button() == Qt::MiddleButton) {
         m_mousePressed = true;
         m_lastMousePos = event->position();  // logical px -- see the declaration
+        noteViewportMotion();
         event->accept();
     } else {
         QVulkanWindow::mousePressEvent(event);
@@ -733,6 +762,7 @@ void QuantiloomVulkanWindow::setEditingToolsEnabled(bool enabled) {
         m_gizmo->cancelDrag();
         m_transformDragging = false;
         m_activeHandle = editing::GizmoHandle::None;
+        noteViewportMotion();
     }
     if (!enabled) {
         m_hoveredHandle = editing::GizmoHandle::None;
@@ -816,6 +846,43 @@ void QuantiloomVulkanWindow::setSelectionBoxColor(const glm::vec4& color) {
     requestOverlayRedraw();
 }
 
+bool QuantiloomVulkanWindow::viewportMotionHeld() const {
+    return m_mousePressed || m_transformDragging ||
+           m_keyW || m_keyA || m_keyS || m_keyD || m_keyQ || m_keyE;
+}
+
+void QuantiloomVulkanWindow::noteViewportMotion() {
+    if (!m_motionDecayTimer) {
+        m_motionDecayTimer = new QTimer(this);
+        m_motionDecayTimer->setSingleShot(true);
+        // Long enough that the gaps inside one gesture -- between wheel
+        // notches, or a pause mid-drag -- do not end it; short enough that the
+        // full-resolution image is back before the eye settles.
+        m_motionDecayTimer->setInterval(250);
+        connect(m_motionDecayTimer, &QTimer::timeout, this, [this]() {
+            if (viewportMotionHeld()) {
+                // A button down with no movement is still a gesture; ask again
+                // rather than sharpening under the user's hand.
+                m_motionDecayTimer->start();
+                return;
+            }
+            m_motionActive = false;
+            withRenderer([](QuantiloomVulkanRenderer& r) {
+                r.setViewportMotionActive(false);
+            });
+        });
+    }
+
+    m_motionDecayTimer->start();
+    if (m_motionActive) {
+        return;
+    }
+    m_motionActive = true;
+    withRenderer([](QuantiloomVulkanRenderer& r) {
+        r.setViewportMotionActive(true);
+    });
+}
+
 bool QuantiloomVulkanWindow::beginGizmoDragAt(const QPointF& devicePos) {
     if (!gizmoOnScreen()) {
         return false;
@@ -838,6 +905,7 @@ bool QuantiloomVulkanWindow::beginGizmoDragAt(const QPointF& devicePos) {
     m_transformDragging = true;
     m_transformDragStart = devicePos;
     m_activeHandle = handle;
+    noteViewportMotion();
     return true;
 }
 
@@ -872,12 +940,16 @@ void QuantiloomVulkanWindow::mouseReleaseEvent(QMouseEvent* event) {
             m_gizmo->endDrag();
             // Note: The undo command is pushed in MainWindow when transform finishes
         }
+        // Starts the decay rather than ending the gesture: releasing to grab
+        // another handle is one gesture as far as the render extent cares.
+        noteViewportMotion();
         event->accept();
         return;
     }
 
     if (event->button() == Qt::RightButton || event->button() == Qt::MiddleButton) {
         m_mousePressed = false;
+        noteViewportMotion();
         event->accept();
     } else {
         QVulkanWindow::mouseReleaseEvent(event);
@@ -925,6 +997,9 @@ void QuantiloomVulkanWindow::wheelEvent(QWheelEvent* event) {
     if (m_renderer) {
         float delta = event->angleDelta().y() / 120.0f;
         m_renderer->zoomCamera(delta);
+        // The one gesture with no release event of its own: a zoom is over
+        // when no further notch arrives, which only the decay timer knows.
+        noteViewportMotion();
         event->accept();
     } else {
         QVulkanWindow::wheelEvent(event);

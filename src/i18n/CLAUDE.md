@@ -77,6 +77,8 @@ Translate consistently. Left column is the source term, right is the Chinese to 
 | preset | 预设 |
 | sensor / detector | 传感器 / 探测器 |
 | atmosphere | 大气 |
+| resolution | 分辨率 |
+| gizmo | 变换手柄 |
 | display enhancement | 显示增强 |
 | debug visualization | 调试可视化 |
 | screenshot / export image | 截图 / 导出图像 |

@@ -95,6 +95,7 @@ constexpr int  kMaxRecentFiles = 8;
 constexpr auto kGeometryKey    = "window/geometry";
 constexpr auto kStateVersionKey = "window/state_version";
 constexpr auto kShowGridKey    = "viewport/show_grid";
+constexpr auto kMotionAdaptiveResolutionKey = "viewport/motion_adaptive_resolution";
 
 /// Bumped whenever the dock inventory changes, so a layout written by an older
 /// build is discarded instead of restored into a window that no longer has the
@@ -163,6 +164,8 @@ MainWindow::MainWindow(QVulkanInstance* vulkanInstance, QWidget* parent)
     {
         QSettings settings;
         applyGridVisible(settings.value(kShowGridKey, true).toBool());
+        applyMotionAdaptiveResolution(
+            settings.value(kMotionAdaptiveResolutionKey, true).toBool());
         applyWorkspaceEditingScope(m_workspaces->currentWorkspace());
     }
 
@@ -481,6 +484,11 @@ void MainWindow::setupMenus() {
     m_showGridAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_QuoteLeft));
     connect(m_showGridAction, &QAction::triggered,
             this, &MainWindow::applyGridVisible);
+
+    m_motionAdaptiveResolutionAction = m_viewMenu->addAction(QString());
+    m_motionAdaptiveResolutionAction->setCheckable(true);
+    connect(m_motionAdaptiveResolutionAction, &QAction::triggered,
+            this, &MainWindow::applyMotionAdaptiveResolution);
 
     m_viewMenu->addSeparator();
 
@@ -1296,6 +1304,23 @@ void MainWindow::applyGridVisible(bool visible) {
     settings.setValue(kShowGridKey, visible);
 }
 
+void MainWindow::applyMotionAdaptiveResolution(bool enabled) {
+    // Single application point for the motion-adaptive render extent. Nothing
+    // about the estimator changes either way -- this only decides whether a
+    // camera or gizmo gesture is allowed to trace fewer pixels for its
+    // duration -- so it is display-side, like the grid, and its own setter
+    // deals with restoring full scale when it is turned off mid-gesture.
+    m_motionAdaptiveResolution = enabled;
+    m_vulkanWindow->setMotionAdaptiveResolution(enabled);
+    if (m_motionAdaptiveResolutionAction) {
+        const QSignalBlocker blocker(m_motionAdaptiveResolutionAction);
+        m_motionAdaptiveResolutionAction->setChecked(enabled);
+    }
+    QSettings settings;
+    settings.setValue(kMotionAdaptiveResolutionKey, enabled);
+    refreshSampleRateLabel();
+}
+
 void MainWindow::applyWorkspaceEditingScope(const QString& workspaceId) {
     // Layout is the scene-editing workspace; the others are parameter rooms.
     // Grid, gizmo and the transform shortcuts exist in Layout and nowhere
@@ -2004,6 +2029,11 @@ void MainWindow::retranslateUi() {
     m_showGridAction->setText(tr("Show &Grid"));
     m_showGridAction->setToolTip(
         tr("Ground grid overlay in the viewport; does not affect renders or accumulation."));
+    m_motionAdaptiveResolutionAction->setText(tr("&Adaptive Resolution During Motion"));
+    m_motionAdaptiveResolutionAction->setToolTip(
+        tr("Trace fewer pixels while the camera or a gizmo is being dragged, for a "
+           "smoother viewport. The image sharpens again when the gesture ends; "
+           "exported images are never affected."));
 
     m_renderMenu->setTitle(tr("&Render"));
     m_startRenderAction->setText(tr("&Start Render"));
@@ -3232,30 +3262,50 @@ void MainWindow::refreshSampleRateLabel() {
 
     // Two decimals below ten, because a scene slow enough to matter renders at
     // a fraction of a sample per second and one decimal would round it to nil.
-    m_sampleRateLabel->setText(m_sampleRateWindow.empty()
+    //
+    // The unit stays spp/s whatever the render extent is: a sample is still a
+    // sample, and the rate is still what it says. What changes is the size of
+    // the image those samples are landing in, and a rate quoted against a
+    // quarter of the pixels without saying so would read as free speed -- so
+    // the scale goes next to it while it is down.
+    const float renderScale = m_vulkanWindow ? m_vulkanWindow->currentRenderScale() : 1.0f;
+    const QString rate = m_sampleRateWindow.empty()
         ? tr("-- spp/s")
-        : tr("%1 spp/s").arg(samplesPerSecond, 0, 'f', samplesPerSecond < 10.0 ? 2 : 1));
+        : tr("%1 spp/s").arg(samplesPerSecond, 0, 'f', samplesPerSecond < 10.0 ? 2 : 1);
+    m_sampleRateLabel->setText(
+        renderScale < 1.0f
+            ? tr("%1 ×%2").arg(rate).arg(renderScale, 0, 'g', 3)
+            : rate);
 
     // Frame timing in the tooltip rather than the label: it answers a
     // different question -- is the viewport responsive, and is the scene
     // expensive -- and only when asked.
     const float gpuMs = m_vulkanWindow ? m_vulkanWindow->lastGpuFrameTimeMs() : 0.0f;
+    QString tip;
     if (m_smoothedFrameTimeMs <= 0.0f) {
-        m_sampleRateLabel->setToolTip(
-            tr("Samples accumulated per second of wall clock"));
+        tip = tr("Samples accumulated per second of wall clock");
     } else if (gpuMs > 0.0f) {
-        m_sampleRateLabel->setToolTip(
-            tr("Samples per second of wall clock. %1 frames/s, %2 ms per frame, "
-               "%3 ms of it on the GPU")
-                .arg(1000.0f / m_smoothedFrameTimeMs, 0, 'f', 1)
-                .arg(m_smoothedFrameTimeMs, 0, 'f', 1)
-                .arg(gpuMs, 0, 'f', 1));
+        tip = tr("Samples per second of wall clock. %1 frames/s, %2 ms per frame, "
+                 "%3 ms of it on the GPU")
+                  .arg(1000.0f / m_smoothedFrameTimeMs, 0, 'f', 1)
+                  .arg(m_smoothedFrameTimeMs, 0, 'f', 1)
+                  .arg(gpuMs, 0, 'f', 1);
     } else {
-        m_sampleRateLabel->setToolTip(
-            tr("Samples per second of wall clock. %1 frames/s, %2 ms per frame")
-                .arg(1000.0f / m_smoothedFrameTimeMs, 0, 'f', 1)
-                .arg(m_smoothedFrameTimeMs, 0, 'f', 1));
+        tip = tr("Samples per second of wall clock. %1 frames/s, %2 ms per frame")
+                  .arg(1000.0f / m_smoothedFrameTimeMs, 0, 'f', 1)
+                  .arg(m_smoothedFrameTimeMs, 0, 'f', 1);
     }
+    // Only while the extent is reduced. Saying "rendering at 1920x1080" on
+    // every frame of every session would be noise around the one case that
+    // needs explaining: why the viewport just went soft.
+    if (renderScale < 1.0f) {
+        const QSize renderSize = m_vulkanWindow->currentRenderSize();
+        tip += QLatin1Char('\n');
+        tip += tr("Tracing at %1x%2 while the view is moving.")
+                   .arg(renderSize.width())
+                   .arg(renderSize.height());
+    }
+    m_sampleRateLabel->setToolTip(tip);
 }
 
 void MainWindow::updateRenderEta(uint32_t sampleCount, uint32_t target) {

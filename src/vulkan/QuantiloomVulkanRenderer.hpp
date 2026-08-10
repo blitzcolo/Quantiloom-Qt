@@ -10,6 +10,7 @@
 #include <QVulkanWindowRenderer>
 #include <QCoreApplication>
 #include <QString>
+#include <QSize>
 #include <QFuture>
 #include <memory>
 #include <chrono>
@@ -144,6 +145,46 @@ public:
     /// The SDK's trace time for the last frame, as distinct from the wall
     /// clock the frameRendered signal carries.
     [[nodiscard]] float lastGpuFrameTimeMs() const { return m_lastGpuFrameTimeMs; }
+
+    /// @name Motion-adaptive resolution
+    /// A heavy scene traces at the target extent whatever the camera is doing,
+    /// which is what makes a glass close-up drop below 20 samples/s -- and,
+    /// since one trace is one present here, drags the grid and the gizmo down
+    /// with it. While the user is actually moving something, the SDK traces at
+    /// a fraction of the extent and the presenting blit magnifies: a quarter
+    /// of the pixels is roughly four times the rate, and the softness lasts
+    /// only as long as the gesture. Nothing about the estimator changes, and
+    /// no exported image ever comes from a reduced-scale frame -- exports read
+    /// the accumulation, which is full-scale again the moment the gesture ends
+    /// and restarts from zero.
+    /// @{
+
+    /// The feature toggle (View menu, remembered in QSettings). Turning it off
+    /// mid-gesture restores full scale immediately.
+    void setMotionAdaptiveResolution(bool enabled);
+    [[nodiscard]] bool motionAdaptiveResolution() const {
+        return m_motionAdaptiveResolution;
+    }
+
+    /// Called by the window when a camera or gizmo gesture starts and again
+    /// when it has been quiet for long enough to count as over. The scale is
+    /// chosen once, on the rising edge, and held for the whole gesture:
+    /// changing it costs a device wait and an accumulation reset.
+    void setViewportMotionActive(bool active);
+    [[nodiscard]] bool viewportMotionActive() const { return m_motionActive; }
+
+    /// What the SDK is tracing at right now: 1.0 unless a gesture is in
+    /// progress. For the status bar and the MCP status tool.
+    [[nodiscard]] float currentRenderScale() const;
+    /// The extent the SDK is tracing at, which is the target extent times the
+    /// scale. Zero-sized before the first frame.
+    [[nodiscard]] QSize currentRenderSize() const;
+
+    /// Force a scale, ignoring the motion state. The MCP test hook: no gesture
+    /// can be held open from a tool call, so this is how the decoupling is
+    /// exercised. The next gesture overwrites it.
+    void overrideRenderScale(float scale);
+    /// @}
     uint32_t targetSPP() const { return m_targetSPP; }
     uint32_t samplingSeed() const { return m_samplingSeed; }
 
@@ -382,6 +423,20 @@ private:
     /// change (sensor, CLAHE) shows without costing a sample. Set by
     /// requestDisplayReprocess(), consumed by startNextFrame().
     bool m_reprocessPending = false;
+
+    // Motion-adaptive resolution. m_motionActive is the window's gesture
+    // state; m_motionScale is what was chosen on its rising edge and holds for
+    // the gesture. Both are meaningless while m_motionAdaptiveResolution is
+    // off, which is the only state the scale is guaranteed to be 1.0 in.
+    bool m_motionAdaptiveResolution = true;
+    bool m_motionActive = false;
+    float m_motionScale = 1.0f;
+
+    /// Chooses the reduced scale for a gesture from the last trace time.
+    [[nodiscard]] float chooseMotionScale() const;
+    /// Push whatever the current state implies to the SDK, and ask for the
+    /// frame that acts on it.
+    void applyRenderScale(float scale);
 
     // Camera state
     glm::vec3 m_cameraPosition{0.0f, 1.0f, 5.0f};
