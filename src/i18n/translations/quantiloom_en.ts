@@ -2737,10 +2737,6 @@ Rebuild with:
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>f-number, focal length divided by entrance pupil diameter. Lower collects more light: irradiance on the detector goes as 1/f-number squared.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Pixel Pitch:</source>
         <translation>Pixel Pitch:</translation>
     </message>
@@ -2791,6 +2787,22 @@ Rebuild with:
     <message>
         <source>Noise Model</source>
         <translation>Noise Model</translation>
+    </message>
+    <message>
+        <source>Auto (diffraction)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>f-number, focal length divided by entrance pupil diameter. Lower collects more light: irradiance on the detector goes as 1/(1 + 4 f-number squared).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>PSF Width:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Gaussian blur width of the point spread function, in pixels. Auto derives it from the aperture and wavelength; setting it here holds the blur fixed while the aperture varies, and 0 disables it.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>How long the detector collects per frame. Longer gathers more signal and more dark current with it.</source>

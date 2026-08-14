@@ -54,6 +54,11 @@ void SensorPanel::retranslateUi() {
     m_irGroup->setTitle(tr("IR Detector"));
 
     m_enabledCheck->setText(tr("Enable Sensor Simulation"));
+
+    // Not a caption, so the loop below does not reach it: the sentinel's label
+    // is the spin box's own special-value text.
+    m_psfSigma->setSpecialValueText(tr("Auto (diffraction)"));
+
     m_poissonNoise->setText(tr("Photon Shot Noise (Poisson)"));
     m_readNoiseEnable->setText(tr("Enable Read Noise"));
     m_darkCurrentEnable->setText(tr("Enable Dark Current"));
@@ -102,7 +107,20 @@ void SensorPanel::setupUi() {
     m_fNumber->setPrefix("f/");
     m_fNumber->setValue(2.8);
     addRow(opticsLayout, QT_TR_NOOP("Aperture:"), m_fNumber,
-           QT_TR_NOOP("f-number, focal length divided by entrance pupil diameter. Lower collects more light: irradiance on the detector goes as 1/f-number squared."));
+           QT_TR_NOOP("f-number, focal length divided by entrance pupil diameter. Lower collects more light: irradiance on the detector goes as 1/(1 + 4 f-number squared)."));
+
+    // -1 is the sentinel for "derive from diffraction", shown as special text
+    // rather than as a number. 0 has to stay reachable and mean no blur, which
+    // is why the sentinel is negative.
+    m_psfSigma = new QDoubleSpinBox();
+    m_psfSigma->setRange(-1.0, 100.0);
+    m_psfSigma->setDecimals(3);
+    m_psfSigma->setSingleStep(0.1);
+    m_psfSigma->setSuffix(" px");
+    m_psfSigma->setValue(-1.0);
+    m_psfSigma->setSpecialValueText(tr("Auto (diffraction)"));
+    addRow(opticsLayout, QT_TR_NOOP("PSF Width:"), m_psfSigma,
+           QT_TR_NOOP("Gaussian blur width of the point spread function, in pixels. Auto derives it from the aperture and wavelength; setting it here holds the blur fixed while the aperture varies, and 0 disables it."));
 
     mainLayout->addWidget(m_opticsGroup);
 
@@ -286,6 +304,8 @@ void SensorPanel::setupUi() {
             this, &SensorPanel::onParamChanged);
     connect(m_fNumber, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &SensorPanel::onParamChanged);
+    connect(m_psfSigma, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &SensorPanel::onParamChanged);
 
     // Detector params
     connect(m_pixelPitch, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
@@ -400,6 +420,7 @@ void SensorPanel::onParamChanged() {
     // Optics
     m_params.focalLength_mm = static_cast<float>(m_focalLength->value());
     m_params.fNumber = static_cast<float>(m_fNumber->value());
+    m_params.psfSigma_px = static_cast<float>(m_psfSigma->value());
 
     // Detector
     m_params.pixelPitch_um = static_cast<float>(m_pixelPitch->value());
@@ -438,6 +459,11 @@ void SensorPanel::updateUiFromParams(const quantiloom::SensorParams& params) {
     // Optics
     m_focalLength->setValue(static_cast<double>(params.focalLength_mm));
     m_fNumber->setValue(static_cast<double>(params.fNumber));
+    // Any negative value is the same sentinel; clamp so the box lands on its
+    // special-value text rather than on an out-of-range number.
+    m_psfSigma->setValue(params.psfSigma_px < 0.0f
+                             ? m_psfSigma->minimum()
+                             : static_cast<double>(params.psfSigma_px));
 
     // Detector
     m_pixelPitch->setValue(static_cast<double>(params.pixelPitch_um));
@@ -478,6 +504,7 @@ void SensorPanel::blockSignalsForUpdate(bool block) {
     // Optics
     m_focalLength->blockSignals(block);
     m_fNumber->blockSignals(block);
+    m_psfSigma->blockSignals(block);
 
     // Detector
     m_pixelPitch->blockSignals(block);

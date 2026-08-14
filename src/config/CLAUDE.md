@@ -43,7 +43,10 @@ Everything a panel owns is written back, and `MainWindow::collectCurrentConfig()
 it from the panel rather than from the config that was loaded. That includes the
 spectral mode and wavelength range, the camera (read from the renderer, so orbiting with
 the mouse is exported too), the merged lighting parameters, the atmosphere preset and
-its nine weather features, and the whole sensor block.
+its nine weather features, and the whole sensor block — including `psf_sigma_px`, whose
+negative default means "derive the blur from the aperture" and which therefore has to be
+written even when no one has touched it, or the next load cannot tell a derived width
+from an explicit one.
 
 Node transforms and material edits round-trip too, and did not used to. Both are
 written only for what changed since the document was opened — `MainWindow` keeps
@@ -92,10 +95,11 @@ If you add a panel value, decide which of the two lists it belongs in and say so
 
 ## Two guards, both deliberate
 
-- `static_assert(sizeof(quantiloom::SensorParams) == 84)` at the top of
+- `static_assert(sizeof(quantiloom::SensorParams) == 88)` at the top of
   `ConfigManager.cpp`. When the SDK adds or removes a sensor field this fails to
   compile, which is the point. Confirm `exportConfig()` writes the new key before
-  bumping the number.
+  bumping the number. It has earned its keep once already: `sensor.psf_sigma_px`
+  took the struct from 84 to 88, and the build stopped until the writer had it.
 - `MainWindow::collectCurrentConfig()` starts from the last loaded `SceneConfig` rather
   than a default-constructed one, so fields with no widget behind them survive an export.
   Keep it that way — starting empty is exactly what made export lossy before.

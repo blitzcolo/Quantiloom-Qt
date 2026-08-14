@@ -2837,7 +2837,7 @@ Rebuild with:
     </message>
     <message>
         <source>f-number, focal length divided by entrance pupil diameter. Lower collects more light: irradiance on the detector goes as 1/f-number squared.</source>
-        <translation>f 数，即焦距除以入瞳直径。数值越小进光越多：探测器上的辐照度与 f 数的平方成反比。</translation>
+        <translation type="vanished">f 数，即焦距除以入瞳直径。数值越小进光越多：探测器上的辐照度与 f 数的平方成反比。</translation>
     </message>
     <message>
         <source>Pixel Pitch:</source>
@@ -2890,6 +2890,22 @@ Rebuild with:
     <message>
         <source>Noise Model</source>
         <translation>噪声模型</translation>
+    </message>
+    <message>
+        <source>Auto (diffraction)</source>
+        <translation>自动（衍射）</translation>
+    </message>
+    <message>
+        <source>f-number, focal length divided by entrance pupil diameter. Lower collects more light: irradiance on the detector goes as 1/(1 + 4 f-number squared).</source>
+        <translation>f 数，即焦距除以入瞳直径。数值越小进光越多：探测器上的辐照度正比于 1/(1 + 4 f 数的平方)。</translation>
+    </message>
+    <message>
+        <source>PSF Width:</source>
+        <translation>PSF 宽度：</translation>
+    </message>
+    <message>
+        <source>Gaussian blur width of the point spread function, in pixels. Auto derives it from the aperture and wavelength; setting it here holds the blur fixed while the aperture varies, and 0 disables it.</source>
+        <translation>点扩散函数的高斯模糊宽度，以像素计。「自动」由光圈与波长推导；在此指定可在光圈变化时保持模糊宽度不变，填 0 则不做模糊。</translation>
     </message>
     <message>
         <source>How long the detector collects per frame. Longer gathers more signal and more dark current with it.</source>

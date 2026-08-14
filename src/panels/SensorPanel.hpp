@@ -95,6 +95,7 @@ private:
     QGroupBox* m_opticsGroup = nullptr;
     QDoubleSpinBox* m_focalLength = nullptr;
     QDoubleSpinBox* m_fNumber = nullptr;
+    QDoubleSpinBox* m_psfSigma = nullptr;
 
     // Detector group
     QGroupBox* m_detectorGroup = nullptr;

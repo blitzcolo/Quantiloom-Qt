@@ -1196,6 +1196,7 @@ void MainWindow::registerMcpTools() {
     "focal_length_mm": {"type": "number", "minimum": 0.1},
     "f_number": {"type": "number", "minimum": 0.5},
     "pixel_pitch_um": {"type": "number", "minimum": 0.1},
+    "psf_sigma_px": {"type": "number", "minimum": -1, "description": "Gaussian PSF width in pixels. Negative derives it from aperture and wavelength; 0 disables the blur."},
     "quantum_efficiency": {"type": "number", "minimum": 0, "maximum": 1},
     "well_capacity_e": {"type": "number", "minimum": 1},
     "integration_time_s": {"type": "number", "minimum": 0},
@@ -1231,6 +1232,7 @@ void MainWindow::registerMcpTools() {
             setF("focal_length_mm", params.focalLength_mm);
             setF("f_number", params.fNumber);
             setF("pixel_pitch_um", params.pixelPitch_um);
+            setF("psf_sigma_px", params.psfSigma_px);
             setF("quantum_efficiency", params.quantumEfficiency);
             setF("well_capacity_e", params.wellCapacity_e);
             setF("integration_time_s", params.integrationTime_s);

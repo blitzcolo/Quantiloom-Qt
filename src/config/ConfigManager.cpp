@@ -25,7 +25,7 @@
 // diff it against ParseSensorParams and against the [sensor] block in
 // saveConfig() below, then update the expected size. The SDK/GUI boundary is
 // already a single MSVC toolchain (SRS CON-04), so the layout is well-defined.
-static_assert(sizeof(quantiloom::SensorParams) == 84,
+static_assert(sizeof(quantiloom::SensorParams) == 88,
               "SensorParams changed size: a field was added or removed. Check "
               "that saveConfig() still writes every key ParseSensorParams reads "
               "before updating this number.");
@@ -837,6 +837,7 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
     out << "focal_length_mm = " << config.sensorParams.focalLength_mm << "\n";
     out << "f_number = " << config.sensorParams.fNumber << "\n";
     out << "pixel_pitch_um = " << config.sensorParams.pixelPitch_um << "\n";
+    out << "psf_sigma_px = " << config.sensorParams.psfSigma_px << "\n";
     out << "quantum_efficiency = " << config.sensorParams.quantumEfficiency << "\n";
     out << "well_capacity_e = " << config.sensorParams.wellCapacity_e << "\n";
     out << "read_noise_e_rms = " << config.sensorParams.readNoise_e_rms << "\n";
