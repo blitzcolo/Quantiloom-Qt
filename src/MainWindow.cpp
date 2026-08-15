@@ -860,6 +860,13 @@ void MainWindow::applySpectralMode(quantiloom::SpectralMode mode) {
     m_spectralConfigPanel->setSpectralMode(mode);
     m_viewportFrame->setSpectralMode(mode);
 
+    // The sensitivity readout is quoted per band: the same detector resolves
+    // ten times finer in the LWIR than in the MWIR at room temperature.
+    if (const auto band = quantiloom::GetFusedBandInfo(mode); band.has_value()) {
+        m_sensorPanel->setNetdBand(static_cast<double>(band->lambdaMinNm),
+                                   static_cast<double>(band->lambdaMaxNm));
+    }
+
     setSceneModified(true);
     showStatusMessage(tr("Spectral mode: %1").arg(catalog::spectralModeName(mode)));
 }
@@ -1041,6 +1048,14 @@ void MainWindow::applySensorParams(const quantiloom::SensorParams& params) {
     m_sensorPanel->setSensorParams(params);
     setSceneModified(true);
     showStatusMessage(tr("Sensor parameters updated"));
+}
+
+void MainWindow::applyThermographyParams(bool enabled,
+                                         const quantiloom::ThermographyParams& params) {
+    m_thermographyEnabled = enabled;
+    m_thermographyParams = params;
+    m_vulkanWindow->setThermographyParams(params);
+    setSceneModified(true);
 }
 
 void MainWindow::applyClaheParams(bool enabled, float clipLimit, int tileSize,
@@ -1614,6 +1629,12 @@ void MainWindow::setupDockWidgets() {
                                        applySensorParams(v);
                                    });
             });
+
+    // Thermography: what the camera is told, which changes what a measurement
+    // is reported as and never what is measured. Not an undoable scene edit
+    // for the same reason CLAHE is not -- it is a reading of the render.
+    connect(m_sensorPanel, &SensorPanel::thermographyChanged,
+            this, &MainWindow::applyThermographyParams);
 
     // Display enhancement panel signals
     connect(m_displayEnhancementPanel, &DisplayEnhancementPanel::enhancementChanged,
@@ -3874,6 +3895,10 @@ void MainWindow::applyConfig(const SceneConfig& config) {
 
     m_sensorPanel->setSensorParams(config.sensorParams);   // Params first,
     m_sensorPanel->setSensorEnabled(config.sensorEnabled);  // then enabled state
+    m_thermographyEnabled = config.thermographyEnabled;
+    m_thermographyParams = config.thermography;
+    m_sensorPanel->setThermography(config.thermographyEnabled, config.thermography);
+    m_vulkanWindow->setThermographyParams(config.thermography);
 
     // The scene is loaded by ApplyConfig, but the shell still needs to know
     // which file it was and to show the viewport instead of the guidance page.
@@ -4051,6 +4076,8 @@ void MainWindow::collectCurrentConfig(SceneConfig& config) {
     // Collect sensor settings
     config.sensorEnabled = m_sensorPanel->isSensorEnabled();
     config.sensorParams = m_sensorPanel->getSensorParams();
+    config.thermographyEnabled = m_sensorPanel->isThermographyEnabled();
+    config.thermography = m_sensorPanel->getThermographyParams();
 
     // Node transforms and material edits, read from the scene the renderer is
     // running on. Only what changed since the document was opened: the model
@@ -4429,6 +4456,14 @@ void MainWindow::onUndoRedoChanged() {
 void MainWindow::onViewportHovered(int x, int y) {
     const auto debugMode = m_vulkanWindow->getDebugMode();
     if (debugMode == quantiloom::DebugVisualizationMode::None) {
+        // A thermal band has something to say without a debug mode: what a
+        // camera would have displayed here. Same inversion the CLI writes into
+        // _tapp.exr, through the same SDK entry point.
+        double kelvin = 0.0;
+        if (m_vulkanWindow->readApparentTemperature(x, y, kelvin)) {
+            m_debugValueLabel->setText(tr("(%1,%2) %3 K").arg(x).arg(y).arg(kelvin, 0, 'f', 1));
+            return;
+        }
         m_debugValueLabel->setText(tr("Select a debug mode to inspect pixels"));
         return;
     }

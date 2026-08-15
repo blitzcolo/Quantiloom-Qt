@@ -1270,6 +1270,32 @@ bool QuantiloomVulkanRenderer::readDebugPixel(int x, int y, glm::vec4& outValue)
     return false;
 }
 
+bool QuantiloomVulkanRenderer::readApparentTemperature(int x, int y, double& outKelvin) {
+    if (!m_renderContext) {
+        return false;
+    }
+    // Only the fused thermal bands carry a band radiance to invert. RGB and
+    // the visible band carry tristimulus, which is not a temperature of
+    // anything.
+    const auto band = quantiloom::GetFusedBandInfo(m_spectralMode);
+    if (!band.has_value() || !quantiloom::IsIRFusedMode(m_spectralMode)) {
+        return false;
+    }
+
+    auto result = m_renderContext->ReadPixelValue(static_cast<quantiloom::u32>(x),
+                                                  static_cast<quantiloom::u32>(y));
+    if (!result.has_value()) {
+        return false;
+    }
+
+    // The accumulation is per-nm average spectral radiance, which is the unit
+    // the SDK's band routines take. R is the whole of it in a thermal band.
+    outKelvin = quantiloom::InvertSurfaceTemperatureK(
+        static_cast<double>(result.value().r), static_cast<double>(band->lambdaMinNm),
+        static_cast<double>(band->lambdaMaxNm), m_thermography);
+    return true;
+}
+
 QString QuantiloomVulkanRenderer::formatDebugValue(const glm::vec4& v) const {
     using quantiloom::DebugVisualizationMode;
 

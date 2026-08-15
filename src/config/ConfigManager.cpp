@@ -262,6 +262,11 @@ void ConfigManager::extractSceneConfig(const quantiloom::Config& config, SceneCo
     // Always parse sensor params so they're available if user enables later
     out.sensorParams = quantiloom::PostprocessConfig::ParseSensorParams(config);
 
+    // [thermography] - same rule: parsed whether or not it is on, so turning
+    // it off and saving does not discard what the camera was told.
+    out.thermographyEnabled = quantiloom::PostprocessConfig::IsThermographyEnabled(config);
+    out.thermography = quantiloom::PostprocessConfig::ParseThermographyParams(config);
+
     // [material] - the scene-wide fallback albedo
     if (const auto albedo = config.GetFloatArray("material.albedo"); albedo.size() >= 3) {
         out.defaultAlbedo = glm::vec3(albedo[0], albedo[1], albedo[2]);
@@ -887,6 +892,17 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
     out << "dsnu_sigma_e = " << config.sensorParams.dsnuSigma_e << "\n";
     out << "enable_nuc = " << (config.sensorParams.enableNUC ? "true" : "false") << "\n";
     out << "nuc_efficiency = " << config.sensorParams.nucEfficiency << "\n";
+    out << "\n";
+
+    // [thermography] - what the camera is told, which decides what the
+    // temperature map means. Unconditional for the same reason [sensor.fpn]
+    // is: the parameters outlive the switch that reads them.
+    out << "[thermography]\n";
+    out << "enabled = " << (config.thermographyEnabled ? "true" : "false") << "\n";
+    out << "emissivity = " << config.thermography.emissivity << "\n";
+    out << "reflected_temperature_k = " << config.thermography.reflectedTemperature_K << "\n";
+    out << "atmosphere_transmittance = " << config.thermography.atmosphereTransmittance << "\n";
+    out << "atmosphere_temperature_k = " << config.thermography.atmosphereTemperature_K << "\n";
     out << "\n";
 
     // Last, because these are the sections a hand-authored quantitative config

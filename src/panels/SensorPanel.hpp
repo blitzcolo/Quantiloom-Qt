@@ -11,6 +11,7 @@
 
 #include <QVector>
 #include <postprocess/SensorModel.hpp>
+#include <postprocess/Thermography.hpp>
 
 QT_BEGIN_NAMESPACE
 class QDoubleSpinBox;
@@ -66,6 +67,18 @@ public:
      */
     quantiloom::SensorParams getSensorParams() const;
 
+    /**
+     * @brief What the virtual camera is told about the surface it looks at
+     *
+     * Not sensor parameters: these do not change what is measured, only what
+     * temperature the measurement is reported as. They drive the viewport's
+     * temperature readout here, and the CLI's _tapp.exr when the scene is
+     * rendered offline.
+     */
+    void setThermography(bool enabled, const quantiloom::ThermographyParams& params);
+    [[nodiscard]] bool isThermographyEnabled() const;
+    [[nodiscard]] quantiloom::ThermographyParams getThermographyParams() const;
+
 signals:
     /**
      * @brief Emitted when enabled state changes
@@ -77,9 +90,15 @@ signals:
      */
     void paramsChanged(const quantiloom::SensorParams& params);
 
+    /**
+     * @brief Emitted when the thermography settings change
+     */
+    void thermographyChanged(bool enabled, const quantiloom::ThermographyParams& params);
+
 private slots:
     void onEnabledChanged(bool enabled);
     void onParamChanged();
+    void onThermographyChanged();
     void onFpnToggled(bool checked);
     void onNucToggled(bool checked);
 
@@ -131,6 +150,32 @@ private:
     QGroupBox* m_irGroup = nullptr;
     QDoubleSpinBox* m_detectorTemp = nullptr;
 
+    // Thermography group (collapsible): the camera's reporting model, and the
+    // sensitivity that falls out of the sensor parameters above it.
+    CollapsibleGroupBox* m_thermographyGroup = nullptr;
+    QCheckBox* m_thermographyEnable = nullptr;
+    QDoubleSpinBox* m_thermoEmissivity = nullptr;
+    QDoubleSpinBox* m_thermoReflectedTemp = nullptr;
+    QDoubleSpinBox* m_thermoTransmittance = nullptr;
+    QDoubleSpinBox* m_thermoAtmosphereTemp = nullptr;
+    QLabel* m_netdLabel = nullptr;
+    /// Band the NETD is quoted in, set by whoever knows the spectral mode.
+    double m_netdLambdaMinNm = 8000.0;
+    double m_netdLambdaMaxNm = 12000.0;
+    void updateNetdLabel();
+
+public:
+    /**
+     * @brief Band the sensitivity readout is quoted in
+     *
+     * A NETD without a band and a scene temperature attached means nothing:
+     * the same detector resolves ten times finer in the LWIR than the MWIR at
+     * room temperature. Set from the spectral mode.
+     */
+    void setNetdBand(double lambdaMinNm, double lambdaMaxNm);
+
+private:
+
     // Current params
     /// Form captions, kept with their untranslated source so that a language
     /// change can re-apply them. QT_TR_NOOP marks the literal for lupdate; the
@@ -150,5 +195,6 @@ private:
                    const char* tip = nullptr);
 
     quantiloom::SensorParams m_params;
+    quantiloom::ThermographyParams m_thermography;
     bool m_updatingUi = false;
 };

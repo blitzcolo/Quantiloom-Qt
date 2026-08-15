@@ -7,6 +7,8 @@
 
 #include "QuantiloomVulkanWindow.hpp"
 #include "QuantiloomVulkanRenderer.hpp"
+
+#include <postprocess/Thermography.hpp>
 #include "../editing/SelectionManager.hpp"
 #include "../editing/TransformGizmo.hpp"
 #include "../editing/UndoStack.hpp"
@@ -446,6 +448,15 @@ bool QuantiloomVulkanWindow::loadEnvironmentMap(const QString& hdrPath) {
 
 void QuantiloomVulkanWindow::setSensorEnabled(bool enabled) {
     withRenderer([enabled](QuantiloomVulkanRenderer& r) { r.setSensorEnabled(enabled); });
+}
+
+bool QuantiloomVulkanWindow::readApparentTemperature(int x, int y, double& outKelvin) {
+    return m_renderer ? m_renderer->readApparentTemperature(x, y, outKelvin) : false;
+}
+
+void QuantiloomVulkanWindow::setThermographyParams(
+    const quantiloom::ThermographyParams& params) {
+    withRenderer([params](QuantiloomVulkanRenderer& r) { r.setThermographyParams(params); });
 }
 
 void QuantiloomVulkanWindow::setSensorParams(const quantiloom::SensorParams& params) {

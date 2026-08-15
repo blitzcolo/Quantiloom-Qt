@@ -29,6 +29,7 @@ struct Material;
 struct LightingParams;
 struct Image;
 struct SensorParams;
+struct ThermographyParams;
 struct ComplexRefractiveIndex;
 struct AtmosphereNNConfig;
 struct SolarLutSpec;
@@ -281,6 +282,10 @@ public:
      */
     bool readDebugPixel(int x, int y, glm::vec4& outValue);
 
+    /// The temperature a thermal camera would report for this pixel, from the
+    /// accumulated radiance. False in any mode with no band to invert.
+    bool readApparentTemperature(int x, int y, double& outKelvin);
+
     /**
      * @brief Format debug value based on current debug mode
      * @param pixel Raw pixel value
@@ -349,6 +354,9 @@ public:
      * @param params Sensor parameters (optics, detector, noise, etc.)
      */
     void setSensorParams(const quantiloom::SensorParams& params);
+    /// What the camera is told about the surface, for the readout above.
+    /// Display-side: no accumulation reset.
+    void setThermographyParams(const quantiloom::ThermographyParams& params);
 
     // ========================================================================
     // Display Enhancement (CLAHE)

@@ -18,6 +18,7 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QLabel>
+#include <cmath>
 #include <utility>
 
 SensorPanel::SensorPanel(QWidget* parent)
@@ -52,6 +53,7 @@ void SensorPanel::retranslateUi() {
     m_noiseGroup->setTitle(tr("Noise Model"));
     m_fpnGroup->setTitle(tr("FPN Parameters"));
     m_irGroup->setTitle(tr("IR Detector"));
+    m_thermographyGroup->setTitle(tr("Thermography"));
 
     m_enabledCheck->setText(tr("Enable Sensor Simulation"));
 
@@ -64,6 +66,7 @@ void SensorPanel::retranslateUi() {
     m_darkCurrentEnable->setText(tr("Enable Dark Current"));
     m_fpnNoise->setText(tr("Fixed Pattern Noise (FPN)"));
     m_nucEnable->setText(tr("Enable NUC"));
+    m_thermographyEnable->setText(tr("Write a temperature map when rendering"));
 
     for (const Caption& caption : std::as_const(m_captions)) {
         caption.label->setText(tr(caption.source));
@@ -291,6 +294,58 @@ void SensorPanel::setupUi() {
 
     mainLayout->addWidget(m_irGroup);
 
+    // ========================================================================
+    // Thermography Group
+    // ========================================================================
+    // Not part of the sensor: these do not change what is measured, only what
+    // temperature the measurement is reported as. Collapsed by default,
+    // because a scene that is not being read as a thermogram has no use for
+    // them.
+    m_thermographyGroup = new CollapsibleGroupBox();
+    auto* thermoLayout = new QFormLayout();
+
+    m_thermographyEnable = new QCheckBox();
+    thermoLayout->addRow(m_thermographyEnable);
+
+    m_thermoEmissivity = new QDoubleSpinBox();
+    m_thermoEmissivity->setRange(0.01, 1.0);
+    m_thermoEmissivity->setDecimals(3);
+    m_thermoEmissivity->setSingleStep(0.01);
+    m_thermoEmissivity->setValue(1.0);
+    addRow(thermoLayout, QT_TR_NOOP("Assumed Emissivity:"), m_thermoEmissivity,
+           QT_TR_NOOP("What the camera is told the surface's emissivity is. 1 gives apparent temperature, which is what a campaign records when it will not assume one -- and which reads cold for any real surface."));
+
+    m_thermoReflectedTemp = new QDoubleSpinBox();
+    m_thermoReflectedTemp->setRange(0.0, 2000.0);
+    m_thermoReflectedTemp->setDecimals(1);
+    m_thermoReflectedTemp->setSingleStep(5.0);
+    m_thermoReflectedTemp->setSuffix(" K");
+    addRow(thermoLayout, QT_TR_NOOP("Reflected Temperature:"), m_thermoReflectedTemp,
+           QT_TR_NOOP("Temperature of whatever the surface reflects, usually the sky. Ignored at emissivity 1, since a blackbody reflects nothing."));
+
+    m_thermoTransmittance = new QDoubleSpinBox();
+    m_thermoTransmittance->setRange(0.01, 1.0);
+    m_thermoTransmittance->setDecimals(3);
+    m_thermoTransmittance->setSingleStep(0.01);
+    m_thermoTransmittance->setValue(1.0);
+    addRow(thermoLayout, QT_TR_NOOP("Path Transmittance:"), m_thermoTransmittance,
+           QT_TR_NOOP("Fraction of the surface's radiation that survives the air between it and the lens. 1 removes the atmosphere from the model, which is right for a short measurement distance."));
+
+    m_thermoAtmosphereTemp = new QDoubleSpinBox();
+    m_thermoAtmosphereTemp->setRange(0.0, 2000.0);
+    m_thermoAtmosphereTemp->setDecimals(1);
+    m_thermoAtmosphereTemp->setSingleStep(5.0);
+    m_thermoAtmosphereTemp->setSuffix(" K");
+    addRow(thermoLayout, QT_TR_NOOP("Path Temperature:"), m_thermoAtmosphereTemp,
+           QT_TR_NOOP("Temperature of that air. Used only when the transmittance is below 1."));
+
+    m_netdLabel = new QLabel();
+    bindStyle([this] { uistyle::applyHintStyle(m_netdLabel); });
+    thermoLayout->addRow(m_netdLabel);
+
+    m_thermographyGroup->setContentLayout(thermoLayout);
+    mainLayout->addWidget(m_thermographyGroup);
+
     mainLayout->addStretch();
 
     // ========================================================================
@@ -351,6 +406,15 @@ void SensorPanel::setupUi() {
     connect(m_detectorTemp, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &SensorPanel::onParamChanged);
 
+    // Thermography params
+    connect(m_thermographyEnable, &QCheckBox::toggled,
+            this, &SensorPanel::onThermographyChanged);
+    for (QDoubleSpinBox* box : {m_thermoEmissivity, m_thermoReflectedTemp,
+                                m_thermoTransmittance, m_thermoAtmosphereTemp}) {
+        connect(box, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+                this, &SensorPanel::onThermographyChanged);
+    }
+
     // Fold the two calibrate-once groups away by default. The panel is the
     // tallest in the application and every value inside them is set once and
     // then left alone.
@@ -398,6 +462,7 @@ void SensorPanel::onEnabledChanged(bool enabled) {
     m_noiseGroup->setEnabled(enabled);
     m_fpnGroup->setEnabled(enabled && m_fpnNoise->isChecked());
     m_irGroup->setEnabled(enabled);
+    updateNetdLabel();
 
     if (!m_updatingUi) {
         emit enabledChanged(enabled);
@@ -449,7 +514,93 @@ void SensorPanel::onParamChanged() {
     // IR
     m_params.detectorTemperature_K = static_cast<float>(m_detectorTemp->value());
 
+    // The sensitivity readout is a function of these, so it moves with them.
+    updateNetdLabel();
+
     emit paramsChanged(m_params);
+}
+
+void SensorPanel::setThermography(bool enabled,
+                                  const quantiloom::ThermographyParams& params) {
+    m_thermography = params;
+    m_updatingUi = true;
+    const QSignalBlocker e(m_thermographyEnable);
+    const QSignalBlocker eps(m_thermoEmissivity);
+    const QSignalBlocker refl(m_thermoReflectedTemp);
+    const QSignalBlocker tau(m_thermoTransmittance);
+    const QSignalBlocker atm(m_thermoAtmosphereTemp);
+    m_thermographyEnable->setChecked(enabled);
+    m_thermoEmissivity->setValue(static_cast<double>(params.emissivity));
+    m_thermoReflectedTemp->setValue(static_cast<double>(params.reflectedTemperature_K));
+    m_thermoTransmittance->setValue(static_cast<double>(params.atmosphereTransmittance));
+    m_thermoAtmosphereTemp->setValue(static_cast<double>(params.atmosphereTemperature_K));
+    m_updatingUi = false;
+    updateNetdLabel();
+}
+
+bool SensorPanel::isThermographyEnabled() const {
+    return m_thermographyEnable->isChecked();
+}
+
+quantiloom::ThermographyParams SensorPanel::getThermographyParams() const {
+    return m_thermography;
+}
+
+void SensorPanel::setNetdBand(double lambdaMinNm, double lambdaMaxNm) {
+    if (lambdaMaxNm <= lambdaMinNm) {
+        return;
+    }
+    m_netdLambdaMinNm = lambdaMinNm;
+    m_netdLambdaMaxNm = lambdaMaxNm;
+    updateNetdLabel();
+}
+
+void SensorPanel::onThermographyChanged() {
+    if (m_updatingUi) return;
+
+    m_thermography.emissivity = static_cast<float>(m_thermoEmissivity->value());
+    m_thermography.reflectedTemperature_K =
+        static_cast<float>(m_thermoReflectedTemp->value());
+    m_thermography.atmosphereTransmittance =
+        static_cast<float>(m_thermoTransmittance->value());
+    m_thermography.atmosphereTemperature_K =
+        static_cast<float>(m_thermoAtmosphereTemp->value());
+
+    emit thermographyChanged(m_thermographyEnable->isChecked(), m_thermography);
+}
+
+void SensorPanel::updateNetdLabel() {
+    if (!m_netdLabel) {
+        return;
+    }
+    if (!m_enabledCheck->isChecked()) {
+        m_netdLabel->setText(tr("Sensitivity needs the sensor simulation on."));
+        return;
+    }
+
+    // Quoted at 300 K: a NETD without a temperature attached means nothing,
+    // and room temperature is where a thermal band is usually specified. The
+    // arithmetic is the SDK's, so the figure here and the one the CLI records
+    // in the temperature map come from one implementation.
+    constexpr double kQuoteTemperatureK = 300.0;
+    quantiloom::SensorParams params = m_params;
+    params.wavelength_nm =
+        static_cast<float>(0.5 * (m_netdLambdaMinNm + m_netdLambdaMaxNm));
+
+    const double netd = quantiloom::NoiseEquivalentTemperatureDifferenceK(
+        params, m_netdLambdaMinNm, m_netdLambdaMaxNm, kQuoteTemperatureK);
+
+    if (!std::isfinite(netd)) {
+        m_netdLabel->setText(tr("Sensitivity: band has no usable slope here."));
+    } else if (netd <= 0.0) {
+        m_netdLabel->setText(tr("Sensitivity: noiseless — any difference resolves."));
+    } else {
+        m_netdLabel->setText(
+            tr("NETD %1 mK at 300 K over %2–%3 µm, well capacity aside.")
+                .arg(netd * 1000.0, 0, 'f', 1)
+                .arg(m_netdLambdaMinNm / 1000.0, 0, 'f', 1)
+                .arg(m_netdLambdaMaxNm / 1000.0, 0, 'f', 1));
+    }
 }
 
 void SensorPanel::updateUiFromParams(const quantiloom::SensorParams& params) {

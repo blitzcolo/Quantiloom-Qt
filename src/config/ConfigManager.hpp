@@ -20,6 +20,7 @@ class QTextStream;
 #include <glm/glm.hpp>
 #include <renderer/LightingParams.hpp>
 #include <postprocess/SensorModel.hpp>
+#include <postprocess/Thermography.hpp>
 
 /**
  * @struct MaterialConfig
@@ -165,6 +166,13 @@ struct SceneConfig {
     // [sensor]
     bool sensorEnabled = false;
     quantiloom::SensorParams sensorParams;
+
+    // [thermography] -- what the virtual camera is told about the surface it
+    // looks at, so a render can be turned into the temperature map a thermal
+    // camera would have displayed. The CLI writes that map; here the settings
+    // drive the viewport's pixel readout and are carried back to the file.
+    bool thermographyEnabled = false;
+    quantiloom::ThermographyParams thermography;
 
     /// [material] albedo -- the fallback surface for scenes that bring no
     /// materials of their own. Required by the core's strict reading, so a

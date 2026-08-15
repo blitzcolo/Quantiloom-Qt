@@ -803,6 +803,10 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
 <context>
     <name>MainWindow</name>
     <message>
+        <source>(%1,%2) %3 K</source>
+        <translation>(%1,%2) %3 K</translation>
+    </message>
+    <message>
         <source>Quantiloom - Spectral Renderer</source>
         <translation type="vanished">Quantiloom - 光谱渲染引擎</translation>
     </message>
@@ -2851,6 +2855,62 @@ Rebuild with:
 </context>
 <context>
     <name>SensorPanel</name>
+    <message>
+        <source>Thermography</source>
+        <translation>热成像反演</translation>
+    </message>
+    <message>
+        <source>Write a temperature map when rendering</source>
+        <translation>渲染时输出温度图</translation>
+    </message>
+    <message>
+        <source>Assumed Emissivity:</source>
+        <translation>假定发射率：</translation>
+    </message>
+    <message>
+        <source>What the camera is told the surface's emissivity is. 1 gives apparent temperature, which is what a campaign records when it will not assume one -- and which reads cold for any real surface.</source>
+        <translation>告知相机的表面发射率。取 1 得到表观温度，即测量活动在不愿假定发射率时所记录的量——对任何真实表面它都会偏冷。</translation>
+    </message>
+    <message>
+        <source>Reflected Temperature:</source>
+        <translation>反射源温度：</translation>
+    </message>
+    <message>
+        <source>Temperature of whatever the surface reflects, usually the sky. Ignored at emissivity 1, since a blackbody reflects nothing.</source>
+        <translation>表面所反射之物的温度，通常是天空。发射率为 1 时忽略，因为黑体不反射。</translation>
+    </message>
+    <message>
+        <source>Path Transmittance:</source>
+        <translation>路径透过率：</translation>
+    </message>
+    <message>
+        <source>Fraction of the surface's radiation that survives the air between it and the lens. 1 removes the atmosphere from the model, which is right for a short measurement distance.</source>
+        <translation>表面辐射穿过它与镜头之间空气后残存的比例。取 1 即在模型中去掉大气，适用于近距离测量。</translation>
+    </message>
+    <message>
+        <source>Path Temperature:</source>
+        <translation>路径温度：</translation>
+    </message>
+    <message>
+        <source>Temperature of that air. Used only when the transmittance is below 1.</source>
+        <translation>该段空气的温度。仅在透过率小于 1 时使用。</translation>
+    </message>
+    <message>
+        <source>Sensitivity needs the sensor simulation on.</source>
+        <translation>灵敏度需要先启用传感器仿真。</translation>
+    </message>
+    <message>
+        <source>Sensitivity: band has no usable slope here.</source>
+        <translation>灵敏度：该波段在此处没有可用的斜率。</translation>
+    </message>
+    <message>
+        <source>Sensitivity: noiseless — any difference resolves.</source>
+        <translation>灵敏度：无噪声——任意温差均可分辨。</translation>
+    </message>
+    <message>
+        <source>NETD %1 mK at 300 K over %2–%3 µm, well capacity aside.</source>
+        <translation>NETD %1 mK（300 K，%2–%3 µm），未计阱容限制。</translation>
+    </message>
     <message>
         <source>Enable Sensor Simulation</source>
         <translation>启用传感器仿真</translation>

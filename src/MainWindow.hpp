@@ -29,6 +29,7 @@
 #include <core/Types.hpp>
 #include <mcp/McpServer.hpp>
 #include <postprocess/SensorModel.hpp>
+#include <postprocess/Thermography.hpp>
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 
@@ -264,6 +265,11 @@ private:
     void applyAtmosphere(const quantiloom::AtmosphereNNConfig& config);
     void applySensorEnabled(bool enabled);
     void applySensorParams(const quantiloom::SensorParams& params);
+    /// What the virtual camera is told about the surface. Changes what a
+    /// measurement is reported as, never what is measured, so it is a reading
+    /// of the render rather than an edit of the scene.
+    void applyThermographyParams(bool enabled,
+                                 const quantiloom::ThermographyParams& params);
     void applyClaheParams(bool enabled, float clipLimit, int tileSize, bool luminanceOnly);
     void applyCameraPose(const glm::vec3& position, const glm::vec3& target);
     void applyCameraFov(float fovYDegrees);
@@ -440,6 +446,9 @@ private:
     SpectralMaterialGenPanel* m_spectralMaterialGenPanel = nullptr;
 
     // Display enhancement (CLAHE) settings
+    bool m_thermographyEnabled = false;
+    quantiloom::ThermographyParams m_thermographyParams;
+
     bool m_displayEnhancementEnabled = false;
     float m_claheClipLimit = 2.0f;
     int m_claheTileSize = 8;

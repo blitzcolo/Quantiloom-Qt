@@ -24,6 +24,7 @@
 #include <renderer/LightingParams.hpp>
 #include <atmos/AtmosphereNNConfig.hpp>
 #include <postprocess/SensorModel.hpp>
+#include <postprocess/Thermography.hpp>
 // For SolarLutSpec, held by value in an optional below (optional forbids an
 // incomplete type, unlike the unique_ptr<ExternalRenderContext> beside it).
 #include <renderer/ExternalRenderContext.hpp>
@@ -280,6 +281,30 @@ public:
     bool readDebugPixel(int x, int y, glm::vec4& outValue);
 
     /**
+     * @brief The temperature a thermal camera would report for this pixel
+     *
+     * Reads the accumulated radiance -- the sensor chain and CLAHE write
+     * elsewhere, so this is the scene rather than a detector's rendering of
+     * it -- and inverts it against Planck through the SDK, using whatever the
+     * thermography settings say the camera has been told. Same arithmetic the
+     * CLI writes into _tapp.exr.
+     *
+     * @return false in a mode that carries no band radiance to invert, which
+     *         is every mode but the fused thermal ones
+     */
+    bool readApparentTemperature(int x, int y, double& outKelvin);
+
+    /**
+     * @brief What the virtual camera is told about the surface it looks at
+     *
+     * Display-side only: nothing about the render changes, so this does not
+     * reset the accumulation.
+     */
+    void setThermographyParams(const quantiloom::ThermographyParams& params) {
+        m_thermography = params;
+    }
+
+    /**
      * @brief Format debug pixel value based on current debug mode
      * @param pixel Raw pixel value from readDebugPixel
      * @return Formatted string for display
@@ -497,6 +522,10 @@ private:
     bool m_sensorEnabled = false;
     uint32_t m_samplingSeed = quantiloom::constants::DEFAULT_SAMPLING_SEED;
     quantiloom::SensorParams m_sensorParams;
+    /// What the camera is told, for the temperature readout. Display-side
+    /// only: it changes what a measurement is reported as, never what is
+    /// measured, so it never resets the accumulation.
+    quantiloom::ThermographyParams m_thermography;
     // A CPU GenericSensor used to be instantiated alongside the GPU sensor as
     // a "fallback" and was never read by anything. Removed: sensor simulation
     // lives on the GPU side of ExternalRenderContext (sdk_export_audit D-3).
