@@ -847,6 +847,18 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
 <context>
     <name>MainWindow</name>
     <message>
+        <source>Render Se&amp;quence...</source>
+        <translation>渲染序列(&amp;Q)...</translation>
+    </message>
+    <message>
+        <source>Render this scene once per step of a temperature sweep</source>
+        <translation>按温度扫描的每一步渲染一次该场景</translation>
+    </message>
+    <message>
+        <source>Open a scene before rendering a sequence.</source>
+        <translation>请先打开场景，再渲染序列。</translation>
+    </message>
+    <message>
         <source>(%1,%2) %3 K</source>
         <translation>(%1,%2) %3 K</translation>
     </message>
@@ -4297,6 +4309,165 @@ Right-drag orbits the camera, middle-drag pans, the wheel zooms; G/R/T switch tr
     <message>
         <source>Wavelength (nm)</source>
         <translation>波长 (nm)</translation>
+    </message>
+</context>
+<context>
+    <name>SequenceRenderDialog</name>
+    <message>
+        <source>Render Sequence</source>
+        <translation>渲染序列</translation>
+    </message>
+    <message>
+        <source>One scene, one frame per step. Each frame overrides a material's temperature and its own output file; everything else is the document as it stands.</source>
+        <translation>同一场景，每一步渲染一帧。每帧覆盖某个材质的温度与自己的输出文件，其余部分保持当前文档不变。</translation>
+    </message>
+    <message>
+        <source>Sweep</source>
+        <translation>扫描</translation>
+    </message>
+    <message>
+        <source>Material:</source>
+        <translation>材质：</translation>
+    </message>
+    <message>
+        <source>From:</source>
+        <translation>起始：</translation>
+    </message>
+    <message>
+        <source>To:</source>
+        <translation>终止：</translation>
+    </message>
+    <message>
+        <source>Frames:</source>
+        <translation>帧数：</translation>
+    </message>
+    <message>
+        <source>Samples per frame:</source>
+        <translation>每帧采样数：</translation>
+    </message>
+    <message>
+        <source>Samples per frame. Every frame is traced to completion, so this multiplies by the frame count.</source>
+        <translation>每帧的采样数。每帧都要追踪到收敛，因此总开销是它乘以帧数。</translation>
+    </message>
+    <message>
+        <source>Output</source>
+        <translation>输出</translation>
+    </message>
+    <message>
+        <source>Directory:</source>
+        <translation>目录：</translation>
+    </message>
+    <message>
+        <source>Name:</source>
+        <translation>文件名：</translation>
+    </message>
+    <message>
+        <source>{index} is the frame number, zero padded; {temperature} is its temperature in kelvin, rounded.</source>
+        <translation>{index} 为补零的帧号；{temperature} 为该帧温度（开尔文，取整）。</translation>
+    </message>
+    <message>
+        <source>Export Manifest...</source>
+        <translation>导出清单...</translation>
+    </message>
+    <message>
+        <source>Write this sequence as a batch manifest the command line renders, for a run long enough to want a machine of its own.</source>
+        <translation>把该序列写成命令行可渲染的批处理清单，适合长到需要单独一台机器去跑的任务。</translation>
+    </message>
+    <message>
+        <source>Render</source>
+        <translation>渲染</translation>
+    </message>
+    <message>
+        <source>Stop</source>
+        <translation>停止</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation>关闭</translation>
+    </message>
+    <message>
+        <source>...</source>
+        <translation>...</translation>
+    </message>
+    <message>
+        <source> K</source>
+        <translation> K</translation>
+    </message>
+    <message>
+        <source>The open scene has no materials to sweep.</source>
+        <translation>当前场景没有可供扫描的材质。</translation>
+    </message>
+    <message>
+        <source>%1 frames at %2 samples each.</source>
+        <translation>%1 帧，每帧 %2 个采样。</translation>
+    </message>
+    <message>
+        <source>Sequence Output Directory</source>
+        <translation>序列输出目录</translation>
+    </message>
+    <message>
+        <source>Export Batch Manifest</source>
+        <translation>导出批处理清单</translation>
+    </message>
+    <message>
+        <source>Manifest (*.txt);;All files (*)</source>
+        <translation>清单 (*.txt);;所有文件 (*)</translation>
+    </message>
+    <message>
+        <source>Which configuration should the manifest name?</source>
+        <translation>清单应当引用哪个配置文件？</translation>
+    </message>
+    <message>
+        <source>Scene configuration (*.toml)</source>
+        <translation>场景配置 (*.toml)</translation>
+    </message>
+    <message>
+        <source>Export Failed</source>
+        <translation>导出失败</translation>
+    </message>
+    <message>
+        <source>Cannot write %1</source>
+        <translation>无法写入 %1</translation>
+    </message>
+    <message>
+        <source>Manifest written to %1</source>
+        <translation>清单已写入 %1</translation>
+    </message>
+    <message>
+        <source>Stopping after this frame...</source>
+        <translation>将在本帧结束后停止...</translation>
+    </message>
+    <message>
+        <source>Sequence Failed</source>
+        <translation>序列渲染失败</translation>
+    </message>
+    <message>
+        <source>The open document could not be written as TOML.</source>
+        <translation>当前文档无法写成 TOML。</translation>
+    </message>
+    <message>
+        <source>Frame %1 of %2...</source>
+        <translation>第 %1 / %2 帧...</translation>
+    </message>
+    <message>
+        <source>Frame %1 is not valid TOML: %2</source>
+        <translation>第 %1 帧不是合法 TOML：%2</translation>
+    </message>
+    <message>
+        <source>Frame %1: %2</source>
+        <translation>第 %1 帧：%2</translation>
+    </message>
+    <message>
+        <source>Frame %1 failed: %2</source>
+        <translation>第 %1 帧失败：%2</translation>
+    </message>
+    <message>
+        <source>Stopped after %1 of %2 frames.</source>
+        <translation>已在 %2 帧中完成 %1 帧后停止。</translation>
+    </message>
+    <message>
+        <source>%1 frames written.</source>
+        <translation>已写出 %1 帧。</translation>
     </message>
 </context>
 </TS>

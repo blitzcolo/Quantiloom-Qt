@@ -27,6 +27,7 @@
 #include "editing/Commands.hpp"
 #include "dialogs/PreferencesDialog.hpp"
 #include "dialogs/HyperspectralExportDialog.hpp"
+#include "dialogs/SequenceRenderDialog.hpp"
 #include "dialogs/HelpDialog.hpp"
 #include "i18n/LanguageManager.hpp"
 #include "ui/ModeCatalog.hpp"
@@ -380,6 +381,11 @@ void MainWindow::setupMenus() {
     // own, so it is a File action rather than anything under Render.
     m_exportCubeAction = m_fileMenu->addAction(QString(), this,
                                                &MainWindow::onExportHyperspectralCube);
+    // A sequence is many offline renders rather than one, and for the same
+    // reason lives beside the cube rather than under Render: neither is
+    // something the viewport can show.
+    m_renderSequenceAction = m_fileMenu->addAction(QString(), this,
+                                                   &MainWindow::onRenderSequence);
     m_exportImageAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_E));
 
     m_screenshotAction = m_fileMenu->addAction(QString(), this, &MainWindow::onTakeScreenshot);
@@ -1984,6 +1990,9 @@ void MainWindow::retranslateUi() {
     m_exportCubeAction->setText(tr("Render Hyperspectral &Cube..."));
     m_exportCubeAction->setToolTip(
         tr("Trace every band to completion and stream the cube to disk"));
+    m_renderSequenceAction->setText(tr("Render Se&quence..."));
+    m_renderSequenceAction->setToolTip(
+        tr("Render this scene once per step of a temperature sweep"));
     m_exportImageAction->setToolTip(
         tr("Write the accumulated render without display enhancement."));
     m_screenshotAction->setText(tr("Save Screensho&t (as displayed)"));
@@ -2491,6 +2500,30 @@ void MainWindow::onExportHyperspectralCube() {
     SceneConfig config;
     collectCurrentConfig(config);
     HyperspectralExportDialog dialog(config, this);
+    dialog.exec();
+}
+
+void MainWindow::onRenderSequence() {
+    const auto* scene = m_vulkanWindow->getScene();
+    if (!scene) {
+        QMessageBox::information(this, tr("No Scene"),
+            tr("Open a scene before rendering a sequence."));
+        return;
+    }
+
+    // The document as it stands, panels included, for the same reason the cube
+    // takes it that way: the sequence is of what is on screen.
+    SceneConfig config;
+    collectCurrentConfig(config);
+
+    QStringList materialNames;
+    for (const auto& material : scene->materials) {
+        if (!material.name.empty()) {
+            materialNames << QString::fromStdString(material.name);
+        }
+    }
+
+    SequenceRenderDialog dialog(config, materialNames, this);
     dialog.exec();
 }
 

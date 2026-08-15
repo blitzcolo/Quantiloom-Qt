@@ -259,6 +259,8 @@ set(GUI_SOURCES
     # Dialogs
     src/dialogs/HyperspectralExportDialog.cpp
     src/dialogs/HyperspectralExportDialog.hpp
+    src/dialogs/SequenceRenderDialog.cpp
+    src/dialogs/SequenceRenderDialog.hpp
     src/dialogs/PreferencesDialog.cpp
     src/dialogs/PreferencesDialog.hpp
     src/dialogs/HelpDialog.cpp
