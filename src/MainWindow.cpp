@@ -924,8 +924,9 @@ void MainWindow::applyLightingParams(const quantiloom::LightingParams& params) {
     // back out of the direction vector through asin and atan2, and rounding
     // that to the slider's integer degrees mid-drag would fight the drag.
     m_lightingPanel->setLightingParams(*m_lightingParams);
-    m_atmosphericPanel->setAnalyticTerms(m_lightingParams->transmittance,
-                                         m_lightingParams->atmosphereTemperature_K);
+    m_atmosphericPanel->setAnalyticSky(m_lightingParams->skyEmissivityClear > 0.0f,
+                                       m_lightingParams->atmosphereTemperature_K,
+                                       m_skyRelativeHumidity);
 }
 
 void MainWindow::applyEnvironmentMap(const QString& path, bool enabled) {
@@ -1604,13 +1605,21 @@ void MainWindow::setupDockWidgets() {
                                        applyAtmosphere(v);
                                    });
             });
-    // The two analytic terms moved here from the lighting panel; they still
-    // belong to LightingParams, so they are merged into the copy the shell
-    // holds rather than sent on their own.
-    connect(m_atmosphericPanel, &AtmosphericPanel::analyticTermsChanged,
-            this, [this](float transmittance, float temperatureK) {
-                m_lightingParams->transmittance = transmittance;
-                m_lightingParams->atmosphereTemperature_K = temperatureK;
+    // The analytic sky moved here from the lighting panel; it still belongs to
+    // LightingParams, so it is merged into the copy the shell holds rather
+    // than sent on its own. The emissivity comes from the SDK's correlation --
+    // the panel shows the number, it does not compute it.
+    connect(m_atmosphericPanel, &AtmosphericPanel::analyticSkyChanged,
+            this, [this](bool clearSky, float airTemperatureK, float relativeHumidity) {
+                m_skyClearModel = clearSky;
+                m_skyRelativeHumidity = relativeHumidity;
+                m_lightingParams->atmosphereTemperature_K = airTemperatureK;
+                m_lightingParams->skyEmissivityClear =
+                    clearSky ? static_cast<float>(quantiloom::ClearSkyEmissivity(
+                                   quantiloom::DewPointC(
+                                       static_cast<double>(airTemperatureK) - 273.15,
+                                       static_cast<double>(relativeHumidity))))
+                             : 0.0f;
                 pushLightingParams();
             });
 
@@ -3890,8 +3899,11 @@ void MainWindow::applyConfig(const SceneConfig& config) {
 
     m_atmosphericPanel->setPreset(config.atmosphericPreset);
     m_atmosphericPanel->setAtmosphericConfig(config.atmosphere);
-    m_atmosphericPanel->setAnalyticTerms(config.lighting.transmittance,
-                                         config.lighting.atmosphereTemperature_K);
+    m_skyClearModel = config.clearSkyModel;
+    m_skyRelativeHumidity = config.skyRelativeHumidity;
+    m_atmosphericPanel->setAnalyticSky(config.clearSkyModel,
+                                       config.lighting.atmosphereTemperature_K,
+                                       config.skyRelativeHumidity);
 
     m_sensorPanel->setSensorParams(config.sensorParams);   // Params first,
     m_sensorPanel->setSensorEnabled(config.sensorEnabled);  // then enabled state
@@ -3932,8 +3944,9 @@ void MainWindow::syncPanelsFromRenderer() {
     const quantiloom::LightingParams lighting = m_vulkanWindow->lightingParams();
     *m_lightingParams = lighting;
     m_lightingPanel->setLightingParams(lighting);
-    m_atmosphericPanel->setAnalyticTerms(lighting.transmittance,
-                                         lighting.atmosphereTemperature_K);
+    m_atmosphericPanel->setAnalyticSky(lighting.skyEmissivityClear > 0.0f,
+                                       lighting.atmosphereTemperature_K,
+                                       m_skyRelativeHumidity);
 
     m_lightingPanel->setEnvironmentMap(
         m_lastConfig ? m_lastConfig->environmentMap : QString(),
@@ -4074,6 +4087,10 @@ void MainWindow::collectCurrentConfig(SceneConfig& config) {
     config.lighting = *m_lightingParams;
 
     // Collect sensor settings
+    config.clearSkyModel = m_atmosphericPanel->clearSkyEnabled();
+    config.skyAirTemperatureK = m_atmosphericPanel->atmosphereTemperatureK();
+    config.skyRelativeHumidity = m_atmosphericPanel->relativeHumidity();
+
     config.sensorEnabled = m_sensorPanel->isSensorEnabled();
     config.sensorParams = m_sensorPanel->getSensorParams();
     config.thermographyEnabled = m_sensorPanel->isThermographyEnabled();

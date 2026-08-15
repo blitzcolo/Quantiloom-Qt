@@ -68,20 +68,29 @@ public:
     [[nodiscard]] quantiloom::AtmosphereNNConfig getAtmosphericConfig() const;
 
     /**
-     * @brief Set the analytic terms, which live in LightingParams
+     * @brief Set the analytic sky, which lives in LightingParams
+     *
+     * @param clearSky   true = the flat-slab model, false = one isotropic
+     *                   blackbody at the air temperature
+     * @param airTemperatureK the sky's Planck temperature under the slab
+     *                   model, and the whole of the isotropic one
+     * @param relativeHumidity what the emissivity is derived from; carried
+     *                   even when the model is off, so turning it back on
+     *                   does not lose it
      */
-    void setAnalyticTerms(float transmittance, float temperatureK);
+    void setAnalyticSky(bool clearSky, float airTemperatureK, float relativeHumidity);
 
-    [[nodiscard]] float transmittance() const { return m_transmittance; }
+    [[nodiscard]] bool clearSkyEnabled() const;
     [[nodiscard]] float atmosphereTemperatureK() const { return m_atmosphereTempK; }
+    [[nodiscard]] float relativeHumidity() const { return m_relativeHumidity; }
 
 signals:
     void presetChanged(const QString& preset);
     void configChanged(const quantiloom::AtmosphereNNConfig& config);
 
-    /// The two analytic terms, emitted separately because they belong to a
-    /// different SDK struct than everything else on this panel.
-    void analyticTermsChanged(float transmittance, float temperatureK);
+    /// The analytic sky, emitted separately because it belongs to a different
+    /// SDK struct than everything else on this panel.
+    void analyticSkyChanged(bool clearSky, float airTemperatureK, float relativeHumidity);
 
 private slots:
     void onPresetChanged(int index);
@@ -99,14 +108,21 @@ private:
     // --- analytic group -------------------------------------------------
     QGroupBox* m_analyticGroup = nullptr;
     QLabel* m_analyticNote = nullptr;
-    QSlider* m_transmittanceSlider = nullptr;
-    QLabel* m_transmittanceValue = nullptr;
-    QLabel* m_transmittanceCaption = nullptr;
+    QCheckBox* m_clearSkyCheck = nullptr;
     QDoubleSpinBox* m_atmosphereTempSpin = nullptr;
     QLabel* m_atmosphereTempCaption = nullptr;
+    QDoubleSpinBox* m_humiditySpin = nullptr;
+    QLabel* m_humidityCaption = nullptr;
+    /// Dew point, zenith emissivity and effective sky temperature, all derived
+    /// by the SDK from the two fields above. Shown because the emissivity is
+    /// the number that actually reaches the shader and nothing else displays
+    /// it, and because a user setting a humidity has no other way to see what
+    /// it bought.
+    QLabel* m_derivedLabel = nullptr;
+    void updateDerivedLabel();
 
-    float m_transmittance = 0.9f;
     float m_atmosphereTempK = 260.0f;
+    float m_relativeHumidity = 50.0f;
 
     // --- NN group -------------------------------------------------------
     QGroupBox* m_nnGroup = nullptr;

@@ -163,6 +163,14 @@ struct SceneConfig {
     /// preset meant every override the GUI could set was dropped on save.
     quantiloom::AtmosphereNNConfig atmosphere;
 
+    /// The analytic sky, for when the network model is off. The emissivity the
+    /// shader reads is derived from these two by the SDK and lives in
+    /// LightingParams; the humidity itself has nowhere else to live, so a
+    /// document that set it would lose it on save without this.
+    bool clearSkyModel = false;
+    float skyAirTemperatureK = 288.15f;
+    float skyRelativeHumidity = 50.0f;
+
     // [sensor]
     bool sensorEnabled = false;
     quantiloom::SensorParams sensorParams;

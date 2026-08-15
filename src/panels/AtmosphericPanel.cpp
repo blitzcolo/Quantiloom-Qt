@@ -10,6 +10,8 @@
 #include "../ui/CollapsibleGroupBox.hpp"
 #include "../ui/UiStyle.hpp"
 
+#include <postprocess/Thermography.hpp>
+
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QFormLayout>
@@ -46,18 +48,10 @@ void AtmosphericPanel::setupUi() {
     m_analyticGroup = new QGroupBox(this);
     auto* analyticLayout = new QFormLayout(m_analyticGroup);
 
-    auto* transRow = new QHBoxLayout();
-    m_transmittanceSlider = new QSlider(Qt::Horizontal);
-    m_transmittanceSlider->setRange(0, 100);
-    m_transmittanceSlider->setValue(90);
-    m_transmittanceValue = new QLabel(QStringLiteral("0.90"));
-    m_transmittanceValue->setMinimumWidth(40);
-    connect(m_transmittanceSlider, &QSlider::valueChanged,
+    m_clearSkyCheck = new QCheckBox(m_analyticGroup);
+    connect(m_clearSkyCheck, &QCheckBox::toggled,
             this, &AtmosphericPanel::onAnalyticChanged);
-    transRow->addWidget(m_transmittanceSlider);
-    transRow->addWidget(m_transmittanceValue);
-    m_transmittanceCaption = new QLabel(m_analyticGroup);
-    analyticLayout->addRow(m_transmittanceCaption, transRow);
+    analyticLayout->addRow(m_clearSkyCheck);
 
     m_atmosphereTempSpin = new QDoubleSpinBox();
     m_atmosphereTempSpin->setRange(150.0, 350.0);
@@ -67,6 +61,20 @@ void AtmosphericPanel::setupUi() {
             this, &AtmosphericPanel::onAnalyticChanged);
     m_atmosphereTempCaption = new QLabel(m_analyticGroup);
     analyticLayout->addRow(m_atmosphereTempCaption, m_atmosphereTempSpin);
+
+    m_humiditySpin = new QDoubleSpinBox();
+    m_humiditySpin->setRange(1.0, 100.0);
+    m_humiditySpin->setSingleStep(5.0);
+    m_humiditySpin->setDecimals(0);
+    m_humiditySpin->setValue(50.0);
+    connect(m_humiditySpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AtmosphericPanel::onAnalyticChanged);
+    m_humidityCaption = new QLabel(m_analyticGroup);
+    analyticLayout->addRow(m_humidityCaption, m_humiditySpin);
+
+    m_derivedLabel = new QLabel(m_analyticGroup);
+    bindStyle([this] { uistyle::applyHintStyle(m_derivedLabel); });
+    analyticLayout->addRow(m_derivedLabel);
 
     m_analyticNote = new QLabel(m_analyticGroup);
     bindStyle([this] { uistyle::applyHintStyle(m_analyticNote); });
@@ -225,21 +233,30 @@ void AtmosphericPanel::retranslateUi() {
     // view-path transmittance now comes from the network, and the analytic
     // temperature survives only as the thermal-sky fallback. The panel says so
     // instead of implying an exclusivity the SDK does not implement.
-    m_analyticGroup->setTitle(tr("Analytic terms (legacy)"));
-    m_transmittanceCaption->setText(tr("Transmittance:"));
-    m_atmosphereTempCaption->setText(tr("Atmosphere temperature:"));
+    m_analyticGroup->setTitle(tr("Analytic sky"));
+    m_clearSkyCheck->setText(tr("Clear sky (Berdahl-Fromberg)"));
+    m_clearSkyCheck->setToolTip(tr(
+        "A partly transparent slab of air rather than one blackbody: the "
+        "zenith reads far colder than the horizon, which is what a thermal "
+        "camera sees and what drives radiative cooling. Off gives the "
+        "isotropic sky, as warm overhead as at the horizon."));
+    m_atmosphereTempCaption->setText(tr("Air temperature:"));
     m_atmosphereTempSpin->setSuffix(tr(" K"));
-    m_transmittanceSlider->setToolTip(tr(
-        "Superseded: view-path transmittance comes from the network model. "
-        "Kept because it is still part of the lighting parameters uploaded "
-        "each frame."));
     m_atmosphereTempSpin->setToolTip(tr(
-        "Thermal-sky fallback for infrared downwelling, used when the network "
-        "model is off."));
+        "Temperature of the air itself. With the clear sky on it is the sky's "
+        "Planck temperature, which the emissivity then makes read colder; with "
+        "it off it is the whole of the thermal sky."));
+    m_humidityCaption->setText(tr("Relative humidity:"));
+    m_humiditySpin->setSuffix(tr(" %"));
+    m_humiditySpin->setToolTip(tr(
+        "How much water vapour is in the way. It is the vapour that radiates: "
+        "a humid sky reads warmer, and a dry one lets more of the cold "
+        "background through."));
     m_analyticNote->setText(tr(
-        "Both values live in the lighting parameters. The network model below "
-        "supersedes the transmittance; the temperature remains the fallback "
-        "sky for infrared when that model is disabled."));
+        "These live in the lighting parameters. The network model below "
+        "supersedes them entirely — it measures this sky rather than "
+        "correlating it."));
+    updateDerivedLabel();
 
     m_nnGroup->setTitle(tr("Neural network model (MODTRAN surrogate)"));
     m_enabledCheck->setText(tr("Use the network model"));
@@ -312,25 +329,66 @@ void AtmosphericPanel::retranslateUi() {
 // Analytic terms
 // ============================================================================
 
-void AtmosphericPanel::setAnalyticTerms(float transmittance, float temperatureK) {
-    m_transmittance = transmittance;
-    m_atmosphereTempK = temperatureK;
+void AtmosphericPanel::setAnalyticSky(bool clearSky, float airTemperatureK,
+                                      float relativeHumidity) {
+    m_atmosphereTempK = airTemperatureK;
+    m_relativeHumidity = relativeHumidity;
 
-    const QSignalBlocker slider(m_transmittanceSlider);
+    const QSignalBlocker check(m_clearSkyCheck);
     const QSignalBlocker spin(m_atmosphereTempSpin);
-    m_transmittanceSlider->setValue(static_cast<int>(transmittance * 100.0f));
-    m_atmosphereTempSpin->setValue(temperatureK);
-    m_transmittanceValue->setText(QString::number(transmittance, 'f', 2));
+    const QSignalBlocker humidity(m_humiditySpin);
+    m_clearSkyCheck->setChecked(clearSky);
+    m_atmosphereTempSpin->setValue(airTemperatureK);
+    m_humiditySpin->setValue(relativeHumidity);
+    updateDerivedLabel();
+}
+
+bool AtmosphericPanel::clearSkyEnabled() const {
+    return m_clearSkyCheck->isChecked();
 }
 
 void AtmosphericPanel::onAnalyticChanged() {
     if (m_updatingUi) return;
 
-    m_transmittance = m_transmittanceSlider->value() / 100.0f;
     m_atmosphereTempK = static_cast<float>(m_atmosphereTempSpin->value());
-    m_transmittanceValue->setText(QString::number(m_transmittance, 'f', 2));
+    m_relativeHumidity = static_cast<float>(m_humiditySpin->value());
+    updateDerivedLabel();
 
-    emit analyticTermsChanged(m_transmittance, m_atmosphereTempK);
+    emit analyticSkyChanged(m_clearSkyCheck->isChecked(), m_atmosphereTempK,
+                            m_relativeHumidity);
+}
+
+void AtmosphericPanel::updateDerivedLabel() {
+    if (!m_derivedLabel) {
+        return;
+    }
+    const bool clearSky = m_clearSkyCheck->isChecked();
+    m_humiditySpin->setEnabled(clearSky);
+    m_humidityCaption->setEnabled(clearSky);
+
+    if (!clearSky) {
+        m_derivedLabel->setText(
+            tr("Isotropic: the sky is one blackbody at the air temperature."));
+        return;
+    }
+
+    // Derived by the SDK, not here: the correlation and the dew point behind
+    // it are physics, and a second copy in the GUI is a second thing to get
+    // wrong.
+    const double dewPointC = quantiloom::DewPointC(
+        static_cast<double>(m_atmosphereTempK) - 273.15,
+        static_cast<double>(m_relativeHumidity));
+    const double emissivity = quantiloom::ClearSkyEmissivity(dewPointC);
+    const double skyK = quantiloom::EffectiveSkyTemperatureK(
+        static_cast<double>(m_atmosphereTempK), emissivity);
+
+    m_derivedLabel->setText(
+        tr("Dew point %1 °C, zenith emissivity %2, effective sky %3 K "
+           "(%4 K below the air).")
+            .arg(dewPointC, 0, 'f', 1)
+            .arg(emissivity, 0, 'f', 3)
+            .arg(skyK, 0, 'f', 1)
+            .arg(static_cast<double>(m_atmosphereTempK) - skyK, 0, 'f', 1));
 }
 
 // ============================================================================

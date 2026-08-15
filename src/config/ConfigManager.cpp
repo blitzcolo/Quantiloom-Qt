@@ -190,7 +190,10 @@ void ConfigManager::extractSceneConfig(const quantiloom::Config& config, SceneCo
     }
 
     out.lighting.atmosphereTemperature_K = config.GetFloat("lighting.atmosphere_temperature_k", 260.0f);
-    out.lighting.transmittance = config.GetFloat("lighting.transmittance", 0.9f);
+    // skyEmissivityClear is not read from the file: the core derives it from
+    // [atmosphere] sky_model, air_temperature_k and relative_humidity, which
+    // are read below. Setting it from a stale key here would put a second
+    // opinion about the sky into the params the viewport uploads.
     out.lighting.worldUnitsToMeters = out.worldUnitsToMeters;
 
     // [quality] VIS_Fused chromaticity correction
@@ -256,6 +259,13 @@ void ConfigManager::extractSceneConfig(const quantiloom::Config& config, SceneCo
         static_cast<quantiloom::f32>(out.atmosphere.pHPa));
     out.atmosphere.h2oScale = config.GetFloat("atmosphere.h2o_scale",
         static_cast<quantiloom::f32>(out.atmosphere.h2oScale));
+
+    // [atmosphere] analytic sky. Read whether or not it is selected, for the
+    // same reason the sensor params are: the values outlive the switch.
+    out.clearSkyModel =
+        config.GetString("atmosphere.sky_model", "isotropic") == "clear_sky";
+    out.skyAirTemperatureK = config.Get<float>("atmosphere.air_temperature_k", 288.15f);
+    out.skyRelativeHumidity = config.Get<float>("atmosphere.relative_humidity", 50.0f);
 
     // [sensor]
     out.sensorEnabled = config.Get<bool>("sensor.enabled", false);
@@ -676,10 +686,11 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
                               << config.lighting.skyRadiance_rgb.b << "]\n";
     out << "atmosphere_temperature_k = " << config.lighting.atmosphereTemperature_K << "\n";
     // Read back by extractSceneConfig, so leaving it out was one more value
-    // that silently reverted to its default on every save. The core logs it as
-    // deprecated -- view-path transmittance comes from the NN atmosphere now --
-    // but a config the GUI wrote should still say what the GUI was holding.
-    out << "transmittance = " << config.lighting.transmittance << "\n";
+    // lighting.transmittance is gone: the key was deprecated when the NN
+    // atmosphere took the view path, and the slot it occupied in
+    // LightingParams now carries the clear sky's zenith emissivity, which is
+    // written under [atmosphere] as the air temperature and humidity it is
+    // derived from.
     // The illuminant. No panel owns it yet, but without it the quantitative
     // spectral modes render black, so dropping it on save turned a working
     // config into a black frame.
@@ -716,6 +727,14 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
     out << "rh = " << config.atmosphere.rh << "\n";
     out << "p_hPa = " << config.atmosphere.pHPa << "\n";
     out << "h2o_scale = " << config.atmosphere.h2oScale << "\n";
+    // The analytic sky, which the core reads from this same section. Written
+    // whether or not it is selected: the air temperature and humidity outlive
+    // the switch that reads them, and the emissivity the shader gets is
+    // derived from them rather than stored.
+    out << "sky_model = "
+        << (config.clearSkyModel ? "\"clear_sky\"" : "\"isotropic\"") << "\n";
+    out << "air_temperature_k = " << config.skyAirTemperatureK << "\n";
+    out << "relative_humidity = " << config.skyRelativeHumidity << "\n";
     out << "\n";
 
     // [quality] - VIS_Fused chromaticity correction (only if non-default),

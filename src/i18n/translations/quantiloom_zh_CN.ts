@@ -4,6 +4,50 @@
 <context>
     <name>AtmosphericPanel</name>
     <message>
+        <source>Analytic sky</source>
+        <translation>解析天空</translation>
+    </message>
+    <message>
+        <source>Clear sky (Berdahl-Fromberg)</source>
+        <translation>晴空模型（Berdahl-Fromberg）</translation>
+    </message>
+    <message>
+        <source>A partly transparent slab of air rather than one blackbody: the zenith reads far colder than the horizon, which is what a thermal camera sees and what drives radiative cooling. Off gives the isotropic sky, as warm overhead as at the horizon.</source>
+        <translation>把天空当作半透明气层而非单一黑体：天顶远比地平线冷，这正是热像仪所见，也是辐射冷却的成因。关闭则回到各向同性天空，头顶与地平线一样暖。</translation>
+    </message>
+    <message>
+        <source>Air temperature:</source>
+        <translation>气温：</translation>
+    </message>
+    <message>
+        <source>Temperature of the air itself. With the clear sky on it is the sky's Planck temperature, which the emissivity then makes read colder; with it off it is the whole of the thermal sky.</source>
+        <translation>空气本身的温度。启用晴空模型时它是天空的普朗克温度，再由发射率使其读数更低；关闭时它就是热波段天空的全部。</translation>
+    </message>
+    <message>
+        <source>Relative humidity:</source>
+        <translation>相对湿度：</translation>
+    </message>
+    <message>
+        <source>How much water vapour is in the way. It is the vapour that radiates: a humid sky reads warmer, and a dry one lets more of the cold background through.</source>
+        <translation>视线上有多少水汽。辐射来自水汽：湿润的天空读数更暖，干燥的天空则让更多冷背景透过来。</translation>
+    </message>
+    <message>
+        <source>These live in the lighting parameters. The network model below supersedes them entirely — it measures this sky rather than correlating it.</source>
+        <translation>这些值存放在光照参数中。下方的神经网络模型会完全取代它们——它测量这片天空，而非用经验关系拟合。</translation>
+    </message>
+    <message>
+        <source>Isotropic: the sky is one blackbody at the air temperature.</source>
+        <translation>各向同性：天空是气温下的单一黑体。</translation>
+    </message>
+    <message>
+        <source>Dew point %1 °C, zenith emissivity %2, effective sky %3 K (%4 K below the air).</source>
+        <translation>露点 %1 °C，天顶发射率 %2，有效天空温度 %3 K（比气温低 %4 K）。</translation>
+    </message>
+    <message>
+        <source> %</source>
+        <translation> %</translation>
+    </message>
+    <message>
         <source>Preset:</source>
         <translation>预设：</translation>
     </message>

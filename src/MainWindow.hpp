@@ -446,6 +446,12 @@ private:
     SpectralMaterialGenPanel* m_spectralMaterialGenPanel = nullptr;
 
     // Display enhancement (CLAHE) settings
+    /// The analytic sky's humidity, which LightingParams has no room for: it
+    /// carries the derived emissivity instead. Held here so a save can write
+    /// what the file said and a reload can put it back.
+    bool m_skyClearModel = false;
+    float m_skyRelativeHumidity = 50.0f;
+
     bool m_thermographyEnabled = false;
     quantiloom::ThermographyParams m_thermographyParams;
 
