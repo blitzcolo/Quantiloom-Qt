@@ -5,7 +5,7 @@
 cmake_minimum_required(VERSION 3.21)
 
 project(QuantiloomQt
-    VERSION 0.1.11
+    VERSION 0.1.12
     DESCRIPTION "Qt6 GUI for libQuantiloom"
     LANGUAGES CXX
 )
