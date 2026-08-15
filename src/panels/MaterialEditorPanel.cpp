@@ -21,6 +21,10 @@
 #include <QFormLayout>
 #include <QMessageBox>
 #include <QCheckBox>
+#include <QLineEdit>
+#include <QFileDialog>
+#include <QFileInfo>
+#include <QDir>
 
 #include <scene/Material.hpp>
 
@@ -201,6 +205,67 @@ void MaterialEditorPanel::setupUi() {
                "roughly 293 K is room temperature and 310 K is human skin."));
     });
     irLayout->addRow(temperatureCaption, m_irTemperatureSpin);
+
+    // A temperature field instead of one temperature. The map is normalised
+    // [0, 1]; what it means in kelvin is the scale and offset below it.
+    auto* temperatureMapRow = new QWidget(m_irGroup);
+    auto* temperatureMapLayout = new QHBoxLayout(temperatureMapRow);
+    temperatureMapLayout->setContentsMargins(0, 0, 0, 0);
+    m_temperatureTextureEdit = new QLineEdit(temperatureMapRow);
+    connect(m_temperatureTextureEdit, &QLineEdit::editingFinished,
+            this, &MaterialEditorPanel::onTemperatureMapChanged);
+    m_temperatureTextureBrowse = new QPushButton(temperatureMapRow);
+    m_temperatureTextureBrowse->setMaximumWidth(32);
+    connect(m_temperatureTextureBrowse, &QPushButton::clicked,
+            this, &MaterialEditorPanel::onBrowseTemperatureTexture);
+    temperatureMapLayout->addWidget(m_temperatureTextureEdit);
+    temperatureMapLayout->addWidget(m_temperatureTextureBrowse);
+    auto* temperatureMapCaption = new QLabel(m_irGroup);
+    bindText([this, temperatureMapCaption] {
+        temperatureMapCaption->setText(tr("Temperature map:"));
+        m_temperatureTextureBrowse->setText(tr("..."));
+        m_temperatureTextureEdit->setToolTip(
+            tr("Image whose red channel carries the temperature field, normalised "
+               "to [0, 1] and mapped to kelvin by the scale and offset below. "
+               "Leave empty to use the single object temperature."));
+    });
+    irLayout->addRow(temperatureMapCaption, temperatureMapRow);
+
+    m_temperatureScaleSpin = new QDoubleSpinBox();
+    m_temperatureScaleSpin->setRange(1.0, 2000.0);
+    m_temperatureScaleSpin->setSingleStep(10.0);
+    m_temperatureScaleSpin->setDecimals(1);
+    connect(m_temperatureScaleSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &MaterialEditorPanel::onTemperatureMapChanged);
+    auto* temperatureScaleCaption = new QLabel(m_irGroup);
+    bindText([this, temperatureScaleCaption] {
+        temperatureScaleCaption->setText(tr("Map range:"));
+        m_temperatureScaleSpin->setSuffix(tr(" K"));
+        m_temperatureScaleSpin->setToolTip(
+            tr("Kelvin spanned by the full [0, 1] of the map. The map is stored as "
+               "8 bits, so this divided by 255 is the smallest temperature "
+               "difference it can hold."));
+    });
+    irLayout->addRow(temperatureScaleCaption, m_temperatureScaleSpin);
+
+    m_temperatureOffsetSpin = new QDoubleSpinBox();
+    m_temperatureOffsetSpin->setRange(0.0, 2000.0);
+    m_temperatureOffsetSpin->setSingleStep(10.0);
+    m_temperatureOffsetSpin->setDecimals(1);
+    connect(m_temperatureOffsetSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &MaterialEditorPanel::onTemperatureMapChanged);
+    auto* temperatureOffsetCaption = new QLabel(m_irGroup);
+    bindText([this, temperatureOffsetCaption] {
+        temperatureOffsetCaption->setText(tr("Map floor:"));
+        m_temperatureOffsetSpin->setSuffix(tr(" K"));
+        m_temperatureOffsetSpin->setToolTip(
+            tr("Temperature a map value of 0 stands for."));
+    });
+    irLayout->addRow(temperatureOffsetCaption, m_temperatureOffsetSpin);
+
+    m_temperatureMapNotice = new QLabel(m_irGroup);
+    bindStyle([this] { uistyle::applyHintStyle(m_temperatureMapNotice); });
+    irLayout->addRow(m_temperatureMapNotice);
 
     // Kirchhoff's law validation label
     m_irKirchhoffLabel = new QLabel();
@@ -393,16 +458,27 @@ void MaterialEditorPanel::setMaterial(int index, const quantiloom::Material* mat
         material->irTransmittanceCurve.size() > kSimpleCurvePoints ||
         material->irReflectanceCurve.size() > kSimpleCurvePoints;
 
+    m_temperatureTexture = QString::fromStdString(material->temperatureTexturePath);
+    m_temperatureScale = material->temperatureScale;
+    m_temperatureOffset = material->temperatureOffset;
+
     {
         const QSignalBlocker e(m_irEmissivitySpin);
         const QSignalBlocker t(m_irTransmittanceSpin);
         const QSignalBlocker k(m_irTemperatureSpin);
+        const QSignalBlocker p(m_temperatureTextureEdit);
+        const QSignalBlocker s(m_temperatureScaleSpin);
+        const QSignalBlocker o(m_temperatureOffsetSpin);
         m_irEmissivitySpin->setValue(static_cast<double>(m_irEmissivity));
         m_irTransmittanceSpin->setValue(static_cast<double>(m_irTransmittance));
         m_irTemperatureSpin->setValue(static_cast<double>(m_irTemperature_K));
+        m_temperatureTextureEdit->setText(m_temperatureTexture);
+        m_temperatureScaleSpin->setValue(static_cast<double>(m_temperatureScale));
+        m_temperatureOffsetSpin->setValue(static_cast<double>(m_temperatureOffset));
     }
 
     updateSpectralCurveNotice();
+    updateTemperatureMapNotice();
     updateKirchhoffLabel();
 }
 
@@ -540,6 +616,47 @@ void MaterialEditorPanel::onIRPropertyChanged() {
     applyChanges();
 }
 
+void MaterialEditorPanel::onTemperatureMapChanged() {
+    m_temperatureTexture = m_temperatureTextureEdit->text().trimmed();
+    m_temperatureScale = static_cast<float>(m_temperatureScaleSpin->value());
+    m_temperatureOffset = static_cast<float>(m_temperatureOffsetSpin->value());
+
+    updateTemperatureMapNotice();
+    applyChanges();
+}
+
+void MaterialEditorPanel::onBrowseTemperatureTexture() {
+    const QString chosen = QFileDialog::getOpenFileName(
+        this, tr("Temperature Map"), m_temperatureTextureEdit->text(),
+        tr("Images (*.png *.exr *.tif *.tiff *.hdr *.jpg);;All files (*)"));
+    if (chosen.isEmpty()) {
+        return;
+    }
+    m_temperatureTextureEdit->setText(chosen);
+    onTemperatureMapChanged();
+}
+
+void MaterialEditorPanel::updateTemperatureMapNotice() {
+    if (!m_temperatureMapNotice) {
+        return;
+    }
+    if (m_temperatureTexture.isEmpty()) {
+        m_temperatureMapNotice->setText(
+            tr("No map: this surface is one temperature."));
+        return;
+    }
+    // The step is what an author needs to choose a range by, and the reload is
+    // what stops a changed path reading as a change that did nothing: the core
+    // mounts temperature maps when the scene loads, and the viewport is
+    // showing the one it mounted.
+    m_temperatureMapNotice->setText(
+        tr("Map covers %1 K to %2 K in steps of %3 K. A changed path takes "
+           "effect when the scene is reloaded.")
+            .arg(static_cast<double>(m_temperatureOffset), 0, 'f', 1)
+            .arg(static_cast<double>(m_temperatureOffset + m_temperatureScale), 0, 'f', 1)
+            .arg(static_cast<double>(m_temperatureScale) / 255.0, 0, 'f', 2));
+}
+
 void MaterialEditorPanel::updateKirchhoffLabel() {
     if (!m_irKirchhoffLabel) {
         return;
@@ -607,6 +724,13 @@ void MaterialEditorPanel::applyChanges() {
     modified.attenuationColor = m_attenuationColor;
 
     applyIrScalars(modified, m_irEmissivity, m_irTransmittance, m_irTemperature_K);
+
+    // The scale and offset are material data and reach the shader with this
+    // edit; the path only takes effect at the next scene load, which is what
+    // the notice says.
+    modified.temperatureTexturePath = m_temperatureTexture.toStdString();
+    modified.temperatureScale = m_temperatureScale;
+    modified.temperatureOffset = m_temperatureOffset;
 
     emit materialChanged(m_currentIndex, modified);
 }

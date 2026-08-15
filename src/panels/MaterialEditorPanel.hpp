@@ -19,6 +19,7 @@ QT_BEGIN_NAMESPACE
 class QDoubleSpinBox;
 class QSlider;
 class QLabel;
+class QLineEdit;
 class QPushButton;
 class QGroupBox;
 class QCheckBox;
@@ -78,6 +79,8 @@ private slots:
     void onRoughnessSpinChanged(double value);
     void onEmissiveChanged();
     void onIRPropertyChanged();
+    void onTemperatureMapChanged();
+    void onBrowseTemperatureTexture();
     void applyChanges();
 
 private:
@@ -85,6 +88,9 @@ private:
     void updateColorButton(QPushButton* btn, const glm::vec3& color);
     void updateKirchhoffLabel();
     void updateSpectralCurveNotice();
+    /// Says what the map's kelvin range and step work out to, and that a path
+    /// change needs the scene reloaded.
+    void updateTemperatureMapNotice();
     /// Returns false when the user declined to overwrite generated curves.
     bool confirmSpectralOverwrite();
 
@@ -126,11 +132,23 @@ private:
     float m_irTransmittance = 0.0f;
     float m_irTemperature_K = 0.0f;
 
+    /// A temperature field instead of one temperature. The path is the
+    /// material's own, mounted by the core when the scene loads; the scale and
+    /// offset are live, because they are material data rather than a texture.
+    QString m_temperatureTexture;
+    float m_temperatureScale = 500.0f;
+    float m_temperatureOffset = 200.0f;
+
     // IR UI elements
     QGroupBox* m_irGroup = nullptr;
     QDoubleSpinBox* m_irEmissivitySpin = nullptr;
     QDoubleSpinBox* m_irTransmittanceSpin = nullptr;
     QDoubleSpinBox* m_irTemperatureSpin = nullptr;
+    QLineEdit* m_temperatureTextureEdit = nullptr;
+    QPushButton* m_temperatureTextureBrowse = nullptr;
+    QDoubleSpinBox* m_temperatureScaleSpin = nullptr;
+    QDoubleSpinBox* m_temperatureOffsetSpin = nullptr;
+    QLabel* m_temperatureMapNotice = nullptr;
     QLabel* m_irKirchhoffLabel = nullptr;
     QLabel* m_spectralCurveNotice = nullptr;
 

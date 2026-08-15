@@ -31,6 +31,14 @@ struct MaterialConfig {
     float irTransmittance = 0.0f; // IR transmittance [0,1]
     float irTemperature_K = 0.0f; // Surface temperature (K)
 
+    /// A temperature field instead of one temperature. The path is relative to
+    /// the config; the core loads it and decodes the R channel as
+    /// T = value * scale + offset. Storage is UNORM8, so the resolution is
+    /// scale/255 -- the defaults are the core's, and give 1.96 K per step.
+    QString temperatureTexture;
+    float temperatureScale = 500.0f;
+    float temperatureOffset = 200.0f;
+
     /// The PBR half. Written only when hasPbr is set, so an entry that exists
     /// to carry a temperature does not also assert a colour nobody chose.
     bool hasPbr = false;

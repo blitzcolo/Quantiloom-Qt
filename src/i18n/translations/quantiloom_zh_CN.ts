@@ -2136,6 +2136,50 @@ PNG：%2</translation>
 <context>
     <name>MaterialEditorPanel</name>
     <message>
+        <source>Temperature map:</source>
+        <translation>温度贴图：</translation>
+    </message>
+    <message>
+        <source>...</source>
+        <translation>...</translation>
+    </message>
+    <message>
+        <source>Image whose red channel carries the temperature field, normalised to [0, 1] and mapped to kelvin by the scale and offset below. Leave empty to use the single object temperature.</source>
+        <translation>以红通道承载温度场的图像，数值归一化到 [0, 1]，再由下方的量程与下限映射为开尔文。留空则使用单一物体温度。</translation>
+    </message>
+    <message>
+        <source>Map range:</source>
+        <translation>贴图量程：</translation>
+    </message>
+    <message>
+        <source>Kelvin spanned by the full [0, 1] of the map. The map is stored as 8 bits, so this divided by 255 is the smallest temperature difference it can hold.</source>
+        <translation>贴图 [0, 1] 全程所对应的开尔文跨度。贴图以 8 位存储，因此该值除以 255 即为它能表示的最小温差。</translation>
+    </message>
+    <message>
+        <source>Map floor:</source>
+        <translation>贴图下限：</translation>
+    </message>
+    <message>
+        <source>Temperature a map value of 0 stands for.</source>
+        <translation>贴图数值 0 所代表的温度。</translation>
+    </message>
+    <message>
+        <source>No map: this surface is one temperature.</source>
+        <translation>无贴图：该表面为单一温度。</translation>
+    </message>
+    <message>
+        <source>Map covers %1 K to %2 K in steps of %3 K. A changed path takes effect when the scene is reloaded.</source>
+        <translation>贴图覆盖 %1 K 至 %2 K，步长 %3 K。更改路径后需重新加载场景才会生效。</translation>
+    </message>
+    <message>
+        <source>Temperature Map</source>
+        <translation>温度贴图</translation>
+    </message>
+    <message>
+        <source>Images (*.png *.exr *.tif *.tiff *.hdr *.jpg);;All files (*)</source>
+        <translation>图像 (*.png *.exr *.tif *.tiff *.hdr *.jpg);;所有文件 (*)</translation>
+    </message>
+    <message>
         <source>Material Properties</source>
         <translation type="vanished">材质属性</translation>
     </message>

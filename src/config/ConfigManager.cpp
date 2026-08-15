@@ -288,6 +288,14 @@ void ConfigManager::extractSceneConfig(const quantiloom::Config& config, SceneCo
         matConfig.irTransmittance = matTable.GetFloat("ir_transmittance", 0.0f);
         matConfig.irTemperature_K = matTable.GetFloat("ir_temperature_k", 0.0f);
 
+        // A temperature map, and the kelvin mapping it is decoded with. Scale
+        // and offset are read whether or not a path is present: they also
+        // retune a map a glTF or USD scene provided.
+        matConfig.temperatureTexture =
+            QString::fromStdString(matTable.GetString("temperature_texture", ""));
+        matConfig.temperatureScale = matTable.GetFloat("temperature_scale", 500.0f);
+        matConfig.temperatureOffset = matTable.GetFloat("temperature_offset", 200.0f);
+
         // The PBR half, kept only if the file actually carries it -- so a
         // reload/save cycle does not invent one for an entry that had none.
         if (const auto colour = matTable.GetFloatArray("base_color"); colour.size() >= 3) {
@@ -738,8 +746,15 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
 
     // [[materials]] - material overrides, IR and PBR
     for (const auto& matConfig : config.materialConfigs) {
+        // A retuned scale or offset counts as something to say even with no
+        // path here, because the map it decodes may come from the scene file.
+        const bool hasTemperatureMap =
+            !matConfig.temperatureTexture.isEmpty() ||
+            matConfig.temperatureScale != 500.0f || matConfig.temperatureOffset != 200.0f;
+
         if (matConfig.hasPbr || matConfig.hasSpectral() || matConfig.irEmissivity > 0.0f ||
-            matConfig.irTransmittance > 0.0f || matConfig.irTemperature_K > 0.0f) {
+            matConfig.irTransmittance > 0.0f || matConfig.irTemperature_K > 0.0f ||
+            hasTemperatureMap) {
             out << "[[materials]]\n";
             out << "name = " << tomlQuoted(matConfig.name) << "\n";
             if (matConfig.hasPbr) {
@@ -758,6 +773,17 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
             }
             if (matConfig.irTemperature_K > 0.0f) {
                 out << "ir_temperature_k = " << matConfig.irTemperature_K << "\n";
+            }
+            if (hasTemperatureMap) {
+                if (!matConfig.temperatureTexture.isEmpty()) {
+                    out << "temperature_texture = "
+                        << tomlQuoted(matConfig.temperatureTexture) << "\n";
+                }
+                // Both, or neither: reading half a mapping out of a file and
+                // taking the other half from a default is the kind of thing
+                // that only shows up as a render being wrong by an offset.
+                out << "temperature_scale = " << matConfig.temperatureScale << "\n";
+                out << "temperature_offset = " << matConfig.temperatureOffset << "\n";
             }
             if (matConfig.hasSpectral()) {
                 if (!matConfig.spectralMaterialType.isEmpty()) {

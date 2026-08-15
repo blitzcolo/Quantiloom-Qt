@@ -4166,6 +4166,14 @@ void MainWindow::collectCurrentConfig(SceneConfig& config) {
             ? 0.0f : material.irTransmittanceCurve[0].second;
         matConfig.irTemperature_K = material.irTemperature_K;
 
+        // The temperature map, from the material for the same reason the
+        // spectral binding is: the editor writes it onto the Material, and
+        // this is the only path by which it reaches the config.
+        matConfig.temperatureTexture =
+            QString::fromStdString(material.temperatureTexturePath);
+        matConfig.temperatureScale = material.temperatureScale;
+        matConfig.temperatureOffset = material.temperatureOffset;
+
         // The spectral binding, from the material rather than from whatever
         // the file said: assigning one in the library panel writes it onto the
         // Material, and this is the only path by which it reaches the config.
