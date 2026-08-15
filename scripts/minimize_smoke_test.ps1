@@ -16,8 +16,16 @@
 # reload on restore, and an atmospheric scene should bake its LUT a second
 # time. A process that exits is a failure; so is a restore with no reload.
 
-$exe = "D:\Quantiloom-Qt\build-msvc\Release\QuantiloomQt.exe"
-$cfg = "D:\Quantiloom-dev\assets\configs\cornell_box_lwir_atmos.toml"
+# Paths are derived from where this script lives, not hard-coded to a drive:
+# the checkout moves (D:\ -> H:\ ...) and Quantiloom-dev is its sibling.
+$RepoRoot = Split-Path -Parent $PSScriptRoot
+$DevRoot  = Join-Path (Split-Path -Parent $RepoRoot) "Quantiloom-dev"
+
+$exe = Join-Path $RepoRoot "build-msvc\Release\QuantiloomQt.exe"
+$cfg = Join-Path $DevRoot  "assets\configs\cornell_box_lwir_atmos.toml"
+
+if (-not (Test-Path $exe)) { throw "Studio not built: $exe" }
+if (-not (Test-Path $cfg)) { throw "Scene config not found: $cfg" }
 
 Add-Type @"
 using System;
@@ -28,8 +36,8 @@ public class W {
 "@
 
 $p = Start-Process -FilePath $exe -ArgumentList $cfg -PassThru `
-     -RedirectStandardOutput "D:\Quantiloom-Qt\_mini_out.log" `
-     -RedirectStandardError  "D:\Quantiloom-Qt\_mini_err.log"
+     -RedirectStandardOutput (Join-Path $RepoRoot "_mini_out.log") `
+     -RedirectStandardError  (Join-Path $RepoRoot "_mini_err.log")
 
 Start-Sleep -Seconds 15
 $p.Refresh()

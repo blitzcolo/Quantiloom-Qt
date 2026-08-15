@@ -31,7 +31,7 @@ it after adding a source file or editing CMake — `./scripts/gen_compile_comman
 ## The SDK is a separate repository
 
 `find_package(Quantiloom)` resolves `../Quantiloom-SDK/windows_amd64`, which is built
-and installed by `/mnt/d/Quantiloom-dev`. A core-side change reaches this repo only
+and installed by the sibling checkout `../Quantiloom-dev`. A core-side change reaches this repo only
 after `./build_wsl.sh` runs *there*. `src/SdkGuard.cpp` compares a SHA-256 recorded at
 configure time against the DLL actually loaded and refuses to start on a mismatch, so a
 stale pairing reports itself instead of quietly misbehaving. The `build-and-run` skill

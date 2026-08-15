@@ -2695,14 +2695,14 @@ Built against: %3
 
 The SDK&apos;s public types are source-compatible but not binary-compatible across updates, so continuing would be undefined behaviour with no visible error. Rebuild:
 
-    cd /mnt/d/Quantiloom-Qt &amp;&amp; ./build_wsl.sh</source>
+    cd /mnt/h/Quantiloom-Qt &amp;&amp; ./build_wsl.sh</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>The Quantiloom SDK at %1 has been reinstalled since this executable was built. This run uses the older library and will not reflect the current core.
 
 Rebuild with:
-    cd /mnt/d/Quantiloom-Qt &amp;&amp; ./build_wsl.sh</source>
+    cd /mnt/h/Quantiloom-Qt &amp;&amp; ./build_wsl.sh</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

@@ -70,7 +70,7 @@ SdkCheckResult checkSdkBinaries() {
                 "The SDK's public types are source-compatible but not binary-"
                 "compatible across updates, so continuing would be undefined "
                 "behaviour with no visible error. Rebuild:\n\n"
-                "    cd /mnt/d/Quantiloom-Qt && ./build_wsl.sh")
+                "    cd /mnt/h/Quantiloom-Qt && ./build_wsl.sh")
                 .arg(libraryName, loadedHash.left(16), builtAgainst.left(16));
         return result;
     }
@@ -88,7 +88,7 @@ SdkCheckResult checkSdkBinaries() {
                     "executable was built. This run uses the older library and "
                     "will not reflect the current core.\n\n"
                     "Rebuild with:\n"
-                    "    cd /mnt/d/Quantiloom-Qt && ./build_wsl.sh")
+                    "    cd /mnt/h/Quantiloom-Qt && ./build_wsl.sh")
                     .arg(QString::fromLatin1(kSdkDir));
         }
     }

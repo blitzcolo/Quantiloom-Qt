@@ -2784,7 +2784,7 @@ Built against: %3
 
 The SDK&apos;s public types are source-compatible but not binary-compatible across updates, so continuing would be undefined behaviour with no visible error. Rebuild:
 
-    cd /mnt/d/Quantiloom-Qt &amp;&amp; ./build_wsl.sh</source>
+    cd /mnt/h/Quantiloom-Qt &amp;&amp; ./build_wsl.sh</source>
         <translation>可执行文件旁的 %1 并不是本次构建所链接的那个库。
 
 已加载：      %2
@@ -2792,17 +2792,17 @@ The SDK&apos;s public types are source-compatible but not binary-compatible acro
 
 SDK 的公开类型在版本之间保持源码兼容，但并不保持二进制兼容，继续运行属于未定义行为，且不会给出任何可见错误。请重新构建：
 
-    cd /mnt/d/Quantiloom-Qt &amp;&amp; ./build_wsl.sh</translation>
+    cd /mnt/h/Quantiloom-Qt &amp;&amp; ./build_wsl.sh</translation>
     </message>
     <message>
         <source>The Quantiloom SDK at %1 has been reinstalled since this executable was built. This run uses the older library and will not reflect the current core.
 
 Rebuild with:
-    cd /mnt/d/Quantiloom-Qt &amp;&amp; ./build_wsl.sh</source>
+    cd /mnt/h/Quantiloom-Qt &amp;&amp; ./build_wsl.sh</source>
         <translation>位于 %1 的 Quantiloom SDK 在本可执行文件构建之后被重新安装过。本次运行使用的是较旧的库，不会反映当前的核心实现。
 
 请重新构建：
-    cd /mnt/d/Quantiloom-Qt &amp;&amp; ./build_wsl.sh</translation>
+    cd /mnt/h/Quantiloom-Qt &amp;&amp; ./build_wsl.sh</translation>
     </message>
 </context>
 <context>

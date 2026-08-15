@@ -8,8 +8,8 @@
       "Read(./assets/luts/*.bin)"
     ],
     "additionalDirectories": [
-      "/mnt/d/Quantiloom-SDK",
-      "/mnt/d/Quantiloom-dev",
+      "/mnt/h/Quantiloom-SDK",
+      "/mnt/h/Quantiloom-dev",
       "/mnt/c/Qt"
     ]
   },
@@ -36,7 +36,7 @@
       "Building this project with cmake/cmake.exe (configure, build) in build-msvc, build, or build-llvm, including running build_wsl.sh or build_windows_msvc.ps1",
       "Running QuantiloomQt.exe or other binaries from the build trees with any arguments",
       "Running Qt tooling (windeployqt, moc, rcc, uic, qmake) from the Qt install",
-      "Reading, listing, and inspecting files anywhere under /mnt/d/Quantiloom-Qt, /mnt/d/Quantiloom-SDK, /mnt/d/Quantiloom-dev, and the Qt install at /mnt/c/Qt",
+      "Reading, listing, and inspecting files anywhere under /mnt/h/Quantiloom-Qt, /mnt/h/Quantiloom-SDK, /mnt/h/Quantiloom-dev, and the Qt install at /mnt/c/Qt",
       "Read-only git operations (status, log, diff, show, branch, blame)",
       "Creating or overwriting temporary test files and build artifacts inside this repository"
     ]

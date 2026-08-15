@@ -17,10 +17,12 @@ the Windows `clangd.exe` — and `clangd.exe` cannot open WSL paths, so it needs
 ```sh
 #!/bin/sh
 exec "/mnt/c/Users/<you>/AppData/Local/Programs/CLion/bin/clang/win/x64/bin/clangd.exe" \
-     --path-mappings=/mnt/c=C:/,/mnt/d=D:/ "$@"
+     --path-mappings=/mnt/c=C:/,/mnt/d=D:/,/mnt/h=H:/ "$@"
 ```
 
-Both sides of a mapping must be absolute: `C:` is rejected, `C:/` is accepted. Any
+Both sides of a mapping must be absolute: `C:` is rejected, `C:/` is accepted. One
+entry per drive the checkouts live on — they are on `H:` now (`/mnt/h`), and a drive
+with no entry makes `clangd.exe` reject every LSP URI for it. Any
 `clangd.exe` will do; the CLion-bundled one is just what is already installed here. The
 same shim serves Quantiloom-dev — if that repo's code intelligence works, this one will
 too, with nothing further to install.
