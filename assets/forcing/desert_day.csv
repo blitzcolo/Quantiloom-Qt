@@ -1,0 +1,51 @@
+# Quantiloom - Desert: a day's forcing for the surface energy balance
+#
+# Thirty kelvin between night and afternoon, and air too dry to stop the ground radiating: the widest swing of the four.
+#
+# Written by scripts/gen_env_forcing.py -- edit that, not this. The sun path is
+# solved from env_desert.toml's own [lighting] sun_direction: at 11.0 h it
+# points exactly where that scene is lit from, so the surface the solver warms
+# is the surface the render shows lit. Latitude 3.1 deg, declination
+# 23.0 deg.
+#
+# Columns, in the order ThermalSolver::LoadForcingCsv reads them. The last two
+# are optional and were added with the diffuse-sky and evaporation terms; a
+# file without them still reads.
+#
+#   time_h, air_temperature_k, sun_irradiance_w_m2,
+#   sun_azimuth_deg, sun_elevation_deg, sky_temperature_k,
+#   diffuse_irradiance_w_m2, relative_humidity
+#
+# Azimuth runs from north through east; elevation from the horizon. Below the
+# horizon the beam is zero, which is what lets the ground cool. The sky
+# temperature is Berdahl-Fromberg on this hour's air and humidity, the same
+# correlation the renderer's clear-sky model uses.
+#
+# The column line is commented: LoadForcingCsv only tolerates a header on the
+# very first line, and this file has a preamble.
+#time_h,air_temperature_k,sun_irradiance_w_m2,sun_azimuth_deg,sun_elevation_deg,sky_temperature_k,diffuse_irradiance_w_m2,relative_humidity
+0.0,293.54,0.0,84.9,-63.9,268.05,0.0,20.7
+1.0,291.08,0.0,113.4,-60.1,265.19,0.0,21.9
+2.0,289.53,0.0,131.6,-50.8,263.39,0.0,22.7
+3.0,289.00,0.0,141.7,-38.9,262.78,0.0,23.0
+4.0,289.53,0.0,147.3,-26.0,263.39,0.0,22.7
+5.0,291.08,0.0,150.5,-12.5,265.19,0.0,21.9
+6.0,293.54,1.0,151.9,1.2,268.05,0.0,20.7
+7.0,296.75,649.2,151.9,15.0,271.76,15.1,19.0
+8.0,300.49,847.7,150.2,28.7,276.03,36.7,17.1
+9.0,304.50,926.1,146.3,42.2,280.52,55.9,15.0
+10.0,308.51,963.8,137.9,54.8,284.84,70.9,12.9
+11.0,312.25,981.9,119.7,65.4,288.64,80.3,11.0
+12.0,315.46,987.3,84.9,70.1,291.68,83.6,9.3
+13.0,317.92,981.9,50.0,65.4,293.80,80.3,8.1
+14.0,319.47,963.8,31.8,54.8,295.02,70.9,7.3
+15.0,320.00,926.1,23.4,42.2,295.41,55.9,7.0
+16.0,319.47,847.7,19.5,28.7,295.02,36.7,7.3
+17.0,317.92,649.2,17.8,15.0,293.80,15.1,8.1
+18.0,315.46,1.0,17.8,1.2,291.68,0.0,9.3
+19.0,312.25,0.0,19.2,-12.5,288.64,0.0,11.0
+20.0,308.51,0.0,22.4,-26.0,284.84,0.0,12.9
+21.0,304.50,0.0,28.0,-38.9,280.52,0.0,15.0
+22.0,300.49,0.0,38.1,-50.8,276.03,0.0,17.1
+23.0,296.75,0.0,56.3,-60.1,271.76,0.0,19.0
+24.0,293.54,0.0,84.9,-63.9,268.05,0.0,20.7

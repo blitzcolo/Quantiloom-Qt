@@ -121,20 +121,71 @@ spectral_material_refs = [
     "Grass_Golden_Dry GDS480",        # sun-dried grass
 ]
 
+# Grass over damp soil. The wetness factor is what makes a lawn the
+# coolest surface in a summer scene: it spends the sun on evaporating
+# rather than on warming, and stays near the air while concrete beside it
+# runs twenty degrees over. Emissivity 0.98, near a blackbody, as
+# vegetation is.
+ir_emissivity = 0.98
+thermal_conductivity_w_mk = 0.25
+density_kg_m3 = 1200
+specific_heat_j_kgk = 1300
+thickness_m = 0.1
+convection_h_w_m2k = 12
+shortwave_absorptivity = 0.78
+wetness_factor = 0.45
+interior_bc = "adiabatic"
+
 [[materials]]
 name = "Rock"
 spectral_material_type = "quantiloom_usgs"
 spectral_material_ref = "Pyroxene_Basalt CU01-20A"
+
+# Granite. More mass than anything else here and a good conductor with it.
+ir_emissivity = 0.9
+thermal_conductivity_w_mk = 2.5
+density_kg_m3 = 2700
+specific_heat_j_kgk = 790
+thickness_m = 0.4
+convection_h_w_m2k = 10
+shortwave_absorptivity = 0.65
+interior_bc = "adiabatic"
 
 [[materials]]
 name = "HouseWall"
 spectral_material_type = "quantiloom_usgs"
 spectral_material_ref = "Titanium_dioxide GDS798 TiO2"   # the pigment in white wall paint
 
+# Rendered masonry, painted white so it takes little of the sun, and held
+# from behind by a room at 295 K. The fixed back face is what stops a
+# wall following the night down the way an unbacked slab does.
+ir_emissivity = 0.92
+thermal_conductivity_w_mk = 0.8
+density_kg_m3 = 1800
+specific_heat_j_kgk = 900
+thickness_m = 0.25
+convection_h_w_m2k = 8
+shortwave_absorptivity = 0.3
+interior_bc = "fixed"
+interior_temperature_k = 295
+
 [[materials]]
 name = "HouseRoof"
 spectral_material_type = "quantiloom_usgs"
 spectral_material_ref = "Brick GDS350 Dk Red Building"
+
+# Dark tile, four centimetres of it, exposed to the wind and to the whole
+# sky: the hottest surface in the scene by day and the coldest by night,
+# which is what a thin skin facing the zenith does.
+ir_emissivity = 0.93
+thermal_conductivity_w_mk = 0.9
+density_kg_m3 = 2000
+specific_heat_j_kgk = 900
+thickness_m = 0.04
+convection_h_w_m2k = 15
+shortwave_absorptivity = 0.75
+interior_bc = "fixed"
+interior_temperature_k = 298
 
 [[materials]]
 name = "HouseDoor"
@@ -143,15 +194,53 @@ spectral_material_ref = "Wood_Beam GDS363 Nw Pine 2X4"
 
 # --- SU7 --------------------------------------------------------------------
 
+# Pine. Light and insulating, so it warms faster than the wall it sits in.
+ir_emissivity = 0.9
+thermal_conductivity_w_mk = 0.15
+density_kg_m3 = 600
+specific_heat_j_kgk = 1600
+thickness_m = 0.04
+convection_h_w_m2k = 8
+shortwave_absorptivity = 0.55
+interior_bc = "fixed"
+interior_temperature_k = 295
+
 [[materials]]
 name = "Car_Car_body"
 spectral_material_type = "quantiloom_usgs"
 spectral_material_ref = "Titanium_dioxide GDS798 TiO2"   # white automotive paint pigment
 
+# Painted aluminium panel, 3 mm of skin and structure -- a thousandth of
+# the ground's thermal mass, so it tracks the sun in minutes while the
+# slab under it takes hours. Aluminium's real conductivity puts a very
+# large Fourier number on eight nodes across three millimetres; it makes
+# no difference, because a sheet this thin is isothermal through its
+# depth either way (checked against k = 1.5: the same answer to a
+# kelvin).
+ir_emissivity = 0.92
+thermal_conductivity_w_mk = 200
+density_kg_m3 = 2700
+specific_heat_j_kgk = 900
+thickness_m = 0.003
+convection_h_w_m2k = 10
+shortwave_absorptivity = 0.35
+interior_bc = "adiabatic"
+
 [[materials]]
 name = "Car_M_Wheel_ALL.002"
 spectral_material_type = "quantiloom_usgs"
 spectral_material_ref = "Carbon_Black GDS68"             # tyre carbon black
+
+# Tyre rubber: nearly black to the sun and a poor conductor, so it runs
+# hotter than the bodywork above it.
+ir_emissivity = 0.95
+thermal_conductivity_w_mk = 0.25
+density_kg_m3 = 1100
+specific_heat_j_kgk = 1900
+thickness_m = 0.015
+convection_h_w_m2k = 16
+shortwave_absorptivity = 0.92
+interior_bc = "adiabatic"
 
 [[materials]]
 name = "Car_M_BODY_black.004"
@@ -169,6 +258,118 @@ spectral_material_ref = "Plastic_ABS GDS341 BlackPipe"
 # NSG Opti-White float glass rather than a named optical crown.
 # ============================================================================
 
+# Black plastic trim, the hottest thing on the car.
+ir_emissivity = 0.94
+thermal_conductivity_w_mk = 0.2
+density_kg_m3 = 1100
+specific_heat_j_kgk = 1500
+thickness_m = 0.006
+convection_h_w_m2k = 16
+shortwave_absorptivity = 0.9
+interior_bc = "adiabatic"
+
+# ============================================================================
+# Infrared: what each surface radiates, and what sets its temperature
+# ============================================================================
+# ir_emissivity is what the long-wave render reads; without it the loader
+# guesses from the metallic factor, which is right for metals and wrong for
+# everything else.
+#
+# Naming a thermal_conductivity_w_mk is what opts a material into the surface
+# energy balance below. A material without one keeps the temperature it is
+# given -- [scene] default_temperature_k, or its own ir_temperature_k -- which
+# is the right answer for glass, for polished metal, and for the person.
+# ============================================================================
+
+[[materials]]
+name = "ChromeSphere"
+# Polished chrome. Emissivity this low means a thermal camera reads the
+# sky reflected in it rather than the sphere -- the classic way to get a
+# thermogram wrong, and worth having in frame on purpose.
+ir_emissivity = 0.1
+
+[[materials]]
+name = "GlassSphere"
+# Glass is opaque and strongly emitting in the long wave, whatever it does
+# in the visible. It is not solved: its physics here is the measured
+# n(lambda) below.
+ir_emissivity = 0.88
+
+[[materials]]
+name = "WindowGlass"
+# As GlassSphere.
+ir_emissivity = 0.88
+
+[[materials]]
+name = "Car_Car_window"
+# As GlassSphere.
+ir_emissivity = 0.88
+
+[[materials]]
+name = "Car_M_IRON.004"
+# Bare aluminium, and as misleading in the infrared as the chrome.
+ir_emissivity = 0.12
+
+[[materials]]
+name = "Man_Cesium_Man-effect"
+# Skin, held at 307 K rather than solved: a person is a heat source with a
+# blood supply, and the balance here has no term for either. A solved
+# figure would cool to the ground's temperature, which is the one thing
+# a person never does.
+ir_emissivity = 0.98
+ir_temperature_k = 307
+
+# The rest of the car -- lamps, plates, interior trim seen through the
+# glass. One emissivity each and no solve: they are small, they are
+# mostly shaded, and none of them is what the scene is about.
+[[materials]]
+name = "Car_interior1.001"
+ir_emissivity = 0.9
+
+[[materials]]
+name = "Car_interior2.001"
+ir_emissivity = 0.9
+
+[[materials]]
+name = "Car_interior3.001"
+ir_emissivity = 0.9
+
+[[materials]]
+name = "Car_interior4.001"
+ir_emissivity = 0.9
+
+[[materials]]
+name = "Car_M_ChePai.004"
+ir_emissivity = 0.9
+
+[[materials]]
+name = "Car_M_LOGO.004"
+ir_emissivity = 0.9
+
+[[materials]]
+name = "Car_M_BODY_inside.004"
+ir_emissivity = 0.9
+
+[[materials]]
+name = "Car_Car_backlight"
+ir_emissivity = 0.9
+
+[[materials]]
+name = "Car_Car_lightglass"
+ir_emissivity = 0.9
+
+[[materials]]
+name = "Car_Car_frontlight"
+ir_emissivity = 0.9
+
+[[materials]]
+name = "Car_Car_radar"
+ir_emissivity = 0.9
+
+[[materials]]
+name = "Car_pasted__M_BODY_inside.001"
+ir_emissivity = 0.9
+
 [refractive_index]
 ChromeSphere = "D:/Quantiloom-dev/assets/refractiveindex/database/data/main/Cr/nk/Rakic-LD.yml"
 "Car_M_IRON.004" = "D:/Quantiloom-dev/assets/refractiveindex/database/data/main/Al/nk/Rakic.yml"
@@ -176,3 +377,63 @@ ChromeSphere = "D:/Quantiloom-dev/assets/refractiveindex/database/data/main/Cr/n
 GlassSphere = "D:/Quantiloom-dev/assets/refractiveindex/database/data/glass/misc/Pilkington-Optiwhite/nk/Treharne.yml"
 WindowGlass = "D:/Quantiloom-dev/assets/refractiveindex/database/data/glass/misc/Pilkington-Optiwhite/nk/Treharne.yml"
 "Car_Car_window" = "D:/Quantiloom-dev/assets/refractiveindex/database/data/glass/misc/Pilkington-Optiwhite/nk/Treharne.yml"
+
+# ============================================================================
+# [thermal] -- the temperatures come from an energy balance, not from the file
+# ============================================================================
+# Mid-morning over a meadow. The grass evaporates and stays near the
+# air; the rocks and the roof do not.
+#
+# The forcing file is a day of weather, hour by hour, generated by
+# scripts/gen_env_forcing.py from THIS scene's own [lighting] sun_direction: at
+# 10.0 h the sun in that file points exactly where the scene is lit from,
+# so the surface the solver warms is the surface the render shows lit. Move
+# time_h and the shadows move with it -- that is the whole point of the file.
+#
+# Costs a view-factor precompute plus the stepping. In Studio that is the GPU
+# stepper and a slider; from the CLI it is a minute or so of CPU. Set
+# enabled = false to get the config's own temperatures back.
+[thermal]
+enabled = true
+time_h = 10.0
+start_time_h = 0.0
+# 120 s, and the reason is worth knowing: the solver's own shortest-time-
+# constant warning looks at each surface against a fixed background, which
+# puts the fastest thing here -- the car's 3 mm panel -- at about 470 s. Once
+# the view factors couple that panel to surfaces that are themselves moving,
+# the explicit radiative term needs a good deal less than that. At 300 s this
+# scene diverges outright; 120 s and 60 s agree to the kelvin, so 120 s is
+# converged. Shorten it again if you add anything thinner than the panel.
+timestep_s = 120.0
+layers = 8
+# Uniform rather than steady, and not by preference: the steady-state
+# relaxation takes hour-long steps, which is far longer than the time
+# constant of a 4 cm roof tile or a car panel, so on a scene carrying both
+# it does not settle -- it diverges, and takes the run with it. Starting
+# everything at the pre-dawn air temperature and stepping from midnight
+# gets the thin surfaces to the right answer within the hour. The deep
+# slabs still remember this number at the far end of the day; start
+# earlier if that matters.
+initial = "uniform"
+initial_temperature_k = 286.9
+forcing_file = "../forcing/grassland_day.csv"
+# Every stored state is elementCount * layers * 8 bytes, and these scenes carry
+# a few hundred thousand triangles, so the stride is what keeps a day's
+# scrubbing inside a few hundred megabytes.
+checkpoint_stride_h = 4.0
+exchange_rays = 128
+exchange_top_k = 16
+
+# ============================================================================
+# [thermography] -- what a camera would report, as <output>_tapp.exr
+# ============================================================================
+# The inverse of the render: given an assumed emissivity and an assumed
+# reflected background, what temperature would a thermal camera read off each
+# pixel? Where the assumption matches the surface it recovers the true
+# temperature; where it does not -- the chrome sphere, the glass -- the error
+# is the point.
+[thermography]
+enabled = true
+emissivity = 0.98
+# The sky this scene's forcing file gives at 10.0 h.
+reflected_temperature_k = 275.3
