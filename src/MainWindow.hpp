@@ -74,6 +74,7 @@ class AtmosphericPanel;
 class SensorPanel;
 class DisplayEnhancementPanel;
 class SpectralMaterialGenPanel;
+class ThermalPanel;
 class ConfigManager;
 class ViewportFrame;
 class TitleBar;
@@ -447,6 +448,7 @@ private:
     SensorPanel* m_sensorPanel = nullptr;
     DisplayEnhancementPanel* m_displayEnhancementPanel = nullptr;
     SpectralMaterialGenPanel* m_spectralMaterialGenPanel = nullptr;
+    ThermalPanel* m_thermalPanel = nullptr;
 
     // Display enhancement (CLAHE) settings
     /// The analytic sky's humidity, which LightingParams has no room for: it
@@ -468,6 +470,9 @@ private:
     QString m_thermalInitial = QStringLiteral("steady");
     double m_thermalInitialTemperatureK = 288.15;
     double m_thermalSunIrradiance = 0.0;
+    int m_thermalExchangeRays = 256;
+    int m_thermalExchangeTopK = 32;
+    double m_thermalCheckpointStrideH = 1.0;
     QString m_thermalForcingFile;
 
     bool m_skyClearModel = false;
@@ -491,6 +496,7 @@ private:
     /// the same reason m_lightingParams is: the struct is only forward
     /// declared here.
     std::unique_ptr<quantiloom::LightingParams> m_lightingBeforeGesture;
+    std::optional<double> m_thermalTimeBeforeGesture;
 
     /// True while widgets are being driven by the shell rather than by the
     /// user, so pushSettingCommand() records nothing. Nesting-safe: a scene

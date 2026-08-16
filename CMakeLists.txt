@@ -234,6 +234,8 @@ set(GUI_SOURCES
     src/panels/AtmosphericPanel.hpp
     src/panels/SensorPanel.cpp
     src/panels/SensorPanel.hpp
+    src/panels/ThermalPanel.cpp
+    src/panels/ThermalPanel.hpp
     src/panels/DisplayEnhancementPanel.cpp
     src/panels/DisplayEnhancementPanel.hpp
     src/panels/SpectralMaterialGenPanel.cpp

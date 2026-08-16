@@ -16,6 +16,7 @@
 #include "panels/DebugVisualizationPanel.hpp"
 #include "panels/AtmosphericPanel.hpp"
 #include "panels/SensorPanel.hpp"
+#include "panels/ThermalPanel.hpp"
 #include "panels/DisplayEnhancementPanel.hpp"
 #include "panels/SpectralMaterialGenPanel.hpp"
 #include "panels/PropertiesPanel.hpp"
@@ -1446,6 +1447,7 @@ void MainWindow::setupDockWidgets() {
     m_atmosphericPanel = new AtmosphericPanel();
     m_sensorPanel = new SensorPanel();
     m_displayEnhancementPanel = new DisplayEnhancementPanel();
+    m_thermalPanel = new ThermalPanel();
     m_spectralMaterialGenPanel = new SpectralMaterialGenPanel();
 
     // Display enhancement is one checkbox and three parameters; it is a group
@@ -1462,6 +1464,7 @@ void MainWindow::setupDockWidgets() {
     createPanelDock(m_spectralConfigPanel, Qt::RightDockWidgetArea);
     createPanelDock(m_spectralLibraryPanel, Qt::RightDockWidgetArea);
     createPanelDock(m_debugVisualizationPanel, Qt::RightDockWidgetArea);
+    createPanelDock(m_thermalPanel, Qt::RightDockWidgetArea);
 
     // The generator is a full offline workflow -- table, chart, file import and
     // export -- and wants width. It lives as a floating tool window opened from
@@ -1667,7 +1670,70 @@ void MainWindow::setupDockWidgets() {
                     return;
                 }
                 m_thermalProperties[QString::fromStdString(scene->materials[index].name)] = props;
+                m_editedMaterials.insert(index);
                 setSceneModified(true);
+            });
+
+    // Thermal solve panel signals
+    connect(m_thermalPanel, &ThermalPanel::thermalEnabledChanged,
+            this, [this](bool enabled) {
+                m_thermalEnabled = enabled;
+                m_vulkanWindow->setThermalSolveEnabled(enabled);
+                if (enabled) {
+                    m_vulkanWindow->setThermalTime(m_thermalTimeH);
+                }
+                m_thermalPanel->updateStatus(m_vulkanWindow->thermalSolveStatus());
+                setSceneModified(true);
+            });
+    connect(m_thermalPanel, &ThermalPanel::thermalParamsChanged,
+            this, [this](const quantiloom::ThermalSolveParams& params) {
+                m_thermalStartTimeH = params.startTime_h;
+                m_thermalTimestepS = params.timestep_s;
+                m_thermalLayers = static_cast<int>(params.layerCount);
+                m_thermalInitial = params.initial == quantiloom::ThermalInitialCondition::Steady
+                                       ? QStringLiteral("steady")
+                                       : QStringLiteral("uniform");
+                m_thermalInitialTemperatureK = params.initialTemperature_K;
+                m_thermalSunIrradiance = params.sunIrradiance_W_m2;
+                m_thermalExchangeRays = static_cast<int>(params.exchangeRays);
+                m_thermalExchangeTopK = static_cast<int>(params.exchangeTopK);
+                m_thermalCheckpointStrideH = params.checkpointStride_h;
+                m_thermalForcingFile = QString::fromStdString(params.forcingFile);
+                m_vulkanWindow->setThermalSolveParams(params);
+                if (m_thermalEnabled) {
+                    m_vulkanWindow->setThermalTime(m_thermalTimeH);
+                    m_thermalPanel->updateStatus(m_vulkanWindow->thermalSolveStatus());
+                }
+                setSceneModified(true);
+            });
+    connect(m_thermalPanel, &ThermalPanel::thermalTimeChanged,
+            this, [this](double time_h) {
+                m_thermalTimeH = time_h;
+                if (m_thermalEnabled) {
+                    m_vulkanWindow->setThermalTime(time_h);
+                    m_thermalPanel->updateStatus(m_vulkanWindow->thermalSolveStatus());
+                }
+                setSceneModified(true);
+            });
+    connect(m_thermalPanel, &ThermalPanel::editGestureStarted,
+            this, [this] {
+                m_thermalTimeBeforeGesture = m_thermalTimeH;
+            });
+    connect(m_thermalPanel, &ThermalPanel::editGestureFinished,
+            this, [this] {
+                if (!m_thermalTimeBeforeGesture) return;
+                pushSettingCommand(CommandId::ModifyThermal, tr("Thermal time"),
+                                   *m_thermalTimeBeforeGesture, m_thermalTimeH,
+                                   [this](const double& v) {
+                                       m_thermalTimeH = v;
+                                       m_thermalPanel->setTime(v);
+                                       if (m_thermalEnabled) {
+                                           m_vulkanWindow->setThermalTime(v);
+                                           m_thermalPanel->updateStatus(
+                                               m_vulkanWindow->thermalSolveStatus());
+                                       }
+                                   });
+                m_thermalTimeBeforeGesture.reset();
             });
 
     // Display enhancement panel signals
@@ -3975,7 +4041,31 @@ void MainWindow::applyConfig(const SceneConfig& config) {
     m_thermalInitial = config.thermalInitial;
     m_thermalInitialTemperatureK = config.thermalInitialTemperatureK;
     m_thermalSunIrradiance = config.thermalSunIrradiance;
+    m_thermalExchangeRays = config.thermalExchangeRays;
+    m_thermalExchangeTopK = config.thermalExchangeTopK;
+    m_thermalCheckpointStrideH = config.thermalCheckpointStrideH;
     m_thermalForcingFile = config.thermalForcingFile;
+
+    // Populate the thermal panel from the config
+    {
+        quantiloom::ThermalSolveParams tp;
+        tp.startTime_h = config.thermalStartTimeH;
+        tp.timestep_s = config.thermalTimestepS;
+        tp.layerCount = static_cast<quantiloom::u32>(config.thermalLayers);
+        tp.initial = config.thermalInitial == QLatin1String("steady")
+                         ? quantiloom::ThermalInitialCondition::Steady
+                         : quantiloom::ThermalInitialCondition::Uniform;
+        tp.initialTemperature_K = config.thermalInitialTemperatureK;
+        tp.sunIrradiance_W_m2 = config.thermalSunIrradiance;
+        tp.exchangeRays = static_cast<quantiloom::u32>(config.thermalExchangeRays);
+        tp.exchangeTopK = static_cast<quantiloom::u32>(config.thermalExchangeTopK);
+        tp.checkpointStride_h = config.thermalCheckpointStrideH;
+        tp.forcingFile = config.thermalForcingFile.toStdString();
+        m_thermalPanel->setParams(tp);
+        m_thermalPanel->setTime(config.thermalTimeH);
+        m_thermalPanel->setSolveEnabled(config.thermalEnabled);
+        m_thermalPanel->updateStatus(m_vulkanWindow->thermalSolveStatus());
+    }
 
     m_thermographyEnabled = config.thermographyEnabled;
     m_thermographyParams = config.thermography;
@@ -4171,6 +4261,9 @@ void MainWindow::collectCurrentConfig(SceneConfig& config) {
     config.thermalInitial = m_thermalInitial;
     config.thermalInitialTemperatureK = m_thermalInitialTemperatureK;
     config.thermalSunIrradiance = m_thermalSunIrradiance;
+    config.thermalExchangeRays = m_thermalExchangeRays;
+    config.thermalExchangeTopK = m_thermalExchangeTopK;
+    config.thermalCheckpointStrideH = m_thermalCheckpointStrideH;
     config.thermalForcingFile = m_thermalForcingFile;
 
     config.thermographyEnabled = m_sensorPanel->isThermographyEnabled();

@@ -230,6 +230,7 @@ struct SceneConfig {
     double thermalSunIrradiance = 0.0;
     int thermalExchangeRays = 256;
     int thermalExchangeTopK = 32;
+    double thermalCheckpointStrideH = 1.0;
     QString thermalForcingFile;
 
     /// [material] albedo -- the fallback surface for scenes that bring no

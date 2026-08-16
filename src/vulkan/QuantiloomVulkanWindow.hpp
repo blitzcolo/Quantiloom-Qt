@@ -19,6 +19,7 @@
 #include <core/SpectralData.hpp>
 #include <core/Types.hpp>
 #include <renderer/Pick.hpp>
+#include <renderer/ThermalControl.hpp>
 
 #include "../editing/GizmoModel.hpp"
 
@@ -357,6 +358,17 @@ public:
     /// What the camera is told about the surface, for the readout above.
     /// Display-side: no accumulation reset.
     void setThermographyParams(const quantiloom::ThermographyParams& params);
+
+    // ========================================================================
+    // Thermal Solve
+    // ========================================================================
+
+    void setThermalSolveParams(const quantiloom::ThermalSolveParams& params);
+    void setThermalMaterial(const QString& name, const quantiloom::ThermalMaterialParams& params);
+    void clearThermalMaterials();
+    void setThermalSolveEnabled(bool enabled);
+    void setThermalTime(double time_h);
+    [[nodiscard]] quantiloom::ThermalSolveStatus thermalSolveStatus() const;
 
     // ========================================================================
     // Display Enhancement (CLAHE)

@@ -471,6 +471,41 @@ void QuantiloomVulkanWindow::setDisplayEnhancement(bool enabled, float clipLimit
 }
 
 // ============================================================================
+// Thermal Solve
+// ============================================================================
+
+void QuantiloomVulkanWindow::setThermalSolveParams(
+    const quantiloom::ThermalSolveParams& params) {
+    withRenderer([params](QuantiloomVulkanRenderer& r) { r.setThermalSolveParams(params); });
+}
+
+void QuantiloomVulkanWindow::setThermalMaterial(
+    const QString& name, const quantiloom::ThermalMaterialParams& params) {
+    withRenderer([name, params](QuantiloomVulkanRenderer& r) {
+        r.setThermalMaterial(name, params);
+    });
+}
+
+void QuantiloomVulkanWindow::clearThermalMaterials() {
+    withRenderer([](QuantiloomVulkanRenderer& r) { r.clearThermalMaterials(); });
+}
+
+void QuantiloomVulkanWindow::setThermalSolveEnabled(bool enabled) {
+    withRenderer([enabled](QuantiloomVulkanRenderer& r) { r.setThermalSolveEnabled(enabled); });
+}
+
+void QuantiloomVulkanWindow::setThermalTime(double time_h) {
+    withRenderer([time_h](QuantiloomVulkanRenderer& r) { r.setThermalTime(time_h); });
+}
+
+quantiloom::ThermalSolveStatus QuantiloomVulkanWindow::thermalSolveStatus() const {
+    if (m_renderer) {
+        return m_renderer->thermalSolveStatus();
+    }
+    return {};
+}
+
+// ============================================================================
 // Viewport Overlay
 // ============================================================================
 

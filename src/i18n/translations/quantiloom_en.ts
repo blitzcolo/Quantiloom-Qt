@@ -48,6 +48,38 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Analytic sky</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Clear sky (Berdahl-Fromberg)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>A partly transparent slab of air rather than one blackbody: the zenith reads far colder than the horizon, which is what a thermal camera sees and what drives radiative cooling. Off gives the isotropic sky, as warm overhead as at the horizon.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Air temperature:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Temperature of the air itself. With the clear sky on it is the sky&apos;s Planck temperature, which the emissivity then makes read colder; with it off it is the whole of the thermal sky.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source> %</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>How much water vapour is in the way. It is the vapour that radiates: a humid sky reads warmer, and a dry one lets more of the cold background through.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>These live in the lighting parameters. The network model below supersedes them entirely — it measures this sky rather than correlating it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Directory of &lt;band&gt;_&lt;geom&gt;_&lt;net&gt;.safetensors files.
 Leave empty to auto-detect.</source>
         <translation type="unfinished"></translation>
@@ -97,31 +129,11 @@ Leave empty to auto-detect.</source>
         <translation type="unfinished">Atmosphere</translation>
     </message>
     <message>
-        <source>Analytic terms (legacy)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Transmittance:</source>
-        <translation type="unfinished">Transmittance:</translation>
-    </message>
-    <message>
-        <source>Atmosphere temperature:</source>
-        <translation type="unfinished"></translation>
+        <translation type="obsolete">Transmittance:</translation>
     </message>
     <message>
         <source> K</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Superseded: view-path transmittance comes from the network model. Kept because it is still part of the lighting parameters uploaded each frame.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Thermal-sky fallback for infrared downwelling, used when the network model is off.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Both values live in the lighting parameters. The network model below supersedes the transmittance; the temperature remains the fallback sky for infrared when that model is disabled.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -182,6 +194,14 @@ Leave empty to auto-detect.</source>
     </message>
     <message>
         <source>H₂O scale:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Isotropic: the sky is one blackbody at the air temperature.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Dew point %1 °C, zenith emissivity %2, effective sky %3 K (%4 K below the air).</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1261,6 +1281,10 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Thermal time</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Workspace: %1</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1306,6 +1330,14 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
     </message>
     <message>
         <source>Trace every band to completion and stream the cube to disk</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Render Se&amp;quence...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Render this scene once per step of a temperature sweep</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1638,6 +1670,10 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Open a scene before rendering a sequence.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Export Image (raw render)</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1901,6 +1937,10 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>(%1,%2) %3 K</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Select a debug mode to inspect pixels</source>
         <translation type="unfinished"></translation>
     </message>
@@ -2110,6 +2150,126 @@ PNG: %2</translation>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Temperature map:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Image whose red channel carries the temperature field, normalised to [0, 1] and mapped to kelvin by the scale and offset below. Leave empty to use the single object temperature.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Map range:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Kelvin spanned by the full [0, 1] of the map. The map is stored as 8 bits, so this divided by 255 is the smallest temperature difference it can hold.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Map floor:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Temperature a map value of 0 stands for.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source> W/mK</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Not solved</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source> kg/m3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source> J/kgK</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source> m</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source> W/m2K</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Conductivity:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>How fast heat moves through the material. Zero leaves this surface out of the solve, keeping whatever temperature it was given.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Density:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>With the specific heat and the thickness, this is the thermal mass -- how much heat the surface has to gain to warm by a degree.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Specific heat:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Heat one kilogram needs to warm by one kelvin.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Thickness:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>How deep the slab is. A thin sheet follows the air within minutes; a masonry wall takes hours, and is still warm after sunset.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Convection:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Exchange with the air. About 5 in still air, 25 in a brisk wind.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Solar absorptivity:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Fraction of sunlight absorbed. Not the infrared emissivity: fresh snow absorbs almost no sunlight and radiates nearly as a blackbody.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Adiabatic (nothing behind)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Held at a temperature</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Back face:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Behind it:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Temperature of whatever is behind the surface -- a room, usually. Used only when the back face is held.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Transmission and Volume</source>
         <translation type="unfinished"></translation>
     </message>
@@ -2161,6 +2321,30 @@ PNG: %2</translation>
         <source>This material&apos;s infrared response is stored as full spectral curves. Editing this value replaces them with two constant sample points.
 
 Replace the curves?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Temperature Map</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Images (*.png *.exr *.tif *.tiff *.hdr *.jpg);;All files (*)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No map: this surface is one temperature.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Map covers %1 K to %2 K in steps of %3 K. A changed path takes effect when the scene is reloaded.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Not solved: this surface keeps the temperature it is given.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Time constant about %1 h: how long this surface takes to follow a change in the air around it.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -2733,6 +2917,14 @@ Rebuild with:
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Thermography</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Write a temperature map when rendering</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Lens focal length. With the pixel pitch it sets the angular size of a pixel, and so how much of the scene one pixel averages.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -2774,6 +2966,54 @@ Rebuild with:
     </message>
     <message>
         <source>Temperature of the detector itself. Drives dark current, and for thermal bands the self-emission the optics see.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Assumed Emissivity:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>What the camera is told the surface&apos;s emissivity is. 1 gives apparent temperature, which is what a campaign records when it will not assume one -- and which reads cold for any real surface.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Reflected Temperature:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Temperature of whatever the surface reflects, usually the sky. Ignored at emissivity 1, since a blackbody reflects nothing.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Path Transmittance:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Fraction of the surface&apos;s radiation that survives the air between it and the lens. 1 removes the atmosphere from the model, which is right for a short measurement distance.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Path Temperature:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Temperature of that air. Used only when the transmittance is below 1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sensitivity needs the sensor simulation on.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sensitivity: band has no usable slope here.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sensitivity: noiseless — any difference resolves.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>NETD %1 mK at 300 K over %2–%3 µm, well capacity aside.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -2883,6 +3123,165 @@ Rebuild with:
     <message>
         <source>Detector Temperature:</source>
         <translation>Detector Temperature:</translation>
+    </message>
+</context>
+<context>
+    <name>SequenceRenderDialog</name>
+    <message>
+        <source>Render Sequence</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>One scene, one frame per step. Each frame overrides a material&apos;s temperature and its own output file; everything else is the document as it stands.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sweep</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Material:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source> K</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>From:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>To:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Frames:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Samples per frame. Every frame is traced to completion, so this multiplies by the frame count.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Samples per frame:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Output</source>
+        <translation type="unfinished">Output</translation>
+    </message>
+    <message>
+        <source>...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Directory:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>{index} is the frame number, zero padded; {temperature} is its temperature in kelvin, rounded.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Name:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Export Manifest...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Write this sequence as a batch manifest the command line renders, for a run long enough to want a machine of its own.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Render</source>
+        <translation type="unfinished">Render</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The open scene has no materials to sweep.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 frames at %2 samples each.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sequence Output Directory</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Export Batch Manifest</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Manifest (*.txt);;All files (*)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Which configuration should the manifest name?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Scene configuration (*.toml)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Export Failed</source>
+        <translation type="unfinished">Export Failed</translation>
+    </message>
+    <message>
+        <source>Cannot write %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Manifest written to %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Stopping after this frame...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sequence Failed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The open document could not be written as TOML.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Stop</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Frame %1 of %2...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Frame %1 is not valid TOML: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Frame %1: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Frame %1 failed: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Stopped after %1 of %2 frames.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 frames written.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -3446,6 +3845,105 @@ Coverage — VIS %3%, NIR %4%, SWIR %5%</source>
     </message>
     <message>
         <source>Print Friendly</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>ThermalPanel</name>
+    <message>
+        <source>Thermal Solve</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enable thermal solve</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Time of Day</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Simulation time</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Solver Parameters</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Start time</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Timestep</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Layers</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Initial condition</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Initial temperature</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Solar irradiance</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Exchange rays</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Exchange top-K</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Checkpoint stride</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Forcing file</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Status</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Elements: %1 (%2 solved)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Surface temperature: %1 – %2 K (mean %3 K)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Surface temperature: —</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Steps: %1, checkpoints: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Exchange: %1 entries (%2 runs)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Stepper: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Select Forcing CSV</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>CSV files (*.csv);;All files (*)</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

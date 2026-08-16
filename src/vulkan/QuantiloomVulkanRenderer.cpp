@@ -1522,6 +1522,56 @@ bool QuantiloomVulkanRenderer::hasEnvironmentMap() const {
 }
 
 // ============================================================================
+// Thermal Solve
+// ============================================================================
+
+void QuantiloomVulkanRenderer::setThermalSolveParams(
+    const quantiloom::ThermalSolveParams& params) {
+    if (m_renderContext) {
+        m_renderContext->SetThermalSolveParams(params);
+        resetAccumulation();
+    }
+}
+
+void QuantiloomVulkanRenderer::setThermalMaterial(
+    const QString& name, const quantiloom::ThermalMaterialParams& params) {
+    if (m_renderContext) {
+        m_renderContext->SetThermalMaterial(name.toStdString(), params);
+    }
+}
+
+void QuantiloomVulkanRenderer::clearThermalMaterials() {
+    if (m_renderContext) {
+        m_renderContext->ClearThermalMaterials();
+    }
+}
+
+void QuantiloomVulkanRenderer::setThermalSolveEnabled(bool enabled) {
+    if (m_renderContext) {
+        m_renderContext->SetThermalSolveEnabled(enabled);
+        resetAccumulation();
+    }
+}
+
+void QuantiloomVulkanRenderer::setThermalTime(double time_h) {
+    if (m_renderContext) {
+        auto result = m_renderContext->SetThermalTime(time_h);
+        if (!result) {
+            qWarning() << "[Thermal] SetThermalTime failed:"
+                       << QString::fromStdString(result.error());
+        }
+        resetAccumulation();
+    }
+}
+
+quantiloom::ThermalSolveStatus QuantiloomVulkanRenderer::thermalSolveStatus() const {
+    if (m_renderContext) {
+        return m_renderContext->GetThermalSolveStatus();
+    }
+    return {};
+}
+
+// ============================================================================
 // Sensor Simulation
 // ============================================================================
 

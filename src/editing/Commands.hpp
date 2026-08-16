@@ -42,6 +42,7 @@ enum class CommandId {
     ModifySpectralMode = 9,
     ModifyWavelength = 10,
     ModifyEnvironmentMap = 11,
+    ModifyThermal = 12,
 };
 
 /**

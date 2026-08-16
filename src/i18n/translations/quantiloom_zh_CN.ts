@@ -20,7 +20,7 @@
         <translation>气温：</translation>
     </message>
     <message>
-        <source>Temperature of the air itself. With the clear sky on it is the sky's Planck temperature, which the emissivity then makes read colder; with it off it is the whole of the thermal sky.</source>
+        <source>Temperature of the air itself. With the clear sky on it is the sky&apos;s Planck temperature, which the emissivity then makes read colder; with it off it is the whole of the thermal sky.</source>
         <translation>空气本身的温度。启用晴空模型时它是天空的普朗克温度，再由发射率使其读数更低；关闭时它就是热波段天空的全部。</translation>
     </message>
     <message>
@@ -143,15 +143,15 @@ Leave empty to auto-detect.</source>
     </message>
     <message>
         <source>Analytic terms (legacy)</source>
-        <translation>解析式参数（旧版）</translation>
+        <translation type="vanished">解析式参数（旧版）</translation>
     </message>
     <message>
         <source>Transmittance:</source>
-        <translation>透过率：</translation>
+        <translation type="vanished">透过率：</translation>
     </message>
     <message>
         <source>Atmosphere temperature:</source>
-        <translation>大气温度：</translation>
+        <translation type="vanished">大气温度：</translation>
     </message>
     <message>
         <source> K</source>
@@ -159,15 +159,15 @@ Leave empty to auto-detect.</source>
     </message>
     <message>
         <source>Superseded: view-path transmittance comes from the network model. Kept because it is still part of the lighting parameters uploaded each frame.</source>
-        <translation>已被取代：视线路径透过率现由神经网络模型给出。此处保留是因为它仍属于每帧上传的光照参数。</translation>
+        <translation type="vanished">已被取代：视线路径透过率现由神经网络模型给出。此处保留是因为它仍属于每帧上传的光照参数。</translation>
     </message>
     <message>
         <source>Thermal-sky fallback for infrared downwelling, used when the network model is off.</source>
-        <translation>红外下行辐射的热天空回退值，仅在关闭神经网络模型时使用。</translation>
+        <translation type="vanished">红外下行辐射的热天空回退值，仅在关闭神经网络模型时使用。</translation>
     </message>
     <message>
         <source>Both values live in the lighting parameters. The network model below supersedes the transmittance; the temperature remains the fallback sky for infrared when that model is disabled.</source>
-        <translation>这两个值都属于光照参数。下方的神经网络模型会取代其中的透过率；关闭该模型时，温度仍作为红外的回退天空温度。</translation>
+        <translation type="vanished">这两个值都属于光照参数。下方的神经网络模型会取代其中的透过率；关闭该模型时，温度仍作为红外的回退天空温度。</translation>
     </message>
     <message>
         <source>Neural network model (MODTRAN surrogate)</source>
@@ -216,10 +216,6 @@ Leave empty to auto-detect.</source>
     <message>
         <source>Ground temperature:</source>
         <translation>地表温度：</translation>
-    </message>
-    <message>
-        <source>Relative humidity:</source>
-        <translation>相对湿度：</translation>
     </message>
     <message>
         <source> hPa</source>
@@ -1393,6 +1389,10 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
     <message>
         <source>Sensor parameters</source>
         <translation>传感器参数</translation>
+    </message>
+    <message>
+        <source>Thermal time</source>
+        <translation>热求解时间</translation>
     </message>
     <message>
         <source>Workspace: %1</source>
@@ -3024,7 +3024,7 @@ Rebuild with:
         <translation>假定发射率：</translation>
     </message>
     <message>
-        <source>What the camera is told the surface's emissivity is. 1 gives apparent temperature, which is what a campaign records when it will not assume one -- and which reads cold for any real surface.</source>
+        <source>What the camera is told the surface&apos;s emissivity is. 1 gives apparent temperature, which is what a campaign records when it will not assume one -- and which reads cold for any real surface.</source>
         <translation>告知相机的表面发射率。取 1 得到表观温度，即测量活动在不愿假定发射率时所记录的量——对任何真实表面它都会偏冷。</translation>
     </message>
     <message>
@@ -3040,7 +3040,7 @@ Rebuild with:
         <translation>路径透过率：</translation>
     </message>
     <message>
-        <source>Fraction of the surface's radiation that survives the air between it and the lens. 1 removes the atmosphere from the model, which is right for a short measurement distance.</source>
+        <source>Fraction of the surface&apos;s radiation that survives the air between it and the lens. 1 removes the atmosphere from the model, which is right for a short measurement distance.</source>
         <translation>表面辐射穿过它与镜头之间空气后残存的比例。取 1 即在模型中去掉大气，适用于近距离测量。</translation>
     </message>
     <message>
@@ -3246,6 +3246,165 @@ Rebuild with:
     <message>
         <source>Detector Temperature:</source>
         <translation>探测器温度:</translation>
+    </message>
+</context>
+<context>
+    <name>SequenceRenderDialog</name>
+    <message>
+        <source>Render Sequence</source>
+        <translation>渲染序列</translation>
+    </message>
+    <message>
+        <source>One scene, one frame per step. Each frame overrides a material&apos;s temperature and its own output file; everything else is the document as it stands.</source>
+        <translation>同一场景，每一步渲染一帧。每帧覆盖某个材质的温度与自己的输出文件，其余部分保持当前文档不变。</translation>
+    </message>
+    <message>
+        <source>Sweep</source>
+        <translation>扫描</translation>
+    </message>
+    <message>
+        <source>Material:</source>
+        <translation>材质：</translation>
+    </message>
+    <message>
+        <source>From:</source>
+        <translation>起始：</translation>
+    </message>
+    <message>
+        <source>To:</source>
+        <translation>终止：</translation>
+    </message>
+    <message>
+        <source>Frames:</source>
+        <translation>帧数：</translation>
+    </message>
+    <message>
+        <source>Samples per frame:</source>
+        <translation>每帧采样数：</translation>
+    </message>
+    <message>
+        <source>Samples per frame. Every frame is traced to completion, so this multiplies by the frame count.</source>
+        <translation>每帧的采样数。每帧都要追踪到收敛，因此总开销是它乘以帧数。</translation>
+    </message>
+    <message>
+        <source>Output</source>
+        <translation>输出</translation>
+    </message>
+    <message>
+        <source>Directory:</source>
+        <translation>目录：</translation>
+    </message>
+    <message>
+        <source>Name:</source>
+        <translation>文件名：</translation>
+    </message>
+    <message>
+        <source>{index} is the frame number, zero padded; {temperature} is its temperature in kelvin, rounded.</source>
+        <translation>{index} 为补零的帧号；{temperature} 为该帧温度（开尔文，取整）。</translation>
+    </message>
+    <message>
+        <source>Export Manifest...</source>
+        <translation>导出清单...</translation>
+    </message>
+    <message>
+        <source>Write this sequence as a batch manifest the command line renders, for a run long enough to want a machine of its own.</source>
+        <translation>把该序列写成命令行可渲染的批处理清单，适合长到需要单独一台机器去跑的任务。</translation>
+    </message>
+    <message>
+        <source>Render</source>
+        <translation>渲染</translation>
+    </message>
+    <message>
+        <source>Stop</source>
+        <translation>停止</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation>关闭</translation>
+    </message>
+    <message>
+        <source>...</source>
+        <translation>...</translation>
+    </message>
+    <message>
+        <source> K</source>
+        <translation> K</translation>
+    </message>
+    <message>
+        <source>The open scene has no materials to sweep.</source>
+        <translation>当前场景没有可供扫描的材质。</translation>
+    </message>
+    <message>
+        <source>%1 frames at %2 samples each.</source>
+        <translation>%1 帧，每帧 %2 个采样。</translation>
+    </message>
+    <message>
+        <source>Sequence Output Directory</source>
+        <translation>序列输出目录</translation>
+    </message>
+    <message>
+        <source>Export Batch Manifest</source>
+        <translation>导出批处理清单</translation>
+    </message>
+    <message>
+        <source>Manifest (*.txt);;All files (*)</source>
+        <translation>清单 (*.txt);;所有文件 (*)</translation>
+    </message>
+    <message>
+        <source>Which configuration should the manifest name?</source>
+        <translation>清单应当引用哪个配置文件？</translation>
+    </message>
+    <message>
+        <source>Scene configuration (*.toml)</source>
+        <translation>场景配置 (*.toml)</translation>
+    </message>
+    <message>
+        <source>Export Failed</source>
+        <translation>导出失败</translation>
+    </message>
+    <message>
+        <source>Cannot write %1</source>
+        <translation>无法写入 %1</translation>
+    </message>
+    <message>
+        <source>Manifest written to %1</source>
+        <translation>清单已写入 %1</translation>
+    </message>
+    <message>
+        <source>Stopping after this frame...</source>
+        <translation>将在本帧结束后停止...</translation>
+    </message>
+    <message>
+        <source>Sequence Failed</source>
+        <translation>序列渲染失败</translation>
+    </message>
+    <message>
+        <source>The open document could not be written as TOML.</source>
+        <translation>当前文档无法写成 TOML。</translation>
+    </message>
+    <message>
+        <source>Frame %1 of %2...</source>
+        <translation>第 %1 / %2 帧...</translation>
+    </message>
+    <message>
+        <source>Frame %1 is not valid TOML: %2</source>
+        <translation>第 %1 帧不是合法 TOML：%2</translation>
+    </message>
+    <message>
+        <source>Frame %1: %2</source>
+        <translation>第 %1 帧：%2</translation>
+    </message>
+    <message>
+        <source>Frame %1 failed: %2</source>
+        <translation>第 %1 帧失败：%2</translation>
+    </message>
+    <message>
+        <source>Stopped after %1 of %2 frames.</source>
+        <translation>已在 %2 帧中完成 %1 帧后停止。</translation>
+    </message>
+    <message>
+        <source>%1 frames written.</source>
+        <translation>已写出 %1 帧。</translation>
     </message>
 </context>
 <context>
@@ -3813,6 +3972,105 @@ Coverage — VIS %3%, NIR %4%, SWIR %5%</source>
     <message>
         <source>Print Friendly</source>
         <translation>打印友好</translation>
+    </message>
+</context>
+<context>
+    <name>ThermalPanel</name>
+    <message>
+        <source>Thermal Solve</source>
+        <translation>热求解</translation>
+    </message>
+    <message>
+        <source>Enable thermal solve</source>
+        <translation>启用热求解</translation>
+    </message>
+    <message>
+        <source>Time of Day</source>
+        <translation>时刻</translation>
+    </message>
+    <message>
+        <source>Simulation time</source>
+        <translation>模拟时间</translation>
+    </message>
+    <message>
+        <source>Solver Parameters</source>
+        <translation>求解器参数</translation>
+    </message>
+    <message>
+        <source>Start time</source>
+        <translation>起始时间</translation>
+    </message>
+    <message>
+        <source>Timestep</source>
+        <translation>时间步长</translation>
+    </message>
+    <message>
+        <source>Layers</source>
+        <translation>层数</translation>
+    </message>
+    <message>
+        <source>Initial condition</source>
+        <translation>初始条件</translation>
+    </message>
+    <message>
+        <source>Initial temperature</source>
+        <translation>初始温度</translation>
+    </message>
+    <message>
+        <source>Solar irradiance</source>
+        <translation>太阳辐照度</translation>
+    </message>
+    <message>
+        <source>Exchange rays</source>
+        <translation>交换光线数</translation>
+    </message>
+    <message>
+        <source>Exchange top-K</source>
+        <translation>交换 top-K</translation>
+    </message>
+    <message>
+        <source>Checkpoint stride</source>
+        <translation>检查点间距</translation>
+    </message>
+    <message>
+        <source>Forcing file</source>
+        <translation>强迫文件</translation>
+    </message>
+    <message>
+        <source>Status</source>
+        <translation>状态</translation>
+    </message>
+    <message>
+        <source>Elements: %1 (%2 solved)</source>
+        <translation>单元: %1（%2 已求解）</translation>
+    </message>
+    <message>
+        <source>Surface temperature: %1 – %2 K (mean %3 K)</source>
+        <translation>表面温度: %1 – %2 K（均值 %3 K）</translation>
+    </message>
+    <message>
+        <source>Surface temperature: —</source>
+        <translation>表面温度: —</translation>
+    </message>
+    <message>
+        <source>Steps: %1, checkpoints: %2</source>
+        <translation>步数: %1，检查点: %2</translation>
+    </message>
+    <message>
+        <source>Exchange: %1 entries (%2 runs)</source>
+        <translation>交换: %1 项（%2 次计算）</translation>
+    </message>
+    <message>
+        <source>Stepper: %1</source>
+        <translation>步进器: %1</translation>
+    </message>
+    <message>
+        <source>Select Forcing CSV</source>
+        <translation>选择强迫 CSV</translation>
+    </message>
+    <message>
+        <source>CSV files (*.csv);;All files (*)</source>
+        <translation>CSV 文件 (*.csv);;所有文件 (*)</translation>
     </message>
 </context>
 <context>
@@ -4409,165 +4667,6 @@ Right-drag orbits the camera, middle-drag pans, the wheel zooms; G/R/T switch tr
     <message>
         <source>Wavelength (nm)</source>
         <translation>波长 (nm)</translation>
-    </message>
-</context>
-<context>
-    <name>SequenceRenderDialog</name>
-    <message>
-        <source>Render Sequence</source>
-        <translation>渲染序列</translation>
-    </message>
-    <message>
-        <source>One scene, one frame per step. Each frame overrides a material's temperature and its own output file; everything else is the document as it stands.</source>
-        <translation>同一场景，每一步渲染一帧。每帧覆盖某个材质的温度与自己的输出文件，其余部分保持当前文档不变。</translation>
-    </message>
-    <message>
-        <source>Sweep</source>
-        <translation>扫描</translation>
-    </message>
-    <message>
-        <source>Material:</source>
-        <translation>材质：</translation>
-    </message>
-    <message>
-        <source>From:</source>
-        <translation>起始：</translation>
-    </message>
-    <message>
-        <source>To:</source>
-        <translation>终止：</translation>
-    </message>
-    <message>
-        <source>Frames:</source>
-        <translation>帧数：</translation>
-    </message>
-    <message>
-        <source>Samples per frame:</source>
-        <translation>每帧采样数：</translation>
-    </message>
-    <message>
-        <source>Samples per frame. Every frame is traced to completion, so this multiplies by the frame count.</source>
-        <translation>每帧的采样数。每帧都要追踪到收敛，因此总开销是它乘以帧数。</translation>
-    </message>
-    <message>
-        <source>Output</source>
-        <translation>输出</translation>
-    </message>
-    <message>
-        <source>Directory:</source>
-        <translation>目录：</translation>
-    </message>
-    <message>
-        <source>Name:</source>
-        <translation>文件名：</translation>
-    </message>
-    <message>
-        <source>{index} is the frame number, zero padded; {temperature} is its temperature in kelvin, rounded.</source>
-        <translation>{index} 为补零的帧号；{temperature} 为该帧温度（开尔文，取整）。</translation>
-    </message>
-    <message>
-        <source>Export Manifest...</source>
-        <translation>导出清单...</translation>
-    </message>
-    <message>
-        <source>Write this sequence as a batch manifest the command line renders, for a run long enough to want a machine of its own.</source>
-        <translation>把该序列写成命令行可渲染的批处理清单，适合长到需要单独一台机器去跑的任务。</translation>
-    </message>
-    <message>
-        <source>Render</source>
-        <translation>渲染</translation>
-    </message>
-    <message>
-        <source>Stop</source>
-        <translation>停止</translation>
-    </message>
-    <message>
-        <source>Close</source>
-        <translation>关闭</translation>
-    </message>
-    <message>
-        <source>...</source>
-        <translation>...</translation>
-    </message>
-    <message>
-        <source> K</source>
-        <translation> K</translation>
-    </message>
-    <message>
-        <source>The open scene has no materials to sweep.</source>
-        <translation>当前场景没有可供扫描的材质。</translation>
-    </message>
-    <message>
-        <source>%1 frames at %2 samples each.</source>
-        <translation>%1 帧，每帧 %2 个采样。</translation>
-    </message>
-    <message>
-        <source>Sequence Output Directory</source>
-        <translation>序列输出目录</translation>
-    </message>
-    <message>
-        <source>Export Batch Manifest</source>
-        <translation>导出批处理清单</translation>
-    </message>
-    <message>
-        <source>Manifest (*.txt);;All files (*)</source>
-        <translation>清单 (*.txt);;所有文件 (*)</translation>
-    </message>
-    <message>
-        <source>Which configuration should the manifest name?</source>
-        <translation>清单应当引用哪个配置文件？</translation>
-    </message>
-    <message>
-        <source>Scene configuration (*.toml)</source>
-        <translation>场景配置 (*.toml)</translation>
-    </message>
-    <message>
-        <source>Export Failed</source>
-        <translation>导出失败</translation>
-    </message>
-    <message>
-        <source>Cannot write %1</source>
-        <translation>无法写入 %1</translation>
-    </message>
-    <message>
-        <source>Manifest written to %1</source>
-        <translation>清单已写入 %1</translation>
-    </message>
-    <message>
-        <source>Stopping after this frame...</source>
-        <translation>将在本帧结束后停止...</translation>
-    </message>
-    <message>
-        <source>Sequence Failed</source>
-        <translation>序列渲染失败</translation>
-    </message>
-    <message>
-        <source>The open document could not be written as TOML.</source>
-        <translation>当前文档无法写成 TOML。</translation>
-    </message>
-    <message>
-        <source>Frame %1 of %2...</source>
-        <translation>第 %1 / %2 帧...</translation>
-    </message>
-    <message>
-        <source>Frame %1 is not valid TOML: %2</source>
-        <translation>第 %1 帧不是合法 TOML：%2</translation>
-    </message>
-    <message>
-        <source>Frame %1: %2</source>
-        <translation>第 %1 帧：%2</translation>
-    </message>
-    <message>
-        <source>Frame %1 failed: %2</source>
-        <translation>第 %1 帧失败：%2</translation>
-    </message>
-    <message>
-        <source>Stopped after %1 of %2 frames.</source>
-        <translation>已在 %2 帧中完成 %1 帧后停止。</translation>
-    </message>
-    <message>
-        <source>%1 frames written.</source>
-        <translation>已写出 %1 帧。</translation>
     </message>
 </context>
 </TS>

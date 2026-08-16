@@ -25,6 +25,7 @@
 #include <atmos/AtmosphereNNConfig.hpp>
 #include <postprocess/SensorModel.hpp>
 #include <postprocess/Thermography.hpp>
+#include <renderer/ThermalControl.hpp>
 // For SolarLutSpec, held by value in an optional below (optional forbids an
 // incomplete type, unlike the unique_ptr<ExternalRenderContext> beside it).
 #include <renderer/ExternalRenderContext.hpp>
@@ -392,6 +393,17 @@ public:
      * @brief Get current sensor parameters
      */
     const quantiloom::SensorParams& getSensorParams() const { return m_sensorParams; }
+
+    // ========================================================================
+    // Thermal Solve
+    // ========================================================================
+
+    void setThermalSolveParams(const quantiloom::ThermalSolveParams& params);
+    void setThermalMaterial(const QString& name, const quantiloom::ThermalMaterialParams& params);
+    void clearThermalMaterials();
+    void setThermalSolveEnabled(bool enabled);
+    void setThermalTime(double time_h);
+    [[nodiscard]] quantiloom::ThermalSolveStatus thermalSolveStatus() const;
 
     // ========================================================================
     // Display Enhancement (CLAHE)

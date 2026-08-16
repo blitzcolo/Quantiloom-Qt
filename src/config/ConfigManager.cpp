@@ -281,6 +281,8 @@ void ConfigManager::extractSceneConfig(const quantiloom::Config& config, SceneCo
         static_cast<int>(config.Get<quantiloom::u32>("thermal.exchange_rays", 256));
     out.thermalExchangeTopK =
         static_cast<int>(config.Get<quantiloom::u32>("thermal.exchange_top_k", 32));
+    out.thermalCheckpointStrideH =
+        config.Get<double>("thermal.checkpoint_stride_h", 1.0);
     out.thermalForcingFile =
         QString::fromStdString(config.GetString("thermal.forcing_file", ""));
 
@@ -975,6 +977,7 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
     out << "sun_irradiance_w_m2 = " << config.thermalSunIrradiance << "\n";
     out << "exchange_rays = " << config.thermalExchangeRays << "\n";
     out << "exchange_top_k = " << config.thermalExchangeTopK << "\n";
+    out << "checkpoint_stride_h = " << config.thermalCheckpointStrideH << "\n";
     if (!config.thermalForcingFile.isEmpty()) {
         out << "forcing_file = " << tomlQuoted(config.thermalForcingFile) << "\n";
     }
