@@ -1189,31 +1189,43 @@ void MainWindow::applyThermalMaterial(const QString& name,
     }
 }
 
-void MainWindow::applyClaheParams(bool enabled, float clipLimit, int tileSize,
-                                  bool luminanceOnly) {
-    m_displayEnhancementEnabled = enabled;
-    m_claheClipLimit = clipLimit;
-    m_claheTileSize = tileSize;
-    m_claheLuminanceOnly = luminanceOnly;
+void MainWindow::applyDisplayEnhancement(
+    const quantiloom::DisplayEnhancementParams& params) {
+    m_displayParams = params;
 
-    m_vulkanWindow->setDisplayEnhancement(enabled, clipLimit, tileSize, luminanceOnly);
-
-    m_displayEnhancementPanel->setEnhancementEnabled(enabled);
-    m_displayEnhancementPanel->setClipLimit(clipLimit);
-    m_displayEnhancementPanel->setTileSize(tileSize);
-    m_displayEnhancementPanel->setLuminanceOnly(luminanceOnly);
+    m_vulkanWindow->setDisplayEnhancement(params);
+    m_displayEnhancementPanel->setParams(params);
 
     if (m_displayEnhancementAction) {
         const QSignalBlocker blocker(m_displayEnhancementAction);
-        m_displayEnhancementAction->setChecked(enabled);
+        m_displayEnhancementAction->setChecked(params.enabled);
     }
 
     // Session state, not the document -- see src/config/CLAUDE.md. No
     // setSceneModified() here, deliberately.
-    showStatusMessage(enabled
-        ? tr("Display enhancement on (CLAHE: clip %1, %2x%2 tiles)")
-            .arg(clipLimit, 0, 'f', 1).arg(tileSize)
-        : tr("Display enhancement off"));
+    if (!params.enabled) {
+        showStatusMessage(tr("Display enhancement off"));
+        return;
+    }
+
+    QString tone;
+    switch (params.toneMode) {
+        case quantiloom::DisplayToneMode::Linear:   tone = tr("linear"); break;
+        case quantiloom::DisplayToneMode::Equalize: tone = tr("equalized"); break;
+        case quantiloom::DisplayToneMode::Clahe:    tone = tr("CLAHE"); break;
+    }
+    QString palette;
+    switch (params.palette) {
+        case quantiloom::DisplayPalette::Grey:         palette = tr("greyscale"); break;
+        case quantiloom::DisplayPalette::GreyInverted: palette = tr("inverted"); break;
+        case quantiloom::DisplayPalette::Ironbow:      palette = tr("ironbow"); break;
+        case quantiloom::DisplayPalette::Rainbow:      palette = tr("rainbow"); break;
+        case quantiloom::DisplayPalette::Viridis:      palette = tr("viridis"); break;
+    }
+    showStatusMessage(tr("Display enhancement on (%1, %2, %3–%4%)")
+                          .arg(tone, palette)
+                          .arg(params.percentileLow, 0, 'f', 1)
+                          .arg(params.percentileHigh, 0, 'f', 1));
 }
 
 void MainWindow::applyCameraPose(const glm::vec3& position, const glm::vec3& target) {
@@ -1834,7 +1846,7 @@ void MainWindow::setupDockWidgets() {
 
     // Display enhancement panel signals
     connect(m_displayEnhancementPanel, &DisplayEnhancementPanel::enhancementChanged,
-            this, &MainWindow::applyClaheParams);
+            this, &MainWindow::applyDisplayEnhancement);
 }
 
 void MainWindow::setupWorkspaces() {

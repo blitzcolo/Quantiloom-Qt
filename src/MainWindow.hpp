@@ -31,6 +31,7 @@
 #include <mcp/McpServer.hpp>
 #include <postprocess/SensorModel.hpp>
 #include <postprocess/Thermography.hpp>
+#include <renderer/DisplayControl.hpp>
 #include <renderer/ThermalControl.hpp>
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
@@ -287,7 +288,10 @@ private:
     /// file that gets saved.
     void applyThermalMaterial(const QString& name, const MaterialThermalProps& props);
     [[nodiscard]] quantiloom::ThermalSolveParams currentThermalParams() const;
-    void applyClaheParams(bool enabled, float clipLimit, int tileSize, bool luminanceOnly);
+    /// The tone operator and palette the viewport is displayed with. Session
+    /// state rather than document state: it is a way of looking at the render,
+    /// not a property of the scene, so it is never written to the config.
+    void applyDisplayEnhancement(const quantiloom::DisplayEnhancementParams& params);
     void applyCameraPose(const glm::vec3& position, const glm::vec3& target);
     void applyCameraFov(float fovYDegrees);
     void applyMaterial(int index, const quantiloom::Material& material);
@@ -495,10 +499,7 @@ private:
     bool m_thermographyEnabled = false;
     quantiloom::ThermographyParams m_thermographyParams;
 
-    bool m_displayEnhancementEnabled = false;
-    float m_claheClipLimit = 2.0f;
-    int m_claheTileSize = 8;
-    bool m_claheLuminanceOnly = true;
+    quantiloom::DisplayEnhancementParams m_displayParams;
 
     // Status bar widgets
     QLabel* m_statusLabel = nullptr;

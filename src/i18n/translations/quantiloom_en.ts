@@ -390,16 +390,6 @@ Help ▸ Reading Debug Output explains the colour encodings.</source>
 <context>
     <name>DisplayEnhancementPanel</name>
     <message>
-        <source>CLAHE Settings</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Higher values allow more contrast enhancement.
-1.0 = no clipping (full equalization)
-2.0-4.0 = typical range for infrared</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>4x4</source>
         <translation type="unfinished"></translation>
     </message>
@@ -412,11 +402,84 @@ Help ▸ Reading Debug Output explains the colour encodings.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>CLAHE lifts contrast in low-dynamic-range images such as infrared. It changes the viewport and saved screenshots; exported images keep their raw values.</source>
+        <source>The only tone mapping the viewport has. An infrared render sits far below the displayable range and is black without it. Affects the viewport and saved screenshots; exported images keep their raw values.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Display Settings</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Contrast:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Linear stretch (recommended)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Histogram equalization</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>CLAHE (local)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>How the render&apos;s range is mapped to the screen.
+Linear and equalization map the whole image the same way, so equal temperatures stay equally bright — what a thermogram needs.
+CLAHE maps each tile separately: more local detail, but brightness no longer tells you temperature.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Palette:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Greyscale (white-hot)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Inverted (black-hot)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ironbow</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Rainbow (false colour)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Viridis (perceptually uniform)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Colouring only — it changes no contrast.
+Anything but greyscale replaces the image&apos;s own colour, which is what false colour means.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Range window:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Low percentile of the range to map from. Above zero, so a single cold pixel does not decide what the rest of the image looks like.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>High percentile of the range to map to. Below 100 for the same reason.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Clip limit:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>How far equalization may push contrast.
+1.0 = no clipping (full equalization)
+2.0-4.0 = typical range for infrared</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -450,17 +513,17 @@ Larger tiles = more global contrast.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Apply CLAHE only to the luminance channel,
+        <source>Map the luminance and scale the channels by the result,
 preserving colour information.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>All channels</source>
+        <source>Map each RGB channel independently.
+May cause colour shifts.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Apply CLAHE independently to each RGB channel.
-May cause colour shifts.</source>
+        <source>All channels</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -1235,11 +1298,43 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Display enhancement on (CLAHE: clip %1, %2x%2 tiles)</source>
+        <source>Display enhancement off</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Display enhancement off</source>
+        <source>linear</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>equalized</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>CLAHE</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>greyscale</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>inverted</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>ironbow</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>rainbow</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>viridis</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Display enhancement on (%1, %2, %3–%4%)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

@@ -19,6 +19,7 @@
 #include <core/SpectralData.hpp>
 #include <core/Types.hpp>
 #include <renderer/Pick.hpp>
+#include <renderer/DisplayControl.hpp>
 #include <renderer/ThermalControl.hpp>
 
 #include "../editing/GizmoModel.hpp"
@@ -371,18 +372,15 @@ public:
     [[nodiscard]] quantiloom::ThermalSolveStatus thermalSolveStatus() const;
 
     // ========================================================================
-    // Display Enhancement (CLAHE)
+    // Display Enhancement
     // ========================================================================
 
     /**
-     * @brief Enable or disable display enhancement (CLAHE)
-     * @param enabled true to enable CLAHE post-processing on display
-     * @param clipLimit Contrast limit (1.0 = no limit, typical 2.0-4.0)
-     * @param tileSize Tile grid size (4, 8, 16, or 32)
-     * @param luminanceOnly Apply only to luminance channel (preserve color)
+     * @brief Set the tone operator and palette the viewport is displayed with
+     * @param params see DisplayControl.hpp -- a contrast stage and a colour
+     *               stage, which compose independently
      */
-    void setDisplayEnhancement(bool enabled, float clipLimit,
-                               int tileSize, bool luminanceOnly);
+    void setDisplayEnhancement(const quantiloom::DisplayEnhancementParams& params);
 
     // ========================================================================
     // Viewport Overlay

@@ -463,11 +463,9 @@ void QuantiloomVulkanWindow::setSensorParams(const quantiloom::SensorParams& par
     withRenderer([params](QuantiloomVulkanRenderer& r) { r.setSensorParams(params); });
 }
 
-void QuantiloomVulkanWindow::setDisplayEnhancement(bool enabled, float clipLimit,
-                                                    int tileSize, bool luminanceOnly) {
-    withRenderer([enabled, clipLimit, tileSize, luminanceOnly](QuantiloomVulkanRenderer& r) {
-        r.setDisplayEnhancement(enabled, clipLimit, tileSize, luminanceOnly);
-    });
+void QuantiloomVulkanWindow::setDisplayEnhancement(
+    const quantiloom::DisplayEnhancementParams& params) {
+    withRenderer([&params](QuantiloomVulkanRenderer& r) { r.setDisplayEnhancement(params); });
 }
 
 // ============================================================================

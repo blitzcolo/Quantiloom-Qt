@@ -406,21 +406,22 @@ public:
     [[nodiscard]] quantiloom::ThermalSolveStatus thermalSolveStatus() const;
 
     // ========================================================================
-    // Display Enhancement (CLAHE)
+    // Display Enhancement
     // ========================================================================
 
     /**
-     * @brief Set display enhancement parameters
-     * Note: Currently CLAHE is applied to screenshots only.
-     *       Real-time display enhancement would require GPU implementation.
+     * @brief Set the tone operator and palette the viewport is displayed with
+     *
+     * The only tone mapping there is: without it an infrared render, whose
+     * radiance sits two orders of magnitude below the displayable range, is
+     * black. See DisplayControl.hpp for what the modes mean.
      */
-    void setDisplayEnhancement(bool enabled, float clipLimit,
-                               int tileSize, bool luminanceOnly);
+    void setDisplayEnhancement(const quantiloom::DisplayEnhancementParams& params);
 
-    bool isDisplayEnhancementEnabled() const { return m_displayEnhancementEnabled; }
-    float getClaheClipLimit() const { return m_claheClipLimit; }
-    int getClaheTileSize() const { return m_claheTileSize; }
-    bool isClaheLuminanceOnly() const { return m_claheLuminanceOnly; }
+    bool isDisplayEnhancementEnabled() const { return m_displayParams.enabled; }
+    [[nodiscard]] const quantiloom::DisplayEnhancementParams& displayEnhancementParams() const {
+        return m_displayParams;
+    }
 
 private:
     void updateCamera(float deltaTime);
@@ -554,10 +555,7 @@ private:
     QString m_solarLutBaseDir;
 
     // Display enhancement (CLAHE)
-    bool m_displayEnhancementEnabled = false;
-    float m_claheClipLimit = 2.0f;
-    int m_claheTileSize = 8;
-    bool m_claheLuminanceOnly = true;
+    quantiloom::DisplayEnhancementParams m_displayParams;
 
     // Initialization state
     bool m_initialized = false;

@@ -1620,27 +1620,19 @@ void QuantiloomVulkanRenderer::setSensorParams(const quantiloom::SensorParams& p
     }
 }
 
-void QuantiloomVulkanRenderer::setDisplayEnhancement(bool enabled, float clipLimit,
-                                                      int tileSize, bool luminanceOnly) {
-    m_displayEnhancementEnabled = enabled;
-    m_claheClipLimit = clipLimit;
-    m_claheTileSize = tileSize;
-    m_claheLuminanceOnly = luminanceOnly;
+void QuantiloomVulkanRenderer::setDisplayEnhancement(
+    const quantiloom::DisplayEnhancementParams& params) {
+    m_displayParams = params;
 
-    // Pass CLAHE params to libQuantiloom for GPU processing
     if (m_renderContext) {
-        quantiloom::ExternalRenderContext::CLAHEParams params;
-        params.enabled = enabled;
-        params.clipLimit = clipLimit;
-        params.tileSize = tileSize;
-        params.luminanceOnly = luminanceOnly;
-        params.normalizeOutput = true;
-        m_renderContext->SetCLAHEParams(params);
+        m_renderContext->SetDisplayEnhancementParams(params);
         requestDisplayReprocess();
     }
 
-    qDebug() << "Display enhancement:" << (enabled ? "ENABLED" : "disabled")
-             << "- CLAHE clip=" << clipLimit
-             << ", tiles=" << tileSize << "x" << tileSize
-             << ", luminanceOnly=" << luminanceOnly;
+    qDebug() << "Display enhancement:" << (params.enabled ? "ENABLED" : "disabled")
+             << "- tone=" << static_cast<int>(params.toneMode)
+             << ", palette=" << static_cast<int>(params.palette)
+             << ", clip=" << params.clipLimit
+             << ", tiles=" << params.tileSize
+             << ", window=[" << params.percentileLow << "," << params.percentileHigh << "]";
 }

@@ -241,7 +241,7 @@ void MainWindow::registerMcpTools() {
             out["spectral_mode"] = catalog::spectralModeId(m_vulkanWindow->spectralMode());
             out["wavelength_nm"] = m_vulkanWindow->wavelength();
             out["debug_mode"] = catalog::debugModeId(m_vulkanWindow->debugMode());
-            out["display_enhancement"] = m_displayEnhancementEnabled;
+            out["display_enhancement"] = m_displayParams.enabled;
             // The extent being traced, which is below the viewport's while a
             // camera or gizmo gesture is in progress. A capture taken then is
             // this size, not the viewport's.
@@ -1206,19 +1206,38 @@ void MainWindow::registerMcpTools() {
         mcp::ToolDef tool;
         tool.name = "ql_set_display_enhancement";
         tool.description =
-            "Contrast-limited adaptive histogram equalisation on the displayed image.\n"
+            "How the render reaches the screen: a contrast stage and a colour stage.\n"
             "\n"
-            "A display transform, not a physical one: it changes what the viewport and "
-            "ql_capture_viewport view 'display' show, and never the radiance underneath. Worth "
-            "turning on for the infrared modes, where the physical values occupy a tiny part of "
-            "the display range and the raw view looks blank. Session state -- not saved.";
+            "A display transform, not a physical one -- it changes what the viewport and "
+            "ql_capture_viewport view 'display' show, and never the radiance underneath. It is "
+            "also the ONLY tone mapping there is, so an infrared render (radiance around 1e-2) "
+            "is black with it off.\n"
+            "\n"
+            "tone_mode decides the contrast, and the difference that matters is whether the "
+            "whole image is mapped the same way:\n"
+            "  linear    stretch the percentile window. Globally monotone, so brighter is "
+            "hotter everywhere. The right choice for reading temperatures.\n"
+            "  equalize  equalise over the whole image, clipped at clip_limit. Also globally "
+            "monotone, and spends the display range where the pixels are.\n"
+            "  clahe     equalise per tile. Best local detail, but two pixels at the same "
+            "temperature in different tiles come out different, so brightness stops meaning "
+            "temperature. Do not read quantities off a clahe view.\n"
+            "\n"
+            "palette only colours the result and changes no contrast; anything but grey "
+            "replaces the image's own colour. Session state -- not saved.";
         tool.inputSchemaJson = R"({
   "type": "object",
   "properties": {
     "enabled": {"type": "boolean"},
-    "clip_limit": {"type": "number", "minimum": 1, "maximum": 10, "description": "Typically 2 to 4."},
-    "tile_size": {"type": "integer", "enum": [4, 8, 16, 32]},
-    "luminance_only": {"type": "boolean", "description": "True preserves colour; false equalises each channel."}
+    "tone_mode": {"type": "string", "enum": ["linear", "equalize", "clahe"],
+                  "description": "Contrast stage. linear and equalize are globally monotone; clahe is not."},
+    "palette": {"type": "string", "enum": ["grey", "grey_inverted", "ironbow", "rainbow", "viridis"],
+                "description": "Colour stage. grey is white-hot and leaves a colour image alone; viridis is perceptually uniform."},
+    "clip_limit": {"type": "number", "minimum": 1, "maximum": 100, "description": "Equalize and clahe only. Typically 2 to 4."},
+    "tile_size": {"type": "integer", "enum": [4, 8, 16, 32], "description": "clahe only."},
+    "percentile_low": {"type": "number", "minimum": 0, "maximum": 50, "description": "Low end of the range window, in percent. Default 1."},
+    "percentile_high": {"type": "number", "minimum": 50, "maximum": 100, "description": "High end of the range window, in percent. Default 99."},
+    "luminance_only": {"type": "boolean", "description": "Grey palette only. True preserves colour; false maps each channel."}
   }
 })";
         tool.handler = [this](const quantiloom::String& argumentsJson) {
@@ -1227,18 +1246,78 @@ void MainWindow::registerMcpTools() {
             if (!ParseArgs(argumentsJson, args, error)) {
                 return error;
             }
-            applyClaheParams(
-                args.value(QStringLiteral("enabled")).toBool(m_displayEnhancementEnabled),
-                static_cast<float>(
-                    args.value(QStringLiteral("clip_limit")).toDouble(m_claheClipLimit)),
-                args.value(QStringLiteral("tile_size")).toInt(m_claheTileSize),
-                args.value(QStringLiteral("luminance_only")).toBool(m_claheLuminanceOnly));
 
+            quantiloom::DisplayEnhancementParams params = m_displayParams;
+            if (args.contains(QStringLiteral("enabled"))) {
+                params.enabled = args.value(QStringLiteral("enabled")).toBool();
+            }
+            if (args.contains(QStringLiteral("tone_mode"))) {
+                const QString mode = args.value(QStringLiteral("tone_mode")).toString();
+                if (mode == QLatin1String("linear")) {
+                    params.toneMode = quantiloom::DisplayToneMode::Linear;
+                } else if (mode == QLatin1String("equalize")) {
+                    params.toneMode = quantiloom::DisplayToneMode::Equalize;
+                } else if (mode == QLatin1String("clahe")) {
+                    params.toneMode = quantiloom::DisplayToneMode::Clahe;
+                } else {
+                    return mcp::ToolResult::Error(
+                        "tone_mode must be linear, equalize or clahe");
+                }
+            }
+            if (args.contains(QStringLiteral("palette"))) {
+                const QString name = args.value(QStringLiteral("palette")).toString();
+                if (name == QLatin1String("grey")) {
+                    params.palette = quantiloom::DisplayPalette::Grey;
+                } else if (name == QLatin1String("grey_inverted")) {
+                    params.palette = quantiloom::DisplayPalette::GreyInverted;
+                } else if (name == QLatin1String("ironbow")) {
+                    params.palette = quantiloom::DisplayPalette::Ironbow;
+                } else if (name == QLatin1String("rainbow")) {
+                    params.palette = quantiloom::DisplayPalette::Rainbow;
+                } else if (name == QLatin1String("viridis")) {
+                    params.palette = quantiloom::DisplayPalette::Viridis;
+                } else {
+                    return mcp::ToolResult::Error(
+                        "palette must be grey, grey_inverted, ironbow, rainbow or viridis");
+                }
+            }
+            if (args.contains(QStringLiteral("clip_limit"))) {
+                params.clipLimit = static_cast<float>(
+                    args.value(QStringLiteral("clip_limit")).toDouble(params.clipLimit));
+            }
+            if (args.contains(QStringLiteral("tile_size"))) {
+                params.tileSize =
+                    args.value(QStringLiteral("tile_size")).toInt(params.tileSize);
+            }
+            if (args.contains(QStringLiteral("percentile_low"))) {
+                params.percentileLow = static_cast<float>(
+                    args.value(QStringLiteral("percentile_low")).toDouble(params.percentileLow));
+            }
+            if (args.contains(QStringLiteral("percentile_high"))) {
+                params.percentileHigh = static_cast<float>(
+                    args.value(QStringLiteral("percentile_high")).toDouble(params.percentileHigh));
+            }
+            if (args.contains(QStringLiteral("luminance_only"))) {
+                params.luminanceOnly =
+                    args.value(QStringLiteral("luminance_only")).toBool();
+            }
+
+            applyDisplayEnhancement(params);
+
+            static constexpr const char* kToneNames[] = {"linear", "equalize", "clahe"};
+            static constexpr const char* kPaletteNames[] = {"grey", "grey_inverted", "ironbow",
+                                                            "rainbow", "viridis"};
+            const quantiloom::DisplayEnhancementParams& now = m_displayParams;
             QJsonObject out;
-            out["enabled"] = m_displayEnhancementEnabled;
-            out["clip_limit"] = m_claheClipLimit;
-            out["tile_size"] = m_claheTileSize;
-            out["luminance_only"] = m_claheLuminanceOnly;
+            out["enabled"] = now.enabled;
+            out["tone_mode"] = QLatin1String(kToneNames[static_cast<int>(now.toneMode)]);
+            out["palette"] = QLatin1String(kPaletteNames[static_cast<int>(now.palette)]);
+            out["clip_limit"] = now.clipLimit;
+            out["tile_size"] = now.tileSize;
+            out["percentile_low"] = now.percentileLow;
+            out["percentile_high"] = now.percentileHigh;
+            out["luminance_only"] = now.luminanceOnly;
+            out["globally_monotone"] = now.toneMode != quantiloom::DisplayToneMode::Clahe;
             out["session_only"] = true;
             return Json(out);
         };

@@ -410,13 +410,13 @@ Help ▸ Reading Debug Output explains the colour encodings.</source>
     <name>DisplayEnhancementPanel</name>
     <message>
         <source>CLAHE Settings</source>
-        <translation>CLAHE 设置</translation>
+        <translation type="vanished">CLAHE 设置</translation>
     </message>
     <message>
         <source>Higher values allow more contrast enhancement.
 1.0 = no clipping (full equalization)
 2.0-4.0 = typical range for infrared</source>
-        <translation>数值越大，允许的对比度增强越强。
+        <translation type="vanished">数值越大，允许的对比度增强越强。
 1.0 表示不截断（完全均衡化）
 红外常用范围为 2.0–4.0</translation>
     </message>
@@ -434,11 +434,93 @@ Help ▸ Reading Debug Output explains the colour encodings.</source>
     </message>
     <message>
         <source>CLAHE lifts contrast in low-dynamic-range images such as infrared. It changes the viewport and saved screenshots; exported images keep their raw values.</source>
-        <translation>CLAHE 可提升红外等低动态范围图像的对比度。它只改变视口与保存的截图；导出的图像保留原始数值。</translation>
+        <translation type="vanished">CLAHE 可提升红外等低动态范围图像的对比度。它只改变视口与保存的截图；导出的图像保留原始数值。</translation>
+    </message>
+    <message>
+        <source>The only tone mapping the viewport has. An infrared render sits far below the displayable range and is black without it. Affects the viewport and saved screenshots; exported images keep their raw values.</source>
+        <translation>视口里唯一的色调映射。红外渲染的量级远低于可显示范围，不开它就是一片黑。影响视口与保存的截图；导出的图像保留原始数值。</translation>
+    </message>
+    <message>
+        <source>Display Settings</source>
+        <translation>显示设置</translation>
+    </message>
+    <message>
+        <source>Contrast:</source>
+        <translation>对比度：</translation>
+    </message>
+    <message>
+        <source>Linear stretch (recommended)</source>
+        <translation>线性拉伸（推荐）</translation>
+    </message>
+    <message>
+        <source>Histogram equalization</source>
+        <translation>直方图均衡</translation>
+    </message>
+    <message>
+        <source>CLAHE (local)</source>
+        <translation>CLAHE（局部）</translation>
+    </message>
+    <message>
+        <source>How the render&apos;s range is mapped to the screen.
+Linear and equalization map the whole image the same way, so equal temperatures stay equally bright — what a thermogram needs.
+CLAHE maps each tile separately: more local detail, but brightness no longer tells you temperature.</source>
+        <translation>渲染结果的范围如何映射到屏幕。
+线性与均衡对整幅图用同一套映射，相同温度就保持相同亮度——热图需要的正是这一点。
+CLAHE 对每个分块单独映射：局部细节更好，但亮度不再代表温度。</translation>
+    </message>
+    <message>
+        <source>Palette:</source>
+        <translation>调色板：</translation>
+    </message>
+    <message>
+        <source>Greyscale (white-hot)</source>
+        <translation>灰度（白热）</translation>
+    </message>
+    <message>
+        <source>Inverted (black-hot)</source>
+        <translation>反相（黑热）</translation>
+    </message>
+    <message>
+        <source>Ironbow</source>
+        <translation>铁红</translation>
+    </message>
+    <message>
+        <source>Rainbow (false colour)</source>
+        <translation>彩虹（伪彩色）</translation>
+    </message>
+    <message>
+        <source>Viridis (perceptually uniform)</source>
+        <translation>Viridis（感知均匀）</translation>
+    </message>
+    <message>
+        <source>Colouring only — it changes no contrast.
+Anything but greyscale replaces the image&apos;s own colour, which is what false colour means.</source>
+        <translation>仅着色，不改变任何对比度。
+除灰度外都会替换图像本身的颜色——伪彩色就是这个意思。</translation>
+    </message>
+    <message>
+        <source>Range window:</source>
+        <translation>范围窗口：</translation>
+    </message>
+    <message>
+        <source>Low percentile of the range to map from. Above zero, so a single cold pixel does not decide what the rest of the image looks like.</source>
+        <translation>映射范围下端所取的百分位。取大于零的值，免得单个冷像素决定其余画面的样子。</translation>
+    </message>
+    <message>
+        <source>High percentile of the range to map to. Below 100 for the same reason.</source>
+        <translation>映射范围上端所取的百分位。低于 100，理由同上。</translation>
     </message>
     <message>
         <source>Clip limit:</source>
         <translation>对比度截断：</translation>
+    </message>
+    <message>
+        <source>How far equalization may push contrast.
+1.0 = no clipping (full equalization)
+2.0-4.0 = typical range for infrared</source>
+        <translation>均衡最多能把对比度推到多高。
+1.0 = 不裁剪（完全均衡）
+2.0-4.0 = 红外常用范围</translation>
     </message>
     <message>
         <source>Tile size:</source>
@@ -473,9 +555,21 @@ Larger tiles = more global contrast.</source>
         <translation>仅亮度通道（推荐）</translation>
     </message>
     <message>
+        <source>Map the luminance and scale the channels by the result,
+preserving colour information.</source>
+        <translation>映射亮度，再按结果缩放各通道，
+保留颜色信息。</translation>
+    </message>
+    <message>
+        <source>Map each RGB channel independently.
+May cause colour shifts.</source>
+        <translation>对 RGB 各通道独立映射。
+可能造成偏色。</translation>
+    </message>
+    <message>
         <source>Apply CLAHE only to the luminance channel,
 preserving colour information.</source>
-        <translation>只对亮度通道应用 CLAHE，
+        <translation type="vanished">只对亮度通道应用 CLAHE，
 保留色彩信息。</translation>
     </message>
     <message>
@@ -485,7 +579,7 @@ preserving colour information.</source>
     <message>
         <source>Apply CLAHE independently to each RGB channel.
 May cause colour shifts.</source>
-        <translation>对 RGB 各通道分别应用 CLAHE。
+        <translation type="vanished">对 RGB 各通道分别应用 CLAHE。
 可能引起色偏。</translation>
     </message>
 </context>
@@ -1344,11 +1438,47 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
     </message>
     <message>
         <source>Display enhancement on (CLAHE: clip %1, %2x%2 tiles)</source>
-        <translation>已启用显示增强（CLAHE：截断 %1，%2×%2 分块）</translation>
+        <translation type="vanished">已启用显示增强（CLAHE：截断 %1，%2×%2 分块）</translation>
     </message>
     <message>
         <source>Display enhancement off</source>
         <translation>已关闭显示增强</translation>
+    </message>
+    <message>
+        <source>linear</source>
+        <translation>线性</translation>
+    </message>
+    <message>
+        <source>equalized</source>
+        <translation>均衡</translation>
+    </message>
+    <message>
+        <source>CLAHE</source>
+        <translation>CLAHE</translation>
+    </message>
+    <message>
+        <source>greyscale</source>
+        <translation>灰度</translation>
+    </message>
+    <message>
+        <source>inverted</source>
+        <translation>反相</translation>
+    </message>
+    <message>
+        <source>ironbow</source>
+        <translation>铁红</translation>
+    </message>
+    <message>
+        <source>rainbow</source>
+        <translation>彩虹</translation>
+    </message>
+    <message>
+        <source>viridis</source>
+        <translation>viridis</translation>
+    </message>
+    <message>
+        <source>Display enhancement on (%1, %2, %3–%4%)</source>
+        <translation>显示增强已开启（%1，%2，%3–%4%）</translation>
     </message>
     <message>
         <source>MCP server stopped</source>
