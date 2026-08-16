@@ -25,6 +25,7 @@
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QDir>
+#include <QComboBox>
 
 #include <scene/Material.hpp>
 
@@ -273,6 +274,107 @@ void MaterialEditorPanel::setupUi() {
     irLayout->addRow(m_irKirchhoffLabel);
 
     mainLayout->addWidget(m_irGroup);
+
+    // ------------------------------------------------------------------
+    // Thermal properties
+    // ------------------------------------------------------------------
+    // What the surface energy balance needs, when a scene runs one. Collapsed
+    // by default and empty of meaning until a conductivity is set, which is
+    // what opts the material into the solve.
+    m_thermalGroup = new CollapsibleGroupBox();
+    auto* thermalLayout = new QFormLayout();
+
+    auto addThermalRow = [this, thermalLayout](const QString& caption, QDoubleSpinBox* box,
+                                               const QString& tip) {
+        box->setToolTip(tip);
+        connect(box, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+                this, &MaterialEditorPanel::onThermalPropertyChanged);
+        auto* label = new QLabel(caption);
+        label->setToolTip(tip);
+        thermalLayout->addRow(label, box);
+    };
+
+    m_thermalConductivity = new QDoubleSpinBox();
+    m_thermalConductivity->setRange(0.0, 500.0);
+    m_thermalConductivity->setDecimals(3);
+    m_thermalConductivity->setSingleStep(0.1);
+    m_thermalConductivity->setSuffix(tr(" W/mK"));
+    m_thermalConductivity->setSpecialValueText(tr("Not solved"));
+
+    m_thermalDensity = new QDoubleSpinBox();
+    m_thermalDensity->setRange(1.0, 25000.0);
+    m_thermalDensity->setDecimals(0);
+    m_thermalDensity->setSingleStep(100.0);
+    m_thermalDensity->setSuffix(tr(" kg/m3"));
+    m_thermalDensity->setValue(2000.0);
+
+    m_thermalSpecificHeat = new QDoubleSpinBox();
+    m_thermalSpecificHeat->setRange(1.0, 10000.0);
+    m_thermalSpecificHeat->setDecimals(0);
+    m_thermalSpecificHeat->setSingleStep(50.0);
+    m_thermalSpecificHeat->setSuffix(tr(" J/kgK"));
+    m_thermalSpecificHeat->setValue(900.0);
+
+    m_thermalThickness = new QDoubleSpinBox();
+    m_thermalThickness->setRange(0.001, 10.0);
+    m_thermalThickness->setDecimals(3);
+    m_thermalThickness->setSingleStep(0.01);
+    m_thermalThickness->setSuffix(tr(" m"));
+    m_thermalThickness->setValue(0.2);
+
+    m_thermalConvection = new QDoubleSpinBox();
+    m_thermalConvection->setRange(0.0, 200.0);
+    m_thermalConvection->setDecimals(1);
+    m_thermalConvection->setSingleStep(1.0);
+    m_thermalConvection->setSuffix(tr(" W/m2K"));
+    m_thermalConvection->setValue(5.0);
+
+    m_thermalAbsorptivity = new QDoubleSpinBox();
+    m_thermalAbsorptivity->setRange(0.0, 1.0);
+    m_thermalAbsorptivity->setDecimals(3);
+    m_thermalAbsorptivity->setSingleStep(0.05);
+    m_thermalAbsorptivity->setValue(0.7);
+
+    addThermalRow(tr("Conductivity:"), m_thermalConductivity,
+                  tr("How fast heat moves through the material. Zero leaves this surface "
+                     "out of the solve, keeping whatever temperature it was given."));
+    addThermalRow(tr("Density:"), m_thermalDensity,
+                  tr("With the specific heat and the thickness, this is the thermal mass -- "
+                     "how much heat the surface has to gain to warm by a degree."));
+    addThermalRow(tr("Specific heat:"), m_thermalSpecificHeat,
+                  tr("Heat one kilogram needs to warm by one kelvin."));
+    addThermalRow(tr("Thickness:"), m_thermalThickness,
+                  tr("How deep the slab is. A thin sheet follows the air within minutes; a "
+                     "masonry wall takes hours, and is still warm after sunset."));
+    addThermalRow(tr("Convection:"), m_thermalConvection,
+                  tr("Exchange with the air. About 5 in still air, 25 in a brisk wind."));
+    addThermalRow(tr("Solar absorptivity:"), m_thermalAbsorptivity,
+                  tr("Fraction of sunlight absorbed. Not the infrared emissivity: fresh snow "
+                     "absorbs almost no sunlight and radiates nearly as a blackbody."));
+
+    m_thermalInteriorBc = new QComboBox();
+    m_thermalInteriorBc->addItem(tr("Adiabatic (nothing behind)"), QStringLiteral("adiabatic"));
+    m_thermalInteriorBc->addItem(tr("Held at a temperature"), QStringLiteral("fixed"));
+    connect(m_thermalInteriorBc, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &MaterialEditorPanel::onThermalPropertyChanged);
+    thermalLayout->addRow(tr("Back face:"), m_thermalInteriorBc);
+
+    m_thermalInteriorTemp = new QDoubleSpinBox();
+    m_thermalInteriorTemp->setRange(1.0, 2000.0);
+    m_thermalInteriorTemp->setDecimals(1);
+    m_thermalInteriorTemp->setSingleStep(1.0);
+    m_thermalInteriorTemp->setSuffix(tr(" K"));
+    m_thermalInteriorTemp->setValue(293.15);
+    addThermalRow(tr("Behind it:"), m_thermalInteriorTemp,
+                  tr("Temperature of whatever is behind the surface -- a room, usually. "
+                     "Used only when the back face is held."));
+
+    m_thermalNotice = new QLabel();
+    bindStyle([this] { uistyle::applyHintStyle(m_thermalNotice); });
+    thermalLayout->addRow(m_thermalNotice);
+
+    m_thermalGroup->setContentLayout(thermalLayout);
+    mainLayout->addWidget(m_thermalGroup);
 
     // ------------------------------------------------------------------
     // Transmission and volume
@@ -655,6 +757,79 @@ void MaterialEditorPanel::updateTemperatureMapNotice() {
             .arg(static_cast<double>(m_temperatureOffset), 0, 'f', 1)
             .arg(static_cast<double>(m_temperatureOffset + m_temperatureScale), 0, 'f', 1)
             .arg(static_cast<double>(m_temperatureScale) / 255.0, 0, 'f', 2));
+}
+
+void MaterialEditorPanel::setThermalProperties(const MaterialThermalProps& props) {
+    m_thermal = props;
+
+    const QSignalBlocker k(m_thermalConductivity);
+    const QSignalBlocker rho(m_thermalDensity);
+    const QSignalBlocker c(m_thermalSpecificHeat);
+    const QSignalBlocker d(m_thermalThickness);
+    const QSignalBlocker h(m_thermalConvection);
+    const QSignalBlocker a(m_thermalAbsorptivity);
+    const QSignalBlocker bc(m_thermalInteriorBc);
+    const QSignalBlocker t(m_thermalInteriorTemp);
+
+    m_thermalConductivity->setValue(static_cast<double>(props.conductivity));
+    m_thermalDensity->setValue(static_cast<double>(props.density));
+    m_thermalSpecificHeat->setValue(static_cast<double>(props.specificHeat));
+    m_thermalThickness->setValue(static_cast<double>(props.thickness));
+    m_thermalConvection->setValue(static_cast<double>(props.convection));
+    m_thermalAbsorptivity->setValue(static_cast<double>(props.shortwaveAbsorptivity));
+    m_thermalInteriorTemp->setValue(static_cast<double>(props.interiorTemperature));
+    const int index = m_thermalInteriorBc->findData(props.interiorBoundary);
+    m_thermalInteriorBc->setCurrentIndex(index >= 0 ? index : 0);
+
+    // A material that is being solved is worth unfolding for.
+    if (props.conductivity > 0.0f) {
+        m_thermalGroup->setCollapsed(false);
+    }
+    updateThermalNotice();
+}
+
+void MaterialEditorPanel::onThermalPropertyChanged() {
+    m_thermal.conductivity = static_cast<float>(m_thermalConductivity->value());
+    m_thermal.density = static_cast<float>(m_thermalDensity->value());
+    m_thermal.specificHeat = static_cast<float>(m_thermalSpecificHeat->value());
+    m_thermal.thickness = static_cast<float>(m_thermalThickness->value());
+    m_thermal.convection = static_cast<float>(m_thermalConvection->value());
+    m_thermal.shortwaveAbsorptivity = static_cast<float>(m_thermalAbsorptivity->value());
+    m_thermal.interiorTemperature = static_cast<float>(m_thermalInteriorTemp->value());
+    m_thermal.interiorBoundary = m_thermalInteriorBc->currentData().toString();
+
+    updateThermalNotice();
+
+    if (m_currentIndex >= 0) {
+        emit thermalPropertiesChanged(m_currentIndex, m_thermal);
+    }
+}
+
+void MaterialEditorPanel::updateThermalNotice() {
+    if (!m_thermalNotice) {
+        return;
+    }
+    m_thermalInteriorTemp->setEnabled(
+        m_thermalInteriorBc->currentData().toString() == QLatin1String("fixed"));
+
+    if (m_thermal.conductivity <= 0.0f) {
+        m_thermalNotice->setText(
+            tr("Not solved: this surface keeps the temperature it is given."));
+        return;
+    }
+
+    // The time constant is what the numbers above amount to, and it is the one
+    // figure that says how this surface will behave: a few minutes and it
+    // follows the air, a few hours and it is still warm after sunset.
+    const double capacity = static_cast<double>(m_thermal.density) *
+                            m_thermal.specificHeat * m_thermal.thickness;
+    const double loss = static_cast<double>(m_thermal.convection) + 5.5;  // + radiative, near 300 K
+    const double tauHours = loss > 0.0 ? capacity / loss / 3600.0 : 0.0;
+
+    m_thermalNotice->setText(
+        tr("Time constant about %1 h: how long this surface takes to follow a change "
+           "in the air around it.")
+            .arg(tauHours, 0, 'f', 1));
 }
 
 void MaterialEditorPanel::updateKirchhoffLabel() {

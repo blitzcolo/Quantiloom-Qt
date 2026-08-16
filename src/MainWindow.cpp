@@ -1131,6 +1131,11 @@ void MainWindow::applyMaterial(int index, const quantiloom::Material& material) 
     // it to one the user did not pick.
     if (m_materialEditorPanel->currentMaterialIndex() == index) {
         m_materialEditorPanel->setMaterial(index, &scene->materials[static_cast<size_t>(index)]);
+        // The thermal half comes from the config rather than the material,
+        // which does not carry it.
+        m_materialEditorPanel->setThermalProperties(
+            m_thermalProperties.value(
+                QString::fromStdString(scene->materials[static_cast<size_t>(index)].name)));
     }
     setSceneModified(true);
     showStatusMessage(tr("Material modified"));
@@ -1650,6 +1655,20 @@ void MainWindow::setupDockWidgets() {
     // for the same reason CLAHE is not -- it is a reading of the render.
     connect(m_sensorPanel, &SensorPanel::thermographyChanged,
             this, &MainWindow::applyThermographyParams);
+
+    // Thermal properties do not live on the Material, so they cannot ride the
+    // materialChanged path with everything else: they are held here, by name,
+    // and written into the config on save.
+    connect(m_materialEditorPanel, &MaterialEditorPanel::thermalPropertiesChanged,
+            this, [this](int index, const MaterialThermalProps& props) {
+                const auto* scene = m_vulkanWindow->getScene();
+                if (!scene || index < 0 ||
+                    static_cast<size_t>(index) >= scene->materials.size()) {
+                    return;
+                }
+                m_thermalProperties[QString::fromStdString(scene->materials[index].name)] = props;
+                setSceneModified(true);
+            });
 
     // Display enhancement panel signals
     connect(m_displayEnhancementPanel, &DisplayEnhancementPanel::enhancementChanged,
@@ -3442,6 +3461,8 @@ void MainWindow::onMaterialSelected(int materialIndex) {
         static_cast<size_t>(materialIndex) < scene->materials.size()) {
         const auto& material = scene->materials[static_cast<size_t>(materialIndex)];
         m_materialEditorPanel->setMaterial(materialIndex, &material);
+        m_materialEditorPanel->setThermalProperties(
+            m_thermalProperties.value(QString::fromStdString(material.name)));
         m_propertiesPanel->showMaterial();
         m_spectralMaterialGenPanel->setCurrentMaterialIndex(materialIndex);
         m_currentMaterialIndex = materialIndex;
@@ -3940,6 +3961,22 @@ void MainWindow::applyConfig(const SceneConfig& config) {
 
     m_sensorPanel->setSensorParams(config.sensorParams);   // Params first,
     m_sensorPanel->setSensorEnabled(config.sensorEnabled);  // then enabled state
+    m_thermalProperties.clear();
+    for (const MaterialConfig& material : config.materialConfigs) {
+        if (material.hasThermal()) {
+            m_thermalProperties[material.name] = material.thermal;
+        }
+    }
+    m_thermalEnabled = config.thermalEnabled;
+    m_thermalTimeH = config.thermalTimeH;
+    m_thermalStartTimeH = config.thermalStartTimeH;
+    m_thermalTimestepS = config.thermalTimestepS;
+    m_thermalLayers = config.thermalLayers;
+    m_thermalInitial = config.thermalInitial;
+    m_thermalInitialTemperatureK = config.thermalInitialTemperatureK;
+    m_thermalSunIrradiance = config.thermalSunIrradiance;
+    m_thermalForcingFile = config.thermalForcingFile;
+
     m_thermographyEnabled = config.thermographyEnabled;
     m_thermographyParams = config.thermography;
     m_sensorPanel->setThermography(config.thermographyEnabled, config.thermography);
@@ -4126,6 +4163,16 @@ void MainWindow::collectCurrentConfig(SceneConfig& config) {
 
     config.sensorEnabled = m_sensorPanel->isSensorEnabled();
     config.sensorParams = m_sensorPanel->getSensorParams();
+    config.thermalEnabled = m_thermalEnabled;
+    config.thermalTimeH = m_thermalTimeH;
+    config.thermalStartTimeH = m_thermalStartTimeH;
+    config.thermalTimestepS = m_thermalTimestepS;
+    config.thermalLayers = m_thermalLayers;
+    config.thermalInitial = m_thermalInitial;
+    config.thermalInitialTemperatureK = m_thermalInitialTemperatureK;
+    config.thermalSunIrradiance = m_thermalSunIrradiance;
+    config.thermalForcingFile = m_thermalForcingFile;
+
     config.thermographyEnabled = m_sensorPanel->isThermographyEnabled();
     config.thermography = m_sensorPanel->getThermographyParams();
 
@@ -4250,6 +4297,7 @@ void MainWindow::collectCurrentConfig(SceneConfig& config) {
             QString::fromStdString(material.temperatureTexturePath);
         matConfig.temperatureScale = material.temperatureScale;
         matConfig.temperatureOffset = material.temperatureOffset;
+        matConfig.thermal = m_thermalProperties.value(name);
 
         // The spectral binding, from the material rather than from whatever
         // the file said: assigning one in the library panel writes it onto the

@@ -23,6 +23,27 @@ class QTextStream;
 #include <postprocess/Thermography.hpp>
 
 /**
+ * @struct MaterialThermalProps
+ * @brief What a material is made of, thermally
+ *
+ * Solver inputs, matched to a material by name. Kept apart from
+ * quantiloom::Material because that header is a layout contract Quantiloom-Qt
+ * reads by offset and has no business carrying them -- so unlike every other
+ * material property, these travel from the panel to the config directly rather
+ * than on the material the viewport is rendering.
+ */
+struct MaterialThermalProps {
+    float conductivity = 0.0f;     ///< W/(m K); above zero opts the material in
+    float density = 2000.0f;       ///< kg/m^3
+    float specificHeat = 900.0f;   ///< J/(kg K)
+    float thickness = 0.2f;        ///< m
+    float convection = 5.0f;       ///< W/(m^2 K)
+    float shortwaveAbsorptivity = 0.7f;
+    QString interiorBoundary = QStringLiteral("adiabatic");  ///< or "fixed"
+    float interiorTemperature = 293.15f;
+};
+
+/**
  * @struct MaterialConfig
  * @brief Material overrides from TOML config, matched to the scene by name
  */
@@ -39,6 +60,19 @@ struct MaterialConfig {
     QString temperatureTexture;
     float temperatureScale = 500.0f;
     float temperatureOffset = 200.0f;
+
+    /// Thermal properties for the surface energy balance. A conductivity
+    /// above zero is what opts the material in; the rest describe masonry
+    /// until told otherwise. Carried whether or not [thermal] is enabled,
+    /// for the same reason the sensor parameters are.
+    ///
+    /// Not on quantiloom::Material: that header is a layout contract read by
+    /// offset, and these are solver inputs nothing in the shader touches. So
+    /// they travel from the panel to the config through this rather than on
+    /// the material, which is why they are a struct of their own.
+    MaterialThermalProps thermal;
+
+    [[nodiscard]] bool hasThermal() const { return thermal.conductivity > 0.0f; }
 
     /// The PBR half. Written only when hasPbr is set, so an entry that exists
     /// to carry a temperature does not also assert a colour nobody chose.
@@ -181,6 +215,22 @@ struct SceneConfig {
     // drive the viewport's pixel readout and are carried back to the file.
     bool thermographyEnabled = false;
     quantiloom::ThermographyParams thermography;
+
+    // [thermal] -- the surface energy balance. The temperatures it produces
+    // replace whatever the materials were given, so a scene that enables it
+    // stops needing a temperature typed into it at all. Offline only: a solve
+    // is a state the viewport would have to be told about rather than compute.
+    bool thermalEnabled = false;
+    double thermalTimeH = 12.0;
+    double thermalStartTimeH = 0.0;
+    double thermalTimestepS = 60.0;
+    int thermalLayers = 10;
+    QString thermalInitial = QStringLiteral("steady");
+    double thermalInitialTemperatureK = 288.15;
+    double thermalSunIrradiance = 0.0;
+    int thermalExchangeRays = 256;
+    int thermalExchangeTopK = 32;
+    QString thermalForcingFile;
 
     /// [material] albedo -- the fallback surface for scenes that bring no
     /// materials of their own. Required by the core's strict reading, so a

@@ -2196,6 +2196,106 @@ PNG：%2</translation>
 <context>
     <name>MaterialEditorPanel</name>
     <message>
+        <source> W/mK</source>
+        <translation> W/(m·K)</translation>
+    </message>
+    <message>
+        <source>Not solved</source>
+        <translation>不参与求解</translation>
+    </message>
+    <message>
+        <source> kg/m3</source>
+        <translation> kg/m³</translation>
+    </message>
+    <message>
+        <source> J/kgK</source>
+        <translation> J/(kg·K)</translation>
+    </message>
+    <message>
+        <source> m</source>
+        <translation> m</translation>
+    </message>
+    <message>
+        <source> W/m2K</source>
+        <translation> W/(m²·K)</translation>
+    </message>
+    <message>
+        <source>Conductivity:</source>
+        <translation>热导率：</translation>
+    </message>
+    <message>
+        <source>How fast heat moves through the material. Zero leaves this surface out of the solve, keeping whatever temperature it was given.</source>
+        <translation>热量在材料中传导的快慢。取 0 则该表面不参与求解，保持它被赋予的温度。</translation>
+    </message>
+    <message>
+        <source>Density:</source>
+        <translation>密度：</translation>
+    </message>
+    <message>
+        <source>With the specific heat and the thickness, this is the thermal mass -- how much heat the surface has to gain to warm by a degree.</source>
+        <translation>与比热容、厚度一起构成热质量——表面升温 1 度需要吸收多少热量。</translation>
+    </message>
+    <message>
+        <source>Specific heat:</source>
+        <translation>比热容：</translation>
+    </message>
+    <message>
+        <source>Heat one kilogram needs to warm by one kelvin.</source>
+        <translation>1 千克材料升温 1 开尔文所需的热量。</translation>
+    </message>
+    <message>
+        <source>Thickness:</source>
+        <translation>厚度：</translation>
+    </message>
+    <message>
+        <source>How deep the slab is. A thin sheet follows the air within minutes; a masonry wall takes hours, and is still warm after sunset.</source>
+        <translation>板体的厚度。薄板几分钟内就跟上气温；砖石墙要数小时，日落后仍然温热。</translation>
+    </message>
+    <message>
+        <source>Convection:</source>
+        <translation>对流换热：</translation>
+    </message>
+    <message>
+        <source>Exchange with the air. About 5 in still air, 25 in a brisk wind.</source>
+        <translation>与空气的换热。静风约 5，强风约 25。</translation>
+    </message>
+    <message>
+        <source>Solar absorptivity:</source>
+        <translation>太阳吸收率：</translation>
+    </message>
+    <message>
+        <source>Fraction of sunlight absorbed. Not the infrared emissivity: fresh snow absorbs almost no sunlight and radiates nearly as a blackbody.</source>
+        <translation>吸收阳光的比例。不同于红外发射率：新雪几乎不吸收阳光，却近似黑体辐射。</translation>
+    </message>
+    <message>
+        <source>Adiabatic (nothing behind)</source>
+        <translation>绝热（背后无物）</translation>
+    </message>
+    <message>
+        <source>Held at a temperature</source>
+        <translation>保持恒温</translation>
+    </message>
+    <message>
+        <source>Back face:</source>
+        <translation>背面：</translation>
+    </message>
+    <message>
+        <source>Behind it:</source>
+        <translation>背后温度：</translation>
+    </message>
+    <message>
+        <source>Temperature of whatever is behind the surface -- a room, usually. Used only when the back face is held.</source>
+        <translation>表面背后之物的温度，通常是房间。仅在背面恒温时使用。</translation>
+    </message>
+    <message>
+        <source>Not solved: this surface keeps the temperature it is given.</source>
+        <translation>不参与求解：该表面保持被赋予的温度。</translation>
+    </message>
+    <message>
+        <source>Time constant about %1 h: how long this surface takes to follow a change in the air around it.</source>
+        <translation>时间常数约 %1 小时：该表面跟上周围气温变化所需的时间。</translation>
+    </message>
+    <message>
         <source>Temperature map:</source>
         <translation>温度贴图：</translation>
     </message>

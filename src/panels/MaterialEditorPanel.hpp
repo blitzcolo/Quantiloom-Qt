@@ -15,11 +15,14 @@
 
 #include <glm/glm.hpp>
 
+#include "../config/ConfigManager.hpp"  // MaterialThermalProps
+
 QT_BEGIN_NAMESPACE
 class QDoubleSpinBox;
 class QSlider;
 class QLabel;
 class QLineEdit;
+class QComboBox;
 class QPushButton;
 class QGroupBox;
 class QCheckBox;
@@ -46,6 +49,10 @@ public:
 
     void setMaterial(int index, const quantiloom::Material* material);
 
+    /// The thermal properties for the material now shown, from the config --
+    /// the only place they exist, since the Material does not carry them.
+    void setThermalProperties(const MaterialThermalProps& props);
+
     /**
      * @brief Write the scalar infrared trio into a material as flat curves
      *
@@ -69,6 +76,11 @@ public:
 signals:
     void materialChanged(int index, const quantiloom::Material& material);
 
+    /// Thermal properties for the material at @p index. A separate signal
+    /// because these do not live on quantiloom::Material -- they are solver
+    /// inputs, and that header is a layout contract with no room for them.
+    void thermalPropertiesChanged(int index, const MaterialThermalProps& props);
+
 private slots:
     void onBaseColorClicked();
     void onTransmissionChanged();
@@ -81,6 +93,7 @@ private slots:
     void onIRPropertyChanged();
     void onTemperatureMapChanged();
     void onBrowseTemperatureTexture();
+    void onThermalPropertyChanged();
     void applyChanges();
 
 private:
@@ -149,6 +162,22 @@ private:
     QDoubleSpinBox* m_temperatureScaleSpin = nullptr;
     QDoubleSpinBox* m_temperatureOffsetSpin = nullptr;
     QLabel* m_temperatureMapNotice = nullptr;
+
+    // Thermal properties, for the offline surface energy balance. Collapsed
+    // by default: a scene that is not being solved has no use for them, and
+    // this panel is long.
+    class CollapsibleGroupBox* m_thermalGroup = nullptr;
+    QDoubleSpinBox* m_thermalConductivity = nullptr;
+    QDoubleSpinBox* m_thermalDensity = nullptr;
+    QDoubleSpinBox* m_thermalSpecificHeat = nullptr;
+    QDoubleSpinBox* m_thermalThickness = nullptr;
+    QDoubleSpinBox* m_thermalConvection = nullptr;
+    QDoubleSpinBox* m_thermalAbsorptivity = nullptr;
+    QComboBox* m_thermalInteriorBc = nullptr;
+    QDoubleSpinBox* m_thermalInteriorTemp = nullptr;
+    QLabel* m_thermalNotice = nullptr;
+    MaterialThermalProps m_thermal;
+    void updateThermalNotice();
     QLabel* m_irKirchhoffLabel = nullptr;
     QLabel* m_spectralCurveNotice = nullptr;
 

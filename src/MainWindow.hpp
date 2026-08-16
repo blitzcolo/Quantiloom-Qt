@@ -13,6 +13,7 @@
 #include "panels/LightingPanel.hpp"
 
 #include <QMainWindow>
+#include <QHash>
 #include <QVulkanInstance>
 #include <QHash>
 #include <QMap>
@@ -82,6 +83,7 @@ class SelectionManager;
 class TransformGizmo;
 class UndoStack;
 struct SceneConfig;
+struct MaterialThermalProps;
 
 /**
  * @class MainWindow
@@ -450,6 +452,24 @@ private:
     /// The analytic sky's humidity, which LightingParams has no room for: it
     /// carries the derived emissivity instead. Held here so a save can write
     /// what the file said and a reload can put it back.
+    /// Thermal properties by material name. They are not on the Material --
+    /// that header is a layout contract with no room for solver inputs -- so
+    /// the shell is where they live between being read and being written.
+    QHash<QString, MaterialThermalProps> m_thermalProperties;
+    /// The [thermal] block as the file gave it, so a config that has one
+    /// survives being opened and saved. No panel edits it yet; the sequence
+    /// dialog overrides the hour per frame. Held as the eight values rather
+    /// than as a whole SceneConfig, which is only forward declared here.
+    bool m_thermalEnabled = false;
+    double m_thermalTimeH = 12.0;
+    double m_thermalStartTimeH = 0.0;
+    double m_thermalTimestepS = 60.0;
+    int m_thermalLayers = 10;
+    QString m_thermalInitial = QStringLiteral("steady");
+    double m_thermalInitialTemperatureK = 288.15;
+    double m_thermalSunIrradiance = 0.0;
+    QString m_thermalForcingFile;
+
     bool m_skyClearModel = false;
     float m_skyRelativeHumidity = 50.0f;
 

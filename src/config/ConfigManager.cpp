@@ -267,6 +267,23 @@ void ConfigManager::extractSceneConfig(const quantiloom::Config& config, SceneCo
     out.skyAirTemperatureK = config.Get<float>("atmosphere.air_temperature_k", 288.15f);
     out.skyRelativeHumidity = config.Get<float>("atmosphere.relative_humidity", 50.0f);
 
+    // [thermal] -- the surface energy balance
+    out.thermalEnabled = config.Get<bool>("thermal.enabled", false);
+    out.thermalTimeH = config.Get<double>("thermal.time_h", 12.0);
+    out.thermalStartTimeH = config.Get<double>("thermal.start_time_h", 0.0);
+    out.thermalTimestepS = config.Get<double>("thermal.timestep_s", 60.0);
+    out.thermalLayers = static_cast<int>(config.Get<quantiloom::u32>("thermal.layers", 10));
+    out.thermalInitial = QString::fromStdString(config.GetString("thermal.initial", "steady"));
+    out.thermalInitialTemperatureK =
+        config.Get<double>("thermal.initial_temperature_k", 288.15);
+    out.thermalSunIrradiance = config.Get<double>("thermal.sun_irradiance_w_m2", 0.0);
+    out.thermalExchangeRays =
+        static_cast<int>(config.Get<quantiloom::u32>("thermal.exchange_rays", 256));
+    out.thermalExchangeTopK =
+        static_cast<int>(config.Get<quantiloom::u32>("thermal.exchange_top_k", 32));
+    out.thermalForcingFile =
+        QString::fromStdString(config.GetString("thermal.forcing_file", ""));
+
     // [sensor]
     out.sensorEnabled = config.Get<bool>("sensor.enabled", false);
     // Always parse sensor params so they're available if user enables later
@@ -310,6 +327,22 @@ void ConfigManager::extractSceneConfig(const quantiloom::Config& config, SceneCo
             QString::fromStdString(matTable.GetString("temperature_texture", ""));
         matConfig.temperatureScale = matTable.GetFloat("temperature_scale", 500.0f);
         matConfig.temperatureOffset = matTable.GetFloat("temperature_offset", 200.0f);
+
+        // Thermal properties. Read whether or not a conductivity is present,
+        // so tuning them, turning the solve off and saving does not discard
+        // the tuning.
+        matConfig.thermal.conductivity =
+            matTable.GetFloat("thermal_conductivity_w_mk", 0.0f);
+        matConfig.thermal.density = matTable.GetFloat("density_kg_m3", 2000.0f);
+        matConfig.thermal.specificHeat = matTable.GetFloat("specific_heat_j_kgk", 900.0f);
+        matConfig.thermal.thickness = matTable.GetFloat("thickness_m", 0.2f);
+        matConfig.thermal.convection = matTable.GetFloat("convection_h_w_m2k", 5.0f);
+        matConfig.thermal.shortwaveAbsorptivity =
+            matTable.GetFloat("shortwave_absorptivity", 0.7f);
+        matConfig.thermal.interiorBoundary =
+            QString::fromStdString(matTable.GetString("interior_bc", "adiabatic"));
+        matConfig.thermal.interiorTemperature =
+            matTable.GetFloat("interior_temperature_k", 293.15f);
 
         // The PBR half, kept only if the file actually carries it -- so a
         // reload/save cycle does not invent one for an entry that had none.
@@ -778,7 +811,7 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
 
         if (matConfig.hasPbr || matConfig.hasSpectral() || matConfig.irEmissivity > 0.0f ||
             matConfig.irTransmittance > 0.0f || matConfig.irTemperature_K > 0.0f ||
-            hasTemperatureMap) {
+            hasTemperatureMap || matConfig.hasThermal()) {
             out << "[[materials]]\n";
             out << "name = " << tomlQuoted(matConfig.name) << "\n";
             if (matConfig.hasPbr) {
@@ -797,6 +830,19 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
             }
             if (matConfig.irTemperature_K > 0.0f) {
                 out << "ir_temperature_k = " << matConfig.irTemperature_K << "\n";
+            }
+            if (matConfig.hasThermal()) {
+                out << "thermal_conductivity_w_mk = " << matConfig.thermal.conductivity << "\n";
+                out << "density_kg_m3 = " << matConfig.thermal.density << "\n";
+                out << "specific_heat_j_kgk = " << matConfig.thermal.specificHeat << "\n";
+                out << "thickness_m = " << matConfig.thermal.thickness << "\n";
+                out << "convection_h_w_m2k = " << matConfig.thermal.convection << "\n";
+                out << "shortwave_absorptivity = " << matConfig.thermal.shortwaveAbsorptivity
+                    << "\n";
+                out << "interior_bc = " << tomlQuoted(matConfig.thermal.interiorBoundary)
+                    << "\n";
+                out << "interior_temperature_k = " << matConfig.thermal.interiorTemperature
+                    << "\n";
             }
             if (hasTemperatureMap) {
                 if (!matConfig.temperatureTexture.isEmpty()) {
@@ -916,6 +962,24 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
     // [thermography] - what the camera is told, which decides what the
     // temperature map means. Unconditional for the same reason [sensor.fpn]
     // is: the parameters outlive the switch that reads them.
+    // [thermal] - the surface energy balance. Written unconditionally, like
+    // the sensor's parameters: the settings outlive the switch that reads them.
+    out << "[thermal]\n";
+    out << "enabled = " << (config.thermalEnabled ? "true" : "false") << "\n";
+    out << "time_h = " << config.thermalTimeH << "\n";
+    out << "start_time_h = " << config.thermalStartTimeH << "\n";
+    out << "timestep_s = " << config.thermalTimestepS << "\n";
+    out << "layers = " << config.thermalLayers << "\n";
+    out << "initial = " << tomlQuoted(config.thermalInitial) << "\n";
+    out << "initial_temperature_k = " << config.thermalInitialTemperatureK << "\n";
+    out << "sun_irradiance_w_m2 = " << config.thermalSunIrradiance << "\n";
+    out << "exchange_rays = " << config.thermalExchangeRays << "\n";
+    out << "exchange_top_k = " << config.thermalExchangeTopK << "\n";
+    if (!config.thermalForcingFile.isEmpty()) {
+        out << "forcing_file = " << tomlQuoted(config.thermalForcingFile) << "\n";
+    }
+    out << "\n";
+
     out << "[thermography]\n";
     out << "enabled = " << (config.thermographyEnabled ? "true" : "false") << "\n";
     out << "emissivity = " << config.thermography.emissivity << "\n";
