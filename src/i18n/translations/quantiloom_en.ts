@@ -2098,6 +2098,10 @@ PNG: %2</translation>
         <source>Settings saved</source>
         <translation type="vanished">Settings saved</translation>
     </message>
+    <message>
+        <source>Thermal solve</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>MaterialEditorPanel</name>
@@ -2178,6 +2182,10 @@ PNG: %2</translation>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Thermal Properties (Solver)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source> W/mK</source>
         <translation type="unfinished"></translation>
     </message>
@@ -2247,6 +2255,14 @@ PNG: %2</translation>
     </message>
     <message>
         <source>Fraction of sunlight absorbed. Not the infrared emissivity: fresh snow absorbs almost no sunlight and radiates nearly as a blackbody.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Wetness factor:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>How much of the surface evaporates: 0 for dry, 1 for open water. Evaporation is why a lawn is ten degrees cooler than the pavement beside it under the same sun.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -3895,6 +3911,14 @@ Coverage — VIS %3%, NIR %4%, SWIR %5%</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Diffuse irradiance</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sunlight arriving from the sky dome rather than from the disc. Under overcast it is the whole of it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Exchange rays</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3931,7 +3955,7 @@ Coverage — VIS %3%, NIR %4%, SWIR %5%</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Exchange: %1 entries (%2 runs)</source>
+        <source>Exchange: %1 entries (%2 runs), %3 sun samples</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

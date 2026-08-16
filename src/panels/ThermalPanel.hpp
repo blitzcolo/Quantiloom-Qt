@@ -77,6 +77,7 @@ private:
     QComboBox* m_initialCombo = nullptr;
     QDoubleSpinBox* m_initialTempSpin = nullptr;
     QDoubleSpinBox* m_sunIrradianceSpin = nullptr;
+    QDoubleSpinBox* m_diffuseIrradianceSpin = nullptr;
     QSpinBox* m_exchangeRaysSpin = nullptr;
     QSpinBox* m_exchangeTopKSpin = nullptr;
     QDoubleSpinBox* m_checkpointStrideSpin = nullptr;
@@ -88,6 +89,7 @@ private:
     QLabel* m_initialCaption = nullptr;
     QLabel* m_initialTempCaption = nullptr;
     QLabel* m_sunIrradianceCaption = nullptr;
+    QLabel* m_diffuseIrradianceCaption = nullptr;
     QLabel* m_exchangeRaysCaption = nullptr;
     QLabel* m_exchangeTopKCaption = nullptr;
     QLabel* m_checkpointStrideCaption = nullptr;
@@ -101,4 +103,13 @@ private:
     QLabel* m_statusExchange = nullptr;
     QLabel* m_statusStepper = nullptr;
     QLabel* m_statusError = nullptr;
+
+    /// Fields of ThermalSolveParams the panel does not show. They still have
+    /// to survive a round trip: params() builds the whole struct, so anything
+    /// not carried here would be reset to its default the moment the user
+    /// touched any spin box -- the air the surfaces convect with, silently
+    /// back to 288 K.
+    double m_airTemperatureK = 288.15;
+    double m_skyTemperatureK = 268.0;
+    double m_relativeHumidity = 50.0;
 };

@@ -31,6 +31,7 @@
 #include <mcp/McpServer.hpp>
 #include <postprocess/SensorModel.hpp>
 #include <postprocess/Thermography.hpp>
+#include <renderer/ThermalControl.hpp>
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 
@@ -274,6 +275,18 @@ private:
     /// of the render rather than an edit of the scene.
     void applyThermographyParams(bool enabled,
                                  const quantiloom::ThermographyParams& params);
+    /// The three ways the thermal solve is driven. Dispatchers rather than
+    /// lambdas on the panel's signals because the MCP tools drive the same
+    /// state, and a tool that went straight to the renderer would leave the
+    /// panel showing what the user last typed rather than what is running.
+    void applyThermalEnabled(bool enabled);
+    void applyThermalParams(const quantiloom::ThermalSolveParams& params);
+    void applyThermalTime(double time_h);
+    /// Push one material's thermal properties into the running solve, so a
+    /// wetness or a thickness edit moves the viewport rather than only the
+    /// file that gets saved.
+    void applyThermalMaterial(const QString& name, const MaterialThermalProps& props);
+    [[nodiscard]] quantiloom::ThermalSolveParams currentThermalParams() const;
     void applyClaheParams(bool enabled, float clipLimit, int tileSize, bool luminanceOnly);
     void applyCameraPose(const glm::vec3& position, const glm::vec3& target);
     void applyCameraFov(float fovYDegrees);
@@ -470,6 +483,7 @@ private:
     QString m_thermalInitial = QStringLiteral("steady");
     double m_thermalInitialTemperatureK = 288.15;
     double m_thermalSunIrradiance = 0.0;
+    double m_thermalDiffuseIrradiance = 0.0;
     int m_thermalExchangeRays = 256;
     int m_thermalExchangeTopK = 32;
     double m_thermalCheckpointStrideH = 1.0;

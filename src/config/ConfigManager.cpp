@@ -277,6 +277,8 @@ void ConfigManager::extractSceneConfig(const quantiloom::Config& config, SceneCo
     out.thermalInitialTemperatureK =
         config.Get<double>("thermal.initial_temperature_k", 288.15);
     out.thermalSunIrradiance = config.Get<double>("thermal.sun_irradiance_w_m2", 0.0);
+    out.thermalDiffuseIrradiance =
+        config.Get<double>("thermal.diffuse_irradiance_w_m2", 0.0);
     out.thermalExchangeRays =
         static_cast<int>(config.Get<quantiloom::u32>("thermal.exchange_rays", 256));
     out.thermalExchangeTopK =
@@ -341,6 +343,7 @@ void ConfigManager::extractSceneConfig(const quantiloom::Config& config, SceneCo
         matConfig.thermal.convection = matTable.GetFloat("convection_h_w_m2k", 5.0f);
         matConfig.thermal.shortwaveAbsorptivity =
             matTable.GetFloat("shortwave_absorptivity", 0.7f);
+        matConfig.thermal.wetness = matTable.GetFloat("wetness_factor", 0.0f);
         matConfig.thermal.interiorBoundary =
             QString::fromStdString(matTable.GetString("interior_bc", "adiabatic"));
         matConfig.thermal.interiorTemperature =
@@ -841,6 +844,7 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
                 out << "convection_h_w_m2k = " << matConfig.thermal.convection << "\n";
                 out << "shortwave_absorptivity = " << matConfig.thermal.shortwaveAbsorptivity
                     << "\n";
+                out << "wetness_factor = " << matConfig.thermal.wetness << "\n";
                 out << "interior_bc = " << tomlQuoted(matConfig.thermal.interiorBoundary)
                     << "\n";
                 out << "interior_temperature_k = " << matConfig.thermal.interiorTemperature
@@ -975,6 +979,7 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
     out << "initial = " << tomlQuoted(config.thermalInitial) << "\n";
     out << "initial_temperature_k = " << config.thermalInitialTemperatureK << "\n";
     out << "sun_irradiance_w_m2 = " << config.thermalSunIrradiance << "\n";
+    out << "diffuse_irradiance_w_m2 = " << config.thermalDiffuseIrradiance << "\n";
     out << "exchange_rays = " << config.thermalExchangeRays << "\n";
     out << "exchange_top_k = " << config.thermalExchangeTopK << "\n";
     out << "checkpoint_stride_h = " << config.thermalCheckpointStrideH << "\n";

@@ -116,6 +116,85 @@ float IrScalar(const quantiloom::Vector<std::pair<float, float>>& curve) {
     return curve.empty() ? 0.0f : curve[0].second;
 }
 
+/// Written out because ThermalSolveParams has none, and the byte-wise
+/// fallback pushSettingCommand would use instead compares the innards of a
+/// std::string. Also what decides whether a tool call has to rebuild the
+/// trajectory: applying identical parameters would throw away every
+/// checkpoint and re-solve from the start of the day.
+bool SameThermalParams(const quantiloom::ThermalSolveParams& a,
+                       const quantiloom::ThermalSolveParams& b) {
+    return a.startTime_h == b.startTime_h && a.timestep_s == b.timestep_s &&
+           a.layerCount == b.layerCount && a.initial == b.initial &&
+           a.initialTemperature_K == b.initialTemperature_K &&
+           a.exchangeRays == b.exchangeRays && a.exchangeTopK == b.exchangeTopK &&
+           a.airTemperature_K == b.airTemperature_K &&
+           a.sunIrradiance_W_m2 == b.sunIrradiance_W_m2 &&
+           a.diffuseIrradiance_W_m2 == b.diffuseIrradiance_W_m2 &&
+           a.skyTemperature_K == b.skyTemperature_K &&
+           a.relativeHumidity == b.relativeHumidity &&
+           a.forcingFile == b.forcingFile &&
+           a.checkpointStride_h == b.checkpointStride_h;
+}
+
+/// The thermal solve as one undoable value. Three things the user thinks of
+/// together -- whether it runs, when, and how -- so one tool call is one
+/// history entry rather than three.
+struct ThermalToolState {
+    bool enabled = false;
+    double time_h = 12.0;
+    quantiloom::ThermalSolveParams params;
+
+    bool operator==(const ThermalToolState& other) const {
+        return enabled == other.enabled && time_h == other.time_h &&
+               SameThermalParams(params, other.params);
+    }
+};
+
+/// What both thermal tools return: what was asked for, and what the solver did
+/// with it. One shape, so an agent that set something reads its outcome in the
+/// same fields it would poll.
+QJsonObject ThermalStatusJson(bool enabled, double time_h,
+                              const quantiloom::ThermalSolveParams& params,
+                              const quantiloom::ThermalSolveStatus& status) {
+    QJsonObject out;
+    out["enabled"] = enabled;
+    out["time_h"] = time_h;
+    out["start_time_h"] = params.startTime_h;
+    out["timestep_s"] = params.timestep_s;
+    out["layers"] = static_cast<int>(params.layerCount);
+    out["initial"] = params.initial == quantiloom::ThermalInitialCondition::Steady
+                         ? QStringLiteral("steady")
+                         : QStringLiteral("uniform");
+    out["initial_temperature_k"] = params.initialTemperature_K;
+    out["sun_irradiance_w_m2"] = params.sunIrradiance_W_m2;
+    out["diffuse_irradiance_w_m2"] = params.diffuseIrradiance_W_m2;
+    out["air_temperature_k"] = params.airTemperature_K;
+    out["sky_temperature_k"] = params.skyTemperature_K;
+    out["relative_humidity"] = params.relativeHumidity;
+    out["exchange_rays"] = static_cast<int>(params.exchangeRays);
+    out["exchange_top_k"] = static_cast<int>(params.exchangeTopK);
+    out["checkpoint_stride_h"] = params.checkpointStride_h;
+    out["forcing_file"] = QString::fromStdString(params.forcingFile);
+
+    out["solve_valid"] = status.solveValid;
+    out["element_count"] = static_cast<qint64>(status.elementCount);
+    out["participating_elements"] = static_cast<qint64>(status.participatingElements);
+    out["exchange_non_zeros"] = static_cast<qint64>(status.exchangeNonZeros);
+    out["exchange_run_count"] = static_cast<qint64>(status.exchangeRunCount);
+    out["sun_samples"] = static_cast<qint64>(status.sunSampleCount);
+    out["last_step_count"] = static_cast<qint64>(status.lastStepCount);
+    out["checkpoint_count"] = static_cast<qint64>(status.checkpointCount);
+    out["min_temperature_k"] = status.minTemperature_K;
+    out["max_temperature_k"] = status.maxTemperature_K;
+    out["mean_temperature_k"] = status.meanTemperature_K;
+    out["shortest_time_constant_s"] = status.shortestTimeConstant_s;
+    out["slider_start_time_h"] = status.sliderStartTime_h;
+    out["slider_end_time_h"] = status.sliderEndTime_h;
+    out["stepper"] = QString::fromStdString(status.stepperName);
+    out["error"] = QString::fromStdString(status.error);
+    return out;
+}
+
 }  // namespace
 
 void MainWindow::registerMcpTools() {
@@ -661,6 +740,141 @@ void MainWindow::registerMcpTools() {
             out["shadow_rays"] = now.enableShadowRays != 0;
             out["environment_map_enabled"] = now.enableEnvironmentMap != 0;
             return Json(out);
+        };
+        add(tool);
+    }
+
+    {
+        mcp::ToolDef tool;
+        tool.name = "ql_set_thermal";
+        tool.description =
+            "Drive the surface energy balance: whether it runs, what hour of the simulated day "
+            "the viewport is showing, and the parameters the trajectory is built from. Give any "
+            "subset.\n"
+            "\n"
+            "The solve replaces the temperatures a scene was told to have with the ones an energy "
+            "balance produces, so it needs at least one material with a thermal conductivity -- "
+            "otherwise it reports why it did not run and changes nothing. Moving time_h is cheap "
+            "and does not rebuild anything; changing any other field rebuilds the trajectory and "
+            "the next time query replays it.\n"
+            "\n"
+            "forcing_file is a CSV of time_h, air_k, direct normal irradiance, sun azimuth and "
+            "elevation in degrees, sky_k, and optionally diffuse irradiance and relative "
+            "humidity. With more than one row the shadows track the day; without one the "
+            "constant values here are used at a fixed sun.\n"
+            "\n"
+            "Undoable. Resets accumulation. Read the outcome from the returned status rather "
+            "than assuming it ran.";
+        tool.inputSchemaJson = R"({
+  "type": "object",
+  "properties": {
+    "enabled": {"type": "boolean", "description": "Whether the solve drives the scene's temperatures."},
+    "time_h": {"type": "number", "description": "Hour of the simulated day to show. Cheap to move."},
+    "start_time_h": {"type": "number", "description": "Hour the trajectory starts from."},
+    "timestep_s": {"type": "number", "description": "Solver timestep, seconds. Compare against the shortest time constant in the status."},
+    "layers": {"type": "integer", "description": "Nodes through the slab, 2-32. Above 32 the GPU stepper falls back to the CPU."},
+    "sun_irradiance_w_m2": {"type": "number", "description": "Direct normal irradiance."},
+    "diffuse_irradiance_w_m2": {"type": "number", "description": "Diffuse horizontal irradiance -- the sky dome rather than the disc, and the whole of it under overcast."},
+    "exchange_rays": {"type": "integer", "description": "Hemisphere rays per element for the view factors."},
+    "exchange_top_k": {"type": "integer", "description": "View-factor entries kept per element."},
+    "checkpoint_stride_h": {"type": "number", "description": "Simulated hours between stored states. Shorter is more memory and a cheaper replay."},
+    "forcing_file": {"type": "string", "description": "Path to a forcing CSV, or empty for constant forcing."}
+  }
+})";
+        tool.handler = [this](const quantiloom::String& argumentsJson) {
+            QJsonObject args;
+            mcp::ToolResult error;
+            if (!ParseArgs(argumentsJson, args, error)) {
+                return error;
+            }
+
+            const ThermalToolState before{m_thermalEnabled, m_thermalTimeH,
+                                          currentThermalParams()};
+            ThermalToolState after = before;
+
+            const auto number = [&args](const QString& key, double& target) {
+                if (args.contains(key)) target = args.value(key).toDouble(target);
+            };
+            if (args.contains(QStringLiteral("enabled"))) {
+                after.enabled = args.value(QStringLiteral("enabled")).toBool();
+            }
+            number(QStringLiteral("time_h"), after.time_h);
+            number(QStringLiteral("start_time_h"), after.params.startTime_h);
+            number(QStringLiteral("timestep_s"), after.params.timestep_s);
+            number(QStringLiteral("sun_irradiance_w_m2"), after.params.sunIrradiance_W_m2);
+            number(QStringLiteral("diffuse_irradiance_w_m2"),
+                   after.params.diffuseIrradiance_W_m2);
+            number(QStringLiteral("checkpoint_stride_h"), after.params.checkpointStride_h);
+            if (args.contains(QStringLiteral("layers"))) {
+                after.params.layerCount = static_cast<quantiloom::u32>(
+                    args.value(QStringLiteral("layers")).toInt(
+                        static_cast<int>(after.params.layerCount)));
+            }
+            if (args.contains(QStringLiteral("exchange_rays"))) {
+                after.params.exchangeRays = static_cast<quantiloom::u32>(
+                    args.value(QStringLiteral("exchange_rays")).toInt(
+                        static_cast<int>(after.params.exchangeRays)));
+            }
+            if (args.contains(QStringLiteral("exchange_top_k"))) {
+                after.params.exchangeTopK = static_cast<quantiloom::u32>(
+                    args.value(QStringLiteral("exchange_top_k")).toInt(
+                        static_cast<int>(after.params.exchangeTopK)));
+            }
+            if (args.contains(QStringLiteral("forcing_file"))) {
+                after.params.forcingFile =
+                    args.value(QStringLiteral("forcing_file")).toString().toStdString();
+            }
+
+            // Through the history, like every other route into these settings.
+            // One entry for the whole call, however many fields it touched.
+            //
+            // Parameters, then the hour, then whether it runs: enabling last
+            // means the solve happens once, at the time that was asked for,
+            // rather than once at the old time and again at the new one.
+            pushSettingCommand(CommandId::ModifyThermal, tr("Thermal solve"), before, after,
+                               [this](const ThermalToolState& v) {
+                                   // Only when they actually moved: applying
+                                   // the same parameters rebuilds the
+                                   // trajectory and throws away every
+                                   // checkpoint, which would make scrubbing
+                                   // time through this tool cost a full day of
+                                   // stepping every call.
+                                   if (!SameThermalParams(v.params, currentThermalParams())) {
+                                       applyThermalParams(v.params);
+                                   }
+                                   applyThermalTime(v.time_h);
+                                   applyThermalEnabled(v.enabled);
+                               });
+
+            return Json(ThermalStatusJson(m_thermalEnabled, m_thermalTimeH,
+                                          currentThermalParams(),
+                                          m_vulkanWindow->thermalSolveStatus()));
+        };
+        add(tool);
+    }
+
+    {
+        mcp::ToolDef tool;
+        tool.name = "ql_get_thermal_status";
+        tool.description =
+            "What the surface energy balance is doing: whether it is running, the hour it is "
+            "showing, how many elements it is solving, the temperatures it produced, how many "
+            "steps and checkpoints the last query cost, and which stepper ran.\n"
+            "\n"
+            "Read error first. An empty error means the numbers are real; anything else says why "
+            "there are none -- most often that no material in the scene has a thermal "
+            "conductivity, which is what opts a material into the solve.\n"
+            "\n"
+            "shortest_time_constant_s is the scale the timestep should stay under: the radiative "
+            "coupling is explicit, so a longer step is smoothed rather than unstable. "
+            "sun_samples is 1 for a fixed sun and one per forcing row otherwise -- if it is 1 "
+            "with a forcing file set, the shadows are not tracking the day.";
+        tool.inputSchemaJson = R"({"type":"object","properties":{}})";
+        tool.readOnly = true;
+        tool.handler = [this](const quantiloom::String&) {
+            return Json(ThermalStatusJson(m_thermalEnabled, m_thermalTimeH,
+                                          currentThermalParams(),
+                                          m_vulkanWindow->thermalSolveStatus()));
         };
         add(tool);
     }

@@ -2192,6 +2192,10 @@ PNG：%2</translation>
         <source>Settings saved</source>
         <translation type="vanished">设置已保存</translation>
     </message>
+    <message>
+        <source>Thermal solve</source>
+        <translation>热求解</translation>
+    </message>
 </context>
 <context>
     <name>MaterialEditorPanel</name>
@@ -2386,6 +2390,18 @@ PNG：%2</translation>
     <message>
         <source>Surface temperature of this material. 0 uses the scene ambient; roughly 293 K is room temperature and 310 K is human skin.</source>
         <translation>该材质的表面温度。填 0 表示使用场景环境温度；293 K 约为室温，310 K 约为人体皮肤温度。</translation>
+    </message>
+    <message>
+        <source>Thermal Properties (Solver)</source>
+        <translation>热物性（求解器）</translation>
+    </message>
+    <message>
+        <source>Wetness factor:</source>
+        <translation>湿润因子：</translation>
+    </message>
+    <message>
+        <source>How much of the surface evaporates: 0 for dry, 1 for open water. Evaporation is why a lawn is ten degrees cooler than the pavement beside it under the same sun.</source>
+        <translation>表面有多少在蒸发：0 为干燥，1 为开阔水面。同样的日照下草坪比旁边的路面低十度，靠的就是蒸发。</translation>
     </message>
     <message>
         <source>Transmission and Volume</source>
@@ -4021,6 +4037,14 @@ Coverage — VIS %3%, NIR %4%, SWIR %5%</source>
         <translation>太阳辐照度</translation>
     </message>
     <message>
+        <source>Diffuse irradiance</source>
+        <translation>漫射辐照度</translation>
+    </message>
+    <message>
+        <source>Sunlight arriving from the sky dome rather than from the disc. Under overcast it is the whole of it.</source>
+        <translation>从整个天穹而非日面到达的阳光。阴天时全部日照都来自这一项。</translation>
+    </message>
+    <message>
         <source>Exchange rays</source>
         <translation>交换光线数</translation>
     </message>
@@ -4057,8 +4081,12 @@ Coverage — VIS %3%, NIR %4%, SWIR %5%</source>
         <translation>步数: %1，检查点: %2</translation>
     </message>
     <message>
+        <source>Exchange: %1 entries (%2 runs), %3 sun samples</source>
+        <translation>换热：%1 项（运行 %2 次），%3 个太阳采样</translation>
+    </message>
+    <message>
         <source>Exchange: %1 entries (%2 runs)</source>
-        <translation>交换: %1 项（%2 次计算）</translation>
+        <translation type="vanished">交换: %1 项（%2 次计算）</translation>
     </message>
     <message>
         <source>Stepper: %1</source>

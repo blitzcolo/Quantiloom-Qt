@@ -39,6 +39,10 @@ struct MaterialThermalProps {
     float thickness = 0.2f;        ///< m
     float convection = 5.0f;       ///< W/(m^2 K)
     float shortwaveAbsorptivity = 0.7f;
+    /// 0 for dry, 1 for open water. What makes a lawn cooler than the
+    /// pavement beside it: evaporation carries heat away that no combination
+    /// of the properties above can account for.
+    float wetness = 0.0f;
     QString interiorBoundary = QStringLiteral("adiabatic");  ///< or "fixed"
     float interiorTemperature = 293.15f;
 };
@@ -228,6 +232,9 @@ struct SceneConfig {
     QString thermalInitial = QStringLiteral("steady");
     double thermalInitialTemperatureK = 288.15;
     double thermalSunIrradiance = 0.0;
+    /// Diffuse horizontal irradiance: the sky dome rather than the disc, and
+    /// the whole of the solar input under overcast.
+    double thermalDiffuseIrradiance = 0.0;
     int thermalExchangeRays = 256;
     int thermalExchangeTopK = 32;
     double thermalCheckpointStrideH = 1.0;

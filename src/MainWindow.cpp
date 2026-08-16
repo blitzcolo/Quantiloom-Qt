@@ -1066,6 +1066,129 @@ void MainWindow::applyThermographyParams(bool enabled,
     setSceneModified(true);
 }
 
+// ---------------------------------------------------------------------------
+// The thermal solve
+// ---------------------------------------------------------------------------
+// Three dispatchers and one material push, all of which end by reading the
+// status back out of the renderer. The panel shows what is running rather than
+// what was asked for, which matters most when the answer is "it did not run" --
+// a scene with no thermal materials, or a solve that fell back to the CPU.
+
+quantiloom::ThermalSolveParams MainWindow::currentThermalParams() const {
+    quantiloom::ThermalSolveParams params;
+    params.startTime_h = m_thermalStartTimeH;
+    params.timestep_s = m_thermalTimestepS;
+    params.layerCount = static_cast<quantiloom::u32>(m_thermalLayers);
+    params.initial = m_thermalInitial == QLatin1String("steady")
+                         ? quantiloom::ThermalInitialCondition::Steady
+                         : quantiloom::ThermalInitialCondition::Uniform;
+    params.initialTemperature_K = m_thermalInitialTemperatureK;
+    params.exchangeRays = static_cast<quantiloom::u32>(m_thermalExchangeRays);
+    params.exchangeTopK = static_cast<quantiloom::u32>(m_thermalExchangeTopK);
+    params.sunIrradiance_W_m2 = m_thermalSunIrradiance;
+    params.diffuseIrradiance_W_m2 = m_thermalDiffuseIrradiance;
+    params.checkpointStride_h = m_thermalCheckpointStrideH;
+    params.forcingFile = m_thermalForcingFile.toStdString();
+    // The air the surfaces convect with and the humidity a wet one evaporates
+    // into belong to the atmosphere rather than to the thermal panel. Studio
+    // carries them rather than deciding them: they are seeded from the
+    // document and only move when the atmosphere panel moves them, so building
+    // a params struct here cannot quietly reset the air to a default.
+    const quantiloom::ThermalSolveParams carried = m_thermalPanel->params();
+    params.airTemperature_K = carried.airTemperature_K;
+    params.relativeHumidity = carried.relativeHumidity;
+
+    // The sky they radiate against is not carried, because it is not an
+    // independent number: it is what the clear-sky emissivity implies for that
+    // air, the same derivation the SDK does when it reads a config. Carrying a
+    // default here instead would send 268 K over the top of it, and a surface
+    // under a sky six degrees too cold runs about two degrees too cool.
+    const float emissivity = m_lightingParams ? m_lightingParams->skyEmissivityClear : 0.0f;
+    params.skyTemperature_K =
+        emissivity > 0.0f
+            ? quantiloom::EffectiveSkyTemperatureK(params.airTemperature_K,
+                                                   static_cast<double>(emissivity))
+            : params.airTemperature_K;
+    return params;
+}
+
+void MainWindow::applyThermalEnabled(bool enabled) {
+    m_thermalEnabled = enabled;
+    m_vulkanWindow->setThermalSolveEnabled(enabled);
+    if (enabled) {
+        m_vulkanWindow->setThermalTime(m_thermalTimeH);
+    }
+    {
+        const QSignalBlocker block(m_thermalPanel);
+        m_thermalPanel->setSolveEnabled(enabled);
+    }
+    m_thermalPanel->updateStatus(m_vulkanWindow->thermalSolveStatus());
+    setSceneModified(true);
+}
+
+void MainWindow::applyThermalParams(const quantiloom::ThermalSolveParams& params) {
+    m_thermalStartTimeH = params.startTime_h;
+    m_thermalTimestepS = params.timestep_s;
+    m_thermalLayers = static_cast<int>(params.layerCount);
+    m_thermalInitial = params.initial == quantiloom::ThermalInitialCondition::Steady
+                           ? QStringLiteral("steady")
+                           : QStringLiteral("uniform");
+    m_thermalInitialTemperatureK = params.initialTemperature_K;
+    m_thermalSunIrradiance = params.sunIrradiance_W_m2;
+    m_thermalDiffuseIrradiance = params.diffuseIrradiance_W_m2;
+    m_thermalExchangeRays = static_cast<int>(params.exchangeRays);
+    m_thermalExchangeTopK = static_cast<int>(params.exchangeTopK);
+    m_thermalCheckpointStrideH = params.checkpointStride_h;
+    m_thermalForcingFile = QString::fromStdString(params.forcingFile);
+
+    m_vulkanWindow->setThermalSolveParams(params);
+    {
+        const QSignalBlocker block(m_thermalPanel);
+        m_thermalPanel->setParams(params);
+    }
+    if (m_thermalEnabled) {
+        m_vulkanWindow->setThermalTime(m_thermalTimeH);
+    }
+    m_thermalPanel->updateStatus(m_vulkanWindow->thermalSolveStatus());
+    setSceneModified(true);
+}
+
+void MainWindow::applyThermalTime(double time_h) {
+    m_thermalTimeH = time_h;
+    if (m_thermalEnabled) {
+        m_vulkanWindow->setThermalTime(time_h);
+    }
+    {
+        const QSignalBlocker block(m_thermalPanel);
+        m_thermalPanel->setTime(time_h);
+    }
+    m_thermalPanel->updateStatus(m_vulkanWindow->thermalSolveStatus());
+    setSceneModified(true);
+}
+
+void MainWindow::applyThermalMaterial(const QString& name,
+                                      const MaterialThermalProps& props) {
+    quantiloom::ThermalMaterialParams mp;
+    mp.conductivity_W_mK = props.conductivity;
+    mp.density_kg_m3 = props.density;
+    mp.specificHeat_J_kgK = props.specificHeat;
+    mp.thickness_m = props.thickness;
+    mp.convection_W_m2K = props.convection;
+    mp.shortwaveAbsorptivity = props.shortwaveAbsorptivity;
+    mp.wetnessFactor = props.wetness;
+    mp.interiorFixedTemperature = props.interiorBoundary == QLatin1String("fixed");
+    mp.interiorTemperature_K = props.interiorTemperature;
+    m_vulkanWindow->setThermalMaterial(name, mp);
+
+    // The trajectory is rebuilt from the new properties, so the viewport has to
+    // be replayed to the hour it is showing. A material edit is a rare enough
+    // gesture to pay for that.
+    if (m_thermalEnabled) {
+        m_vulkanWindow->setThermalTime(m_thermalTimeH);
+        m_thermalPanel->updateStatus(m_vulkanWindow->thermalSolveStatus());
+    }
+}
+
 void MainWindow::applyClaheParams(bool enabled, float clipLimit, int tileSize,
                                   bool luminanceOnly) {
     m_displayEnhancementEnabled = enabled;
@@ -1635,6 +1758,16 @@ void MainWindow::setupDockWidgets() {
                                        static_cast<double>(relativeHumidity))))
                              : 0.0f;
                 pushLightingParams();
+                // The same air the surfaces convect with, and the same
+                // humidity a wet one evaporates into. This is the one place
+                // Studio decides them rather than carrying them: the user just
+                // typed them.
+                if (m_thermalEnabled) {
+                    quantiloom::ThermalSolveParams thermal = currentThermalParams();
+                    thermal.airTemperature_K = static_cast<double>(airTemperatureK);
+                    thermal.relativeHumidity = static_cast<double>(relativeHumidity);
+                    applyThermalParams(thermal);
+                }
             });
 
     // Sensor panel signals
@@ -1661,7 +1794,7 @@ void MainWindow::setupDockWidgets() {
 
     // Thermal properties do not live on the Material, so they cannot ride the
     // materialChanged path with everything else: they are held here, by name,
-    // and written into the config on save.
+    // written into the config on save, and pushed into the running solve.
     connect(m_materialEditorPanel, &MaterialEditorPanel::thermalPropertiesChanged,
             this, [this](int index, const MaterialThermalProps& props) {
                 const auto* scene = m_vulkanWindow->getScene();
@@ -1669,52 +1802,20 @@ void MainWindow::setupDockWidgets() {
                     static_cast<size_t>(index) >= scene->materials.size()) {
                     return;
                 }
-                m_thermalProperties[QString::fromStdString(scene->materials[index].name)] = props;
+                const QString name = QString::fromStdString(scene->materials[index].name);
+                m_thermalProperties[name] = props;
                 m_editedMaterials.insert(index);
+                applyThermalMaterial(name, props);
                 setSceneModified(true);
             });
 
     // Thermal solve panel signals
     connect(m_thermalPanel, &ThermalPanel::thermalEnabledChanged,
-            this, [this](bool enabled) {
-                m_thermalEnabled = enabled;
-                m_vulkanWindow->setThermalSolveEnabled(enabled);
-                if (enabled) {
-                    m_vulkanWindow->setThermalTime(m_thermalTimeH);
-                }
-                m_thermalPanel->updateStatus(m_vulkanWindow->thermalSolveStatus());
-                setSceneModified(true);
-            });
+            this, &MainWindow::applyThermalEnabled);
     connect(m_thermalPanel, &ThermalPanel::thermalParamsChanged,
-            this, [this](const quantiloom::ThermalSolveParams& params) {
-                m_thermalStartTimeH = params.startTime_h;
-                m_thermalTimestepS = params.timestep_s;
-                m_thermalLayers = static_cast<int>(params.layerCount);
-                m_thermalInitial = params.initial == quantiloom::ThermalInitialCondition::Steady
-                                       ? QStringLiteral("steady")
-                                       : QStringLiteral("uniform");
-                m_thermalInitialTemperatureK = params.initialTemperature_K;
-                m_thermalSunIrradiance = params.sunIrradiance_W_m2;
-                m_thermalExchangeRays = static_cast<int>(params.exchangeRays);
-                m_thermalExchangeTopK = static_cast<int>(params.exchangeTopK);
-                m_thermalCheckpointStrideH = params.checkpointStride_h;
-                m_thermalForcingFile = QString::fromStdString(params.forcingFile);
-                m_vulkanWindow->setThermalSolveParams(params);
-                if (m_thermalEnabled) {
-                    m_vulkanWindow->setThermalTime(m_thermalTimeH);
-                    m_thermalPanel->updateStatus(m_vulkanWindow->thermalSolveStatus());
-                }
-                setSceneModified(true);
-            });
+            this, &MainWindow::applyThermalParams);
     connect(m_thermalPanel, &ThermalPanel::thermalTimeChanged,
-            this, [this](double time_h) {
-                m_thermalTimeH = time_h;
-                if (m_thermalEnabled) {
-                    m_vulkanWindow->setThermalTime(time_h);
-                    m_thermalPanel->updateStatus(m_vulkanWindow->thermalSolveStatus());
-                }
-                setSceneModified(true);
-            });
+            this, &MainWindow::applyThermalTime);
     connect(m_thermalPanel, &ThermalPanel::editGestureStarted,
             this, [this] {
                 m_thermalTimeBeforeGesture = m_thermalTimeH;
@@ -1725,13 +1826,8 @@ void MainWindow::setupDockWidgets() {
                 pushSettingCommand(CommandId::ModifyThermal, tr("Thermal time"),
                                    *m_thermalTimeBeforeGesture, m_thermalTimeH,
                                    [this](const double& v) {
-                                       m_thermalTimeH = v;
                                        m_thermalPanel->setTime(v);
-                                       if (m_thermalEnabled) {
-                                           m_vulkanWindow->setThermalTime(v);
-                                           m_thermalPanel->updateStatus(
-                                               m_vulkanWindow->thermalSolveStatus());
-                                       }
+                                       applyThermalTime(v);
                                    });
                 m_thermalTimeBeforeGesture.reset();
             });
@@ -4041,26 +4137,20 @@ void MainWindow::applyConfig(const SceneConfig& config) {
     m_thermalInitial = config.thermalInitial;
     m_thermalInitialTemperatureK = config.thermalInitialTemperatureK;
     m_thermalSunIrradiance = config.thermalSunIrradiance;
+    m_thermalDiffuseIrradiance = config.thermalDiffuseIrradiance;
     m_thermalExchangeRays = config.thermalExchangeRays;
     m_thermalExchangeTopK = config.thermalExchangeTopK;
     m_thermalCheckpointStrideH = config.thermalCheckpointStrideH;
     m_thermalForcingFile = config.thermalForcingFile;
 
-    // Populate the thermal panel from the config
+    // Populate the thermal panel from the config. The members above are
+    // already the config's, so the panel gets exactly what the dispatchers
+    // would build -- plus the two atmosphere values it carries, seeded here
+    // from the live [atmosphere] keys rather than left at their defaults.
     {
-        quantiloom::ThermalSolveParams tp;
-        tp.startTime_h = config.thermalStartTimeH;
-        tp.timestep_s = config.thermalTimestepS;
-        tp.layerCount = static_cast<quantiloom::u32>(config.thermalLayers);
-        tp.initial = config.thermalInitial == QLatin1String("steady")
-                         ? quantiloom::ThermalInitialCondition::Steady
-                         : quantiloom::ThermalInitialCondition::Uniform;
-        tp.initialTemperature_K = config.thermalInitialTemperatureK;
-        tp.sunIrradiance_W_m2 = config.thermalSunIrradiance;
-        tp.exchangeRays = static_cast<quantiloom::u32>(config.thermalExchangeRays);
-        tp.exchangeTopK = static_cast<quantiloom::u32>(config.thermalExchangeTopK);
-        tp.checkpointStride_h = config.thermalCheckpointStrideH;
-        tp.forcingFile = config.thermalForcingFile.toStdString();
+        quantiloom::ThermalSolveParams tp = currentThermalParams();
+        tp.airTemperature_K = static_cast<double>(config.skyAirTemperatureK);
+        tp.relativeHumidity = static_cast<double>(config.skyRelativeHumidity);
         m_thermalPanel->setParams(tp);
         m_thermalPanel->setTime(config.thermalTimeH);
         m_thermalPanel->setSolveEnabled(config.thermalEnabled);
@@ -4261,6 +4351,7 @@ void MainWindow::collectCurrentConfig(SceneConfig& config) {
     config.thermalInitial = m_thermalInitial;
     config.thermalInitialTemperatureK = m_thermalInitialTemperatureK;
     config.thermalSunIrradiance = m_thermalSunIrradiance;
+    config.thermalDiffuseIrradiance = m_thermalDiffuseIrradiance;
     config.thermalExchangeRays = m_thermalExchangeRays;
     config.thermalExchangeTopK = m_thermalExchangeTopK;
     config.thermalCheckpointStrideH = m_thermalCheckpointStrideH;

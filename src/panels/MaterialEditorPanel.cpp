@@ -282,6 +282,7 @@ void MaterialEditorPanel::setupUi() {
     // by default and empty of meaning until a conductivity is set, which is
     // what opts the material into the solve.
     m_thermalGroup = new CollapsibleGroupBox();
+    bindText([this] { m_thermalGroup->setTitle(tr("Thermal Properties (Solver)")); });
     auto* thermalLayout = new QFormLayout();
 
     auto addThermalRow = [this, thermalLayout](const QString& caption, QDoubleSpinBox* box,
@@ -335,6 +336,12 @@ void MaterialEditorPanel::setupUi() {
     m_thermalAbsorptivity->setSingleStep(0.05);
     m_thermalAbsorptivity->setValue(0.7);
 
+    m_thermalWetness = new QDoubleSpinBox();
+    m_thermalWetness->setRange(0.0, 1.0);
+    m_thermalWetness->setDecimals(3);
+    m_thermalWetness->setSingleStep(0.05);
+    m_thermalWetness->setValue(0.0);
+
     addThermalRow(tr("Conductivity:"), m_thermalConductivity,
                   tr("How fast heat moves through the material. Zero leaves this surface "
                      "out of the solve, keeping whatever temperature it was given."));
@@ -351,6 +358,10 @@ void MaterialEditorPanel::setupUi() {
     addThermalRow(tr("Solar absorptivity:"), m_thermalAbsorptivity,
                   tr("Fraction of sunlight absorbed. Not the infrared emissivity: fresh snow "
                      "absorbs almost no sunlight and radiates nearly as a blackbody."));
+    addThermalRow(tr("Wetness factor:"), m_thermalWetness,
+                  tr("How much of the surface evaporates: 0 for dry, 1 for open water. "
+                     "Evaporation is why a lawn is ten degrees cooler than the pavement "
+                     "beside it under the same sun."));
 
     m_thermalInteriorBc = new QComboBox();
     m_thermalInteriorBc->addItem(tr("Adiabatic (nothing behind)"), QStringLiteral("adiabatic"));
@@ -768,6 +779,7 @@ void MaterialEditorPanel::setThermalProperties(const MaterialThermalProps& props
     const QSignalBlocker d(m_thermalThickness);
     const QSignalBlocker h(m_thermalConvection);
     const QSignalBlocker a(m_thermalAbsorptivity);
+    const QSignalBlocker w(m_thermalWetness);
     const QSignalBlocker bc(m_thermalInteriorBc);
     const QSignalBlocker t(m_thermalInteriorTemp);
 
@@ -777,6 +789,7 @@ void MaterialEditorPanel::setThermalProperties(const MaterialThermalProps& props
     m_thermalThickness->setValue(static_cast<double>(props.thickness));
     m_thermalConvection->setValue(static_cast<double>(props.convection));
     m_thermalAbsorptivity->setValue(static_cast<double>(props.shortwaveAbsorptivity));
+    m_thermalWetness->setValue(static_cast<double>(props.wetness));
     m_thermalInteriorTemp->setValue(static_cast<double>(props.interiorTemperature));
     const int index = m_thermalInteriorBc->findData(props.interiorBoundary);
     m_thermalInteriorBc->setCurrentIndex(index >= 0 ? index : 0);
@@ -795,6 +808,7 @@ void MaterialEditorPanel::onThermalPropertyChanged() {
     m_thermal.thickness = static_cast<float>(m_thermalThickness->value());
     m_thermal.convection = static_cast<float>(m_thermalConvection->value());
     m_thermal.shortwaveAbsorptivity = static_cast<float>(m_thermalAbsorptivity->value());
+    m_thermal.wetness = static_cast<float>(m_thermalWetness->value());
     m_thermal.interiorTemperature = static_cast<float>(m_thermalInteriorTemp->value());
     m_thermal.interiorBoundary = m_thermalInteriorBc->currentData().toString();
 

@@ -113,6 +113,14 @@ void ThermalPanel::setupUi() {
     m_sunIrradianceCaption = new QLabel(m_paramsGroup);
     paramsLayout->addRow(m_sunIrradianceCaption, m_sunIrradianceSpin);
 
+    m_diffuseIrradianceSpin = new QDoubleSpinBox();
+    m_diffuseIrradianceSpin->setRange(0.0, 1000.0);
+    m_diffuseIrradianceSpin->setSingleStep(25.0);
+    m_diffuseIrradianceSpin->setDecimals(1);
+    m_diffuseIrradianceSpin->setSuffix(QStringLiteral(" W/m²"));
+    m_diffuseIrradianceCaption = new QLabel(m_paramsGroup);
+    paramsLayout->addRow(m_diffuseIrradianceCaption, m_diffuseIrradianceSpin);
+
     m_exchangeRaysSpin = new QSpinBox();
     m_exchangeRaysSpin->setRange(16, 4096);
     m_exchangeRaysSpin->setSingleStep(64);
@@ -153,6 +161,7 @@ void ThermalPanel::setupUi() {
     connect(m_initialCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, paramSlot);
     connect(m_initialTempSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, paramSlot);
     connect(m_sunIrradianceSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, paramSlot);
+    connect(m_diffuseIrradianceSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, paramSlot);
     connect(m_exchangeRaysSpin, QOverload<int>::of(&QSpinBox::valueChanged), this, paramSlot);
     connect(m_exchangeTopKSpin, QOverload<int>::of(&QSpinBox::valueChanged), this, paramSlot);
     connect(m_checkpointStrideSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, paramSlot);
@@ -194,6 +203,10 @@ void ThermalPanel::retranslateUi() {
         m_initialCaption->setText(tr("Initial condition"));
         m_initialTempCaption->setText(tr("Initial temperature"));
         m_sunIrradianceCaption->setText(tr("Solar irradiance"));
+        m_diffuseIrradianceCaption->setText(tr("Diffuse irradiance"));
+        m_diffuseIrradianceSpin->setToolTip(
+            tr("Sunlight arriving from the sky dome rather than from the disc. "
+               "Under overcast it is the whole of it."));
         m_exchangeRaysCaption->setText(tr("Exchange rays"));
         m_exchangeTopKCaption->setText(tr("Exchange top-K"));
         m_checkpointStrideCaption->setText(tr("Checkpoint stride"));
@@ -217,10 +230,14 @@ void ThermalPanel::setParams(const quantiloom::ThermalSolveParams& p) {
         p.initial == quantiloom::ThermalInitialCondition::Steady ? 0 : 1);
     m_initialTempSpin->setValue(p.initialTemperature_K);
     m_sunIrradianceSpin->setValue(p.sunIrradiance_W_m2);
+    m_diffuseIrradianceSpin->setValue(p.diffuseIrradiance_W_m2);
     m_exchangeRaysSpin->setValue(static_cast<int>(p.exchangeRays));
     m_exchangeTopKSpin->setValue(static_cast<int>(p.exchangeTopK));
     m_checkpointStrideSpin->setValue(p.checkpointStride_h);
     m_forcingFileEdit->setText(QString::fromStdString(p.forcingFile));
+    m_airTemperatureK = p.airTemperature_K;
+    m_skyTemperatureK = p.skyTemperature_K;
+    m_relativeHumidity = p.relativeHumidity;
     m_suppressSignals = false;
 }
 
@@ -246,8 +263,8 @@ void ThermalPanel::updateStatus(const quantiloom::ThermalSolveStatus& s) {
     m_statusSteps->setText(
         tr("Steps: %1, checkpoints: %2").arg(s.lastStepCount).arg(s.checkpointCount));
     m_statusExchange->setText(
-        tr("Exchange: %1 entries (%2 runs)")
-            .arg(s.exchangeNonZeros).arg(s.exchangeRunCount));
+        tr("Exchange: %1 entries (%2 runs), %3 sun samples")
+            .arg(s.exchangeNonZeros).arg(s.exchangeRunCount).arg(s.sunSampleCount));
     m_statusStepper->setText(
         tr("Stepper: %1").arg(QString::fromStdString(s.stepperName)));
     if (s.error.empty()) {
@@ -283,10 +300,16 @@ quantiloom::ThermalSolveParams ThermalPanel::params() const {
                     : quantiloom::ThermalInitialCondition::Uniform;
     p.initialTemperature_K = m_initialTempSpin->value();
     p.sunIrradiance_W_m2 = m_sunIrradianceSpin->value();
+    p.diffuseIrradiance_W_m2 = m_diffuseIrradianceSpin->value();
     p.exchangeRays = static_cast<quantiloom::u32>(m_exchangeRaysSpin->value());
     p.exchangeTopK = static_cast<quantiloom::u32>(m_exchangeTopKSpin->value());
     p.checkpointStride_h = m_checkpointStrideSpin->value();
     p.forcingFile = m_forcingFileEdit->text().toStdString();
+    // The atmosphere's, not this panel's -- carried through so touching a spin
+    // box here does not quietly reset them.
+    p.airTemperature_K = m_airTemperatureK;
+    p.skyTemperature_K = m_skyTemperatureK;
+    p.relativeHumidity = m_relativeHumidity;
     return p;
 }
 
