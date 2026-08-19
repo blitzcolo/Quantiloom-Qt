@@ -9,7 +9,7 @@
 resolution = [1280, 1280]      # Output resolution
 spp = 16                        # Samples per pixel
 output = "usd_spectral_output.exr"
-environment_map = ""#"D:/Quantiloom-Qt/assets/maps/qwantani_noon_puresky_4k.exr"
+environment_map = ""#"H:/Quantiloom-Qt/assets/maps/qwantani_noon_puresky_4k.exr"
 
 [spectral]
 # ============================================================================
@@ -24,8 +24,8 @@ environment_map = ""#"D:/Quantiloom-Qt/assets/maps/qwantani_noon_puresky_4k.exr"
 #   - "lwir_fused"   : Long-wave IR fusion 8-12um
 # ============================================================================
 mode = "rgb"
-basis_file = ""#"D:/Quantiloom-Qt/assets/spectral/quantiloom_basis_v3_usgs.qlbin"
-materials_json = ""#"D:/Quantiloom-Qt/assets/spectral/quantiloom_materials_usgs.json"
+basis_file = ""#"H:/Quantiloom-Qt/assets/spectral/quantiloom_basis_v3_usgs.qlbin"
+materials_json = ""#"H:/Quantiloom-Qt/assets/spectral/quantiloom_materials_usgs.json"
 band = "VIS"
 
 [scene]
@@ -51,7 +51,7 @@ band = "VIS"
 #   }
 #
 # ============================================================================
-gltf = "D:/Quantiloom-Qt/assets/models/ford.glb"
+gltf = "H:/Quantiloom-Qt/assets/models/ford.glb"
 world_units_to_meters = 1.0
 
 [camera]
