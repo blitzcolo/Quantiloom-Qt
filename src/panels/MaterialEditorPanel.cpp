@@ -466,6 +466,51 @@ void MaterialEditorPanel::setupUi() {
         attenuationColourCaption->setText(tr("Attenuation colour:"));
     });
 
+    // ------------------------------------------------------------------
+    // Sheen
+    // ------------------------------------------------------------------
+    // The microfibre lobe: velvet, felt, brushed cloth. Its own group rather
+    // than two more rows under Metallic-Roughness, because it is not a
+    // variation on the base lobe -- it peaks where the surface turns away from
+    // the camera, which no roughness setting reproduces. Collapsed by default
+    // for the same reason Transmission is: most materials are not cloth.
+    m_sheenGroup = new CollapsibleGroupBox(this);
+    auto* sheenLayout = new QFormLayout();
+
+    m_sheenColorBtn = new QPushButton();
+    m_sheenColorBtn->setFixedSize(80, 30);
+    connect(m_sheenColorBtn, &QPushButton::clicked,
+            this, &MaterialEditorPanel::onSheenColorClicked);
+    auto* sheenColourCaption = new QLabel();
+    sheenLayout->addRow(sheenColourCaption, m_sheenColorBtn);
+
+    m_sheenRoughnessSpin = new QDoubleSpinBox();
+    m_sheenRoughnessSpin->setRange(0.0, 1.0);
+    m_sheenRoughnessSpin->setSingleStep(0.05);
+    m_sheenRoughnessSpin->setDecimals(3);
+    connect(m_sheenRoughnessSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &MaterialEditorPanel::onSheenChanged);
+    auto* sheenRoughnessCaption = new QLabel();
+    sheenLayout->addRow(sheenRoughnessCaption, m_sheenRoughnessSpin);
+
+    m_sheenGroup->setContentLayout(sheenLayout);
+    mainLayout->addWidget(m_sheenGroup);
+
+    bindText([this, sheenColourCaption, sheenRoughnessCaption] {
+        m_sheenGroup->setTitle(tr("Sheen"));
+        sheenColourCaption->setText(tr("Sheen colour:"));
+        m_sheenColorBtn->setToolTip(
+            tr("Colour and strength of the microfibre lobe — velvet, felt, brushed "
+               "cloth. Black is no sheen, which is the default. The lobe is brightest "
+               "where the surface turns away from the camera, so it reads as a rim "
+               "rather than a highlight."));
+        sheenRoughnessCaption->setText(tr("Sheen roughness:"));
+        m_sheenRoughnessSpin->setToolTip(
+            tr("How spread out the fibre scattering is. Low values give a tight bright "
+               "rim, high values a broad sheen over the whole surface. Independent of "
+               "the roughness above, which describes the surface under the fibres."));
+    });
+
     mainLayout->addStretch();
 
     updateKirchhoffLabel();
@@ -547,6 +592,19 @@ void MaterialEditorPanel::setMaterial(int index, const quantiloom::Material* mat
     // from a glTF should not need to be hunted for behind a collapsed header.
     if (m_transmission > 0.0f) {
         m_transmissionGroup->setCollapsed(false);
+    }
+
+    // Sheen, read back for the same reason: a velvet imported from a glTF
+    // should show the factors it arrived with, not this editor's defaults.
+    m_sheenColor = material->sheenColorFactor;
+    m_sheenRoughness = material->sheenRoughnessFactor;
+    {
+        const QSignalBlocker b(m_sheenRoughnessSpin);
+        m_sheenRoughnessSpin->setValue(m_sheenRoughness);
+    }
+    updateColorButton(m_sheenColorBtn, m_sheenColor);
+    if (material->HasSheen()) {
+        m_sheenGroup->setCollapsed(false);
     }
 
     m_emissive = material->emissiveFactor;
@@ -894,6 +952,24 @@ void MaterialEditorPanel::onAttenuationColorClicked() {
     applyChanges();
 }
 
+void MaterialEditorPanel::onSheenChanged() {
+    m_sheenRoughness = static_cast<float>(m_sheenRoughnessSpin->value());
+    applyChanges();
+}
+
+void MaterialEditorPanel::onSheenColorClicked() {
+    const QColor initial = QColor::fromRgbF(m_sheenColor.r, m_sheenColor.g, m_sheenColor.b);
+    const QColor chosen = QColorDialog::getColor(initial, this, tr("Sheen Colour"));
+    if (!chosen.isValid()) {
+        return;
+    }
+    m_sheenColor = glm::vec3(static_cast<float>(chosen.redF()),
+                             static_cast<float>(chosen.greenF()),
+                             static_cast<float>(chosen.blueF()));
+    updateColorButton(m_sheenColorBtn, m_sheenColor);
+    applyChanges();
+}
+
 void MaterialEditorPanel::applyChanges() {
     if (m_currentIndex < 0 || !m_currentMaterial) {
         return;
@@ -911,6 +987,9 @@ void MaterialEditorPanel::applyChanges() {
     modified.dispersion = m_dispersion;
     modified.attenuationDistance = m_attenuationDistance;
     modified.attenuationColor = m_attenuationColor;
+
+    modified.sheenColorFactor = m_sheenColor;
+    modified.sheenRoughnessFactor = m_sheenRoughness;
 
     applyIrScalars(modified, m_irEmissivity, m_irTransmittance, m_irTemperature_K);
 

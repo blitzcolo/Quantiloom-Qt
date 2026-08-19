@@ -85,6 +85,8 @@ private slots:
     void onBaseColorClicked();
     void onTransmissionChanged();
     void onAttenuationColorClicked();
+    void onSheenChanged();
+    void onSheenColorClicked();
     void onMetallicChanged(int value);
     void onMetallicSpinChanged(double value);
     void onRoughnessChanged(int value);
@@ -125,6 +127,13 @@ private:
     QDoubleSpinBox* m_dispersionSpin = nullptr;
     QDoubleSpinBox* m_attenuationDistanceSpin = nullptr;
     QPushButton* m_attenuationColorBtn = nullptr;
+
+    // Sheen (KHR_materials_sheen)
+    glm::vec3 m_sheenColor{0.0f, 0.0f, 0.0f};
+    float m_sheenRoughness = 0.0f;
+    class CollapsibleGroupBox* m_sheenGroup = nullptr;
+    QPushButton* m_sheenColorBtn = nullptr;
+    QDoubleSpinBox* m_sheenRoughnessSpin = nullptr;
 
     QSlider* m_metallicSlider = nullptr;
     QDoubleSpinBox* m_metallicSpin = nullptr;
