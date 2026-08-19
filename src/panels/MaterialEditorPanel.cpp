@@ -549,6 +549,17 @@ void MaterialEditorPanel::setupUi() {
     auto* coatRoughCaption = addSpin(m_clearcoatRoughnessSpin, 0.0, 1.0, 0.05, 3);
     auto* dtCaption = addSpin(m_diffuseTransmissionSpin, 0.0, 1.0, 0.05, 3);
 
+    m_alphaModeCombo = new QComboBox();
+    m_alphaModeCombo->addItem(QString(), 0);
+    m_alphaModeCombo->addItem(QString(), 1);
+    m_alphaModeCombo->addItem(QString(), 2);
+    connect(m_alphaModeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &MaterialEditorPanel::onAlphaModeChanged);
+    auto* alphaModeCaption = new QLabel();
+    surfaceLayout->addRow(alphaModeCaption, m_alphaModeCombo);
+
+    auto* alphaCutoffCaption = addSpin(m_alphaCutoffSpin, 0.0, 1.0, 0.05, 3);
+
     m_diffuseTransmissionColorBtn = new QPushButton();
     m_diffuseTransmissionColorBtn->setFixedSize(80, 30);
     connect(m_diffuseTransmissionColorBtn, &QPushButton::clicked,
@@ -560,7 +571,8 @@ void MaterialEditorPanel::setupUi() {
     mainLayout->addWidget(m_surfaceGroup);
 
     bindText([this, specularCaption, specularColourCaption, anisoCaption, anisoRotCaption,
-              coatCaption, coatRoughCaption, dtCaption, dtColourCaption] {
+              coatCaption, coatRoughCaption, dtCaption, dtColourCaption,
+              alphaModeCaption, alphaCutoffCaption] {
         m_surfaceGroup->setTitle(tr("Surface extensions"));
 
         specularCaption->setText(tr("Specular:"));
@@ -609,6 +621,26 @@ void MaterialEditorPanel::setupUi() {
         dtColourCaption->setText(tr("Transmission colour:"));
         m_diffuseTransmissionColorBtn->setToolTip(
             tr("Tints what passes through. White passes everything the factor allows."));
+
+        alphaModeCaption->setText(tr("Alpha mode:"));
+        m_alphaModeCombo->setItemText(0, tr("Opaque"));
+        m_alphaModeCombo->setItemText(1, tr("Mask (cut-out)"));
+        m_alphaModeCombo->setItemText(2, tr("Blend"));
+        m_alphaModeCombo->setToolTip(
+            tr("How the base colour's alpha is read.\n\n"
+               "Opaque ignores it. Mask makes a hole wherever alpha falls below the "
+               "cutoff — a crisp edge, which is what foliage and chain-link want. "
+               "Blend treats alpha as partial coverage and resolves it across "
+               "samples, so it looks grainy until the render settles.\n\n"
+               "A hole is a hole in every band: in the infrared you see whatever is "
+               "behind it, at that thing's own temperature.\n\n"
+               "This has no effect on a material that also has transmission — "
+               "refraction and coverage are different things, and applying both "
+               "would remove the surface twice."));
+        alphaCutoffCaption->setText(tr("Alpha cutoff:"));
+        m_alphaCutoffSpin->setToolTip(
+            tr("Where Mask puts the boundary. Alpha at or above this is surface, "
+               "below it is hole. Ignored by the other two modes."));
     });
 
     mainLayout->addStretch();
@@ -710,6 +742,8 @@ void MaterialEditorPanel::setMaterial(int index, const quantiloom::Material* mat
     // The four surface extensions, read back the same way. Specular is the one
     // whose neutral value is 1 rather than 0, so a material that never named it
     // still shows a full dielectric response here -- which is what it has.
+    m_alphaMode = static_cast<int>(material->alphaMode);
+    m_alphaCutoff = material->alphaCutoff;
     m_specular = material->specularFactor;
     m_specularColor = material->specularColorFactor;
     m_anisotropyStrength = material->anisotropyStrength;
@@ -725,6 +759,10 @@ void MaterialEditorPanel::setMaterial(int index, const quantiloom::Material* mat
         const QSignalBlocker d(m_clearcoatSpin);
         const QSignalBlocker e(m_clearcoatRoughnessSpin);
         const QSignalBlocker f(m_diffuseTransmissionSpin);
+        const QSignalBlocker g(m_alphaModeCombo);
+        const QSignalBlocker h(m_alphaCutoffSpin);
+        m_alphaModeCombo->setCurrentIndex(m_alphaMode);
+        m_alphaCutoffSpin->setValue(m_alphaCutoff);
         m_specularSpin->setValue(m_specular);
         m_anisotropyStrengthSpin->setValue(m_anisotropyStrength);
         m_anisotropyRotationSpin->setValue(m_anisotropyRotation);
@@ -735,7 +773,8 @@ void MaterialEditorPanel::setMaterial(int index, const quantiloom::Material* mat
     updateColorButton(m_specularColorBtn, m_specularColor);
     updateColorButton(m_diffuseTransmissionColorBtn, m_diffuseTransmissionColor);
     if (material->HasSpecular() || material->HasAnisotropy() || material->HasClearcoat() ||
-        material->HasDiffuseTransmission()) {
+        material->HasDiffuseTransmission() ||
+        material->alphaMode != quantiloom::Material::AlphaMode::Opaque) {
         m_surfaceGroup->setCollapsed(false);
     }
 
@@ -1096,6 +1135,12 @@ void MaterialEditorPanel::onSurfaceExtensionChanged() {
     m_clearcoat = static_cast<float>(m_clearcoatSpin->value());
     m_clearcoatRoughness = static_cast<float>(m_clearcoatRoughnessSpin->value());
     m_diffuseTransmission = static_cast<float>(m_diffuseTransmissionSpin->value());
+    m_alphaCutoff = static_cast<float>(m_alphaCutoffSpin->value());
+    applyChanges();
+}
+
+void MaterialEditorPanel::onAlphaModeChanged() {
+    m_alphaMode = m_alphaModeCombo->currentIndex();
     applyChanges();
 }
 
@@ -1174,6 +1219,8 @@ void MaterialEditorPanel::applyChanges() {
     modified.clearcoatRoughnessFactor = m_clearcoatRoughness;
     modified.diffuseTransmissionFactor = m_diffuseTransmission;
     modified.diffuseTransmissionColorFactor = m_diffuseTransmissionColor;
+    modified.alphaMode = static_cast<quantiloom::Material::AlphaMode>(m_alphaMode);
+    modified.alphaCutoff = m_alphaCutoff;
 
     applyIrScalars(modified, m_irEmissivity, m_irTransmittance, m_irTemperature_K);
 

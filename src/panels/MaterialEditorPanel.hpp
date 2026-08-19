@@ -88,6 +88,7 @@ private slots:
     void onSheenChanged();
     void onSheenColorClicked();
     void onSurfaceExtensionChanged();
+    void onAlphaModeChanged();
     void onSpecularColorClicked();
     void onDiffuseTransmissionColorClicked();
     void onMetallicChanged(int value);
@@ -158,6 +159,15 @@ private:
     QDoubleSpinBox* m_clearcoatRoughnessSpin = nullptr;
     QDoubleSpinBox* m_diffuseTransmissionSpin = nullptr;
     QPushButton* m_diffuseTransmissionColorBtn = nullptr;
+
+    /// glTF alphaMode. Changing it between opaque and not rebuilds the
+    /// geometry's acceleration structure, since whether a surface may be
+    /// alpha-tested is baked in when that is built -- which is why this lives
+    /// beside the others rather than in a hot-path group.
+    int m_alphaMode = 0;
+    float m_alphaCutoff = 0.5f;
+    QComboBox* m_alphaModeCombo = nullptr;
+    QDoubleSpinBox* m_alphaCutoffSpin = nullptr;
 
     QSlider* m_metallicSlider = nullptr;
     QDoubleSpinBox* m_metallicSpin = nullptr;
