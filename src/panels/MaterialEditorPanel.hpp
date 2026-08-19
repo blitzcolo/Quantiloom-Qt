@@ -87,6 +87,9 @@ private slots:
     void onAttenuationColorClicked();
     void onSheenChanged();
     void onSheenColorClicked();
+    void onSurfaceExtensionChanged();
+    void onSpecularColorClicked();
+    void onDiffuseTransmissionColorClicked();
     void onMetallicChanged(int value);
     void onMetallicSpinChanged(double value);
     void onRoughnessChanged(int value);
@@ -134,6 +137,27 @@ private:
     class CollapsibleGroupBox* m_sheenGroup = nullptr;
     QPushButton* m_sheenColorBtn = nullptr;
     QDoubleSpinBox* m_sheenRoughnessSpin = nullptr;
+
+    // The four KHR extensions that share one collapsible group. They are one
+    // group rather than four because a material carrying any of them usually
+    // carries only one, and four empty boxes is worse than one.
+    float m_specular = 1.0f;                    // glTF default is 1, not 0
+    glm::vec3 m_specularColor{1.0f, 1.0f, 1.0f};
+    float m_anisotropyStrength = 0.0f;
+    float m_anisotropyRotation = 0.0f;
+    float m_clearcoat = 0.0f;
+    float m_clearcoatRoughness = 0.0f;
+    float m_diffuseTransmission = 0.0f;
+    glm::vec3 m_diffuseTransmissionColor{1.0f, 1.0f, 1.0f};
+    class CollapsibleGroupBox* m_surfaceGroup = nullptr;
+    QDoubleSpinBox* m_specularSpin = nullptr;
+    QPushButton* m_specularColorBtn = nullptr;
+    QDoubleSpinBox* m_anisotropyStrengthSpin = nullptr;
+    QDoubleSpinBox* m_anisotropyRotationSpin = nullptr;
+    QDoubleSpinBox* m_clearcoatSpin = nullptr;
+    QDoubleSpinBox* m_clearcoatRoughnessSpin = nullptr;
+    QDoubleSpinBox* m_diffuseTransmissionSpin = nullptr;
+    QPushButton* m_diffuseTransmissionColorBtn = nullptr;
 
     QSlider* m_metallicSlider = nullptr;
     QDoubleSpinBox* m_metallicSpin = nullptr;

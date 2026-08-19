@@ -511,6 +511,106 @@ void MaterialEditorPanel::setupUi() {
                "the roughness above, which describes the surface under the fibres."));
     });
 
+    // ------------------------------------------------------------------
+    // Surface extensions
+    // ------------------------------------------------------------------
+    // Specular, anisotropy, clearcoat and diffuse transmission share one group.
+    // A material carrying any of them usually carries only one, and four empty
+    // boxes read worse than one. Collapsed unless the material already uses
+    // something here.
+    m_surfaceGroup = new CollapsibleGroupBox(this);
+    auto* surfaceLayout = new QFormLayout();
+
+    const auto addSpin = [&](QDoubleSpinBox*& spin, double lo, double hi, double step,
+                             int decimals) {
+        spin = new QDoubleSpinBox();
+        spin->setRange(lo, hi);
+        spin->setSingleStep(step);
+        spin->setDecimals(decimals);
+        connect(spin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+                this, &MaterialEditorPanel::onSurfaceExtensionChanged);
+        auto* caption = new QLabel();
+        surfaceLayout->addRow(caption, spin);
+        return caption;
+    };
+
+    auto* specularCaption = addSpin(m_specularSpin, 0.0, 1.0, 0.05, 3);
+
+    m_specularColorBtn = new QPushButton();
+    m_specularColorBtn->setFixedSize(80, 30);
+    connect(m_specularColorBtn, &QPushButton::clicked,
+            this, &MaterialEditorPanel::onSpecularColorClicked);
+    auto* specularColourCaption = new QLabel();
+    surfaceLayout->addRow(specularColourCaption, m_specularColorBtn);
+
+    auto* anisoCaption = addSpin(m_anisotropyStrengthSpin, 0.0, 1.0, 0.05, 3);
+    auto* anisoRotCaption = addSpin(m_anisotropyRotationSpin, -3.15, 3.15, 0.05, 4);
+    auto* coatCaption = addSpin(m_clearcoatSpin, 0.0, 1.0, 0.05, 3);
+    auto* coatRoughCaption = addSpin(m_clearcoatRoughnessSpin, 0.0, 1.0, 0.05, 3);
+    auto* dtCaption = addSpin(m_diffuseTransmissionSpin, 0.0, 1.0, 0.05, 3);
+
+    m_diffuseTransmissionColorBtn = new QPushButton();
+    m_diffuseTransmissionColorBtn->setFixedSize(80, 30);
+    connect(m_diffuseTransmissionColorBtn, &QPushButton::clicked,
+            this, &MaterialEditorPanel::onDiffuseTransmissionColorClicked);
+    auto* dtColourCaption = new QLabel();
+    surfaceLayout->addRow(dtColourCaption, m_diffuseTransmissionColorBtn);
+
+    m_surfaceGroup->setContentLayout(surfaceLayout);
+    mainLayout->addWidget(m_surfaceGroup);
+
+    bindText([this, specularCaption, specularColourCaption, anisoCaption, anisoRotCaption,
+              coatCaption, coatRoughCaption, dtCaption, dtColourCaption] {
+        m_surfaceGroup->setTitle(tr("Surface extensions"));
+
+        specularCaption->setText(tr("Specular:"));
+        m_specularSpin->setToolTip(
+            tr("How much dielectric reflection this surface has, from none to the "
+               "full amount its refractive index implies. The default is 1, not 0 — "
+               "lowering it removes the highlight a plastic or a painted surface "
+               "would otherwise have. Metals are unaffected."));
+        specularColourCaption->setText(tr("Specular colour:"));
+        m_specularColorBtn->setToolTip(
+            tr("Tints the dielectric reflection. White leaves it alone. Black removes "
+               "the highlight seen head-on while leaving the rim at grazing angles, "
+               "which is how some fabrics are authored."));
+
+        anisoCaption->setText(tr("Anisotropy:"));
+        m_anisotropyStrengthSpin->setToolTip(
+            tr("Stretches the highlight along the surface's tangent — brushed metal, "
+               "hair, vinyl. Zero is a round highlight. This only ever roughens the "
+               "one direction; it never sharpens the other.\n\nA mesh with no tangent "
+               "data gets an arbitrary direction, and the log says so when it "
+               "happens."));
+        anisoRotCaption->setText(tr("Anisotropy rotation:"));
+        m_anisotropyRotationSpin->setToolTip(
+            tr("Turns the stretch direction, in radians, counter-clockwise from the "
+               "tangent. Has no visible effect while the strength above is zero."));
+
+        coatCaption->setText(tr("Clearcoat:"));
+        m_clearcoatSpin->setToolTip(
+            tr("A thin lacquer over everything else — car paint, varnished wood. It "
+               "adds its own reflection and dims what is underneath, emission "
+               "included, by exactly what it reflects away.\n\nIn the thermal bands "
+               "this does nothing on its own: a lacquer's visible 4% reflectance is "
+               "fiction at 10 microns, so those bands act on a measured curve or not "
+               "at all."));
+        coatRoughCaption->setText(tr("Clearcoat roughness:"));
+        m_clearcoatRoughnessSpin->setToolTip(
+            tr("How polished the coat is, independent of the surface beneath it. "
+               "Zero is a mirror finish."));
+
+        dtCaption->setText(tr("Diffuse transmission:"));
+        m_diffuseTransmissionSpin->setToolTip(
+            tr("Light scattered through the surface and out the other side — leaves, "
+               "paper, thin porcelain. It takes energy from the diffuse reflection "
+               "rather than adding to it, so at 1 the surface reflects no diffuse at "
+               "all and is only lit from behind."));
+        dtColourCaption->setText(tr("Transmission colour:"));
+        m_diffuseTransmissionColorBtn->setToolTip(
+            tr("Tints what passes through. White passes everything the factor allows."));
+    });
+
     mainLayout->addStretch();
 
     updateKirchhoffLabel();
@@ -605,6 +705,38 @@ void MaterialEditorPanel::setMaterial(int index, const quantiloom::Material* mat
     updateColorButton(m_sheenColorBtn, m_sheenColor);
     if (material->HasSheen()) {
         m_sheenGroup->setCollapsed(false);
+    }
+
+    // The four surface extensions, read back the same way. Specular is the one
+    // whose neutral value is 1 rather than 0, so a material that never named it
+    // still shows a full dielectric response here -- which is what it has.
+    m_specular = material->specularFactor;
+    m_specularColor = material->specularColorFactor;
+    m_anisotropyStrength = material->anisotropyStrength;
+    m_anisotropyRotation = material->anisotropyRotation;
+    m_clearcoat = material->clearcoatFactor;
+    m_clearcoatRoughness = material->clearcoatRoughnessFactor;
+    m_diffuseTransmission = material->diffuseTransmissionFactor;
+    m_diffuseTransmissionColor = material->diffuseTransmissionColorFactor;
+    {
+        const QSignalBlocker a(m_specularSpin);
+        const QSignalBlocker b(m_anisotropyStrengthSpin);
+        const QSignalBlocker c(m_anisotropyRotationSpin);
+        const QSignalBlocker d(m_clearcoatSpin);
+        const QSignalBlocker e(m_clearcoatRoughnessSpin);
+        const QSignalBlocker f(m_diffuseTransmissionSpin);
+        m_specularSpin->setValue(m_specular);
+        m_anisotropyStrengthSpin->setValue(m_anisotropyStrength);
+        m_anisotropyRotationSpin->setValue(m_anisotropyRotation);
+        m_clearcoatSpin->setValue(m_clearcoat);
+        m_clearcoatRoughnessSpin->setValue(m_clearcoatRoughness);
+        m_diffuseTransmissionSpin->setValue(m_diffuseTransmission);
+    }
+    updateColorButton(m_specularColorBtn, m_specularColor);
+    updateColorButton(m_diffuseTransmissionColorBtn, m_diffuseTransmissionColor);
+    if (material->HasSpecular() || material->HasAnisotropy() || material->HasClearcoat() ||
+        material->HasDiffuseTransmission()) {
+        m_surfaceGroup->setCollapsed(false);
     }
 
     m_emissive = material->emissiveFactor;
@@ -957,6 +1089,50 @@ void MaterialEditorPanel::onSheenChanged() {
     applyChanges();
 }
 
+void MaterialEditorPanel::onSurfaceExtensionChanged() {
+    m_specular = static_cast<float>(m_specularSpin->value());
+    m_anisotropyStrength = static_cast<float>(m_anisotropyStrengthSpin->value());
+    m_anisotropyRotation = static_cast<float>(m_anisotropyRotationSpin->value());
+    m_clearcoat = static_cast<float>(m_clearcoatSpin->value());
+    m_clearcoatRoughness = static_cast<float>(m_clearcoatRoughnessSpin->value());
+    m_diffuseTransmission = static_cast<float>(m_diffuseTransmissionSpin->value());
+    applyChanges();
+}
+
+void MaterialEditorPanel::onSpecularColorClicked() {
+    const QColor initial =
+        QColor::fromRgbF(qMin(m_specularColor.r, 1.0f), qMin(m_specularColor.g, 1.0f),
+                         qMin(m_specularColor.b, 1.0f));
+    const QColor chosen = QColorDialog::getColor(initial, this, tr("Specular Colour"));
+    if (!chosen.isValid()) {
+        return;
+    }
+    // The picker cannot express the above-1 values glTF allows here -- an asset
+    // may author [10, 0.6, 0] to saturate one channel -- so editing the colour
+    // clamps it into range. Reading one back and not touching it does not.
+    m_specularColor = glm::vec3(static_cast<float>(chosen.redF()),
+                                static_cast<float>(chosen.greenF()),
+                                static_cast<float>(chosen.blueF()));
+    updateColorButton(m_specularColorBtn, m_specularColor);
+    applyChanges();
+}
+
+void MaterialEditorPanel::onDiffuseTransmissionColorClicked() {
+    const QColor initial = QColor::fromRgbF(m_diffuseTransmissionColor.r,
+                                            m_diffuseTransmissionColor.g,
+                                            m_diffuseTransmissionColor.b);
+    const QColor chosen =
+        QColorDialog::getColor(initial, this, tr("Diffuse Transmission Colour"));
+    if (!chosen.isValid()) {
+        return;
+    }
+    m_diffuseTransmissionColor = glm::vec3(static_cast<float>(chosen.redF()),
+                                           static_cast<float>(chosen.greenF()),
+                                           static_cast<float>(chosen.blueF()));
+    updateColorButton(m_diffuseTransmissionColorBtn, m_diffuseTransmissionColor);
+    applyChanges();
+}
+
 void MaterialEditorPanel::onSheenColorClicked() {
     const QColor initial = QColor::fromRgbF(m_sheenColor.r, m_sheenColor.g, m_sheenColor.b);
     const QColor chosen = QColorDialog::getColor(initial, this, tr("Sheen Colour"));
@@ -990,6 +1166,14 @@ void MaterialEditorPanel::applyChanges() {
 
     modified.sheenColorFactor = m_sheenColor;
     modified.sheenRoughnessFactor = m_sheenRoughness;
+    modified.specularFactor = m_specular;
+    modified.specularColorFactor = m_specularColor;
+    modified.anisotropyStrength = m_anisotropyStrength;
+    modified.anisotropyRotation = m_anisotropyRotation;
+    modified.clearcoatFactor = m_clearcoat;
+    modified.clearcoatRoughnessFactor = m_clearcoatRoughness;
+    modified.diffuseTransmissionFactor = m_diffuseTransmission;
+    modified.diffuseTransmissionColorFactor = m_diffuseTransmissionColor;
 
     applyIrScalars(modified, m_irEmissivity, m_irTransmittance, m_irTemperature_K);
 

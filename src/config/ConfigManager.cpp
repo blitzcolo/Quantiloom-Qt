@@ -143,6 +143,7 @@ void ConfigManager::extractSceneConfig(const quantiloom::Config& config, SceneCo
     // [scene]
     out.gltfPath = QString::fromStdString(config.GetString("scene.gltf", ""));
     out.usdPath = QString::fromStdString(config.GetString("scene.usd", ""));
+    out.variant = QString::fromStdString(config.GetString("scene.variant", ""));
     out.worldUnitsToMeters = config.GetFloat("scene.world_units_to_meters", 1.0f);
 
     // [camera]
@@ -667,6 +668,11 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
     }
     if (!config.usdPath.isEmpty()) {
         out << "usd = " << tomlQuoted(config.usdPath) << "\n";
+    }
+    // Written only when one was chosen, so a scene that never asked for a
+    // variant does not acquire an empty selection by being saved.
+    if (!config.variant.isEmpty()) {
+        out << "variant = " << tomlQuoted(config.variant) << "\n";
     }
     out << "world_units_to_meters = " << config.worldUnitsToMeters << "\n";
     // Backfilled onto materials with no IR temperature of their own. Written

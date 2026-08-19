@@ -178,6 +178,13 @@ struct SceneConfig {
     // [scene]
     QString gltfPath;
     QString usdPath;
+    /// KHR_materials_variants selection, by name. Empty means the file's own
+    /// per-primitive materials, which is what glTF calls vanilla behaviour --
+    /// the format declares the names but has no "default variant" field, so
+    /// the choice belongs here. Mirrored in the writer as well as the reader:
+    /// [scene] is regenerated from this struct on save, so a key with no field
+    /// is silently dropped from any config Studio touches.
+    QString variant;
     float worldUnitsToMeters = 1.0f;
 
     // [camera]
