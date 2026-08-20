@@ -14,6 +14,7 @@
 #include "../ui/PanelBase.hpp"
 
 #include <core/Types.hpp>
+#include <renderer/LightingParams.hpp>
 #include <glm/glm.hpp>
 
 #include <optional>
@@ -173,8 +174,13 @@ private:
     glm::vec3 m_skyRadiance{0.1f, 0.15f, 0.2f};
     float m_skyIntensity = 0.1f;
 
-    float m_chromaR_correction = 0.7872f;
-    float m_chromaB_correction = 1.0437f;
+    // Not in the UI: carried so that emitChanges() does not drop an override a
+    // config supplied. Initialised from the SDK rather than typed out, because
+    // typed-out copies drift -- these held 0.7872 and 1.0437 after the core
+    // stopped defaulting to them, so moving the sun slider before a scene was
+    // loaded pushed the retired white balance back into the renderer.
+    float m_chromaR_correction = quantiloom::LightingDefaults::CHROMA_R_CORRECTION;
+    float m_chromaB_correction = quantiloom::LightingDefaults::CHROMA_B_CORRECTION;
     bool m_enableShadowRays = false;
 
     // Environment map (image-based lighting)
