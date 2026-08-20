@@ -1335,8 +1335,8 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation>关于 Quantiloom</translation>
     </message>
     <message>
-        <source>&lt;h3&gt;Quantiloom&lt;/h3&gt;&lt;p&gt;Version 0.2.2&lt;/p&gt;&lt;p&gt;A spectral renderer with hardware ray tracing support.&lt;/p&gt;&lt;p&gt;Features:&lt;/p&gt;&lt;ul&gt;&lt;li&gt;Hardware ray tracing&lt;/li&gt;&lt;li&gt;Spectral rendering&lt;/li&gt;&lt;li&gt;PBR materials with spectral extensions&lt;/li&gt;&lt;li&gt;Atmospheric scattering&lt;/li&gt;&lt;/ul&gt;&lt;p&gt;Copyright (c) 2025-2026 blitzcolo&lt;/p&gt;</source>
-        <translation type="vanished">&lt;h3&gt;Quantiloom&lt;/h3&gt;&lt;p&gt;版本 0.2.2&lt;/p&gt;&lt;p&gt;支持硬件光线追踪的光谱渲染器。&lt;/p&gt;&lt;p&gt;功能特性：&lt;/p&gt;&lt;ul&gt;&lt;li&gt;硬件光线追踪&lt;/li&gt;&lt;li&gt;光谱渲染&lt;/li&gt;&lt;li&gt;支持光谱扩展的PBR材质&lt;/li&gt;&lt;li&gt;大气散射&lt;/li&gt;&lt;/ul&gt;&lt;p&gt;版权所有 (c) 2025-2026 blitzcolo&lt;/p&gt;</translation>
+        <source>&lt;h3&gt;Quantiloom&lt;/h3&gt;&lt;p&gt;Version 0.2.3&lt;/p&gt;&lt;p&gt;A spectral renderer with hardware ray tracing support.&lt;/p&gt;&lt;p&gt;Features:&lt;/p&gt;&lt;ul&gt;&lt;li&gt;Hardware ray tracing&lt;/li&gt;&lt;li&gt;Spectral rendering&lt;/li&gt;&lt;li&gt;PBR materials with spectral extensions&lt;/li&gt;&lt;li&gt;Atmospheric scattering&lt;/li&gt;&lt;/ul&gt;&lt;p&gt;Copyright (c) 2025-2026 blitzcolo&lt;/p&gt;</source>
+        <translation type="vanished">&lt;h3&gt;Quantiloom&lt;/h3&gt;&lt;p&gt;版本 0.2.3&lt;/p&gt;&lt;p&gt;支持硬件光线追踪的光谱渲染器。&lt;/p&gt;&lt;p&gt;功能特性：&lt;/p&gt;&lt;ul&gt;&lt;li&gt;硬件光线追踪&lt;/li&gt;&lt;li&gt;光谱渲染&lt;/li&gt;&lt;li&gt;支持光谱扩展的PBR材质&lt;/li&gt;&lt;li&gt;大气散射&lt;/li&gt;&lt;/ul&gt;&lt;p&gt;版权所有 (c) 2025-2026 blitzcolo&lt;/p&gt;</translation>
     </message>
     <message>
         <source>FPS: %1</source>
