@@ -385,6 +385,16 @@ void ConfigManager::extractSceneConfig(const quantiloom::Config& config, SceneCo
         matConfig.spectralWeightTexture =
             QString::fromStdString(matTable.GetString("spectral_weight_texture", ""));
 
+        // The emission binding, read for the same reason: a config that names a
+        // lamp spectrum must survive being opened and saved. Dropping it would
+        // put the material back on the RGB-times-D65 expansion without saying
+        // so, which is the substitution the key exists to remove.
+        matConfig.emissiveCurve =
+            QString::fromStdString(matTable.GetString("emissive_curve", ""));
+        matConfig.emissiveCurveColumn = matTable.GetInt("emissive_curve_column", 0);
+        matConfig.emissiveScale =
+            QString::fromStdString(matTable.GetString("emissive_scale", ""));
+
         out.materialConfigs.append(matConfig);
 
         qDebug() << "Loaded material config:" << matConfig.name
@@ -822,7 +832,7 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
 
         if (matConfig.hasPbr || matConfig.hasSpectral() || matConfig.irEmissivity > 0.0f ||
             matConfig.irTransmittance > 0.0f || matConfig.irTemperature_K > 0.0f ||
-            hasTemperatureMap || matConfig.hasThermal()) {
+            hasTemperatureMap || matConfig.hasThermal() || matConfig.hasEmissiveCurve()) {
             out << "[[materials]]\n";
             out << "name = " << tomlQuoted(matConfig.name) << "\n";
             if (matConfig.hasPbr) {
@@ -893,6 +903,18 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
                 if (!matConfig.spectralWeightTexture.isEmpty()) {
                     out << "spectral_weight_texture = "
                         << tomlQuoted(matConfig.spectralWeightTexture) << "\n";
+                }
+            }
+            // The emission binding. Outside hasSpectral(), deliberately: a lamp
+            // with a measured spectrum need not also have a measured
+            // reflectance, and gating one on the other would drop it.
+            if (matConfig.hasEmissiveCurve()) {
+                out << "emissive_curve = " << tomlQuoted(matConfig.emissiveCurve) << "\n";
+                if (matConfig.emissiveCurveColumn > 0) {
+                    out << "emissive_curve_column = " << matConfig.emissiveCurveColumn << "\n";
+                }
+                if (!matConfig.emissiveScale.isEmpty()) {
+                    out << "emissive_scale = " << tomlQuoted(matConfig.emissiveScale) << "\n";
                 }
             }
             out << "\n";

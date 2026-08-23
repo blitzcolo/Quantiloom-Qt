@@ -336,6 +336,8 @@ void MainWindow::registerMcpTools() {
                     entry["metallic"] = material.metallicFactor;
                     entry["roughness"] = material.roughnessFactor;
                     entry["emissive"] = WriteVec3(material.emissiveFactor);
+                    entry["emissive_curve"] =
+                        QString::fromStdString(material.emissiveCurveSource);
                     entry["ir_emissivity"] = IrScalar(material.irEmissivityCurve);
                     entry["ir_transmittance"] = IrScalar(material.irTransmittanceCurve);
                     entry["ir_temperature_k"] = material.irTemperature_K;
@@ -1042,6 +1044,8 @@ void MainWindow::registerMcpTools() {
     "metallic": {"type": "number", "minimum": 0, "maximum": 1},
     "roughness": {"type": "number", "minimum": 0, "maximum": 1},
     "emissive": {"type": "array", "items": {"type": "number"}, "minItems": 3, "maxItems": 3},
+    "emissive_curve": {"type": "string", "description":
+      "The spectrum this surface emits. A built-in token (d65, illuminant_a, halogen, cie_f1..cie_f12, cie_f3.1..cie_f3.15, blackbody_<T>k, equal_energy) or a path to a table; \"\" clears it. Without one the emissive RGB is expanded through D65, which is a convention rather than a measurement and means nothing outside 380-780 nm -- the infrared bands read no emissive RGB at all, so a light is invisible to them until a spectrum is bound. Binding one also REPLACES emissive with the colour the spectrum integrates to, so the two cannot disagree."},
     "ir_emissivity": {"type": "number", "minimum": 0, "maximum": 1},
     "ir_transmittance": {"type": "number", "minimum": 0, "maximum": 1},
     "ir_temperature_k": {"type": "number", "minimum": 0, "description": "Kelvin."}
@@ -1100,6 +1104,14 @@ void MainWindow::registerMcpTools() {
                 args.value(QStringLiteral("ir_temperature_k")).toDouble(material.irTemperature_K));
             MaterialEditorPanel::applyIrScalars(material, emissivity, transmittance, temperatureK);
 
+            // Carried onto the material and resolved by applyMaterial, which
+            // routes it through the core -- binding a lamp is a load, a
+            // resample, a levelling and a colour rewrite, not an assignment.
+            if (args.contains(QStringLiteral("emissive_curve"))) {
+                material.emissiveCurveSource =
+                    args.value(QStringLiteral("emissive_curve")).toString().toStdString();
+            }
+
             applyMaterial(index, material);
 
             QJsonObject out;
@@ -1111,6 +1123,16 @@ void MainWindow::registerMcpTools() {
             out["ir_emissivity"] = IrScalar(material.irEmissivityCurve);
             out["ir_transmittance"] = IrScalar(material.irTransmittanceCurve);
             out["ir_temperature_k"] = material.irTemperature_K;
+            // Read back rather than echoed: binding a spectrum replaces the
+            // emissive triple with the colour that spectrum integrates to, and
+            // reporting the requested value would hide that.
+            if (const auto* refreshed = m_vulkanWindow->getScene();
+                refreshed && index >= 0 &&
+                static_cast<size_t>(index) < refreshed->materials.size()) {
+                const auto& applied = refreshed->materials[static_cast<size_t>(index)];
+                out["emissive"] = WriteVec3(applied.emissiveFactor);
+                out["emissive_curve"] = QString::fromStdString(applied.emissiveCurveSource);
+            }
             return Json(out);
         };
         add(tool);

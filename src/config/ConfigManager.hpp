@@ -102,6 +102,20 @@ struct MaterialConfig {
     QString spectralWeightTexture;
 
     [[nodiscard]] bool hasSpectral() const { return !spectralMaterialRefs.isEmpty(); }
+
+    /// What this surface EMITS, per wavelength. A built-in token ("d65",
+    /// "illuminant_a", "halogen", "cie_f7", "blackbody_3000k", ...) or a path
+    /// to a table; empty means the emissive triple above is all there is, and
+    /// the core expands it through D65 as it always did.
+    ///
+    /// Carried, never interpreted, exactly like the spectral refs above: the
+    /// core owns the token list, so a build of Studio that predates a new
+    /// built-in still round-trips a config that names one.
+    QString emissiveCurve;
+    int emissiveCurveColumn = 0;    ///< 1-based; 0 = leave unwritten (core default 2)
+    QString emissiveScale;          ///< "match_luminance" | "absolute"; empty = unwritten
+
+    [[nodiscard]] bool hasEmissiveCurve() const { return !emissiveCurve.isEmpty(); }
 };
 
 /**

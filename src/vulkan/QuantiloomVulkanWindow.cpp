@@ -368,6 +368,27 @@ int QuantiloomVulkanWindow::addSpectralCurve(const quantiloom::SpectralCurve& cu
     return -1;
 }
 
+quantiloom::Result<std::vector<std::string>, std::string>
+QuantiloomVulkanWindow::setMaterialEmissionSpectrum(uint32_t materialIndex,
+                                                    const std::string& sourceOrEmpty,
+                                                    const QString& baseDir) {
+    using Res = quantiloom::Result<std::vector<std::string>, std::string>;
+    if (!m_renderer) {
+        return Res(Res::Err{"no renderer"});
+    }
+    auto* ctx = m_renderer->getRenderContext();
+    if (!ctx) {
+        return Res(Res::Err{"no render context"});
+    }
+    auto out = ctx->SetMaterialEmissionSpectrum(materialIndex, sourceOrEmpty,
+                                                "match_luminance",
+                                                baseDir.toStdString());
+    if (out) {
+        m_renderer->resetAccumulation();
+    }
+    return out;
+}
+
 quantiloom::Result<int, std::string> QuantiloomVulkanWindow::buildEndmemberWeightTexture(
     uint32_t materialIndex, const std::vector<glm::vec3>& endmemberColors) {
     if (!m_renderer) {

@@ -28,6 +28,7 @@
 #include <QComboBox>
 
 #include <scene/Material.hpp>
+#include <io/SpectralIO.hpp>
 
 namespace {
 /// This editor writes exactly two sample points per IR curve (one at MWIR, one
@@ -122,7 +123,11 @@ void MaterialEditorPanel::setupUi() {
     // Emissive group
     auto* emissiveGroup = new QGroupBox(this);
     bindText([emissiveGroup] { emissiveGroup->setTitle(tr("Emissive")); });
-    auto* emissiveLayout = new QHBoxLayout(emissiveGroup);
+    auto* emissiveOuter = new QVBoxLayout(emissiveGroup);
+    auto* emissiveRow = new QWidget(emissiveGroup);
+    auto* emissiveLayout = new QHBoxLayout(emissiveRow);
+    emissiveLayout->setContentsMargins(0, 0, 0, 0);
+    emissiveOuter->addWidget(emissiveRow);
 
     auto createSpinBox = [this]() {
         auto* spin = new QDoubleSpinBox();
@@ -148,6 +153,64 @@ void MaterialEditorPanel::setupUi() {
     emissiveLayout->addWidget(new QLabel(QStringLiteral("B:")));
     m_emissiveB = createSpinBox();
     emissiveLayout->addWidget(m_emissiveB);
+
+    // The spectrum this surface emits, which the RGB above cannot express.
+    // Populated from the core's own list so a build of Studio never offers a
+    // token the renderer would reject, and never withholds one it would take.
+    auto* spectrumForm = new QFormLayout();
+    spectrumForm->setContentsMargins(0, 0, 0, 0);
+
+    m_emissiveCurve = new QComboBox();
+    m_emissiveCurve->addItem(QString(), QString());  // text set by bindText below
+    for (const auto& info : quantiloom::SpectralIO::BuiltinEmissionSpectra()) {
+        const auto token = QString::fromStdString(info.token);
+        m_emissiveCurve->addItem(
+            QStringLiteral("%1 — %2").arg(token,
+                                          QString::fromStdString(info.description)),
+            token);
+    }
+    connect(m_emissiveCurve, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &MaterialEditorPanel::onEmissiveCurveChanged);
+
+    m_emissiveScale = new QComboBox();
+    m_emissiveScale->addItem(QString(), QStringLiteral("match_luminance"));
+    m_emissiveScale->addItem(QString(), QStringLiteral("absolute"));
+    connect(m_emissiveScale, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &MaterialEditorPanel::onEmissiveCurveChanged);
+
+    auto* spectrumCaption = new QLabel();
+    auto* scaleCaption = new QLabel();
+    m_emissiveCurveNote = new QLabel();
+    m_emissiveCurveNote->setWordWrap(true);
+    m_emissiveCurveNote->setEnabled(false);
+
+    bindText([this, spectrumCaption, scaleCaption] {
+        spectrumCaption->setText(tr("Spectrum:"));
+        scaleCaption->setText(tr("Level:"));
+        m_emissiveCurve->setItemText(0, tr("None — expand the RGB through D65"));
+        m_emissiveScale->setItemText(0, tr("Match the RGB's luminance"));
+        m_emissiveScale->setItemText(1, tr("Absolute (W·m⁻²·sr⁻¹·nm⁻¹)"));
+        m_emissiveCurve->setToolTip(
+            tr("An RGB triple is not a lamp. Without a spectrum the renderer expands "
+               "the colour above through D65 — a convention, defined only over "
+               "380–780 nm, that nothing measured. The infrared bands read no "
+               "emissive RGB at all, so a light is invisible to them until a "
+               "spectrum is bound here."));
+        m_emissiveScale->setToolTip(
+            tr("Every built-in but the blackbody family is a relative distribution "
+               "with no absolute level, so by default the spectrum supplies the "
+               "shape and the RGB above supplies the brightness — swapping lamps "
+               "then recolours the scene without re-exposing it. Choose Absolute "
+               "for a calibrated measurement, where the level is the datum. "
+               "Absolute is required outside the visible: luminance is a property "
+               "of the CIE observer, which sees nothing at 10 µm."));
+        updateEmissiveCurveNote();
+    });
+
+    spectrumForm->addRow(spectrumCaption, m_emissiveCurve);
+    spectrumForm->addRow(scaleCaption, m_emissiveScale);
+    spectrumForm->addRow(m_emissiveCurveNote);
+    emissiveOuter->addLayout(spectrumForm);
 
     mainLayout->addWidget(emissiveGroup);
 
@@ -788,6 +851,22 @@ void MaterialEditorPanel::setMaterial(int index, const quantiloom::Material* mat
         m_emissiveB->setValue(m_emissive.b);
     }
 
+    m_emissiveCurveSource = QString::fromStdString(material->emissiveCurveSource);
+    {
+        const QSignalBlocker c(m_emissiveCurve);
+        int index = m_emissiveCurve->findData(m_emissiveCurveSource);
+        if (index < 0 && !m_emissiveCurveSource.isEmpty()) {
+            // A path, or a token this build does not know. Offered back rather
+            // than silently reset to "None": dropping it here would unbind a
+            // lamp the config deliberately bound, and the user would find out
+            // by saving.
+            m_emissiveCurve->addItem(m_emissiveCurveSource, m_emissiveCurveSource);
+            index = m_emissiveCurve->count() - 1;
+        }
+        m_emissiveCurve->setCurrentIndex(index < 0 ? 0 : index);
+    }
+    updateEmissiveCurveNote();
+
     // IR properties: the scalar view of what may be a full curve.
     m_irEmissivity = material->irEmissivityCurve.empty()
         ? 0.0f : material->irEmissivityCurve[0].second;
@@ -931,6 +1010,57 @@ void MaterialEditorPanel::onEmissiveChanged() {
         static_cast<float>(m_emissiveB->value())
     );
     applyChanges();
+}
+
+void MaterialEditorPanel::onEmissiveCurveChanged() {
+    m_emissiveCurveSource = m_emissiveCurve->currentData().toString();
+    updateEmissiveCurveNote();
+    applyChanges();
+}
+
+void MaterialEditorPanel::updateEmissiveCurveNote() {
+    if (!m_emissiveCurveNote || !m_emissiveCurve || !m_emissiveScale) {
+        return;
+    }
+
+    const QString token = m_emissiveCurve->currentData().toString();
+    const bool bound = !token.isEmpty();
+    m_emissiveScale->setEnabled(bound);
+
+    if (!bound) {
+        m_emissiveCurveNote->setText(
+            tr("No spectrum: the RGB above is expanded as sigmoid(rgb) × D65, which is "
+               "a convention rather than a measurement and is defined only over "
+               "380–780 nm. The SWIR, NIR, MWIR and LWIR bands read no emissive RGB, "
+               "so this light does not exist for them."));
+        return;
+    }
+
+    // The span is the whole point of showing anything here: emission is zero
+    // outside the measured range rather than held flat at the endpoint, so a
+    // lamp tabulated to 780 nm is genuinely dark in an infrared render and the
+    // user should learn that here rather than from a black image.
+    for (const auto& info : quantiloom::SpectralIO::BuiltinEmissionSpectra()) {
+        if (QString::fromStdString(info.token) != token) {
+            continue;
+        }
+        const auto lo = static_cast<int>(info.lambdaMinNm);
+        const auto hi = static_cast<int>(info.lambdaMaxNm);
+        QString text = tr("Measured over %1–%2 nm. Emission is zero outside that span, "
+                          "never held flat, so a band beyond it renders this light dark "
+                          "rather than inventing output for it.").arg(lo).arg(hi);
+        if (hi <= 800) {
+            text += QLatin1Char(' ');
+            text += tr("This one stops at the visible: use blackbody_<T>k for an "
+                       "infrared band, which is a formula and spans every band.");
+        }
+        m_emissiveCurveNote->setText(text);
+        return;
+    }
+
+    m_emissiveCurveNote->setText(
+        tr("Bound to '%1'. Emission is zero outside the table's own span, never held "
+           "flat.").arg(token));
 }
 
 void MaterialEditorPanel::onIRPropertyChanged() {
@@ -1202,6 +1332,10 @@ void MaterialEditorPanel::applyChanges() {
     modified.metallicFactor = m_metallic;
     modified.roughnessFactor = m_roughness;
     modified.emissiveFactor = m_emissive;
+    // The token only. Resolving it -- loading the spectrum, levelling it, and
+    // deriving the colour the RGB half must use -- is the core's job, and doing
+    // any of it here would be a second reading of the same rule.
+    modified.emissiveCurveSource = m_emissiveCurveSource.toStdString();
 
     modified.transmission = m_transmission;
     modified.ior = m_ior;

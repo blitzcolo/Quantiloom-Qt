@@ -1253,12 +1253,54 @@ void MainWindow::applyMaterial(int index, const quantiloom::Material& material) 
 
     const quantiloom::Material previous = scene->materials[static_cast<size_t>(index)];
 
+    // Binding a lamp's spectrum is not an assignment, so it cannot ride along
+    // inside a Material the way a colour does: the curve has to be loaded,
+    // resampled onto the band being rendered, levelled against this material's
+    // own emissive triple, uploaded, and then that triple REPLACED by the
+    // colour the spectrum integrates to. The core owns all of that -- doing any
+    // of it here would be a second reading of the same rule, and the viewport
+    // and the CLI would end up on different lamps.
+    //
+    // Done before the undo command is built so the command records the material
+    // the core actually produced, colour and curve index included, rather than
+    // the half-set one the panel emitted.
+    quantiloom::Material applied = material;
+    if (material.emissiveCurveSource != previous.emissiveCurveSource) {
+        const QString baseDir =
+            m_currentConfigFile.isEmpty() ? QString()
+                                          : QFileInfo(m_currentConfigFile).absolutePath();
+        auto bound = m_vulkanWindow->setMaterialEmissionSpectrum(
+            static_cast<uint32_t>(index), material.emissiveCurveSource, baseDir);
+        if (!bound) {
+            QMessageBox::warning(
+                this, tr("Emission spectrum"),
+                tr("Could not bind '%1':\n\n%2")
+                    .arg(QString::fromStdString(material.emissiveCurveSource),
+                         QString::fromStdString(bound.error())));
+            return;
+        }
+        // Not errors. Emission is zero outside a curve's measured span rather
+        // than held flat, so the commonest one says this lamp will be dark in
+        // the band on screen -- which the user needs to see now, not infer from
+        // a black image.
+        if (!bound.value().empty()) {
+            showStatusMessage(QString::fromStdString(bound.value().front()));
+        }
+        // Re-read what the core produced. It rewrote emissiveFactor from the
+        // spectrum and assigned the curve index, and the undo entry has to
+        // record that rather than the half-set material the panel emitted --
+        // otherwise undo restores a lamp with a colour that never existed.
+        if (const auto* refreshed = m_vulkanWindow->getScene()) {
+            applied = refreshed->materials[static_cast<size_t>(index)];
+        }
+    }
+
     // ModifyMaterialCommand has existed since the undo stack was written and
     // was never pushed, so every material edit was silently outside the
     // history -- Ctrl+Z after changing a colour undid whatever move came
     // before it instead.
     auto command = std::make_unique<ModifyMaterialCommand>(
-        m_vulkanWindow, index, previous, material);
+        m_vulkanWindow, index, previous, applied);
     command->execute();
     m_undoStack->push(std::move(command));
 
@@ -4510,6 +4552,15 @@ void MainWindow::collectCurrentConfig(SceneConfig& config) {
                 matConfig.spectralMaterialRefs << QString::fromStdString(extra);
             }
         }
+
+        // The emission binding, from the material for the same reason. Note
+        // that the emissive triple written above is the one the CORE derived
+        // from this curve, not the one the author typed -- binding a spectrum
+        // replaces it so that the RGB preview and the spectral bands describe
+        // one lamp. Saving therefore records the derived colour, which is
+        // correct: it is what the scene now is.
+        matConfig.emissiveCurve =
+            QString::fromStdString(material.emissiveCurveSource);
     }
 }
 

@@ -176,6 +176,13 @@ public:
     /// missing -- most often base-colour pixels that were released on upload.
     [[nodiscard]] quantiloom::Result<int, std::string> buildEndmemberWeightTexture(
         uint32_t materialIndex, const std::vector<glm::vec3>& endmemberColors);
+    /// Bind (or, with an empty source, clear) the spectrum a material emits;
+    /// see ExternalRenderContext::SetMaterialEmissionSpectrum. Returns warnings
+    /// worth showing -- most often that the lamp does not cover the band on
+    /// screen and will therefore be dark -- or an error if nothing was bound.
+    [[nodiscard]] quantiloom::Result<std::vector<std::string>, std::string>
+    setMaterialEmissionSpectrum(uint32_t materialIndex, const std::string& sourceOrEmpty,
+                                const QString& baseDir);
     /// See QuantiloomVulkanRenderer::setSolarLutFromSpec.
     [[nodiscard]] std::optional<QString> setSolarLutFromSpec(
         const quantiloom::SolarLutSpec& spec, const QString& baseDir);

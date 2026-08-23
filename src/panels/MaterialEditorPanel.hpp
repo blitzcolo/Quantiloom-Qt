@@ -96,6 +96,7 @@ private slots:
     void onRoughnessChanged(int value);
     void onRoughnessSpinChanged(double value);
     void onEmissiveChanged();
+    void onEmissiveCurveChanged();
     void onIRPropertyChanged();
     void onTemperatureMapChanged();
     void onBrowseTemperatureTexture();
@@ -107,6 +108,9 @@ private:
     void updateColorButton(QPushButton* btn, const glm::vec3& color);
     void updateKirchhoffLabel();
     void updateSpectralCurveNotice();
+    /// Say what the current spectrum choice means, including the cases where it
+    /// means "this lamp is dark in the band you are rendering".
+    void updateEmissiveCurveNote();
     /// Says what the map's kelvin range and step work out to, and that a path
     /// change needs the scene reloaded.
     void updateTemperatureMapNotice();
@@ -177,11 +181,21 @@ private:
     QDoubleSpinBox* m_emissiveG = nullptr;
     QDoubleSpinBox* m_emissiveB = nullptr;
 
+    /// What this surface emits, per wavelength. An RGB triple is not a lamp:
+    /// the only spectrum the core can build from one is the Jakob-Hanika fit
+    /// times D65, which nothing measured and which means nothing outside
+    /// 380-780 nm. Picking a spectrum here is what makes the infrared bands
+    /// able to see the light at all -- they read no emissive RGB by design.
+    QComboBox* m_emissiveCurve = nullptr;
+    QComboBox* m_emissiveScale = nullptr;
+    QLabel* m_emissiveCurveNote = nullptr;
+
     // Current values
     glm::vec4 m_baseColor{1.0f};
     float m_metallic = 0.0f;
     float m_roughness = 1.0f;
     glm::vec3 m_emissive{0.0f};
+    QString m_emissiveCurveSource;
 
     // IR property values
     float m_irEmissivity = 0.0f;
