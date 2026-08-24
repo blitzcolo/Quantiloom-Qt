@@ -387,6 +387,12 @@ void MainWindow::setupMenus() {
     // something the viewport can show.
     m_renderSequenceAction = m_fileMenu->addAction(QString(), this,
                                                    &MainWindow::onRenderSequence);
+    // The temperature field under the image rather than the image: the numbers
+    // the solver produced, before the per-pixel sun correction and the radiance
+    // inversion the render puts on top. A File action because what it writes is
+    // a file the viewport cannot show, like the two above it.
+    m_dumpThermalElementsAction = m_fileMenu->addAction(
+        QString(), this, &MainWindow::onDumpThermalElements);
     m_exportImageAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_E));
 
     m_screenshotAction = m_fileMenu->addAction(QString(), this, &MainWindow::onTakeScreenshot);
@@ -1089,6 +1095,8 @@ quantiloom::ThermalSolveParams MainWindow::currentThermalParams() const {
     params.diffuseIrradiance_W_m2 = m_thermalDiffuseIrradiance;
     params.checkpointStride_h = m_thermalCheckpointStrideH;
     params.forcingFile = m_thermalForcingFile.toStdString();
+    params.sunCorrection = m_thermalSunCorrection;
+    params.dumpElementsFile = m_thermalDumpElements.toStdString();
     // The air the surfaces convect with and the humidity a wet one evaporates
     // into belong to the atmosphere rather than to the thermal panel. Studio
     // carries them rather than deciding them: they are seeded from the
@@ -1126,7 +1134,18 @@ void MainWindow::applyThermalEnabled(bool enabled) {
     setSceneModified(true);
 }
 
-void MainWindow::applyThermalParams(const quantiloom::ThermalSolveParams& params) {
+void MainWindow::applyThermalParams(const quantiloom::ThermalSolveParams& incoming) {
+    // The two measurement switches no widget shows. ThermalPanel::params()
+    // builds a fresh struct from its spin boxes, so anything not on the panel
+    // arrives at its default -- which for sunCorrection is true, silently
+    // undoing a config that asked for the uncorrected field the moment a user
+    // nudged the timestep. Re-injected here for the same reason the panel
+    // carries the atmosphere's air temperature, except that the carrier is
+    // this window, since no panel has any use for them.
+    quantiloom::ThermalSolveParams params = incoming;
+    params.sunCorrection = m_thermalSunCorrection;
+    params.dumpElementsFile = m_thermalDumpElements.toStdString();
+
     m_thermalStartTimeH = params.startTime_h;
     m_thermalTimestepS = params.timestep_s;
     m_thermalLayers = static_cast<int>(params.layerCount);
@@ -2228,6 +2247,10 @@ void MainWindow::retranslateUi() {
     m_renderSequenceAction->setText(tr("Render Se&quence..."));
     m_renderSequenceAction->setToolTip(
         tr("Render this scene once per step of a temperature sweep"));
+    m_dumpThermalElementsAction->setText(tr("Export Thermal &Elements (CSV)..."));
+    m_dumpThermalElementsAction->setToolTip(
+        tr("Write the solved temperature per triangle at the hour on screen, "
+           "with the material properties the solve actually used."));
     m_exportImageAction->setToolTip(
         tr("Write the accumulated render without display enhancement."));
     m_screenshotAction->setText(tr("Save Screensho&t (as displayed)"));
@@ -2760,6 +2783,40 @@ void MainWindow::onRenderSequence() {
 
     SequenceRenderDialog dialog(config, materialNames, this);
     dialog.exec();
+}
+
+void MainWindow::onDumpThermalElements() {
+    if (!m_thermalEnabled) {
+        QMessageBox::information(this, tr("No Thermal Solve"),
+            tr("Turn the thermal solve on before exporting its elements: this "
+               "writes the field the solver produced, and without a solve there "
+               "is none. A scene whose temperatures were typed rather than "
+               "solved is already in the configuration."));
+        return;
+    }
+
+    // The document's own dump_elements as the suggestion, so a config written
+    // for a study proposes the file that study expects.
+    const QString suggested = m_thermalDumpElements.isEmpty()
+        ? QStringLiteral("thermal_elements.csv")
+        : m_thermalDumpElements;
+    const QString fileName = QFileDialog::getSaveFileName(
+        this, tr("Export Thermal Elements"), suggested,
+        tr("CSV files (*.csv);;All files (*)"));
+    if (fileName.isEmpty()) {
+        return;
+    }
+
+    const auto written = m_vulkanWindow->dumpThermalElements(fileName);
+    if (!written) {
+        QMessageBox::warning(this, tr("Export Failed"),
+            tr("Could not write the thermal elements:\n\n%1")
+                .arg(QString::fromStdString(written.error())));
+        return;
+    }
+    showStatusMessage(tr("Wrote the thermal elements at %1 h to %2")
+                          .arg(m_thermalTimeH, 0, 'f', 2)
+                          .arg(QFileInfo(fileName).fileName()));
 }
 
 void MainWindow::onExportImage() {
@@ -4193,6 +4250,8 @@ void MainWindow::applyConfig(const SceneConfig& config) {
     m_thermalExchangeTopK = config.thermalExchangeTopK;
     m_thermalCheckpointStrideH = config.thermalCheckpointStrideH;
     m_thermalForcingFile = config.thermalForcingFile;
+    m_thermalSunCorrection = config.thermalSunCorrection;
+    m_thermalDumpElements = config.thermalDumpElements;
 
     // Populate the thermal panel from the config. The members above are
     // already the config's, so the panel gets exactly what the dispatchers
@@ -4407,6 +4466,8 @@ void MainWindow::collectCurrentConfig(SceneConfig& config) {
     config.thermalExchangeTopK = m_thermalExchangeTopK;
     config.thermalCheckpointStrideH = m_thermalCheckpointStrideH;
     config.thermalForcingFile = m_thermalForcingFile;
+    config.thermalSunCorrection = m_thermalSunCorrection;
+    config.thermalDumpElements = m_thermalDumpElements;
 
     config.thermographyEnabled = m_sensorPanel->isThermographyEnabled();
     config.thermography = m_sensorPanel->getThermographyParams();

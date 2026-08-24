@@ -288,6 +288,9 @@ void ConfigManager::extractSceneConfig(const quantiloom::Config& config, SceneCo
         config.Get<double>("thermal.checkpoint_stride_h", 1.0);
     out.thermalForcingFile =
         QString::fromStdString(config.GetString("thermal.forcing_file", ""));
+    out.thermalSunCorrection = config.Get<bool>("thermal.sun_correction", true);
+    out.thermalDumpElements =
+        QString::fromStdString(config.GetString("thermal.dump_elements", ""));
 
     // [sensor]
     out.sensorEnabled = config.Get<bool>("sensor.enabled", false);
@@ -1013,6 +1016,15 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
     out << "checkpoint_stride_h = " << config.thermalCheckpointStrideH << "\n";
     if (!config.thermalForcingFile.isEmpty()) {
         out << "forcing_file = " << tomlQuoted(config.thermalForcingFile) << "\n";
+    }
+    // Only when it is not the default, unlike the keys above: a measurement
+    // switch written into every document would suggest Studio has an opinion
+    // about it, and it has none -- nothing here can turn the correction off.
+    if (!config.thermalSunCorrection) {
+        out << "sun_correction = false\n";
+    }
+    if (!config.thermalDumpElements.isEmpty()) {
+        out << "dump_elements = " << tomlQuoted(config.thermalDumpElements) << "\n";
     }
     out << "\n";
 

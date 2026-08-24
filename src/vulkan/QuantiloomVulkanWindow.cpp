@@ -389,6 +389,19 @@ QuantiloomVulkanWindow::setMaterialEmissionSpectrum(uint32_t materialIndex,
     return out;
 }
 
+quantiloom::Result<std::string, std::string>
+QuantiloomVulkanWindow::dumpThermalElements(const QString& pathOrEmpty) {
+    using Res = quantiloom::Result<std::string, std::string>;
+    if (!m_renderer) {
+        return Res(Res::Err{"no renderer"});
+    }
+    auto* ctx = m_renderer->getRenderContext();
+    if (!ctx) {
+        return Res(Res::Err{"no render context"});
+    }
+    return ctx->DumpThermalElements(pathOrEmpty.toStdString());
+}
+
 quantiloom::Result<int, std::string> QuantiloomVulkanWindow::buildEndmemberWeightTexture(
     uint32_t materialIndex, const std::vector<glm::vec3>& endmemberColors) {
     if (!m_renderer) {

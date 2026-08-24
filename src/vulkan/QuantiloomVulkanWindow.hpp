@@ -180,6 +180,11 @@ public:
     /// see ExternalRenderContext::SetMaterialEmissionSpectrum. Returns warnings
     /// worth showing -- most often that the lamp does not cover the band on
     /// screen and will therefore be dark -- or an error if nothing was bound.
+    /// Write the thermal solve at the hour on screen, one row per element; see
+    /// ExternalRenderContext::DumpThermalElements. An empty path takes the one
+    /// the document's `[thermal] dump_elements` set. Returns the file written.
+    [[nodiscard]] quantiloom::Result<std::string, std::string> dumpThermalElements(
+        const QString& pathOrEmpty);
     [[nodiscard]] quantiloom::Result<std::vector<std::string>, std::string>
     setMaterialEmissionSpectrum(uint32_t materialIndex, const std::string& sourceOrEmpty,
                                 const QString& baseDir);

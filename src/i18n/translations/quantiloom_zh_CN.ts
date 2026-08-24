@@ -1585,6 +1585,14 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation>把每个波段渲染到收敛并将立方体流式写入磁盘</translation>
     </message>
     <message>
+        <source>Export Thermal &amp;Elements (CSV)...</source>
+        <translation>导出热元素表(&amp;E)...</translation>
+    </message>
+    <message>
+        <source>Write the solved temperature per triangle at the hour on screen, with the material properties the solve actually used.</source>
+        <translation>把屏幕上那一时刻每个三角面解出的温度写出来，并附上求解实际使用的材质物性。</translation>
+    </message>
+    <message>
         <source>Write the accumulated render without display enhancement.</source>
         <translation>写出累积得到的渲染结果，不含显示增强。</translation>
     </message>
@@ -1925,6 +1933,34 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
     <message>
         <source>Open a scene before rendering a cube.</source>
         <translation>请先打开场景再渲染立方体。</translation>
+    </message>
+    <message>
+        <source>No Thermal Solve</source>
+        <translation>未启用热求解</translation>
+    </message>
+    <message>
+        <source>Turn the thermal solve on before exporting its elements: this writes the field the solver produced, and without a solve there is none. A scene whose temperatures were typed rather than solved is already in the configuration.</source>
+        <translation>导出元素表前请先启用热求解：它写出的是求解器产生的温度场，没有求解就没有这个场。若场景的温度是直接指定而非解出的，那些数值已经在配置文件里了。</translation>
+    </message>
+    <message>
+        <source>Export Thermal Elements</source>
+        <translation>导出热元素表</translation>
+    </message>
+    <message>
+        <source>CSV files (*.csv);;All files (*)</source>
+        <translation>CSV 文件 (*.csv);;所有文件 (*)</translation>
+    </message>
+    <message>
+        <source>Could not write the thermal elements:
+
+%1</source>
+        <translation>无法写入热元素表：
+
+%1</translation>
+    </message>
+    <message>
+        <source>Wrote the thermal elements at %1 h to %2</source>
+        <translation>已写出 %1 h 处的热元素表到 %2</translation>
     </message>
     <message>
         <source>Export Image (raw render)</source>

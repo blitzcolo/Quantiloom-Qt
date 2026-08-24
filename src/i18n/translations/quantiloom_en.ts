@@ -1446,6 +1446,14 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Export Thermal &amp;Elements (CSV)...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Write the solved temperature per triangle at the hour on screen, with the material properties the solve actually used.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Write the accumulated render without display enhancement.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1776,6 +1784,32 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
     </message>
     <message>
         <source>Open a scene before rendering a sequence.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No Thermal Solve</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Turn the thermal solve on before exporting its elements: this writes the field the solver produced, and without a solve there is none. A scene whose temperatures were typed rather than solved is already in the configuration.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Export Thermal Elements</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>CSV files (*.csv);;All files (*)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Could not write the thermal elements:
+
+%1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Wrote the thermal elements at %1 h to %2</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

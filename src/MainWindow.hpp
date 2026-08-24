@@ -136,6 +136,7 @@ private slots:
     /// Offline cube render, in a dialog of its own.
     void onExportHyperspectralCube();
     void onRenderSequence();
+    void onDumpThermalElements();
 
     // Render menu actions
     void onStartRender();
@@ -281,7 +282,7 @@ private:
     /// state, and a tool that went straight to the renderer would leave the
     /// panel showing what the user last typed rather than what is running.
     void applyThermalEnabled(bool enabled);
-    void applyThermalParams(const quantiloom::ThermalSolveParams& params);
+    void applyThermalParams(const quantiloom::ThermalSolveParams& incoming);
     void applyThermalTime(double time_h);
     /// Push one material's thermal properties into the running solve, so a
     /// wetness or a thickness edit moves the viewport rather than only the
@@ -477,8 +478,8 @@ private:
     QHash<QString, MaterialThermalProps> m_thermalProperties;
     /// The [thermal] block as the file gave it, so a config that has one
     /// survives being opened and saved. No panel edits it yet; the sequence
-    /// dialog overrides the hour per frame. Held as the eight values rather
-    /// than as a whole SceneConfig, which is only forward declared here.
+    /// dialog overrides the hour per frame. Held as the individual values
+    /// rather than as a whole SceneConfig, which is only forward declared here.
     bool m_thermalEnabled = false;
     double m_thermalTimeH = 12.0;
     double m_thermalStartTimeH = 0.0;
@@ -492,6 +493,11 @@ private:
     int m_thermalExchangeTopK = 32;
     double m_thermalCheckpointStrideH = 1.0;
     QString m_thermalForcingFile;
+    /// Measurement switches the SDK's config path reads and its exported
+    /// ThermalSolveParams does not carry; see SceneConfig for why they are
+    /// only carried across a save.
+    bool m_thermalSunCorrection = true;
+    QString m_thermalDumpElements;
 
     bool m_skyClearModel = false;
     float m_skyRelativeHumidity = 50.0f;
@@ -596,6 +602,7 @@ private:
     QAction* m_resumeRenderAction = nullptr;
     QAction* m_exportCubeAction = nullptr;
     QAction* m_renderSequenceAction = nullptr;
+    QAction* m_dumpThermalElementsAction = nullptr;
     QAction* m_resetAccumulationAction = nullptr;
     QAction* m_spectralGenAction = nullptr;
     QAction* m_assignSpectrumAction = nullptr;

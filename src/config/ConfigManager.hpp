@@ -261,6 +261,22 @@ struct SceneConfig {
     double thermalCheckpointStrideH = 1.0;
     QString thermalForcingFile;
 
+    /// The two [thermal] keys the SDK added for measurement rather than for
+    /// rendering (Quantiloom-dev ec06807): `sun_correction = false` asks for
+    /// the uncorrected temperature field, one constant per triangle, which is
+    /// what the correction has to be compared against, and `dump_elements`
+    /// names a file the solve writes one row per element into.
+    ///
+    /// Carried, not driven. Neither reaches the interactive solve, because
+    /// ThermalSolveParams -- the only thermal struct the SDK exports -- has no
+    /// member for either; they live on ThermalSolveConfig, which the CLI's
+    /// config path builds and this repository cannot reach (SRS CON-03). So
+    /// they are read and written and nothing here acts on them, which is the
+    /// difference between a quantitative config surviving a Studio save and
+    /// silently losing the switch that made its numbers mean something.
+    bool thermalSunCorrection = true;
+    QString thermalDumpElements;
+
     /// [material] albedo -- the fallback surface for scenes that bring no
     /// materials of their own. Required by the core's strict reading, so a
     /// document saved without it renders here and is rejected by the CLI.
