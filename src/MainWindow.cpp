@@ -3881,11 +3881,8 @@ void MainWindow::applySpectralEndmembers(int materialIndex, const QString& datab
     }
 
     // The band the viewport is actually rendering, so what appears is what was
-    // previewed. VIS covers the RGB case, which has no band of its own.
-    const quantiloom::SpectralMode mode = m_vulkanWindow->spectralMode();
-    QString band = QStringLiteral("VIS");
-    if (mode == quantiloom::SpectralMode::NIR_Fused)  band = QStringLiteral("NIR");
-    if (mode == quantiloom::SpectralMode::SWIR_Fused) band = QStringLiteral("SWIR");
+    // previewed.
+    const QString band = catalog::spectralLibraryBand(m_vulkanWindow->spectralMode());
 
     const int wanted = std::min<int>(refs.size(), quantiloom::Material::MAX_ENDMEMBERS);
     std::vector<int> curveIndices;

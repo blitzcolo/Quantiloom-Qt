@@ -29,6 +29,7 @@
 #include <QRegularExpression>
 
 #include <algorithm>
+#include <array>
 
 namespace {
 
@@ -45,6 +46,17 @@ const DatabaseInfo kDatabases[] = {
     {"ecostress", "ecostress"},
     {"rii", "rii"},
 };
+
+/// The bands the databases are summarised over, in wavelength order. These are
+/// protocol on both sides -- they name the `<BAND>_coverage` columns of
+/// material_summary_*.csv and are the token SpectralIO::ReconstructBasisCurve
+/// matches literally -- and they are acronyms that stay Latin in any locale.
+///
+/// All five, not the visible three: the databases have carried MWIR and LWIR
+/// summaries all along, and a browser that offers only as far as SWIR cannot
+/// preview or assign a spectrum for the two bands where a bound curve now also
+/// decides the surface's long-wave emissivity.
+constexpr std::array<const char*, 5> kBands = {"VIS", "NIR", "SWIR", "MWIR", "LWIR"};
 
 /// Split one CSV line, honouring the double quotes the material names carry --
 /// "Alizarin_crimson (dk) GDS780" has no comma but plenty of entries do.
@@ -86,11 +98,10 @@ public:
         QString database;   ///< "usgs" / "ecostress" / "rii"; not translated
         QString name;       ///< The database entry name, verbatim
         QString category;   ///< USGS chapter, or the instrument for the others
-        /// Per-band coverage, 0 when the database does not carry that band.
-        /// USGS stops at 2.5 um, so its MWIR and LWIR are legitimately absent.
-        double coverageVis = 0.0;
-        double coverageNir = 0.0;
-        double coverageSwir = 0.0;
+        /// Per-band coverage in kBands order, 0 when the database does not
+        /// carry that band. USGS stops at 2.5 um, so its MWIR and LWIR are
+        /// legitimately absent.
+        std::array<double, kBands.size()> coverage{};
     };
 
     enum Column { ColumnName = 0, ColumnDatabase, ColumnCategory, ColumnCoverage, ColumnCount };
@@ -121,20 +132,28 @@ public:
                     // percentage. A row at 0% is in the database but has no
                     // usable spectrum for any band the browser offers.
                     return QStringLiteral("%1%").arg(
-                        100.0 * std::max({entry.coverageVis, entry.coverageNir,
-                                          entry.coverageSwir}),
+                        100.0 * *std::max_element(entry.coverage.begin(),
+                                                  entry.coverage.end()),
                         0, 'f', 0);
                 default: return {};
             }
         }
         if (role == Qt::ToolTipRole) {
+            // The band list is built rather than spelled into the sentence:
+            // the acronyms stay Latin in every locale, and a translator given
+            // five more placeholders would have five more chances to reorder
+            // them away from the numbers they belong to.
+            QStringList bands;
+            bands.reserve(static_cast<int>(kBands.size()));
+            for (size_t i = 0; i < kBands.size(); ++i) {
+                bands << QStringLiteral("%1 %2%")
+                             .arg(QString::fromLatin1(kBands[i]))
+                             .arg(100.0 * entry.coverage[i], 0, 'f', 0);
+            }
             return QCoreApplication::translate(
                        "SpectralLibraryPanel",
-                       "%1\nDatabase: %2\nCoverage — VIS %3%, NIR %4%, SWIR %5%")
-                .arg(entry.name, entry.database)
-                .arg(100.0 * entry.coverageVis, 0, 'f', 0)
-                .arg(100.0 * entry.coverageNir, 0, 'f', 0)
-                .arg(100.0 * entry.coverageSwir, 0, 'f', 0);
+                       "%1\nDatabase: %2\nCoverage — %3")
+                .arg(entry.name, entry.database, bands.join(QStringLiteral(", ")));
         }
         return {};
     }
@@ -202,9 +221,11 @@ private:
             const int categoryCol = columns.indexOf(QStringLiteral("chapter")) >= 0
                                         ? columns.indexOf(QStringLiteral("chapter"))
                                         : columns.indexOf(QStringLiteral("instrument"));
-            const int visCol = columns.indexOf(QStringLiteral("VIS_coverage"));
-            const int nirCol = columns.indexOf(QStringLiteral("NIR_coverage"));
-            const int swirCol = columns.indexOf(QStringLiteral("SWIR_coverage"));
+            std::array<int, kBands.size()> coverageCols{};
+            for (size_t i = 0; i < kBands.size(); ++i) {
+                coverageCols[i] = columns.indexOf(
+                    QStringLiteral("%1_coverage").arg(QString::fromLatin1(kBands[i])));
+            }
             if (nameCol < 0) {
                 missing.append(QFileInfo(path).fileName());
                 continue;
@@ -227,9 +248,9 @@ private:
                     return (column >= 0 && column < fields.size())
                                ? fields.at(column).toDouble() : 0.0;
                 };
-                entry.coverageVis = readCoverage(visCol);
-                entry.coverageNir = readCoverage(nirCol);
-                entry.coverageSwir = readCoverage(swirCol);
+                for (size_t i = 0; i < kBands.size(); ++i) {
+                    entry.coverage[i] = readCoverage(coverageCols[i]);
+                }
                 m_entries.append(entry);
             }
         }
@@ -323,7 +344,7 @@ void SpectralLibraryPanel::setupUi() {
     m_bandCombo = new QComboBox(previewGroup);
     // Band names are protocol -- the core matches them literally -- and are
     // acronyms that stay Latin by the glossary in any case.
-    for (const char* band : {"VIS", "NIR", "SWIR"}) {
+    for (const char* band : kBands) {
         m_bandCombo->addItem(QString::fromLatin1(band), QString::fromLatin1(band));
     }
     connect(m_bandCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),

@@ -3746,6 +3746,12 @@ Not suitable for quantitative analysis. Load measured spectral materials for acc
 <context>
     <name>SpectralLibraryPanel</name>
     <message>
+        <source>%1
+Database: %2
+Coverage — %3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Material</source>
         <translation type="unfinished">Material</translation>
     </message>

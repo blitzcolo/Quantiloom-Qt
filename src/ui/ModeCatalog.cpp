@@ -418,6 +418,20 @@ QString spectralModeLabel(SpectralMode mode) {
     }
 }
 
+QString spectralLibraryBand(SpectralMode mode) {
+    switch (mode) {
+        case SpectralMode::NIR_Fused:  return QStringLiteral("NIR");
+        case SpectralMode::SWIR_Fused: return QStringLiteral("SWIR");
+        case SpectralMode::MWIR_Fused: return QStringLiteral("MWIR");
+        case SpectralMode::LWIR_Fused: return QStringLiteral("LWIR");
+        // RGB, VIS_Fused, Single and Multispectral alike. Single renders one
+        // wavelength that may sit anywhere, but the database is asked for a
+        // band and not for a point, and a Single render is not what a library
+        // assignment is being previewed against.
+        default:                       return QStringLiteral("VIS");
+    }
+}
+
 QString spectralModeDescription(SpectralMode mode) {
     switch (mode) {
         case SpectralMode::RGB:

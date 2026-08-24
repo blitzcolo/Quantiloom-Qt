@@ -85,6 +85,22 @@ enum class DebugCategory {
 /// Name plus the wavelength range actually integrated, for menus and combos.
 [[nodiscard]] QString spectralModeLabel(quantiloom::SpectralMode mode);
 
+/// The band token the spectral database is indexed by -- "VIS", "NIR", "SWIR",
+/// "MWIR" or "LWIR" -- for the mode currently on screen.
+///
+/// Protocol rather than display: SpectralIO::ReconstructBasisCurve matches it
+/// literally, so this is never translated and never the label a user reads.
+/// The modes that integrate no band of their own (RGB, Single, Multispectral)
+/// answer VIS, which is the band a base colour describes.
+///
+/// It is a dispatcher for the same reason the apply* functions are. The
+/// mapping used to be written out where it was needed, and the copy stopped at
+/// SWIR: a material assigned while the viewport rendered MWIR was reconstructed
+/// over 380-780 nm and bound anyway, and since the shader derives long-wave
+/// emissivity from a bound curve, the scene then rendered from a spectrum
+/// measured in the wrong half of the spectrum.
+[[nodiscard]] QString spectralLibraryBand(quantiloom::SpectralMode mode);
+
 /// One or two sentences on what the mode is for.
 [[nodiscard]] QString spectralModeDescription(quantiloom::SpectralMode mode);
 

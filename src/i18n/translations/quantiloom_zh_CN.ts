@@ -3919,9 +3919,17 @@ Not suitable for quantitative analysis. Load measured spectral materials for acc
         <source>%1
 Database: %2
 Coverage — VIS %3%, NIR %4%, SWIR %5%</source>
-        <translation>%1
+        <translation type="vanished">%1
 数据库：%2
 覆盖度 — VIS %3%，NIR %4%，SWIR %5%</translation>
+    </message>
+    <message>
+        <source>%1
+Database: %2
+Coverage — %3</source>
+        <translation>%1
+数据库：%2
+覆盖度 — %3</translation>
     </message>
     <message>
         <source>Material</source>
