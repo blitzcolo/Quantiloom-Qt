@@ -1338,6 +1338,16 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Emission spectrum</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Could not bind &apos;%1&apos;:
+
+%2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>MCP server stopped</source>
         <translation type="unfinished"></translation>
     </message>
@@ -2225,6 +2235,34 @@ PNG: %2</translation>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Spectrum:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Level:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>None — expand the RGB through D65</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Match the RGB&apos;s luminance</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Absolute (W·m⁻²·sr⁻¹·nm⁻¹)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>An RGB triple is not a lamp. Without a spectrum the renderer expands the colour above through D65 — a convention, defined only over 380–780 nm, that nothing measured. The infrared bands read no emissive RGB at all, so a light is invisible to them until a spectrum is bound here.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Every built-in but the blackbody family is a relative distribution with no absolute level, so by default the spectrum supplies the shape and the RGB above supplies the brightness — swapping lamps then recolours the scene without re-exposing it. Choose Absolute for a calibrated measurement, where the level is the datum. Absolute is required outside the visible: luminance is a property of the CIE observer, which sees nothing at 10 µm.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>IR Properties (Thermal)</source>
         <translation type="unfinished"></translation>
     </message>
@@ -2417,6 +2455,132 @@ PNG: %2</translation>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Sheen</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sheen colour:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Colour and strength of the microfibre lobe — velvet, felt, brushed cloth. Black is no sheen, which is the default. The lobe is brightest where the surface turns away from the camera, so it reads as a rim rather than a highlight.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sheen roughness:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>How spread out the fibre scattering is. Low values give a tight bright rim, high values a broad sheen over the whole surface. Independent of the roughness above, which describes the surface under the fibres.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Surface extensions</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Specular:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>How much dielectric reflection this surface has, from none to the full amount its refractive index implies. The default is 1, not 0 — lowering it removes the highlight a plastic or a painted surface would otherwise have. Metals are unaffected.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Specular colour:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Tints the dielectric reflection. White leaves it alone. Black removes the highlight seen head-on while leaving the rim at grazing angles, which is how some fabrics are authored.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Anisotropy:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Stretches the highlight along the surface&apos;s tangent — brushed metal, hair, vinyl. Zero is a round highlight. This only ever roughens the one direction; it never sharpens the other.
+
+A mesh with no tangent data gets an arbitrary direction, and the log says so when it happens.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Anisotropy rotation:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Turns the stretch direction, in radians, counter-clockwise from the tangent. Has no visible effect while the strength above is zero.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Clearcoat:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>A thin lacquer over everything else — car paint, varnished wood. It adds its own reflection and dims what is underneath, emission included, by exactly what it reflects away.
+
+In the thermal bands this does nothing on its own: a lacquer&apos;s visible 4% reflectance is fiction at 10 microns, so those bands act on a measured curve or not at all.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Clearcoat roughness:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>How polished the coat is, independent of the surface beneath it. Zero is a mirror finish.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Diffuse transmission:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Light scattered through the surface and out the other side — leaves, paper, thin porcelain. It takes energy from the diffuse reflection rather than adding to it, so at 1 the surface reflects no diffuse at all and is only lit from behind.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Transmission colour:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Tints what passes through. White passes everything the factor allows.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Alpha mode:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Opaque</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Mask (cut-out)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Blend</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>How the base colour&apos;s alpha is read.
+
+Opaque ignores it. Mask makes a hole wherever alpha falls below the cutoff — a crisp edge, which is what foliage and chain-link want. Blend treats alpha as partial coverage and resolves it across samples, so it looks grainy until the render settles.
+
+A hole is a hole in every band: in the infrared you see whatever is behind it, at that thing&apos;s own temperature.
+
+This has no effect on a material that also has transmission — refraction and coverage are different things, and applying both would remove the surface twice.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Alpha cutoff:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Where Mask puts the boundary. Alpha at or above this is surface, below it is hole. Ignored by the other two modes.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Material %1</source>
         <translation type="unfinished"></translation>
     </message>
@@ -2432,6 +2596,22 @@ PNG: %2</translation>
         <source>This material&apos;s infrared response is stored as full spectral curves. Editing this value replaces them with two constant sample points.
 
 Replace the curves?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No spectrum: the RGB above is expanded as sigmoid(rgb) × D65, which is a convention rather than a measurement and is defined only over 380–780 nm. The SWIR, NIR, MWIR and LWIR bands read no emissive RGB, so this light does not exist for them.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Measured over %1–%2 nm. Emission is zero outside that span, never held flat, so a band beyond it renders this light dark rather than inventing output for it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This one stops at the visible: use blackbody_&lt;T&gt;k for an infrared band, which is a formula and spans every band.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Bound to &apos;%1&apos;. Emission is zero outside the table&apos;s own span, never held flat.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -2468,6 +2648,18 @@ Replace the curves?</source>
     </message>
     <message>
         <source>Attenuation Colour</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Specular Colour</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Diffuse Transmission Colour</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sheen Colour</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -3553,12 +3745,6 @@ Not suitable for quantitative analysis. Load measured spectral materials for acc
 </context>
 <context>
     <name>SpectralLibraryPanel</name>
-    <message>
-        <source>%1
-Database: %2
-Coverage — VIS %3%, NIR %4%, SWIR %5%</source>
-        <translation type="unfinished"></translation>
-    </message>
     <message>
         <source>Material</source>
         <translation type="unfinished">Material</translation>

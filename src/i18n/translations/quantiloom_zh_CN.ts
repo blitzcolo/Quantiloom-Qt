@@ -1481,6 +1481,18 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation>显示增强已开启（%1，%2，%3–%4%）</translation>
     </message>
     <message>
+        <source>Emission spectrum</source>
+        <translation>发射光谱</translation>
+    </message>
+    <message>
+        <source>Could not bind &apos;%1&apos;:
+
+%2</source>
+        <translation>无法绑定“%1”：
+
+%2</translation>
+    </message>
+    <message>
         <source>MCP server stopped</source>
         <translation>MCP 服务已停止</translation>
     </message>
@@ -2498,6 +2510,34 @@ PNG：%2</translation>
         <translation>自发光</translation>
     </message>
     <message>
+        <source>Spectrum:</source>
+        <translation>光谱：</translation>
+    </message>
+    <message>
+        <source>Level:</source>
+        <translation>定标：</translation>
+    </message>
+    <message>
+        <source>None — expand the RGB through D65</source>
+        <translation>无——将上方 RGB 经 D65 展开</translation>
+    </message>
+    <message>
+        <source>Match the RGB&apos;s luminance</source>
+        <translation>匹配 RGB 的亮度</translation>
+    </message>
+    <message>
+        <source>Absolute (W·m⁻²·sr⁻¹·nm⁻¹)</source>
+        <translation>绝对值（W·m⁻²·sr⁻¹·nm⁻¹）</translation>
+    </message>
+    <message>
+        <source>An RGB triple is not a lamp. Without a spectrum the renderer expands the colour above through D65 — a convention, defined only over 380–780 nm, that nothing measured. The infrared bands read no emissive RGB at all, so a light is invisible to them until a spectrum is bound here.</source>
+        <translation>RGB 三元组不是一盏灯。没有光谱时，渲染器把上方的颜色经 D65 展开——那是一种约定，只在 380–780 nm 上有定义，并非任何测量的结果。红外波段根本不读取自发光 RGB，因此在这里绑定光谱之前，光源对它们并不存在。</translation>
+    </message>
+    <message>
+        <source>Every built-in but the blackbody family is a relative distribution with no absolute level, so by default the spectrum supplies the shape and the RGB above supplies the brightness — swapping lamps then recolours the scene without re-exposing it. Choose Absolute for a calibrated measurement, where the level is the datum. Absolute is required outside the visible: luminance is a property of the CIE observer, which sees nothing at 10 µm.</source>
+        <translation>除黑体族外，所有内置光谱都是没有绝对量级的相对分布，因此默认由光谱给出形状、由上方的 RGB 给出亮度——这样换灯只会改变场景的色彩，而不必重新定曝光。若使用经过定标的实测数据，请选择绝对值，此时量级本身就是基准。可见光以外必须选绝对值：亮度是 CIE 观察者的属性，而它在 10 µm 处什么也看不到。</translation>
+    </message>
+    <message>
         <source>IR Properties (Thermal)</source>
         <translation>红外属性（热辐射）</translation>
     </message>
@@ -2570,6 +2610,142 @@ PNG：%2</translation>
         <translation>衰减颜色：</translation>
     </message>
     <message>
+        <source>Sheen</source>
+        <translation>绒面光泽</translation>
+    </message>
+    <message>
+        <source>Sheen colour:</source>
+        <translation>绒面光泽颜色：</translation>
+    </message>
+    <message>
+        <source>Colour and strength of the microfibre lobe — velvet, felt, brushed cloth. Black is no sheen, which is the default. The lobe is brightest where the surface turns away from the camera, so it reads as a rim rather than a highlight.</source>
+        <translation>细纤维散射瓣的颜色与强度——天鹅绒、毛毡、磨毛织物。黑色表示没有绒面光泽，也是默认值。该散射瓣在表面背离相机处最亮，因此看起来是一圈轮廓光，而不是高光。</translation>
+    </message>
+    <message>
+        <source>Sheen roughness:</source>
+        <translation>绒面光泽粗糙度：</translation>
+    </message>
+    <message>
+        <source>How spread out the fibre scattering is. Low values give a tight bright rim, high values a broad sheen over the whole surface. Independent of the roughness above, which describes the surface under the fibres.</source>
+        <translation>纤维散射的扩散程度。数值低时是一圈紧致的亮边，数值高时整个表面泛起大片绒光。与上方的粗糙度相互独立——后者描述的是纤维之下的表面。</translation>
+    </message>
+    <message>
+        <source>Surface extensions</source>
+        <translation>表面扩展</translation>
+    </message>
+    <message>
+        <source>Specular:</source>
+        <translation>镜面反射：</translation>
+    </message>
+    <message>
+        <source>How much dielectric reflection this surface has, from none to the full amount its refractive index implies. The default is 1, not 0 — lowering it removes the highlight a plastic or a painted surface would otherwise have. Metals are unaffected.</source>
+        <translation>该表面有多少电介质反射，从完全没有到其折射率所对应的全部。默认值是 1 而不是 0——调低会去掉塑料或涂装表面本该有的高光。金属不受影响。</translation>
+    </message>
+    <message>
+        <source>Specular colour:</source>
+        <translation>镜面反射颜色：</translation>
+    </message>
+    <message>
+        <source>Tints the dielectric reflection. White leaves it alone. Black removes the highlight seen head-on while leaving the rim at grazing angles, which is how some fabrics are authored.</source>
+        <translation>给电介质反射着色。白色不作改变。黑色会去掉正面看到的高光，而保留掠射角下的边缘反射——有些织物就是这样制作的。</translation>
+    </message>
+    <message>
+        <source>Anisotropy:</source>
+        <translation>各向异性：</translation>
+    </message>
+    <message>
+        <source>Stretches the highlight along the surface&apos;s tangent — brushed metal, hair, vinyl. Zero is a round highlight. This only ever roughens the one direction; it never sharpens the other.
+
+A mesh with no tangent data gets an arbitrary direction, and the log says so when it happens.</source>
+        <translation>沿表面切线方向拉伸高光——拉丝金属、毛发、乙烯基。零表示圆形高光。它只会让一个方向变粗糙，绝不会让另一个方向变锐利。
+
+没有切线数据的网格会得到一个任意方向，发生时日志会说明。</translation>
+    </message>
+    <message>
+        <source>Anisotropy rotation:</source>
+        <translation>各向异性旋转：</translation>
+    </message>
+    <message>
+        <source>Turns the stretch direction, in radians, counter-clockwise from the tangent. Has no visible effect while the strength above is zero.</source>
+        <translation>以弧度为单位，从切线起逆时针转动拉伸方向。上方强度为零时没有可见效果。</translation>
+    </message>
+    <message>
+        <source>Clearcoat:</source>
+        <translation>清漆层：</translation>
+    </message>
+    <message>
+        <source>A thin lacquer over everything else — car paint, varnished wood. It adds its own reflection and dims what is underneath, emission included, by exactly what it reflects away.
+
+In the thermal bands this does nothing on its own: a lacquer&apos;s visible 4% reflectance is fiction at 10 microns, so those bands act on a measured curve or not at all.</source>
+        <translation>覆盖在其他一切之上的一层薄漆——汽车漆、清漆木材。它加上自己的反射，并把下方的一切（包括自发光）按它反射掉的那一部分调暗。
+
+在热波段它本身不起作用：清漆在可见光下 4% 的反射率放到 10 微米处是虚构的，因此那些波段要么依据实测曲线，要么什么也不做。</translation>
+    </message>
+    <message>
+        <source>Clearcoat roughness:</source>
+        <translation>清漆层粗糙度：</translation>
+    </message>
+    <message>
+        <source>How polished the coat is, independent of the surface beneath it. Zero is a mirror finish.</source>
+        <translation>漆层本身有多光亮，与其下的表面无关。零表示镜面般的抛光。</translation>
+    </message>
+    <message>
+        <source>Diffuse transmission:</source>
+        <translation>漫透射：</translation>
+    </message>
+    <message>
+        <source>Light scattered through the surface and out the other side — leaves, paper, thin porcelain. It takes energy from the diffuse reflection rather than adding to it, so at 1 the surface reflects no diffuse at all and is only lit from behind.</source>
+        <translation>光穿过表面并从另一侧散射出去——树叶、纸张、薄瓷器。它从漫反射中取走能量，而不是额外增加，因此取 1 时表面完全不漫反射，只能由背后照亮。</translation>
+    </message>
+    <message>
+        <source>Transmission colour:</source>
+        <translation>透射颜色：</translation>
+    </message>
+    <message>
+        <source>Tints what passes through. White passes everything the factor allows.</source>
+        <translation>给穿过的光着色。白色让系数允许的一切原样通过。</translation>
+    </message>
+    <message>
+        <source>Alpha mode:</source>
+        <translation>Alpha 模式：</translation>
+    </message>
+    <message>
+        <source>Opaque</source>
+        <translation>不透明</translation>
+    </message>
+    <message>
+        <source>Mask (cut-out)</source>
+        <translation>遮罩（镂空）</translation>
+    </message>
+    <message>
+        <source>Blend</source>
+        <translation>混合</translation>
+    </message>
+    <message>
+        <source>How the base colour&apos;s alpha is read.
+
+Opaque ignores it. Mask makes a hole wherever alpha falls below the cutoff — a crisp edge, which is what foliage and chain-link want. Blend treats alpha as partial coverage and resolves it across samples, so it looks grainy until the render settles.
+
+A hole is a hole in every band: in the infrared you see whatever is behind it, at that thing&apos;s own temperature.
+
+This has no effect on a material that also has transmission — refraction and coverage are different things, and applying both would remove the surface twice.</source>
+        <translation>如何读取基础颜色的 alpha。
+
+不透明会忽略它。遮罩在 alpha 低于阈值处开孔——边缘干脆利落，正是树叶和铁丝网所需要的。混合把 alpha 当作部分覆盖率，并在多次采样之间求解，因此在渲染收敛之前会显得有颗粒感。
+
+孔在每个波段里都是孔：在红外波段，你看到的是它背后的东西，以及那个东西自己的温度。
+
+对同时具有透射的材质，这一项没有效果——折射与覆盖率是两回事，两者同时生效会把表面移除两次。</translation>
+    </message>
+    <message>
+        <source>Alpha cutoff:</source>
+        <translation>Alpha 阈值：</translation>
+    </message>
+    <message>
+        <source>Where Mask puts the boundary. Alpha at or above this is surface, below it is hole. Ignored by the other two modes.</source>
+        <translation>遮罩把边界放在哪里。alpha 大于等于此值算表面，小于则算孔。另外两种模式会忽略它。</translation>
+    </message>
+    <message>
         <source>Material %1</source>
         <translation>材质 %1</translation>
     </message>
@@ -2590,6 +2766,22 @@ Replace the curves?</source>
 是否替换这些曲线？</translation>
     </message>
     <message>
+        <source>No spectrum: the RGB above is expanded as sigmoid(rgb) × D65, which is a convention rather than a measurement and is defined only over 380–780 nm. The SWIR, NIR, MWIR and LWIR bands read no emissive RGB, so this light does not exist for them.</source>
+        <translation>没有光谱：上方的 RGB 按 sigmoid(rgb) × D65 展开，那是一种约定而非测量，并且只在 380–780 nm 上有定义。SWIR、NIR、MWIR 和 LWIR 波段不读取自发光 RGB，因此这盏灯对它们并不存在。</translation>
+    </message>
+    <message>
+        <source>Measured over %1–%2 nm. Emission is zero outside that span, never held flat, so a band beyond it renders this light dark rather than inventing output for it.</source>
+        <translation>实测范围为 %1–%2 nm。该范围之外发射为零，绝不按端点保持不变，因此超出它的波段会把这盏灯渲染成暗的，而不是为它虚构输出。</translation>
+    </message>
+    <message>
+        <source>This one stops at the visible: use blackbody_&lt;T&gt;k for an infrared band, which is a formula and spans every band.</source>
+        <translation>这一条只到可见光为止：红外波段请使用 blackbody_&lt;T&gt;k，它是一个公式，覆盖所有波段。</translation>
+    </message>
+    <message>
+        <source>Bound to &apos;%1&apos;. Emission is zero outside the table&apos;s own span, never held flat.</source>
+        <translation>已绑定到“%1”。表格自身范围之外发射为零，绝不按端点保持不变。</translation>
+    </message>
+    <message>
         <source>Warning: ε + τ &gt; 1 (violates energy conservation)</source>
         <translation>警告：ε + τ &gt; 1（违反能量守恒）</translation>
     </message>
@@ -2600,6 +2792,18 @@ Replace the curves?</source>
     <message>
         <source>Attenuation Colour</source>
         <translation>衰减颜色</translation>
+    </message>
+    <message>
+        <source>Specular Colour</source>
+        <translation>镜面反射颜色</translation>
+    </message>
+    <message>
+        <source>Diffuse Transmission Colour</source>
+        <translation>漫透射颜色</translation>
+    </message>
+    <message>
+        <source>Sheen Colour</source>
+        <translation>绒面光泽颜色</translation>
     </message>
     <message>
         <source>Emissivity:</source>
