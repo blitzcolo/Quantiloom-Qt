@@ -39,7 +39,7 @@ has the refresh flow and the failure modes.
 
 ### The SDK caches thermal solves, and this repo gets it for free
 
-From SDK 0.2.6 the offline path stores a solved temperature field on disk under a
+From SDK 0.2.7 the offline path stores a solved temperature field on disk under a
 hash of its inputs — mesh, materials as merged, `[thermal]` scalars, the forcing
 file's contents, the sun direction, the stepper, the library version and the GPU.
 Nothing here asks for it and nothing here can turn it off from code; it is on by
