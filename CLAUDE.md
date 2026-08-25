@@ -37,6 +37,26 @@ configure time against the DLL actually loaded and refuses to start on a mismatc
 stale pairing reports itself instead of quietly misbehaving. The `build-and-run` skill
 has the refresh flow and the failure modes.
 
+### The SDK caches thermal solves, and this repo gets it for free
+
+From SDK 0.2.6 the offline path stores a solved temperature field on disk under a
+hash of its inputs — mesh, materials as merged, `[thermal]` scalars, the forcing
+file's contents, the sun direction, the stepper, the library version and the GPU.
+Nothing here asks for it and nothing here can turn it off from code; it is on by
+default, and `QUANTILOOM_THERMAL_CACHE=0` in the environment disables it.
+
+**`SequenceRenderDialog` is the reason to know this.** It varies only
+`ir_temperature_k` per frame, which the solver overwrites anyway, so every frame
+of a sequence used to re-run an identical solve — up to 165 s each on a large
+scene. They now collapse to one. The CLI manifest it emits hits the same entries.
+`HyperspectralExportDialog` benefits the same way.
+
+Two consequences worth remembering. A sequence render that used to take an hour
+finishing in minutes is the cache working, not a frame being skipped — the
+renderer logs `Thermal cache: hit` per frame either way. And the viewport is
+unaffected: `ThermalPreview` keeps its own in-memory timeline and is not what
+this caches.
+
 The SDK ships only what the core marks public: `include/quantiloom/` and the `QL_API`
 exports. Reaching a core symbol that is not there takes three steps **in the dev
 repo** — move its header into `include/quantiloom/`, add `QL_API`, and update
