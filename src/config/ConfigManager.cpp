@@ -369,6 +369,7 @@ void ConfigManager::extractSceneConfig(const quantiloom::Config& config, SceneCo
             matTable.GetFloat("shortwave_absorptivity", 0.7f);
         matConfig.thermal.wetness = matTable.GetFloat("wetness_factor", 0.0f);
         matConfig.thermal.internalHeat = matTable.GetFloat("internal_heat_w_m2", 0.0f);
+        matConfig.thermal.isShell = matTable.GetBool("shell", false);
         matConfig.thermal.interiorBoundary =
             QString::fromStdString(matTable.GetString("interior_bc", "adiabatic"));
         matConfig.thermal.interiorTemperature =
@@ -418,6 +419,15 @@ void ConfigManager::extractSceneConfig(const quantiloom::Config& config, SceneCo
         matConfig.emissiveCurve =
             QString::fromStdString(matTable.GetString("emissive_curve", ""));
         matConfig.emissiveCurveColumn = matTable.GetInt("emissive_curve_column", 0);
+        matConfig.fluorescenceExcitationCurve = QString::fromStdString(
+            matTable.GetString("fluorescence_excitation_curve", ""));
+        matConfig.fluorescenceExcitationColumn =
+            matTable.GetInt("fluorescence_excitation_curve_column", 0);
+        matConfig.fluorescenceEmissionCurve = QString::fromStdString(
+            matTable.GetString("fluorescence_emission_curve", ""));
+        matConfig.fluorescenceEmissionColumn =
+            matTable.GetInt("fluorescence_emission_curve_column", 0);
+        matConfig.fluorescenceYield = matTable.GetFloat("fluorescence_yield", 0.0f);
         matConfig.emissiveScale =
             QString::fromStdString(matTable.GetString("emissive_scale", ""));
 
@@ -889,6 +899,12 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
                     << "\n";
                 out << "wetness_factor = " << matConfig.thermal.wetness << "\n";
                 out << "internal_heat_w_m2 = " << matConfig.thermal.internalHeat << "\n";
+                if (matConfig.thermal.isShell) {
+                    // Only when true: a shell is a claim about the object, and
+                    // "shell = false" in every material would read as one that
+                    // had been considered and rejected.
+                    out << "shell = true\n";
+                }
                 out << "interior_bc = " << tomlQuoted(matConfig.thermal.interiorBoundary)
                     << "\n";
                 out << "interior_temperature_k = " << matConfig.thermal.interiorTemperature
@@ -950,6 +966,21 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
                 if (!matConfig.emissiveScale.isEmpty()) {
                     out << "emissive_scale = " << tomlQuoted(matConfig.emissiveScale) << "\n";
                 }
+            }
+            if (matConfig.hasFluorescence()) {
+                out << "fluorescence_excitation_curve = "
+                    << tomlQuoted(matConfig.fluorescenceExcitationCurve) << "\n";
+                if (matConfig.fluorescenceExcitationColumn > 0) {
+                    out << "fluorescence_excitation_curve_column = "
+                        << matConfig.fluorescenceExcitationColumn << "\n";
+                }
+                out << "fluorescence_emission_curve = "
+                    << tomlQuoted(matConfig.fluorescenceEmissionCurve) << "\n";
+                if (matConfig.fluorescenceEmissionColumn > 0) {
+                    out << "fluorescence_emission_curve_column = "
+                        << matConfig.fluorescenceEmissionColumn << "\n";
+                }
+                out << "fluorescence_yield = " << matConfig.fluorescenceYield << "\n";
             }
             out << "\n";
         }

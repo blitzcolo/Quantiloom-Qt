@@ -426,6 +426,20 @@ void MaterialEditorPanel::setupUi() {
                      "Evaporation is why a lawn is ten degrees cooler than the pavement "
                      "beside it under the same sun."));
 
+    // Before the back-face rows, because it decides whether any of them mean
+    // anything: a shell has two exposed faces and no interior.
+    m_thermalShell = new QCheckBox();
+    m_thermalShell->setText(tr("Exposed on both sides"));
+    m_thermalShell->setToolTip(
+        tr("A panel, a sign, a tent: one thin slab with sky on both faces, "
+           "modelled as two sheets of triangles. Without this the two sheets are "
+           "solved as separate slabs each insulated against a wall that is not "
+           "there, so a panel in the sun comes out as hot as if it were bolted to "
+           "masonry. The rows below then have no interior to describe."));
+    connect(m_thermalShell, &QCheckBox::toggled, this,
+            &MaterialEditorPanel::onThermalPropertyChanged);
+    thermalLayout->addRow(QString(), m_thermalShell);
+
     m_thermalInteriorBc = new QComboBox();
     m_thermalInteriorBc->addItem(tr("Adiabatic (nothing behind)"), QStringLiteral("adiabatic"));
     m_thermalInteriorBc->addItem(tr("Held at a temperature"), QStringLiteral("fixed"));
@@ -1165,6 +1179,7 @@ void MaterialEditorPanel::setThermalProperties(const MaterialThermalProps& props
     const QSignalBlocker t(m_thermalInteriorTemp);
     const QSignalBlocker ic(m_thermalInteriorConvection);
     const QSignalBlocker q(m_thermalInternalHeat);
+    const QSignalBlocker sh(m_thermalShell);
 
     m_thermalConductivity->setValue(static_cast<double>(props.conductivity));
     m_thermalDensity->setValue(static_cast<double>(props.density));
@@ -1176,6 +1191,7 @@ void MaterialEditorPanel::setThermalProperties(const MaterialThermalProps& props
     m_thermalInteriorTemp->setValue(static_cast<double>(props.interiorTemperature));
     m_thermalInteriorConvection->setValue(static_cast<double>(props.interiorConvection));
     m_thermalInternalHeat->setValue(static_cast<double>(props.internalHeat));
+    m_thermalShell->setChecked(props.isShell);
     const int index = m_thermalInteriorBc->findData(props.interiorBoundary);
     m_thermalInteriorBc->setCurrentIndex(index >= 0 ? index : 0);
 
@@ -1197,6 +1213,7 @@ void MaterialEditorPanel::onThermalPropertyChanged() {
     m_thermal.interiorTemperature = static_cast<float>(m_thermalInteriorTemp->value());
     m_thermal.interiorConvection = static_cast<float>(m_thermalInteriorConvection->value());
     m_thermal.internalHeat = static_cast<float>(m_thermalInternalHeat->value());
+    m_thermal.isShell = m_thermalShell->isChecked();
     m_thermal.interiorBoundary = m_thermalInteriorBc->currentData().toString();
 
     updateThermalNotice();
@@ -1212,15 +1229,19 @@ void MaterialEditorPanel::updateThermalNotice() {
     }
     // Which of the three back-face rows is read, so a number that does nothing
     // looks like a number that does nothing.
+    // A shell is exposed on both sides, so there is no interior for any of the
+    // back-face rows to describe.
+    const bool shell = m_thermalShell->isChecked();
     const QString boundary = m_thermalInteriorBc->currentData().toString();
-    const bool held = boundary == QLatin1String("fixed");
-    const bool convects = boundary == QLatin1String("ambient");
+    const bool held = !shell && boundary == QLatin1String("fixed");
+    const bool convects = !shell && boundary == QLatin1String("ambient");
+    m_thermalInteriorBc->setEnabled(!shell);
     m_thermalInteriorTemp->setEnabled(held || convects);
     m_thermalInteriorConvection->setEnabled(convects);
     // A pinned back node absorbs whatever is put into it, so a source there
     // changes nothing -- the same thing the SDK warns about when a config says
     // both.
-    m_thermalInternalHeat->setEnabled(!held);
+    m_thermalInternalHeat->setEnabled(!held && !shell);
 
     if (m_thermal.conductivity <= 0.0f) {
         m_thermalNotice->setText(

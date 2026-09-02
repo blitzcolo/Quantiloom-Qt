@@ -2271,6 +2271,14 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation>表面有多少在蒸发：0 为干燥，1 为开阔水面。同样的日照下草坪比旁边的路面低十度，靠的就是蒸发。</translation>
     </message>
     <message>
+        <source>Exposed on both sides</source>
+        <translation>两面暴露</translation>
+    </message>
+    <message>
+        <source>A panel, a sign, a tent: one thin slab with sky on both faces, modelled as two sheets of triangles. Without this the two sheets are solved as separate slabs each insulated against a wall that is not there, so a panel in the sun comes out as hot as if it were bolted to masonry. The rows below then have no interior to describe.</source>
+        <translation>面板、标牌、帐篷：一块两面都朝天空的薄板，在资产中被建为两层三角形。不勾选时，这两层会被当作各自背靠一堵并不存在的墙的独立平板来求解，于是阳光下的面板会热得像是被螺栓固定在砖石上。勾选后，下面几行便没有可描述的内部空间。</translation>
+    </message>
+    <message>
         <source>Convects to what is behind</source>
         <translation>与背后之物对流</translation>
     </message>

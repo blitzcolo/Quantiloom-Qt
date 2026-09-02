@@ -1263,6 +1263,7 @@ void MainWindow::applyThermalMaterial(const QString& name,
     mp.shortwaveAbsorptivity = props.shortwaveAbsorptivity;
     mp.wetnessFactor = props.wetness;
     mp.internalHeat_W_m2 = props.internalHeat;
+    mp.isShell = props.isShell;
     // Three boundaries, two flags: pinned wins, then convecting to the
     // interior, then insulated. A panel over a bay rather than a wall is the
     // "ambient" one, and it is the only one that reads the coefficient below.

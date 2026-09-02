@@ -48,6 +48,10 @@ struct MaterialThermalProps {
     /// an infrared scene, and it does nothing under interiorBoundary "fixed",
     /// which holds the back node whatever reaches it.
     float internalHeat = 0.0f;
+    /// Two sides of one thin slab rather than a surface with something behind
+    /// it: a panel, a sign, a tent. The two sheets an asset models it as share
+    /// one column, and the interior keys below then have nothing to act on.
+    bool isShell = false;
     QString interiorBoundary = QStringLiteral("adiabatic");  ///< "fixed", or "ambient"
     float interiorTemperature = 293.15f;
     /// What the back face convects to under "ambient": a panel over a bay
@@ -124,6 +128,25 @@ struct MaterialConfig {
     QString emissiveScale;          ///< "match_luminance" | "absolute"; empty = unwritten
 
     [[nodiscard]] bool hasEmissiveCurve() const { return !emissiveCurve.isEmpty(); }
+
+    /// Fluorescence: what this surface absorbs at one wavelength and gives back
+    /// at another. Carried, never interpreted, for the same reason the emission
+    /// curve above is -- the core owns what a curve file may be, and a Studio
+    /// that does not know a format still round-trips a config that names one.
+    ///
+    /// All three or none: a shape with no partner and a strength with no shape
+    /// each describe nothing, and the core refuses the halves rather than
+    /// defaulting them.
+    QString fluorescenceExcitationCurve;
+    int fluorescenceExcitationColumn = 0;  ///< 1-based; 0 = leave unwritten
+    QString fluorescenceEmissionCurve;
+    int fluorescenceEmissionColumn = 0;
+    float fluorescenceYield = 0.0f;
+
+    [[nodiscard]] bool hasFluorescence() const {
+        return !fluorescenceExcitationCurve.isEmpty() &&
+               !fluorescenceEmissionCurve.isEmpty();
+    }
 };
 
 /**

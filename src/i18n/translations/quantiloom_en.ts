@@ -2208,6 +2208,14 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Exposed on both sides</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>A panel, a sign, a tent: one thin slab with sky on both faces, modelled as two sheets of triangles. Without this the two sheets are solved as separate slabs each insulated against a wall that is not there, so a panel in the sun comes out as hot as if it were bolted to masonry. The rows below then have no interior to describe.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Adiabatic (nothing behind)</source>
         <translation type="unfinished"></translation>
     </message>
