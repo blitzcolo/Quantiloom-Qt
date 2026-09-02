@@ -139,7 +139,19 @@ bool SameThermalParams(const quantiloom::ThermalSolveParams& a,
            a.convectionWindB_W_s_m3K == b.convectionWindB_W_s_m3K &&
            a.convectionFreeC == b.convectionFreeC &&
            a.convectionReferenceHeight_m == b.convectionReferenceHeight_m &&
-           a.convectionStableDamping == b.convectionStableDamping;
+           a.convectionStableDamping == b.convectionStableDamping &&
+           // The three that size the state rather than being read later. A
+           // change to any of them rebuilds the timeline, so a comparison that
+           // missed one would report "already applied" and leave the viewport
+           // showing a field solved under the old ones.
+           a.lateralConduction == b.lateralConduction &&
+           a.sunMemoryLags == b.sunMemoryLags &&
+           a.sunCorrection == b.sunCorrection &&
+           a.parameterSensitivities == b.parameterSensitivities &&
+           // Not a solver input at all -- it records where a dump would go --
+           // but a set that differs only here is still a different set, and
+           // reporting it as identical would silently drop the path.
+           a.dumpElementsFile == b.dumpElementsFile;
 }
 
 /// The thermal solve as one undoable value. Three things the user thinks of

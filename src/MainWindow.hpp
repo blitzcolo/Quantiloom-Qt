@@ -493,11 +493,29 @@ private:
     int m_thermalExchangeTopK = 32;
     double m_thermalCheckpointStrideH = 1.0;
     QString m_thermalForcingFile;
-    /// Measurement switches the SDK's config path reads and its exported
-    /// ThermalSolveParams does not carry; see SceneConfig for why they are
-    /// only carried across a save.
+    /// The shadow-edge correction. A panel checkbox owns it now, and this is
+    /// where a document's answer is kept between the load that read it and the
+    /// panel that shows it.
     bool m_thermalSunCorrection = true;
+    /// Where a dump would go. Carried rather than driven: the write is an
+    /// explicit menu action, because a viewport re-solves on every scrub of
+    /// the hour slider and a parameter that wrote a file each time would turn
+    /// dragging a slider into hundreds of writes.
     QString m_thermalDumpElements;
+
+    /// The convection law and the two features that size the solve state.
+    /// Held in the SDK's own spellings so currentThermalParams() is a copy
+    /// rather than a conversion, and converted once at the config boundary.
+    quantiloom::ThermalConvectionModel m_thermalConvectionModel =
+        quantiloom::ThermalConvectionModel::Constant;
+    double m_thermalConvectionWindA = 5.7;
+    double m_thermalConvectionWindB = 3.8;
+    double m_thermalConvectionFreeC = 1.52;
+    double m_thermalConvectionReferenceHeightM = 2.0;
+    double m_thermalConvectionStableDamping = 10.0;
+    bool m_thermalLateralConduction = false;
+    int m_thermalSunMemoryLags = 0;
+    quantiloom::Vector<quantiloom::ThermalSensitivityParameter> m_thermalParameterSensitivities;
 
     bool m_skyClearModel = false;
     float m_skyRelativeHumidity = 50.0f;

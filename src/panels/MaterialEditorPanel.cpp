@@ -429,6 +429,7 @@ void MaterialEditorPanel::setupUi() {
     m_thermalInteriorBc = new QComboBox();
     m_thermalInteriorBc->addItem(tr("Adiabatic (nothing behind)"), QStringLiteral("adiabatic"));
     m_thermalInteriorBc->addItem(tr("Held at a temperature"), QStringLiteral("fixed"));
+    m_thermalInteriorBc->addItem(tr("Convects to what is behind"), QStringLiteral("ambient"));
     connect(m_thermalInteriorBc, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &MaterialEditorPanel::onThermalPropertyChanged);
     thermalLayout->addRow(tr("Back face:"), m_thermalInteriorBc);
@@ -441,7 +442,28 @@ void MaterialEditorPanel::setupUi() {
     m_thermalInteriorTemp->setValue(293.15);
     addThermalRow(tr("Behind it:"), m_thermalInteriorTemp,
                   tr("Temperature of whatever is behind the surface -- a room, usually. "
-                     "Used only when the back face is held."));
+                     "Read when the back face is held at it or convects to it."));
+
+    m_thermalInteriorConvection = new QDoubleSpinBox();
+    m_thermalInteriorConvection->setRange(0.0, 500.0);
+    m_thermalInteriorConvection->setDecimals(2);
+    m_thermalInteriorConvection->setSingleStep(0.5);
+    m_thermalInteriorConvection->setValue(3.0);
+    addThermalRow(tr("Back-face convection:"), m_thermalInteriorConvection,
+                  tr("Exchange between the back face and what is behind it. Lower than "
+                     "the front's: still air in a closed bay rather than wind. Read only "
+                     "when the back face convects."));
+
+    m_thermalInternalHeat = new QDoubleSpinBox();
+    m_thermalInternalHeat->setRange(-100000.0, 100000.0);
+    m_thermalInternalHeat->setDecimals(1);
+    m_thermalInternalHeat->setSingleStep(10.0);
+    m_thermalInternalHeat->setValue(0.0);
+    addThermalRow(tr("Internal heat:"), m_thermalInternalHeat,
+                  tr("A flux entering from behind: an engine, a battery, a compartment. "
+                     "The only way a shaded surface can be the warmest thing in an "
+                     "infrared scene. Absorbed without trace by a back face that is "
+                     "held at a temperature."));
 
     m_thermalNotice = new QLabel();
     bindStyle([this] { uistyle::applyHintStyle(m_thermalNotice); });
@@ -1141,6 +1163,8 @@ void MaterialEditorPanel::setThermalProperties(const MaterialThermalProps& props
     const QSignalBlocker w(m_thermalWetness);
     const QSignalBlocker bc(m_thermalInteriorBc);
     const QSignalBlocker t(m_thermalInteriorTemp);
+    const QSignalBlocker ic(m_thermalInteriorConvection);
+    const QSignalBlocker q(m_thermalInternalHeat);
 
     m_thermalConductivity->setValue(static_cast<double>(props.conductivity));
     m_thermalDensity->setValue(static_cast<double>(props.density));
@@ -1150,6 +1174,8 @@ void MaterialEditorPanel::setThermalProperties(const MaterialThermalProps& props
     m_thermalAbsorptivity->setValue(static_cast<double>(props.shortwaveAbsorptivity));
     m_thermalWetness->setValue(static_cast<double>(props.wetness));
     m_thermalInteriorTemp->setValue(static_cast<double>(props.interiorTemperature));
+    m_thermalInteriorConvection->setValue(static_cast<double>(props.interiorConvection));
+    m_thermalInternalHeat->setValue(static_cast<double>(props.internalHeat));
     const int index = m_thermalInteriorBc->findData(props.interiorBoundary);
     m_thermalInteriorBc->setCurrentIndex(index >= 0 ? index : 0);
 
@@ -1169,6 +1195,8 @@ void MaterialEditorPanel::onThermalPropertyChanged() {
     m_thermal.shortwaveAbsorptivity = static_cast<float>(m_thermalAbsorptivity->value());
     m_thermal.wetness = static_cast<float>(m_thermalWetness->value());
     m_thermal.interiorTemperature = static_cast<float>(m_thermalInteriorTemp->value());
+    m_thermal.interiorConvection = static_cast<float>(m_thermalInteriorConvection->value());
+    m_thermal.internalHeat = static_cast<float>(m_thermalInternalHeat->value());
     m_thermal.interiorBoundary = m_thermalInteriorBc->currentData().toString();
 
     updateThermalNotice();
@@ -1182,8 +1210,17 @@ void MaterialEditorPanel::updateThermalNotice() {
     if (!m_thermalNotice) {
         return;
     }
-    m_thermalInteriorTemp->setEnabled(
-        m_thermalInteriorBc->currentData().toString() == QLatin1String("fixed"));
+    // Which of the three back-face rows is read, so a number that does nothing
+    // looks like a number that does nothing.
+    const QString boundary = m_thermalInteriorBc->currentData().toString();
+    const bool held = boundary == QLatin1String("fixed");
+    const bool convects = boundary == QLatin1String("ambient");
+    m_thermalInteriorTemp->setEnabled(held || convects);
+    m_thermalInteriorConvection->setEnabled(convects);
+    // A pinned back node absorbs whatever is put into it, so a source there
+    // changes nothing -- the same thing the SDK warns about when a config says
+    // both.
+    m_thermalInternalHeat->setEnabled(!held);
 
     if (m_thermal.conductivity <= 0.0f) {
         m_thermalNotice->setText(

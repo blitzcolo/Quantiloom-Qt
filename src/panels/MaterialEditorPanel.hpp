@@ -233,6 +233,8 @@ private:
     QDoubleSpinBox* m_thermalWetness = nullptr;
     QComboBox* m_thermalInteriorBc = nullptr;
     QDoubleSpinBox* m_thermalInteriorTemp = nullptr;
+    QDoubleSpinBox* m_thermalInteriorConvection = nullptr;
+    QDoubleSpinBox* m_thermalInternalHeat = nullptr;
     QLabel* m_thermalNotice = nullptr;
     MaterialThermalProps m_thermal;
     void updateThermalNotice();

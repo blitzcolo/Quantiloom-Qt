@@ -129,10 +129,6 @@ Leave empty to auto-detect.</source>
         <translation type="unfinished">Atmosphere</translation>
     </message>
     <message>
-        <source>Transmittance:</source>
-        <translation type="obsolete">Transmittance:</translation>
-    </message>
-    <message>
         <source> K</source>
         <translation type="unfinished"></translation>
     </message>
@@ -373,18 +369,6 @@ Help ▸ Reading Debug Output explains the colour encodings.</source>
     <message>
         <source>Normal</source>
         <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Material</source>
-        <translation type="obsolete">Material</translation>
-    </message>
-    <message>
-        <source>Lighting</source>
-        <translation type="obsolete">Lighting</translation>
-    </message>
-    <message>
-        <source>Spectral</source>
-        <translation type="obsolete">Spectral</translation>
     </message>
 </context>
 <context>
@@ -832,52 +816,12 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <source>Environment Maps (*.exr *.hdr *.png *.jpg *.jpeg);;All Files (*)</source>
         <translation type="unfinished"></translation>
     </message>
-    <message>
-        <source>Atmosphere</source>
-        <translation type="vanished">Atmosphere</translation>
-    </message>
-    <message>
-        <source>Transmittance:</source>
-        <translation type="vanished">Transmittance:</translation>
-    </message>
-    <message>
-        <source>Temperature:</source>
-        <translation type="vanished">Temperature:</translation>
-    </message>
 </context>
 <context>
     <name>MainWindow</name>
     <message>
-        <source>Quantiloom - Spectral Renderer</source>
-        <translation type="vanished">Quantiloom - Spectral Renderer</translation>
-    </message>
-    <message>
         <source>&amp;File</source>
         <translation>&amp;File</translation>
-    </message>
-    <message>
-        <source>&amp;New Scene</source>
-        <translation type="vanished">&amp;New Scene</translation>
-    </message>
-    <message>
-        <source>&amp;Open Scene...</source>
-        <translation type="vanished">&amp;Open Scene...</translation>
-    </message>
-    <message>
-        <source>&amp;Save Scene</source>
-        <translation type="vanished">&amp;Save Scene</translation>
-    </message>
-    <message>
-        <source>&amp;Import Config...</source>
-        <translation type="vanished">&amp;Import Config...</translation>
-    </message>
-    <message>
-        <source>E&amp;xport Config...</source>
-        <translation type="vanished">E&amp;xport Config...</translation>
-    </message>
-    <message>
-        <source>Export &amp;Image...</source>
-        <translation type="vanished">Export &amp;Image...</translation>
     </message>
     <message>
         <source>E&amp;xit</source>
@@ -1009,20 +953,8 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation>&amp;Redo</translation>
     </message>
     <message>
-        <source>&amp;Delete</source>
-        <translation type="vanished">&amp;Delete</translation>
-    </message>
-    <message>
         <source>&amp;View</source>
         <translation>&amp;View</translation>
-    </message>
-    <message>
-        <source>&amp;Reset Camera</source>
-        <translation type="vanished">&amp;Reset Camera</translation>
-    </message>
-    <message>
-        <source>&amp;Parameter Panel</source>
-        <translation type="vanished">&amp;Parameter Panel</translation>
     </message>
     <message>
         <source>&amp;Render</source>
@@ -1041,14 +973,6 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation>&amp;Tools</translation>
     </message>
     <message>
-        <source>Spectral Material &amp;Generator...</source>
-        <translation type="vanished">Spectral Material &amp;Generator...</translation>
-    </message>
-    <message>
-        <source>Spectral Gen</source>
-        <translation type="vanished">Spectral Gen</translation>
-    </message>
-    <message>
         <source>&amp;Help</source>
         <translation>&amp;Help</translation>
     </message>
@@ -1061,32 +985,12 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation>About &amp;Qt</translation>
     </message>
     <message>
-        <source>Parameters</source>
-        <translation type="vanished">Parameters</translation>
-    </message>
-    <message>
-        <source>Scene</source>
-        <translation type="vanished">Scene</translation>
-    </message>
-    <message>
-        <source>Material</source>
-        <translation type="vanished">Material</translation>
-    </message>
-    <message>
         <source>Lighting</source>
         <translation>Lighting</translation>
     </message>
     <message>
         <source>Atmosphere</source>
         <translation type="unfinished">Atmosphere</translation>
-    </message>
-    <message>
-        <source>Render</source>
-        <translation type="vanished">Render</translation>
-    </message>
-    <message>
-        <source>Spectral</source>
-        <translation type="vanished">Spectral</translation>
     </message>
     <message>
         <source>Atmospheric preset: %1</source>
@@ -1105,60 +1009,8 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation>Ready</translation>
     </message>
     <message>
-        <source>FPS: --</source>
-        <translation type="vanished">FPS: --</translation>
-    </message>
-    <message>
-        <source>Samples: 0</source>
-        <translation type="vanished">Samples: 0</translation>
-    </message>
-    <message>
         <source>Unsaved Changes</source>
         <translation>Unsaved Changes</translation>
-    </message>
-    <message>
-        <source>The scene has been modified. Do you want to save your changes?</source>
-        <translation type="vanished">The scene has been modified. Do you want to save your changes?</translation>
-    </message>
-    <message>
-        <source>New scene created</source>
-        <translation type="vanished">New scene created</translation>
-    </message>
-    <message>
-        <source>Open Scene</source>
-        <translation type="vanished">Open Scene</translation>
-    </message>
-    <message>
-        <source>3D Scene Files (*.gltf *.glb *.usd *.usda *.usdc *.usdz);;glTF Files (*.gltf *.glb);;OpenUSD Files (*.usd *.usda *.usdc *.usdz);;TOML Config (*.toml);;All Files (*)</source>
-        <translation type="vanished">3D Scene Files (*.gltf *.glb *.usd *.usda *.usdc *.usdz);;glTF Files (*.gltf *.glb);;OpenUSD Files (*.usd *.usda *.usdc *.usdz);;TOML Config (*.toml);;All Files (*)</translation>
-    </message>
-    <message>
-        <source>Config loaded: %1</source>
-        <translation type="vanished">Config loaded: %1</translation>
-    </message>
-    <message>
-        <source>Load Failed</source>
-        <translation type="vanished">Load Failed</translation>
-    </message>
-    <message>
-        <source>Failed to load config: %1</source>
-        <translation type="vanished">Failed to load config: %1</translation>
-    </message>
-    <message>
-        <source>Loading: %1</source>
-        <translation type="vanished">Loading: %1</translation>
-    </message>
-    <message>
-        <source>Save Scene</source>
-        <translation type="vanished">Save Scene</translation>
-    </message>
-    <message>
-        <source>TOML Config (*.toml)</source>
-        <translation type="vanished">TOML Config (*.toml)</translation>
-    </message>
-    <message>
-        <source>Saved: %1</source>
-        <translation type="vanished">Saved: %1</translation>
     </message>
     <message>
         <source>Export failed</source>
@@ -1169,60 +1021,12 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Import Configuration</source>
-        <translation type="vanished">Import Configuration</translation>
-    </message>
-    <message>
-        <source>TOML Config (*.toml);;All Files (*)</source>
-        <translation type="vanished">TOML Config (*.toml);;All Files (*)</translation>
-    </message>
-    <message>
-        <source>Config imported: %1</source>
-        <translation type="vanished">Config imported: %1</translation>
-    </message>
-    <message>
-        <source>Import Failed</source>
-        <translation type="vanished">Import Failed</translation>
-    </message>
-    <message>
-        <source>Failed to import config: %1</source>
-        <translation type="vanished">Failed to import config: %1</translation>
-    </message>
-    <message>
-        <source>Export Configuration</source>
-        <translation type="vanished">Export Configuration</translation>
-    </message>
-    <message>
-        <source>Config exported: %1</source>
-        <translation type="vanished">Config exported: %1</translation>
-    </message>
-    <message>
         <source>Export Failed</source>
         <translation>Export Failed</translation>
     </message>
     <message>
-        <source>Failed to export config: %1</source>
-        <translation type="vanished">Failed to export config: %1</translation>
-    </message>
-    <message>
-        <source>Export Image</source>
-        <translation type="vanished">Export Image</translation>
-    </message>
-    <message>
         <source>EXR Image (*.exr);;PNG Image (*.png);;All Files (*)</source>
         <translation>EXR Image (*.exr);;PNG Image (*.png);;All Files (*)</translation>
-    </message>
-    <message>
-        <source>Exported: %1</source>
-        <translation type="vanished">Exported: %1</translation>
-    </message>
-    <message>
-        <source>Rendering...</source>
-        <translation type="vanished">Rendering...</translation>
-    </message>
-    <message>
-        <source>Render stopped</source>
-        <translation type="vanished">Render stopped</translation>
     </message>
     <message>
         <source>Camera reset</source>
@@ -1233,16 +1037,8 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation>About Quantiloom</translation>
     </message>
     <message>
-        <source>FPS: %1</source>
-        <translation type="vanished">FPS: %1</translation>
-    </message>
-    <message>
         <source>Samples: %1</source>
         <translation>Samples: %1</translation>
-    </message>
-    <message>
-        <source>Node %1 selected</source>
-        <translation type="vanished">Node %1 selected</translation>
     </message>
     <message>
         <source>Material &apos;%1&apos; selected</source>
@@ -1255,10 +1051,6 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
     <message>
         <source>Lighting updated</source>
         <translation>Lighting updated</translation>
-    </message>
-    <message>
-        <source>SPP set to %1</source>
-        <translation type="vanished">SPP set to %1</translation>
     </message>
     <message>
         <source>Spectral mode: %1</source>
@@ -2108,32 +1900,8 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation>Failed to load scene</translation>
     </message>
     <message>
-        <source>Click in Scene panel to select objects</source>
-        <translation type="vanished">Click in Scene panel to select objects</translation>
-    </message>
-    <message>
-        <source>Selection cleared</source>
-        <translation type="vanished">Selection cleared</translation>
-    </message>
-    <message>
         <source>%1 objects selected</source>
         <translation>%1 objects selected</translation>
-    </message>
-    <message>
-        <source>Selection cleared - click a node in Scene panel to select</source>
-        <translation type="vanished">Selection cleared - click a node in Scene panel to select</translation>
-    </message>
-    <message>
-        <source>&apos;%1&apos; selected - Left-drag in viewport to transform</source>
-        <translation type="vanished">&apos;%1&apos; selected - Left-drag in viewport to transform</translation>
-    </message>
-    <message>
-        <source>%1 objects selected - Left-drag in viewport to transform</source>
-        <translation type="vanished">%1 objects selected - Left-drag in viewport to transform</translation>
-    </message>
-    <message>
-        <source>Scene loaded - Click a node in Scene panel to select, use G/R/T keys to change transform mode</source>
-        <translation type="vanished">Scene loaded - Click a node in Scene panel to select, use G/R/T keys to change transform mode</translation>
     </message>
     <message>
         <source>[G] Translate</source>
@@ -2148,58 +1916,12 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation>[T] Scale</translation>
     </message>
     <message>
-        <source>Mode: %1</source>
-        <translation type="vanished">Mode: %1</translation>
-    </message>
-    <message>
-        <source>&amp;Settings</source>
-        <translation type="vanished">&amp;Settings</translation>
-    </message>
-    <message>
-        <source>&amp;Language</source>
-        <translation type="vanished">&amp;Language</translation>
-    </message>
-    <message>
-        <source>Language Changed</source>
-        <translation type="vanished">Language Changed</translation>
-    </message>
-    <message>
-        <source>The language setting has been changed.
-Please restart the application for the changes to take effect.</source>
-        <translation type="vanished">The language setting has been changed.
-Please restart the application for the changes to take effect.</translation>
-    </message>
-    <message>
-        <source>Take &amp;Screenshot</source>
-        <translation type="vanished">Take &amp;Screenshot</translation>
-    </message>
-    <message>
-        <source>&amp;Properties...</source>
-        <translation type="vanished">&amp;Properties...</translation>
-    </message>
-    <message>
         <source>Screenshot Failed</source>
         <translation>Screenshot Failed</translation>
     </message>
     <message>
-        <source>Failed to capture screenshot. Make sure a scene is loaded.</source>
-        <translation type="vanished">Failed to capture screenshot. Make sure a scene is loaded.</translation>
-    </message>
-    <message>
         <source>Screenshot failed</source>
         <translation>Screenshot failed</translation>
-    </message>
-    <message>
-        <source>Failed to create screenshot directory:
-%1</source>
-        <translation type="vanished">Failed to create screenshot directory:
-%1</translation>
-    </message>
-    <message>
-        <source>Failed to save EXR file:
-%1</source>
-        <translation type="vanished">Failed to save EXR file:
-%1</translation>
     </message>
     <message>
         <source>Screenshot failed (EXR)</source>
@@ -2210,12 +1932,6 @@ Please restart the application for the changes to take effect.</translation>
         <translation>Screenshot Warning</translation>
     </message>
     <message>
-        <source>EXR saved successfully, but PNG save failed:
-%1</source>
-        <translation type="vanished">EXR saved successfully, but PNG save failed:
-%1</translation>
-    </message>
-    <message>
         <source>Screenshot saved (EXR only): %1</source>
         <translation>Screenshot saved (EXR only): %1</translation>
     </message>
@@ -2224,34 +1940,12 @@ Please restart the application for the changes to take effect.</translation>
         <translation>Screenshot saved: %1.{exr,png}</translation>
     </message>
     <message>
-        <source>Screenshot Saved</source>
-        <translation type="vanished">Screenshot Saved</translation>
-    </message>
-    <message>
-        <source>Screenshot saved successfully:
-
-EXR: %1
-PNG: %2</source>
-        <translation type="vanished">Screenshot saved successfully:
-
-EXR: %1
-PNG: %2</translation>
-    </message>
-    <message>
-        <source>Settings saved</source>
-        <translation type="vanished">Settings saved</translation>
-    </message>
-    <message>
         <source>Thermal solve</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
     <name>MaterialEditorPanel</name>
-    <message>
-        <source>Material Properties</source>
-        <translation type="vanished">Material Properties</translation>
-    </message>
     <message>
         <source>Material</source>
         <translation type="unfinished">Material</translation>
@@ -2445,15 +2139,15 @@ PNG: %2</translation>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Convects to what is behind</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Back face:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Behind it:</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Temperature of whatever is behind the surface -- a room, usually. Used only when the back face is held.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -2709,24 +2403,12 @@ Replace the curves?</source>
         <translation type="unfinished">Transmittance:</translation>
     </message>
     <message>
-        <source>Temperature:</source>
-        <translation type="obsolete">Temperature:</translation>
-    </message>
-    <message>
         <source>Select Base Color</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Set IR properties for thermal rendering</source>
         <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Albedo:</source>
-        <translation type="vanished">Albedo:</translation>
-    </message>
-    <message>
-        <source>PBR Parameters</source>
-        <translation type="vanished">PBR Parameters</translation>
     </message>
     <message>
         <source>Metallic:</source>
@@ -2737,36 +2419,28 @@ Replace the curves?</source>
         <translation>Roughness:</translation>
     </message>
     <message>
+        <source>Temperature of whatever is behind the surface -- a room, usually. Read when the back face is held at it or convects to it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Back-face convection:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Exchange between the back face and what is behind it. Lower than the front&apos;s: still air in a closed bay rather than wind. Read only when the back face convects.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Internal heat:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>A flux entering from behind: an engine, a battery, a compartment. The only way a shaded surface can be the warmest thing in an infrared scene. Absorbed without trace by a back face that is held at a temperature.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>IOR:</source>
         <translation>IOR:</translation>
-    </message>
-    <message>
-        <source>Emission</source>
-        <translation type="vanished">Emission</translation>
-    </message>
-    <message>
-        <source>Color:</source>
-        <translation type="vanished">Color:</translation>
-    </message>
-    <message>
-        <source>Strength:</source>
-        <translation type="vanished">Strength:</translation>
-    </message>
-    <message>
-        <source>Spectral</source>
-        <translation type="vanished">Spectral</translation>
-    </message>
-    <message>
-        <source>Spectral Curve:</source>
-        <translation type="vanished">Spectral Curve:</translation>
-    </message>
-    <message>
-        <source>None</source>
-        <translation type="vanished">None</translation>
-    </message>
-    <message>
-        <source>Reset</source>
-        <translation type="vanished">Reset</translation>
     </message>
 </context>
 <context>
@@ -2902,28 +2576,6 @@ Pick a node or a material in the scene tree.</source>
 <context>
     <name>QuantiloomVulkanRenderer</name>
     <message>
-        <source>Render context not initialized</source>
-        <translation type="vanished">Render context not initialized</translation>
-    </message>
-    <message>
-        <source>Scene loaded successfully</source>
-        <translation type="vanished">Scene loaded successfully</translation>
-    </message>
-    <message>
-        <source>Failed to load scene: %1</source>
-        <translation type="vanished">Failed to load scene: %1</translation>
-    </message>
-    <message>
-        <source>Compiling Shaders</source>
-        <translation type="vanished">Compiling Shaders</translation>
-    </message>
-    <message>
-        <source>First-time shader compilation in progress...
-This may take a few minutes.</source>
-        <translation type="vanished">First-time shader compilation in progress...
-This may take a few minutes.</translation>
-    </message>
-    <message>
         <source>scale %1, bias %2</source>
         <translation type="unfinished"></translation>
     </message>
@@ -2953,10 +2605,6 @@ This may take a few minutes.</translation>
     <message>
         <source>Custom...</source>
         <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Preset:</source>
-        <translation type="vanished">Preset:</translation>
     </message>
     <message>
         <source>Render</source>
@@ -3019,123 +2667,15 @@ This may take a few minutes.</translation>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Export Image</source>
-        <translation type="obsolete">Export Image</translation>
-    </message>
-    <message>
-        <source>EXR Image (*.exr);;PNG Image (*.png);;All Files (*)</source>
-        <translation type="obsolete">EXR Image (*.exr);;PNG Image (*.png);;All Files (*)</translation>
-    </message>
-    <message>
-        <source>Preview (4 SPP)</source>
-        <translation type="vanished">Preview (4 SPP)</translation>
-    </message>
-    <message>
-        <source>Draft (16 SPP)</source>
-        <translation type="vanished">Draft (16 SPP)</translation>
-    </message>
-    <message>
-        <source>Medium (64 SPP)</source>
-        <translation type="vanished">Medium (64 SPP)</translation>
-    </message>
-    <message>
-        <source>High (256 SPP)</source>
-        <translation type="vanished">High (256 SPP)</translation>
-    </message>
-    <message>
-        <source>Ultra (1024 SPP)</source>
-        <translation type="vanished">Ultra (1024 SPP)</translation>
-    </message>
-    <message>
-        <source>Custom</source>
-        <translation type="vanished">Custom</translation>
-    </message>
-    <message>
-        <source>SPP:</source>
-        <translation type="vanished">SPP:</translation>
-    </message>
-    <message>
-        <source>Current:</source>
-        <translation type="vanished">Current:</translation>
-    </message>
-    <message>
-        <source>%1 / %2</source>
-        <translation type="vanished">%1 / %2</translation>
-    </message>
-    <message>
         <source>Resolution</source>
         <translation>Resolution</translation>
-    </message>
-    <message>
-        <source>720p (1280×720)</source>
-        <translation type="vanished">720p (1280×720)</translation>
-    </message>
-    <message>
-        <source>1080p (1920×1080)</source>
-        <translation type="vanished">1080p (1920×1080)</translation>
-    </message>
-    <message>
-        <source>1440p (2560×1440)</source>
-        <translation type="vanished">1440p (2560×1440)</translation>
-    </message>
-    <message>
-        <source>4K (3840×2160)</source>
-        <translation type="vanished">4K (3840×2160)</translation>
-    </message>
-    <message>
-        <source>Output</source>
-        <translation type="vanished">Output</translation>
-    </message>
-    <message>
-        <source>Export...</source>
-        <translation type="vanished">Export...</translation>
-    </message>
-    <message>
-        <source>Reset</source>
-        <translation type="vanished">Reset</translation>
-    </message>
-    <message>
-        <source>Progressive</source>
-        <translation type="vanished">Progressive</translation>
     </message>
 </context>
 <context>
     <name>SceneTreePanel</name>
     <message>
-        <source>Scene Hierarchy</source>
-        <translation type="vanished">Scene Hierarchy</translation>
-    </message>
-    <message>
-        <source>No scene loaded</source>
-        <translation type="vanished">No scene loaded</translation>
-    </message>
-    <message>
-        <source>Scene: %1</source>
-        <translation type="vanished">Scene: %1</translation>
-    </message>
-    <message>
         <source>Meshes</source>
         <translation>Meshes</translation>
-    </message>
-    <message>
-        <source>Materials</source>
-        <translation type="vanished">Materials</translation>
-    </message>
-    <message>
-        <source>Nodes</source>
-        <translation type="vanished">Nodes</translation>
-    </message>
-    <message>
-        <source>%1 (%2 triangles)</source>
-        <translation type="vanished">%1 (%2 triangles)</translation>
-    </message>
-    <message>
-        <source>Controls</source>
-        <translation type="vanished">Controls</translation>
-    </message>
-    <message>
-        <source>&lt;b&gt;Selection:&lt;/b&gt; Click node above&lt;br&gt;&lt;b&gt;Transform:&lt;/b&gt; Select node, then Left-drag in viewport&lt;br&gt;&lt;b&gt;Mode:&lt;/b&gt; G=Move, R=Rotate, T=Scale&lt;br&gt;&lt;b&gt;Axis:&lt;/b&gt; X/Y/Z to constrain&lt;br&gt;&lt;b&gt;Camera:&lt;/b&gt; Right-drag=Orbit, Middle-drag=Pan, Wheel=Zoom&lt;br&gt;&lt;b&gt;Undo:&lt;/b&gt; Ctrl+Z / Ctrl+Y</source>
-        <translation type="vanished">&lt;b&gt;Selection:&lt;/b&gt; Click node above&lt;br&gt;&lt;b&gt;Transform:&lt;/b&gt; Select node, then Left-drag in viewport&lt;br&gt;&lt;b&gt;Mode:&lt;/b&gt; G=Move, R=Rotate, T=Scale&lt;br&gt;&lt;b&gt;Axis:&lt;/b&gt; X/Y/Z to constrain&lt;br&gt;&lt;b&gt;Camera:&lt;/b&gt; Right-drag=Orbit, Middle-drag=Pan, Wheel=Zoom&lt;br&gt;&lt;b&gt;Undo:&lt;/b&gt; Ctrl+Z / Ctrl+Y</translation>
     </message>
     <message>
         <source>Name</source>
@@ -3626,43 +3166,6 @@ Rebuild with:
     </message>
 </context>
 <context>
-    <name>SettingsDialog</name>
-    <message>
-        <source>Settings</source>
-        <translation type="vanished">Settings</translation>
-    </message>
-    <message>
-        <source>Screenshot Settings</source>
-        <translation type="vanished">Screenshot Settings</translation>
-    </message>
-    <message>
-        <source>Save Location:</source>
-        <translation type="vanished">Save Location:</translation>
-    </message>
-    <message>
-        <source>Browse...</source>
-        <translation type="vanished">Browse...</translation>
-    </message>
-    <message>
-        <source>Screenshots are saved as:
-• EXR format (HDR, full precision)
-• PNG format (8-bit, sRGB preview)
-Filename: YYYY-MM-DD_HH-MM-SS-mmm</source>
-        <translation type="vanished">Screenshots are saved as:
-• EXR format (HDR, full precision)
-• PNG format (8-bit, sRGB preview)
-Filename: YYYY-MM-DD_HH-MM-SS-mmm</translation>
-    </message>
-    <message>
-        <source>Restore Defaults</source>
-        <translation type="vanished">Restore Defaults</translation>
-    </message>
-    <message>
-        <source>Select Screenshot Save Location</source>
-        <translation type="vanished">Select Screenshot Save Location</translation>
-    </message>
-</context>
-<context>
     <name>SpectralConfigPanel</name>
     <message>
         <source>Spectral Mode</source>
@@ -3711,74 +3214,6 @@ Not suitable for quantitative analysis. Load measured spectral materials for acc
             <numerusform></numerusform>
             <numerusform></numerusform>
         </translation>
-    </message>
-    <message>
-        <source>Mode:</source>
-        <translation type="vanished">Mode:</translation>
-    </message>
-    <message>
-        <source>RGB Fused</source>
-        <translation type="vanished">RGB Fused</translation>
-    </message>
-    <message>
-        <source>Single Wavelength</source>
-        <translation type="vanished">Single Wavelength</translation>
-    </message>
-    <message>
-        <source>SWIR Fused</source>
-        <translation type="vanished">SWIR Fused</translation>
-    </message>
-    <message>
-        <source>MWIR Fused</source>
-        <translation type="vanished">MWIR Fused</translation>
-    </message>
-    <message>
-        <source>LWIR Fused</source>
-        <translation type="vanished">LWIR Fused</translation>
-    </message>
-    <message>
-        <source>Standard visible light rendering with spectral-to-RGB conversion.</source>
-        <translation type="vanished">Standard visible light rendering with spectral-to-RGB conversion.</translation>
-    </message>
-    <message>
-        <source>Render at a single wavelength for monochromatic analysis.</source>
-        <translation type="vanished">Render at a single wavelength for monochromatic analysis.</translation>
-    </message>
-    <message>
-        <source>Short-wave infrared band (1.0-2.5 μm).</source>
-        <translation type="vanished">Short-wave infrared band (1.0-2.5 μm).</translation>
-    </message>
-    <message>
-        <source>Mid-wave infrared band (3-5 μm).</source>
-        <translation type="vanished">Mid-wave infrared band (3-5 μm).</translation>
-    </message>
-    <message>
-        <source>Long-wave infrared band (8-14 μm).</source>
-        <translation type="vanished">Long-wave infrared band (8-14 μm).</translation>
-    </message>
-    <message>
-        <source>Wavelength</source>
-        <translation type="vanished">Wavelength</translation>
-    </message>
-    <message>
-        <source>Wavelength Range</source>
-        <translation type="vanished">Wavelength Range</translation>
-    </message>
-    <message>
-        <source>Min (nm):</source>
-        <translation type="vanished">Min (nm):</translation>
-    </message>
-    <message>
-        <source>Max (nm):</source>
-        <translation type="vanished">Max (nm):</translation>
-    </message>
-    <message>
-        <source>Step (nm):</source>
-        <translation type="vanished">Step (nm):</translation>
-    </message>
-    <message>
-        <source>Bands: %1</source>
-        <translation type="vanished">Bands: %1</translation>
     </message>
 </context>
 <context>
@@ -3942,10 +3377,6 @@ Coverage — %3</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Temperature:</source>
-        <translation type="obsolete">Temperature:</translation>
-    </message>
-    <message>
         <source>Overwrite existing IR data</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3972,14 +3403,6 @@ Coverage — %3</source>
     <message>
         <source>Wavelength Range</source>
         <translation>Wavelength Range</translation>
-    </message>
-    <message>
-        <source>Start (nm):</source>
-        <translation type="vanished">Start (nm):</translation>
-    </message>
-    <message>
-        <source>End (nm):</source>
-        <translation type="vanished">End (nm):</translation>
     </message>
     <message>
         <source>Output Steps:</source>
@@ -4257,6 +3680,14 @@ Coverage — %3</source>
     </message>
     <message>
         <source>Forcing file</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Shadow-edge correction</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Carry dT/dv through the trajectory, so a shading pass resolves a shadow edge inside a triangle rather than at its border. Off gives one temperature per triangle, which is what the correction has to be measured against.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

@@ -43,8 +43,16 @@ struct MaterialThermalProps {
     /// pavement beside it: evaporation carries heat away that no combination
     /// of the properties above can account for.
     float wetness = 0.0f;
-    QString interiorBoundary = QStringLiteral("adiabatic");  ///< or "fixed"
+    /// A flux entering the back face, W/m^2: an engine, a battery, a
+    /// compartment. The only way a shaded surface can be the warmest thing in
+    /// an infrared scene, and it does nothing under interiorBoundary "fixed",
+    /// which holds the back node whatever reaches it.
+    float internalHeat = 0.0f;
+    QString interiorBoundary = QStringLiteral("adiabatic");  ///< "fixed", or "ambient"
     float interiorTemperature = 293.15f;
+    /// What the back face convects to under "ambient": a panel over a bay
+    /// rather than a wall. Ignored by the other two boundaries.
+    float interiorConvection = 3.0f;
 };
 
 /**
@@ -261,21 +269,46 @@ struct SceneConfig {
     double thermalCheckpointStrideH = 1.0;
     QString thermalForcingFile;
 
-    /// The two [thermal] keys the SDK added for measurement rather than for
-    /// rendering (Quantiloom-dev ec06807): `sun_correction = false` asks for
-    /// the uncorrected temperature field, one constant per triangle, which is
-    /// what the correction has to be compared against, and `dump_elements`
-    /// names a file the solve writes one row per element into.
-    ///
-    /// Carried, not driven. Neither reaches the interactive solve, because
-    /// ThermalSolveParams -- the only thermal struct the SDK exports -- has no
-    /// member for either; they live on ThermalSolveConfig, which the CLI's
-    /// config path builds and this repository cannot reach (SRS CON-03). So
-    /// they are read and written and nothing here acts on them, which is the
-    /// difference between a quantitative config surviving a Studio save and
-    /// silently losing the switch that made its numbers mean something.
+    /// `sun_correction = false` asks for the uncorrected temperature field,
+    /// one constant per triangle, which is what the correction has to be
+    /// compared against. It reaches the solve: ThermalSolveParams carries it,
+    /// and turning it off sizes the tangent out of the state rather than
+    /// suppressing it at the shader, so the viewport shows the field a config
+    /// asked for rather than the corrected one with the correction hidden.
     bool thermalSunCorrection = true;
+
+    /// `dump_elements` names a file the solve writes one row per element into.
+    /// Carried rather than driven, and deliberately: the write is an explicit
+    /// call, because a viewport re-solves on every scrub of the hour slider and
+    /// a parameter that wrote a file each time would turn dragging a slider
+    /// into hundreds of writes.
     QString thermalDumpElements;
+
+    /// Where the convective coefficient comes from when the forcing file does
+    /// not carry one: "constant" is the material's own number all day, "wind"
+    /// is h = a + b U from the forcing's wind column, "stability" adds the
+    /// free-convection floor that carries the exchange on a calm night.
+    QString thermalConvectionModel = QStringLiteral("constant");
+    double thermalConvectionWindA = 5.7;
+    double thermalConvectionWindB = 3.8;
+    double thermalConvectionFreeC = 1.52;
+    double thermalConvectionReferenceHeightM = 2.0;
+    double thermalConvectionStableDamping = 10.0;
+
+    /// Let heat cross the edge between two triangles of one object. Off by
+    /// default; turning it on is a geometry rebuild, not a flag flip, because
+    /// the mesh only carries its shared edges when it was asked to.
+    bool thermalLateralConduction = false;
+
+    /// How many of the sun's recent columns carry a tangent of their own, so a
+    /// shading pass can trace a pixel's shadow at the hour it was cast instead
+    /// of assuming it looked like now. Each slot costs a state vector, an
+    /// elimination pass and a ray per shaded pixel.
+    int thermalSunMemoryLags = 0;
+
+    /// Material parameters the solve differentiates itself with respect to,
+    /// by name: any of h, epsilon, alpha, k, rhoc. Empty costs nothing.
+    QStringList thermalParameterSensitivities;
 
     /// [material] albedo -- the fallback surface for scenes that bring no
     /// materials of their own. Required by the core's strict reading, so a

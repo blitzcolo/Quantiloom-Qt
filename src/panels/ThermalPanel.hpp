@@ -93,6 +93,12 @@ private:
     QLabel* m_exchangeRaysCaption = nullptr;
     QLabel* m_exchangeTopKCaption = nullptr;
     QLabel* m_checkpointStrideCaption = nullptr;
+    /// The one measurement switch with a control. Off asks for the field one
+    /// constant per triangle, which is what the shadow-edge correction has to
+    /// be compared against -- and it sizes the tangent out of the solve state
+    /// rather than hiding it at the shader, so the comparison is of two solves
+    /// and not of one solve shown two ways.
+    QCheckBox* m_sunCorrectionCheck = nullptr;
     QLabel* m_forcingCaption = nullptr;
 
     // Status
@@ -112,4 +118,24 @@ private:
     double m_airTemperatureK = 288.15;
     double m_skyTemperatureK = 268.0;
     double m_relativeHumidity = 50.0;
+
+    /// The convection law and the three features that size the solve state.
+    /// Carried for the same reason as the three above: a document can ask for
+    /// a wind-driven h or a lagged shadow, and nothing on this panel decides
+    /// them, so params() has to give back what it was given rather than a
+    /// default. Losing one is not a cosmetic loss -- it is a different
+    /// trajectory, solved silently.
+    quantiloom::ThermalConvectionModel m_convectionModel =
+        quantiloom::ThermalConvectionModel::Constant;
+    double m_convectionWindA = 5.7;
+    double m_convectionWindB = 3.8;
+    double m_convectionFreeC = 1.52;
+    double m_convectionReferenceHeightM = 2.0;
+    double m_convectionStableDamping = 10.0;
+    bool m_lateralConduction = false;
+    quantiloom::u32 m_sunMemoryLags = 0;
+    quantiloom::Vector<quantiloom::ThermalSensitivityParameter> m_parameterSensitivities;
+    /// Where a dump would go. Not a solver input, and carried anyway: a set
+    /// that loses it saves a document without the path it was given.
+    quantiloom::String m_dumpElementsFile;
 };

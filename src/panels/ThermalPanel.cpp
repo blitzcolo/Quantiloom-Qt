@@ -153,6 +153,10 @@ void ThermalPanel::setupUi() {
     m_forcingCaption = new QLabel(m_paramsGroup);
     paramsLayout->addRow(m_forcingCaption, forcingRow);
 
+    m_sunCorrectionCheck = new QCheckBox(m_paramsGroup);
+    m_sunCorrectionCheck->setChecked(true);
+    paramsLayout->addRow(QString(), m_sunCorrectionCheck);
+
     // Connect param changes
     auto paramSlot = [this] { onParamChanged(); };
     connect(m_startTimeSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, paramSlot);
@@ -165,6 +169,7 @@ void ThermalPanel::setupUi() {
     connect(m_exchangeRaysSpin, QOverload<int>::of(&QSpinBox::valueChanged), this, paramSlot);
     connect(m_exchangeTopKSpin, QOverload<int>::of(&QSpinBox::valueChanged), this, paramSlot);
     connect(m_checkpointStrideSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, paramSlot);
+    connect(m_sunCorrectionCheck, &QCheckBox::toggled, this, paramSlot);
 
     mainLayout->addWidget(m_paramsGroup);
 
@@ -211,6 +216,12 @@ void ThermalPanel::retranslateUi() {
         m_exchangeTopKCaption->setText(tr("Exchange top-K"));
         m_checkpointStrideCaption->setText(tr("Checkpoint stride"));
         m_forcingCaption->setText(tr("Forcing file"));
+        m_sunCorrectionCheck->setText(tr("Shadow-edge correction"));
+        m_sunCorrectionCheck->setToolTip(
+            tr("Carry dT/dv through the trajectory, so a shading pass resolves a "
+               "shadow edge inside a triangle rather than at its border. Off gives "
+               "one temperature per triangle, which is what the correction has to "
+               "be measured against."));
         m_statusGroup->setTitle(tr("Status"));
     });
 }
@@ -238,6 +249,17 @@ void ThermalPanel::setParams(const quantiloom::ThermalSolveParams& p) {
     m_airTemperatureK = p.airTemperature_K;
     m_skyTemperatureK = p.skyTemperature_K;
     m_relativeHumidity = p.relativeHumidity;
+    m_sunCorrectionCheck->setChecked(p.sunCorrection);
+    m_convectionModel = p.convectionModel;
+    m_convectionWindA = p.convectionWindA_W_m2K;
+    m_convectionWindB = p.convectionWindB_W_s_m3K;
+    m_convectionFreeC = p.convectionFreeC;
+    m_convectionReferenceHeightM = p.convectionReferenceHeight_m;
+    m_convectionStableDamping = p.convectionStableDamping;
+    m_lateralConduction = p.lateralConduction;
+    m_sunMemoryLags = p.sunMemoryLags;
+    m_parameterSensitivities = p.parameterSensitivities;
+    m_dumpElementsFile = p.dumpElementsFile;
     m_suppressSignals = false;
 }
 
@@ -310,6 +332,17 @@ quantiloom::ThermalSolveParams ThermalPanel::params() const {
     p.airTemperature_K = m_airTemperatureK;
     p.skyTemperature_K = m_skyTemperatureK;
     p.relativeHumidity = m_relativeHumidity;
+    p.sunCorrection = m_sunCorrectionCheck->isChecked();
+    p.convectionModel = m_convectionModel;
+    p.convectionWindA_W_m2K = m_convectionWindA;
+    p.convectionWindB_W_s_m3K = m_convectionWindB;
+    p.convectionFreeC = m_convectionFreeC;
+    p.convectionReferenceHeight_m = m_convectionReferenceHeightM;
+    p.convectionStableDamping = m_convectionStableDamping;
+    p.lateralConduction = m_lateralConduction;
+    p.sunMemoryLags = m_sunMemoryLags;
+    p.parameterSensitivities = m_parameterSensitivities;
+    p.dumpElementsFile = m_dumpElementsFile;
     return p;
 }
 

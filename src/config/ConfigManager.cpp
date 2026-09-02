@@ -292,6 +292,26 @@ void ConfigManager::extractSceneConfig(const quantiloom::Config& config, SceneCo
     out.thermalDumpElements =
         QString::fromStdString(config.GetString("thermal.dump_elements", ""));
 
+    // The convection law and the two solver features that size the state.
+    // Defaults are the SDK's, so a document that says nothing about them round
+    // trips as a document that says nothing about them.
+    out.thermalConvectionModel =
+        QString::fromStdString(config.GetString("thermal.convection_model", "constant"));
+    out.thermalConvectionWindA = config.Get<double>("thermal.convection_wind_a", 5.7);
+    out.thermalConvectionWindB = config.Get<double>("thermal.convection_wind_b", 3.8);
+    out.thermalConvectionFreeC = config.Get<double>("thermal.convection_free_c", 1.52);
+    out.thermalConvectionReferenceHeightM =
+        config.Get<double>("thermal.convection_reference_height_m", 2.0);
+    out.thermalConvectionStableDamping =
+        config.Get<double>("thermal.convection_stable_damping", 10.0);
+    out.thermalLateralConduction = config.Get<bool>("thermal.lateral_conduction", false);
+    out.thermalSunMemoryLags =
+        static_cast<int>(config.Get<quantiloom::u32>("thermal.sun_memory_lags", 0));
+    out.thermalParameterSensitivities.clear();
+    for (const auto& name : config.GetStringArray("thermal.parameter_sensitivities")) {
+        out.thermalParameterSensitivities << QString::fromStdString(name);
+    }
+
     // [sensor]
     out.sensorEnabled = config.Get<bool>("sensor.enabled", false);
     // Always parse sensor params so they're available if user enables later
@@ -348,10 +368,13 @@ void ConfigManager::extractSceneConfig(const quantiloom::Config& config, SceneCo
         matConfig.thermal.shortwaveAbsorptivity =
             matTable.GetFloat("shortwave_absorptivity", 0.7f);
         matConfig.thermal.wetness = matTable.GetFloat("wetness_factor", 0.0f);
+        matConfig.thermal.internalHeat = matTable.GetFloat("internal_heat_w_m2", 0.0f);
         matConfig.thermal.interiorBoundary =
             QString::fromStdString(matTable.GetString("interior_bc", "adiabatic"));
         matConfig.thermal.interiorTemperature =
             matTable.GetFloat("interior_temperature_k", 293.15f);
+        matConfig.thermal.interiorConvection =
+            matTable.GetFloat("interior_convection_h_w_m2k", 3.0f);
 
         // The PBR half, kept only if the file actually carries it -- so a
         // reload/save cycle does not invent one for an entry that had none.
@@ -865,10 +888,17 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
                 out << "shortwave_absorptivity = " << matConfig.thermal.shortwaveAbsorptivity
                     << "\n";
                 out << "wetness_factor = " << matConfig.thermal.wetness << "\n";
+                out << "internal_heat_w_m2 = " << matConfig.thermal.internalHeat << "\n";
                 out << "interior_bc = " << tomlQuoted(matConfig.thermal.interiorBoundary)
                     << "\n";
                 out << "interior_temperature_k = " << matConfig.thermal.interiorTemperature
                     << "\n";
+                // Read only under interior_bc = "ambient", written always, for
+                // the same reason the thermal block above is: a number the user
+                // tuned and then switched away from should still be there when
+                // they switch back.
+                out << "interior_convection_h_w_m2k = "
+                    << matConfig.thermal.interiorConvection << "\n";
             }
             if (hasTemperatureMap) {
                 if (!matConfig.temperatureTexture.isEmpty()) {
@@ -1026,6 +1056,35 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
     }
     if (!config.thermalDumpElements.isEmpty()) {
         out << "dump_elements = " << tomlQuoted(config.thermalDumpElements) << "\n";
+    }
+    // The convection law and its constants, written only when the law is not
+    // the default one -- five numbers in every document would suggest they had
+    // been chosen, and under "constant" none of them is read.
+    if (config.thermalConvectionModel != QStringLiteral("constant")) {
+        out << "convection_model = " << tomlQuoted(config.thermalConvectionModel) << "\n";
+        out << "convection_wind_a = " << config.thermalConvectionWindA << "\n";
+        out << "convection_wind_b = " << config.thermalConvectionWindB << "\n";
+        if (config.thermalConvectionModel == QStringLiteral("stability")) {
+            out << "convection_free_c = " << config.thermalConvectionFreeC << "\n";
+            out << "convection_reference_height_m = "
+                << config.thermalConvectionReferenceHeightM << "\n";
+            out << "convection_stable_damping = "
+                << config.thermalConvectionStableDamping << "\n";
+        }
+    }
+    if (config.thermalLateralConduction) {
+        out << "lateral_conduction = true\n";
+    }
+    if (config.thermalSunMemoryLags > 0) {
+        out << "sun_memory_lags = " << config.thermalSunMemoryLags << "\n";
+    }
+    if (!config.thermalParameterSensitivities.isEmpty()) {
+        out << "parameter_sensitivities = [";
+        for (int i = 0; i < config.thermalParameterSensitivities.size(); ++i) {
+            if (i > 0) out << ", ";
+            out << tomlQuoted(config.thermalParameterSensitivities.at(i));
+        }
+        out << "]\n";
     }
     out << "\n";
 

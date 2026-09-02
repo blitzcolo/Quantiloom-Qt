@@ -142,32 +142,8 @@ Leave empty to auto-detect.</source>
         <translation>大气</translation>
     </message>
     <message>
-        <source>Analytic terms (legacy)</source>
-        <translation type="vanished">解析式参数（旧版）</translation>
-    </message>
-    <message>
-        <source>Transmittance:</source>
-        <translation type="vanished">透过率：</translation>
-    </message>
-    <message>
-        <source>Atmosphere temperature:</source>
-        <translation type="vanished">大气温度：</translation>
-    </message>
-    <message>
         <source> K</source>
         <translation> K</translation>
-    </message>
-    <message>
-        <source>Superseded: view-path transmittance comes from the network model. Kept because it is still part of the lighting parameters uploaded each frame.</source>
-        <translation type="vanished">已被取代：视线路径透过率现由神经网络模型给出。此处保留是因为它仍属于每帧上传的光照参数。</translation>
-    </message>
-    <message>
-        <source>Thermal-sky fallback for infrared downwelling, used when the network model is off.</source>
-        <translation type="vanished">红外下行辐射的热天空回退值，仅在关闭神经网络模型时使用。</translation>
-    </message>
-    <message>
-        <source>Both values live in the lighting parameters. The network model below supersedes the transmittance; the temperature remains the fallback sky for infrared when that model is disabled.</source>
-        <translation type="vanished">这两个值都属于光照参数。下方的神经网络模型会取代其中的透过率；关闭该模型时，温度仍作为红外的回退天空温度。</translation>
     </message>
     <message>
         <source>Neural network model (MODTRAN surrogate)</source>
@@ -393,33 +369,9 @@ Help ▸ Reading Debug Output explains the colour encodings.</source>
         <source>Normal</source>
         <translation>常规</translation>
     </message>
-    <message>
-        <source>Material</source>
-        <translation type="obsolete">材质</translation>
-    </message>
-    <message>
-        <source>Lighting</source>
-        <translation type="obsolete">光照</translation>
-    </message>
-    <message>
-        <source>Spectral</source>
-        <translation type="obsolete">光谱</translation>
-    </message>
 </context>
 <context>
     <name>DisplayEnhancementPanel</name>
-    <message>
-        <source>CLAHE Settings</source>
-        <translation type="vanished">CLAHE 设置</translation>
-    </message>
-    <message>
-        <source>Higher values allow more contrast enhancement.
-1.0 = no clipping (full equalization)
-2.0-4.0 = typical range for infrared</source>
-        <translation type="vanished">数值越大，允许的对比度增强越强。
-1.0 表示不截断（完全均衡化）
-红外常用范围为 2.0–4.0</translation>
-    </message>
     <message>
         <source>4x4</source>
         <translation>4×4</translation>
@@ -431,10 +383,6 @@ Help ▸ Reading Debug Output explains the colour encodings.</source>
     <message>
         <source>Enable display enhancement</source>
         <translation>启用显示增强</translation>
-    </message>
-    <message>
-        <source>CLAHE lifts contrast in low-dynamic-range images such as infrared. It changes the viewport and saved screenshots; exported images keep their raw values.</source>
-        <translation type="vanished">CLAHE 可提升红外等低动态范围图像的对比度。它只改变视口与保存的截图；导出的图像保留原始数值。</translation>
     </message>
     <message>
         <source>The only tone mapping the viewport has. An infrared render sits far below the displayable range and is black without it. Affects the viewport and saved screenshots; exported images keep their raw values.</source>
@@ -567,20 +515,8 @@ May cause colour shifts.</source>
 可能造成偏色。</translation>
     </message>
     <message>
-        <source>Apply CLAHE only to the luminance channel,
-preserving colour information.</source>
-        <translation type="vanished">只对亮度通道应用 CLAHE，
-保留色彩信息。</translation>
-    </message>
-    <message>
         <source>All channels</source>
         <translation>所有通道</translation>
-    </message>
-    <message>
-        <source>Apply CLAHE independently to each RGB channel.
-May cause colour shifts.</source>
-        <translation type="vanished">对 RGB 各通道分别应用 CLAHE。
-可能引起色偏。</translation>
     </message>
 </context>
 <context>
@@ -750,10 +686,6 @@ May cause colour shifts.</source>
         <translation>光照</translation>
     </message>
     <message>
-        <source>ASTM G-173 is an absolute spectrum — 900 W/m² direct, 1000 W/m² global. Normalising divides both curves by the sun&apos;s luminance (%1), discarding the scale that is the reason to use this spectrum: it takes the frame several stops down rather than to a neutral exposure. It is not an exposure control — display enhancement and the sensor model are.</source>
-        <translation type="vanished">ASTM G-173 是绝对光谱——直射 900 W/m²，总辐射 1000 W/m²。归一化会把两条曲线同时除以太阳亮度（%1），丢弃的正是选用这条光谱的理由：画面会被压暗好几档，而不是回到中性曝光。它不是曝光控制——显示增强和传感器模型才是。</translation>
-    </message>
-    <message>
         <source>No spectrum chosen</source>
         <translation>未选择光谱文件</translation>
     </message>
@@ -768,14 +700,6 @@ May cause colour shifts.</source>
     <message>
         <source>Equal energy is defined at unit luminance, so normalising it divides by 1 and changes nothing.</source>
         <translation>等能光源本身就定义在单位亮度上，归一化相当于除以 1，不产生任何变化。</translation>
-    </message>
-    <message>
-        <source>ASTM G-173 is an absolute spectrum — 900 W/m² direct, 1000 W/m² global. Normalising divides both curves by the sun&apos;s luminance (%1), which discards the absolute scale this mode exists to report.</source>
-        <translation type="vanished">ASTM G-173 是绝对光谱——直射 900 W/m²，总辐射 1000 W/m²。归一化会把两条曲线同时除以太阳亮度（%1），而这恰好丢弃了本模式要报告的绝对量级。</translation>
-    </message>
-    <message>
-        <source>Un-normalised, ASTM G-173 puts the sun about %1× above the display range and the viewport clips to white. Normalise it, or set the exposure with display enhancement or the sensor model.</source>
-        <translation type="vanished">不归一化时，ASTM G-173 会让太阳超出显示范围约 %1 倍，视口将被裁剪为纯白。请勾选归一化，或用显示增强、传感器模型来设定曝光。</translation>
     </message>
     <message>
         <source>Choose an Illuminant Spectrum</source>
@@ -828,30 +752,6 @@ May cause colour shifts.</source>
     <message>
         <source>Normalise to unit luminance</source>
         <translation>归一化到单位亮度</translation>
-    </message>
-    <message>
-        <source>Published reference spectra are relative, so their absolute level is arbitrary. Both curves scale by the sun&apos;s luminance, which keeps the sun-to-sky ratio the measurement actually recorded.
-
-That divisor is a visible-light quantity. It is the right correction for a relative spectrum being turned into a picture, and the wrong one for an absolute spectrum being reported as radiance — so the box is re-picked for you when the mode or the illuminant changes, and you can still override it.</source>
-        <translation type="vanished">已发表的参考光谱都是相对光谱，绝对量级是任意的。两条曲线按太阳亮度同时缩放，从而保留测量真正记录下来的日天比。
-
-这个除数是可见光量。把相对光谱变成图像时它是正确的修正，把绝对光谱作为辐亮度报告时它是错误的——所以切换模式或光源时会为你重新选择该选项，你仍可自行覆盖。</translation>
-    </message>
-    <message>
-        <source>Published reference spectra are relative, so their absolute level is arbitrary. Both curves scale by the sun&apos;s luminance, which keeps the sun-to-sky ratio the measurement actually recorded.</source>
-        <translation type="vanished">已发布的参考光谱是相对值，绝对量级是任意的。两条曲线都按太阳的亮度缩放，从而保留测量实际记录下来的日天比。</translation>
-    </message>
-    <message>
-        <source>Published reference spectra are relative, so their absolute level is arbitrary. Both curves scale by the sun&apos;s luminance, which keeps the sun-to-sky ratio the measurement actually recorded.
-
-Whether it is right depends on the spectrum, not on the render mode: a relative one such as D65 wants it, an absolute one such as ASTM G-173 is ruined by it. It is picked for you when the illuminant changes, and you can still override it.
-
-It is not an exposure control — display enhancement and the sensor model are.</source>
-        <translation type="vanished">已发表的参考光谱都是相对光谱，绝对量级是任意的。两条曲线按太阳亮度同时缩放，从而保留测量真正记录下来的日天比。
-
-该不该用取决于光谱本身，而非渲染模式：D65 这类相对光谱需要它，ASTM G-173 这类绝对光谱则会被它毁掉。切换光源时会为你自动选择，你仍可自行覆盖。
-
-它不是曝光控制——显示增强和传感器模型才是。</translation>
     </message>
     <message>
         <source>ASTM G-173 is an absolute spectrum — 900 W/m² direct, 1000 W/m² global. Normalising divides both curves by the sun&apos;s luminance (%1) and discards the absolute scale this mode exists to report. The spectral path is already exposed for it; use display enhancement if the viewport reads dark.</source>
@@ -925,18 +825,6 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <source>Environment Maps (*.exr *.hdr *.png *.jpg *.jpeg);;All Files (*)</source>
         <translation>环境贴图 (*.exr *.hdr *.png *.jpg *.jpeg);;所有文件 (*)</translation>
     </message>
-    <message>
-        <source>Atmosphere</source>
-        <translation type="vanished">大气</translation>
-    </message>
-    <message>
-        <source>Transmittance:</source>
-        <translation type="vanished">透射率:</translation>
-    </message>
-    <message>
-        <source>Temperature:</source>
-        <translation type="vanished">温度:</translation>
-    </message>
 </context>
 <context>
     <name>MainWindow</name>
@@ -957,36 +845,8 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation>(%1,%2) %3 K</translation>
     </message>
     <message>
-        <source>Quantiloom - Spectral Renderer</source>
-        <translation type="vanished">Quantiloom - 光谱渲染引擎</translation>
-    </message>
-    <message>
         <source>&amp;File</source>
         <translation>文件(&amp;F)</translation>
-    </message>
-    <message>
-        <source>&amp;New Scene</source>
-        <translation type="vanished">新建场景(&amp;N)</translation>
-    </message>
-    <message>
-        <source>&amp;Open Scene...</source>
-        <translation type="vanished">打开场景(&amp;O)...</translation>
-    </message>
-    <message>
-        <source>&amp;Save Scene</source>
-        <translation type="vanished">保存场景(&amp;S)</translation>
-    </message>
-    <message>
-        <source>&amp;Import Config...</source>
-        <translation type="vanished">导入配置(&amp;I)...</translation>
-    </message>
-    <message>
-        <source>E&amp;xport Config...</source>
-        <translation type="vanished">导出配置(&amp;X)...</translation>
-    </message>
-    <message>
-        <source>Export &amp;Image...</source>
-        <translation type="vanished">导出图像(&amp;I)...</translation>
     </message>
     <message>
         <source>E&amp;xit</source>
@@ -1037,14 +897,6 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation>
             <numerusform>已删除 %n 个物体</numerusform>
         </translation>
-    </message>
-    <message>
-        <source>Frame %1 ms wall clock, %2 ms on the GPU</source>
-        <translation type="vanished">帧耗时 %1 ms（墙钟），GPU %2 ms</translation>
-    </message>
-    <message>
-        <source>Frame %1 ms wall clock</source>
-        <translation type="vanished">帧耗时 %1 ms（墙钟）</translation>
     </message>
     <message>
         <source>ETA %1</source>
@@ -1115,20 +967,8 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation>重做(&amp;R)</translation>
     </message>
     <message>
-        <source>&amp;Delete</source>
-        <translation type="vanished">删除(&amp;D)</translation>
-    </message>
-    <message>
         <source>&amp;View</source>
         <translation>视图(&amp;V)</translation>
-    </message>
-    <message>
-        <source>&amp;Reset Camera</source>
-        <translation type="vanished">重置相机(&amp;R)</translation>
-    </message>
-    <message>
-        <source>&amp;Parameter Panel</source>
-        <translation type="vanished">参数面板(&amp;P)</translation>
     </message>
     <message>
         <source>&amp;Render</source>
@@ -1147,14 +987,6 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation>工具(&amp;T)</translation>
     </message>
     <message>
-        <source>Spectral Material &amp;Generator...</source>
-        <translation type="vanished">光谱材质生成器(&amp;G)...</translation>
-    </message>
-    <message>
-        <source>Spectral Gen</source>
-        <translation type="vanished">光谱生成</translation>
-    </message>
-    <message>
         <source>&amp;Help</source>
         <translation>帮助(&amp;H)</translation>
     </message>
@@ -1167,32 +999,12 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation>关于 Qt(&amp;Q)</translation>
     </message>
     <message>
-        <source>Parameters</source>
-        <translation type="vanished">参数</translation>
-    </message>
-    <message>
-        <source>Scene</source>
-        <translation type="vanished">场景</translation>
-    </message>
-    <message>
-        <source>Material</source>
-        <translation type="vanished">材质</translation>
-    </message>
-    <message>
         <source>Lighting</source>
         <translation>光照</translation>
     </message>
     <message>
         <source>Atmosphere</source>
         <translation>大气</translation>
-    </message>
-    <message>
-        <source>Render</source>
-        <translation type="vanished">渲染</translation>
-    </message>
-    <message>
-        <source>Spectral</source>
-        <translation type="vanished">光谱</translation>
     </message>
     <message>
         <source>Atmospheric preset: %1</source>
@@ -1211,60 +1023,8 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation>就绪</translation>
     </message>
     <message>
-        <source>FPS: --</source>
-        <translation type="vanished">帧率: --</translation>
-    </message>
-    <message>
-        <source>Samples: 0</source>
-        <translation type="vanished">采样数: 0</translation>
-    </message>
-    <message>
         <source>Unsaved Changes</source>
         <translation>未保存的更改</translation>
-    </message>
-    <message>
-        <source>The scene has been modified. Do you want to save your changes?</source>
-        <translation type="vanished">场景已被修改。是否保存更改？</translation>
-    </message>
-    <message>
-        <source>New scene created</source>
-        <translation type="vanished">已创建新场景</translation>
-    </message>
-    <message>
-        <source>Open Scene</source>
-        <translation type="vanished">打开场景</translation>
-    </message>
-    <message>
-        <source>3D Scene Files (*.gltf *.glb *.usd *.usda *.usdc *.usdz);;glTF Files (*.gltf *.glb);;OpenUSD Files (*.usd *.usda *.usdc *.usdz);;TOML Config (*.toml);;All Files (*)</source>
-        <translation type="vanished">3D 场景文件 (*.gltf *.glb *.usd *.usda *.usdc *.usdz);;glTF 文件 (*.gltf *.glb);;OpenUSD 文件 (*.usd *.usda *.usdc *.usdz);;TOML 配置 (*.toml);;所有文件 (*)</translation>
-    </message>
-    <message>
-        <source>Config loaded: %1</source>
-        <translation type="vanished">配置已加载: %1</translation>
-    </message>
-    <message>
-        <source>Load Failed</source>
-        <translation type="vanished">加载失败</translation>
-    </message>
-    <message>
-        <source>Failed to load config: %1</source>
-        <translation type="vanished">配置加载失败: %1</translation>
-    </message>
-    <message>
-        <source>Loading: %1</source>
-        <translation type="vanished">加载中: %1</translation>
-    </message>
-    <message>
-        <source>Save Scene</source>
-        <translation type="vanished">保存场景</translation>
-    </message>
-    <message>
-        <source>TOML Config (*.toml)</source>
-        <translation type="vanished">TOML 配置 (*.toml)</translation>
-    </message>
-    <message>
-        <source>Saved: %1</source>
-        <translation type="vanished">已保存: %1</translation>
     </message>
     <message>
         <source>Export failed</source>
@@ -1275,60 +1035,12 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation>调试模式：%1</translation>
     </message>
     <message>
-        <source>Import Configuration</source>
-        <translation type="vanished">导入配置</translation>
-    </message>
-    <message>
-        <source>TOML Config (*.toml);;All Files (*)</source>
-        <translation type="vanished">TOML 配置 (*.toml);;所有文件 (*)</translation>
-    </message>
-    <message>
-        <source>Config imported: %1</source>
-        <translation type="vanished">配置已导入: %1</translation>
-    </message>
-    <message>
-        <source>Import Failed</source>
-        <translation type="vanished">导入失败</translation>
-    </message>
-    <message>
-        <source>Failed to import config: %1</source>
-        <translation type="vanished">配置导入失败: %1</translation>
-    </message>
-    <message>
-        <source>Export Configuration</source>
-        <translation type="vanished">导出配置</translation>
-    </message>
-    <message>
-        <source>Config exported: %1</source>
-        <translation type="vanished">配置已导出: %1</translation>
-    </message>
-    <message>
         <source>Export Failed</source>
         <translation>导出失败</translation>
     </message>
     <message>
-        <source>Failed to export config: %1</source>
-        <translation type="vanished">配置导出失败: %1</translation>
-    </message>
-    <message>
-        <source>Export Image</source>
-        <translation type="vanished">导出图像</translation>
-    </message>
-    <message>
         <source>EXR Image (*.exr);;PNG Image (*.png);;All Files (*)</source>
         <translation>EXR 图像 (*.exr);;PNG 图像 (*.png);;所有文件 (*)</translation>
-    </message>
-    <message>
-        <source>Exported: %1</source>
-        <translation type="vanished">已导出: %1</translation>
-    </message>
-    <message>
-        <source>Rendering...</source>
-        <translation type="vanished">渲染中...</translation>
-    </message>
-    <message>
-        <source>Render stopped</source>
-        <translation type="vanished">渲染已停止</translation>
     </message>
     <message>
         <source>Camera reset</source>
@@ -1339,20 +1051,8 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation>关于 Quantiloom</translation>
     </message>
     <message>
-        <source>&lt;h3&gt;Quantiloom&lt;/h3&gt;&lt;p&gt;Version 0.2.7&lt;/p&gt;&lt;p&gt;A spectral renderer with hardware ray tracing support.&lt;/p&gt;&lt;p&gt;Features:&lt;/p&gt;&lt;ul&gt;&lt;li&gt;Hardware ray tracing&lt;/li&gt;&lt;li&gt;Spectral rendering&lt;/li&gt;&lt;li&gt;PBR materials with spectral extensions&lt;/li&gt;&lt;li&gt;Atmospheric scattering&lt;/li&gt;&lt;/ul&gt;&lt;p&gt;Copyright (c) 2025-2026 blitzcolo&lt;/p&gt;</source>
-        <translation type="vanished">&lt;h3&gt;Quantiloom&lt;/h3&gt;&lt;p&gt;版本 0.2.7&lt;/p&gt;&lt;p&gt;支持硬件光线追踪的光谱渲染器。&lt;/p&gt;&lt;p&gt;功能特性：&lt;/p&gt;&lt;ul&gt;&lt;li&gt;硬件光线追踪&lt;/li&gt;&lt;li&gt;光谱渲染&lt;/li&gt;&lt;li&gt;支持光谱扩展的PBR材质&lt;/li&gt;&lt;li&gt;大气散射&lt;/li&gt;&lt;/ul&gt;&lt;p&gt;版权所有 (c) 2025-2026 blitzcolo&lt;/p&gt;</translation>
-    </message>
-    <message>
-        <source>FPS: %1</source>
-        <translation type="vanished">帧率: %1</translation>
-    </message>
-    <message>
         <source>Samples: %1</source>
         <translation>采样数: %1</translation>
-    </message>
-    <message>
-        <source>Node %1 selected</source>
-        <translation type="vanished">已选中节点 %1</translation>
     </message>
     <message>
         <source>Material &apos;%1&apos; selected</source>
@@ -1395,10 +1095,6 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation>光照已更新</translation>
     </message>
     <message>
-        <source>SPP set to %1</source>
-        <translation type="vanished">SPP 已设为 %1</translation>
-    </message>
-    <message>
         <source>Spectral mode: %1</source>
         <translation>光谱模式: %1</translation>
     </message>
@@ -1439,10 +1135,6 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
     <message>
         <source>Sensor parameters updated</source>
         <translation>传感器参数已更新</translation>
-    </message>
-    <message>
-        <source>Display enhancement on (CLAHE: clip %1, %2x%2 tiles)</source>
-        <translation type="vanished">已启用显示增强（CLAHE：截断 %1，%2×%2 分块）</translation>
     </message>
     <message>
         <source>Display enhancement off</source>
@@ -1623,18 +1315,6 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
     <message>
         <source>&amp;Scale</source>
         <translation>缩放(&amp;S)</translation>
-    </message>
-    <message>
-        <source>Constrain to &amp;X</source>
-        <translation type="vanished">约束到 X 轴(&amp;X)</translation>
-    </message>
-    <message>
-        <source>Constrain to &amp;Y</source>
-        <translation type="vanished">约束到 Y 轴(&amp;Y)</translation>
-    </message>
-    <message>
-        <source>Constrain to &amp;Z</source>
-        <translation type="vanished">约束到 Z 轴(&amp;Z)</translation>
     </message>
     <message>
         <source>&amp;Local Space</source>
@@ -2209,10 +1889,6 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation>累积已重置</translation>
     </message>
     <message>
-        <source>Loaded %1 spectral curve(s)</source>
-        <translation type="vanished">已加载 %1 条光谱曲线</translation>
-    </message>
-    <message>
         <source>&amp;Redo %1</source>
         <translation>重做 %1(&amp;R)</translation>
     </message>
@@ -2241,32 +1917,8 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation>场景加载失败</translation>
     </message>
     <message>
-        <source>Click in Scene panel to select objects</source>
-        <translation type="vanished">点击场景面板选择对象</translation>
-    </message>
-    <message>
-        <source>Selection cleared</source>
-        <translation type="vanished">选择已清除</translation>
-    </message>
-    <message>
         <source>%1 objects selected</source>
         <translation>已选中 %1 个对象</translation>
-    </message>
-    <message>
-        <source>Selection cleared - click a node in Scene panel to select</source>
-        <translation type="vanished">选择已清除 - 点击场景面板中的节点进行选择</translation>
-    </message>
-    <message>
-        <source>&apos;%1&apos; selected - Left-drag in viewport to transform</source>
-        <translation type="vanished">已选中 &apos;%1&apos; - 在视口中左键拖拽进行变换</translation>
-    </message>
-    <message>
-        <source>%1 objects selected - Left-drag in viewport to transform</source>
-        <translation type="vanished">已选中 %1 个对象 - 在视口中左键拖拽进行变换</translation>
-    </message>
-    <message>
-        <source>Scene loaded - Click a node in Scene panel to select, use G/R/T keys to change transform mode</source>
-        <translation type="vanished">场景已加载 - 点击场景面板中的节点进行选择，使用 G/R/T 键切换变换模式</translation>
     </message>
     <message>
         <source>[G] Translate</source>
@@ -2281,58 +1933,12 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation>[T] 缩放</translation>
     </message>
     <message>
-        <source>Mode: %1</source>
-        <translation type="vanished">模式: %1</translation>
-    </message>
-    <message>
-        <source>&amp;Settings</source>
-        <translation type="vanished">设置(&amp;S)</translation>
-    </message>
-    <message>
-        <source>&amp;Language</source>
-        <translation type="vanished">语言(&amp;L)</translation>
-    </message>
-    <message>
-        <source>Language Changed</source>
-        <translation type="vanished">语言已更改</translation>
-    </message>
-    <message>
-        <source>The language setting has been changed.
-Please restart the application for the changes to take effect.</source>
-        <translation type="vanished">语言设置已更改。
-请重新启动应用程序以使更改生效。</translation>
-    </message>
-    <message>
-        <source>Take &amp;Screenshot</source>
-        <translation type="vanished">截图(&amp;S)</translation>
-    </message>
-    <message>
-        <source>&amp;Properties...</source>
-        <translation type="vanished">属性(&amp;P)...</translation>
-    </message>
-    <message>
         <source>Screenshot Failed</source>
         <translation>截图失败</translation>
     </message>
     <message>
-        <source>Failed to capture screenshot. Make sure a scene is loaded.</source>
-        <translation type="vanished">截图失败。请确保已加载场景。</translation>
-    </message>
-    <message>
         <source>Screenshot failed</source>
         <translation>截图失败</translation>
-    </message>
-    <message>
-        <source>Failed to create screenshot directory:
-%1</source>
-        <translation type="vanished">无法创建截图目录：
-%1</translation>
-    </message>
-    <message>
-        <source>Failed to save EXR file:
-%1</source>
-        <translation type="vanished">无法保存 EXR 文件：
-%1</translation>
     </message>
     <message>
         <source>Screenshot failed (EXR)</source>
@@ -2343,36 +1949,12 @@ Please restart the application for the changes to take effect.</source>
         <translation>截图警告</translation>
     </message>
     <message>
-        <source>EXR saved successfully, but PNG save failed:
-%1</source>
-        <translation type="vanished">EXR 保存成功，但 PNG 保存失败：
-%1</translation>
-    </message>
-    <message>
         <source>Screenshot saved (EXR only): %1</source>
         <translation>截图已保存（仅 EXR）：%1</translation>
     </message>
     <message>
         <source>Screenshot saved: %1.{exr,png}</source>
         <translation>截图已保存：%1.{exr,png}</translation>
-    </message>
-    <message>
-        <source>Screenshot Saved</source>
-        <translation type="vanished">截图已保存</translation>
-    </message>
-    <message>
-        <source>Screenshot saved successfully:
-
-EXR: %1
-PNG: %2</source>
-        <translation type="vanished">截图保存成功：
-
-EXR：%1
-PNG：%2</translation>
-    </message>
-    <message>
-        <source>Settings saved</source>
-        <translation type="vanished">设置已保存</translation>
     </message>
     <message>
         <source>Thermal solve</source>
@@ -2470,10 +2052,6 @@ PNG：%2</translation>
         <translation>背后温度：</translation>
     </message>
     <message>
-        <source>Temperature of whatever is behind the surface -- a room, usually. Used only when the back face is held.</source>
-        <translation>表面背后之物的温度，通常是房间。仅在背面恒温时使用。</translation>
-    </message>
-    <message>
         <source>Not solved: this surface keeps the temperature it is given.</source>
         <translation>不参与求解：该表面保持被赋予的温度。</translation>
     </message>
@@ -2524,10 +2102,6 @@ PNG：%2</translation>
     <message>
         <source>Images (*.png *.exr *.tif *.tiff *.hdr *.jpg);;All files (*)</source>
         <translation>图像 (*.png *.exr *.tif *.tiff *.hdr *.jpg);;所有文件 (*)</translation>
-    </message>
-    <message>
-        <source>Material Properties</source>
-        <translation type="vanished">材质属性</translation>
     </message>
     <message>
         <source>Material</source>
@@ -2612,6 +2186,30 @@ PNG：%2</translation>
     <message>
         <source>How much of the surface evaporates: 0 for dry, 1 for open water. Evaporation is why a lawn is ten degrees cooler than the pavement beside it under the same sun.</source>
         <translation>表面有多少在蒸发：0 为干燥，1 为开阔水面。同样的日照下草坪比旁边的路面低十度，靠的就是蒸发。</translation>
+    </message>
+    <message>
+        <source>Convects to what is behind</source>
+        <translation>与背后之物对流</translation>
+    </message>
+    <message>
+        <source>Temperature of whatever is behind the surface -- a room, usually. Read when the back face is held at it or convects to it.</source>
+        <translation>表面背后之物的温度，通常是房间。在背面恒温于此或与之对流时读取。</translation>
+    </message>
+    <message>
+        <source>Back-face convection:</source>
+        <translation>背面对流:</translation>
+    </message>
+    <message>
+        <source>Exchange between the back face and what is behind it. Lower than the front&apos;s: still air in a closed bay rather than wind. Read only when the back face convects.</source>
+        <translation>背面与其背后之物之间的换热。低于正面：封闭腔体内的静止空气，而非风。仅在背面对流时读取。</translation>
+    </message>
+    <message>
+        <source>Internal heat:</source>
+        <translation>内热源:</translation>
+    </message>
+    <message>
+        <source>A flux entering from behind: an engine, a battery, a compartment. The only way a shaded surface can be the warmest thing in an infrared scene. Absorbed without trace by a back face that is held at a temperature.</source>
+        <translation>自背面进入的热流：发动机、电池、舱室。这是阴影中的表面能成为红外场景中最热之物的唯一途径。若背面被恒温固定，该热流会被无痕吸收。</translation>
     </message>
     <message>
         <source>Transmission and Volume</source>
@@ -2854,24 +2452,12 @@ Replace the curves?</source>
         <translation>透过率：</translation>
     </message>
     <message>
-        <source>Temperature:</source>
-        <translation type="obsolete">温度:</translation>
-    </message>
-    <message>
         <source>Select Base Color</source>
         <translation>选择基础色</translation>
     </message>
     <message>
         <source>Set IR properties for thermal rendering</source>
         <translation>设置红外属性以进行热辐射渲染</translation>
-    </message>
-    <message>
-        <source>Albedo:</source>
-        <translation type="vanished">反照率:</translation>
-    </message>
-    <message>
-        <source>PBR Parameters</source>
-        <translation type="vanished">PBR 参数</translation>
     </message>
     <message>
         <source>Metallic:</source>
@@ -2884,34 +2470,6 @@ Replace the curves?</source>
     <message>
         <source>IOR:</source>
         <translation>折射率:</translation>
-    </message>
-    <message>
-        <source>Emission</source>
-        <translation type="vanished">自发光</translation>
-    </message>
-    <message>
-        <source>Color:</source>
-        <translation type="vanished">颜色:</translation>
-    </message>
-    <message>
-        <source>Strength:</source>
-        <translation type="vanished">强度:</translation>
-    </message>
-    <message>
-        <source>Spectral</source>
-        <translation type="vanished">光谱</translation>
-    </message>
-    <message>
-        <source>Spectral Curve:</source>
-        <translation type="vanished">光谱曲线:</translation>
-    </message>
-    <message>
-        <source>None</source>
-        <translation type="vanished">无</translation>
-    </message>
-    <message>
-        <source>Reset</source>
-        <translation type="vanished">重置</translation>
     </message>
 </context>
 <context>
@@ -3052,28 +2610,6 @@ Pick a node or a material in the scene tree.</source>
 <context>
     <name>QuantiloomVulkanRenderer</name>
     <message>
-        <source>Render context not initialized</source>
-        <translation type="vanished">渲染上下文未初始化</translation>
-    </message>
-    <message>
-        <source>Scene loaded successfully</source>
-        <translation type="vanished">场景加载成功</translation>
-    </message>
-    <message>
-        <source>Failed to load scene: %1</source>
-        <translation type="vanished">场景加载失败: %1</translation>
-    </message>
-    <message>
-        <source>Compiling Shaders</source>
-        <translation type="vanished">编译着色器</translation>
-    </message>
-    <message>
-        <source>First-time shader compilation in progress...
-This may take a few minutes.</source>
-        <translation type="vanished">首次着色器编译中...
-这可能需要几分钟时间。</translation>
-    </message>
-    <message>
         <source>scale %1, bias %2</source>
         <translation>缩放 %1，偏移 %2</translation>
     </message>
@@ -3105,14 +2641,6 @@ This may take a few minutes.</source>
         <translation>自定义...</translation>
     </message>
     <message>
-        <source>Accumulate samples over multiple frames</source>
-        <translation type="vanished">跨多帧累积采样</translation>
-    </message>
-    <message>
-        <source>Preset:</source>
-        <translation type="vanished">预设:</translation>
-    </message>
-    <message>
         <source>Render</source>
         <translation>渲染</translation>
     </message>
@@ -3127,10 +2655,6 @@ This may take a few minutes.</source>
     <message>
         <source>Custom samples:</source>
         <translation>自定义采样数：</translation>
-    </message>
-    <message>
-        <source>Progressive rendering</source>
-        <translation type="vanished">渐进式渲染</translation>
     </message>
     <message>
         <source>Render resolution:</source>
@@ -3177,123 +2701,15 @@ This may take a few minutes.</source>
         <translation>%1 × %2</translation>
     </message>
     <message>
-        <source>Export Image</source>
-        <translation type="obsolete">导出图像</translation>
-    </message>
-    <message>
-        <source>EXR Image (*.exr);;PNG Image (*.png);;All Files (*)</source>
-        <translation type="obsolete">EXR 图像 (*.exr);;PNG 图像 (*.png);;所有文件 (*)</translation>
-    </message>
-    <message>
-        <source>Preview (4 SPP)</source>
-        <translation type="vanished">预览 (4 SPP)</translation>
-    </message>
-    <message>
-        <source>Draft (16 SPP)</source>
-        <translation type="vanished">草稿 (16 SPP)</translation>
-    </message>
-    <message>
-        <source>Medium (64 SPP)</source>
-        <translation type="vanished">中等 (64 SPP)</translation>
-    </message>
-    <message>
-        <source>High (256 SPP)</source>
-        <translation type="vanished">高质量 (256 SPP)</translation>
-    </message>
-    <message>
-        <source>Ultra (1024 SPP)</source>
-        <translation type="vanished">极高 (1024 SPP)</translation>
-    </message>
-    <message>
-        <source>Custom</source>
-        <translation type="vanished">自定义</translation>
-    </message>
-    <message>
-        <source>SPP:</source>
-        <translation type="vanished">SPP:</translation>
-    </message>
-    <message>
-        <source>Current:</source>
-        <translation type="vanished">当前:</translation>
-    </message>
-    <message>
-        <source>%1 / %2</source>
-        <translation type="vanished">%1 / %2</translation>
-    </message>
-    <message>
         <source>Resolution</source>
         <translation>分辨率</translation>
-    </message>
-    <message>
-        <source>720p (1280×720)</source>
-        <translation type="vanished">720p (1280×720)</translation>
-    </message>
-    <message>
-        <source>1080p (1920×1080)</source>
-        <translation type="vanished">1080p (1920×1080)</translation>
-    </message>
-    <message>
-        <source>1440p (2560×1440)</source>
-        <translation type="vanished">1440p (2560×1440)</translation>
-    </message>
-    <message>
-        <source>4K (3840×2160)</source>
-        <translation type="vanished">4K (3840×2160)</translation>
-    </message>
-    <message>
-        <source>Output</source>
-        <translation type="vanished">输出</translation>
-    </message>
-    <message>
-        <source>Export...</source>
-        <translation type="vanished">导出...</translation>
-    </message>
-    <message>
-        <source>Reset</source>
-        <translation type="vanished">重置</translation>
-    </message>
-    <message>
-        <source>Progressive</source>
-        <translation type="vanished">渐进式</translation>
     </message>
 </context>
 <context>
     <name>SceneTreePanel</name>
     <message>
-        <source>Scene Hierarchy</source>
-        <translation type="vanished">场景层级</translation>
-    </message>
-    <message>
-        <source>No scene loaded</source>
-        <translation type="vanished">未加载场景</translation>
-    </message>
-    <message>
-        <source>Scene: %1</source>
-        <translation type="vanished">场景: %1</translation>
-    </message>
-    <message>
         <source>Meshes</source>
         <translation>网格</translation>
-    </message>
-    <message>
-        <source>Materials</source>
-        <translation type="vanished">材质</translation>
-    </message>
-    <message>
-        <source>Nodes</source>
-        <translation type="vanished">节点</translation>
-    </message>
-    <message>
-        <source>%1 (%2 triangles)</source>
-        <translation type="vanished">%1 (%2 三角形)</translation>
-    </message>
-    <message>
-        <source>Controls</source>
-        <translation type="vanished">操作说明</translation>
-    </message>
-    <message>
-        <source>&lt;b&gt;Selection:&lt;/b&gt; Click node above&lt;br&gt;&lt;b&gt;Transform:&lt;/b&gt; Select node, then Left-drag in viewport&lt;br&gt;&lt;b&gt;Mode:&lt;/b&gt; G=Move, R=Rotate, T=Scale&lt;br&gt;&lt;b&gt;Axis:&lt;/b&gt; X/Y/Z to constrain&lt;br&gt;&lt;b&gt;Camera:&lt;/b&gt; Right-drag=Orbit, Middle-drag=Pan, Wheel=Zoom&lt;br&gt;&lt;b&gt;Undo:&lt;/b&gt; Ctrl+Z / Ctrl+Y</source>
-        <translation type="vanished">&lt;b&gt;选择:&lt;/b&gt; 点击上方节点&lt;br&gt;&lt;b&gt;变换:&lt;/b&gt; 选中节点后，在视口中左键拖拽&lt;br&gt;&lt;b&gt;模式:&lt;/b&gt; G=移动, R=旋转, T=缩放&lt;br&gt;&lt;b&gt;轴约束:&lt;/b&gt; X/Y/Z 限制轴向&lt;br&gt;&lt;b&gt;相机:&lt;/b&gt; 右键拖拽=环绕, 中键拖拽=平移, 滚轮=缩放&lt;br&gt;&lt;b&gt;撤销:&lt;/b&gt; Ctrl+Z / Ctrl+Y</translation>
     </message>
     <message>
         <source>Name</source>
@@ -3484,10 +2900,6 @@ Rebuild with:
     <message>
         <source>Lens focal length. With the pixel pitch it sets the angular size of a pixel, and so how much of the scene one pixel averages.</source>
         <translation>镜头焦距。与像元间距共同决定单个像素的角尺寸，也就决定了一个像素平均了多大范围的场景。</translation>
-    </message>
-    <message>
-        <source>f-number, focal length divided by entrance pupil diameter. Lower collects more light: irradiance on the detector goes as 1/f-number squared.</source>
-        <translation type="vanished">f 数，即焦距除以入瞳直径。数值越小进光越多：探测器上的辐照度与 f 数的平方成反比。</translation>
     </message>
     <message>
         <source>Pixel Pitch:</source>
@@ -3798,43 +3210,6 @@ Rebuild with:
     </message>
 </context>
 <context>
-    <name>SettingsDialog</name>
-    <message>
-        <source>Settings</source>
-        <translation type="vanished">设置</translation>
-    </message>
-    <message>
-        <source>Screenshot Settings</source>
-        <translation type="vanished">截图设置</translation>
-    </message>
-    <message>
-        <source>Save Location:</source>
-        <translation type="vanished">保存位置：</translation>
-    </message>
-    <message>
-        <source>Browse...</source>
-        <translation type="vanished">浏览...</translation>
-    </message>
-    <message>
-        <source>Screenshots are saved as:
-• EXR format (HDR, full precision)
-• PNG format (8-bit, sRGB preview)
-Filename: YYYY-MM-DD_HH-MM-SS-mmm</source>
-        <translation type="vanished">截图保存格式：
-• EXR 格式（HDR，全精度）
-• PNG 格式（8位，sRGB 预览）
-文件名：YYYY-MM-DD_HH-MM-SS-mmm</translation>
-    </message>
-    <message>
-        <source>Restore Defaults</source>
-        <translation type="vanished">恢复默认</translation>
-    </message>
-    <message>
-        <source>Select Screenshot Save Location</source>
-        <translation type="vanished">选择截图保存位置</translation>
-    </message>
-</context>
-<context>
     <name>SpectralConfigPanel</name>
     <message>
         <source>Spectral Mode</source>
@@ -3884,85 +3259,9 @@ Not suitable for quantitative analysis. Load measured spectral materials for acc
             <numerusform>%n 个波段</numerusform>
         </translation>
     </message>
-    <message>
-        <source>Mode:</source>
-        <translation type="vanished">模式:</translation>
-    </message>
-    <message>
-        <source>RGB Fused</source>
-        <translation type="vanished">RGB 融合</translation>
-    </message>
-    <message>
-        <source>Single Wavelength</source>
-        <translation type="vanished">单波长</translation>
-    </message>
-    <message>
-        <source>SWIR Fused</source>
-        <translation type="vanished">SWIR 融合</translation>
-    </message>
-    <message>
-        <source>MWIR Fused</source>
-        <translation type="vanished">MWIR 融合</translation>
-    </message>
-    <message>
-        <source>LWIR Fused</source>
-        <translation type="vanished">LWIR 融合</translation>
-    </message>
-    <message>
-        <source>Standard visible light rendering with spectral-to-RGB conversion.</source>
-        <translation type="vanished">标准可见光渲染，光谱转 RGB。</translation>
-    </message>
-    <message>
-        <source>Render at a single wavelength for monochromatic analysis.</source>
-        <translation type="vanished">在单一波长下渲染，用于单色分析。</translation>
-    </message>
-    <message>
-        <source>Short-wave infrared band (1.0-2.5 μm).</source>
-        <translation type="vanished">短波红外波段 (1.0-2.5 μm)。</translation>
-    </message>
-    <message>
-        <source>Mid-wave infrared band (3-5 μm).</source>
-        <translation type="vanished">中波红外波段 (3-5 μm)。</translation>
-    </message>
-    <message>
-        <source>Long-wave infrared band (8-14 μm).</source>
-        <translation type="vanished">长波红外波段 (8-14 μm)。</translation>
-    </message>
-    <message>
-        <source>Wavelength</source>
-        <translation type="vanished">波长</translation>
-    </message>
-    <message>
-        <source>Wavelength Range</source>
-        <translation type="vanished">波长范围</translation>
-    </message>
-    <message>
-        <source>Min (nm):</source>
-        <translation type="vanished">最小 (nm):</translation>
-    </message>
-    <message>
-        <source>Max (nm):</source>
-        <translation type="vanished">最大 (nm):</translation>
-    </message>
-    <message>
-        <source>Step (nm):</source>
-        <translation type="vanished">步长 (nm):</translation>
-    </message>
-    <message>
-        <source>Bands: %1</source>
-        <translation type="vanished">波段数: %1</translation>
-    </message>
 </context>
 <context>
     <name>SpectralLibraryPanel</name>
-    <message>
-        <source>%1
-Database: %2
-Coverage — VIS %3%, NIR %4%, SWIR %5%</source>
-        <translation type="vanished">%1
-数据库：%2
-覆盖度 — VIS %3%，NIR %4%，SWIR %5%</translation>
-    </message>
     <message>
         <source>%1
 Database: %2
@@ -4058,10 +3357,6 @@ Coverage — %3</source>
         <translation>无——该材质按自身颜色渲染</translation>
     </message>
     <message>
-        <source>Replaces the material&apos;s colour with this measured spectrum. Undoable, and written to the configuration on save.</source>
-        <translation type="vanished">用这条实测光谱替换该材质的颜色。可撤销，并在保存时写入配置。</translation>
-    </message>
-    <message>
         <source>Select a material in the scene to assign to.</source>
         <translation>请在场景中选择要指派的材质。</translation>
     </message>
@@ -4125,10 +3420,6 @@ Coverage — %3</source>
         <translation>聚类数 (K)：</translation>
     </message>
     <message>
-        <source>Temperature:</source>
-        <translation type="obsolete">温度:</translation>
-    </message>
-    <message>
         <source>Overwrite existing IR data</source>
         <translation>覆盖已有的红外数据</translation>
     </message>
@@ -4155,14 +3446,6 @@ Coverage — %3</source>
     <message>
         <source>Wavelength Range</source>
         <translation>波长范围</translation>
-    </message>
-    <message>
-        <source>Start (nm):</source>
-        <translation type="vanished">起始 (nm):</translation>
-    </message>
-    <message>
-        <source>End (nm):</source>
-        <translation type="vanished">终止 (nm):</translation>
     </message>
     <message>
         <source>Output Steps:</source>
@@ -4443,6 +3726,14 @@ Coverage — %3</source>
         <translation>强迫文件</translation>
     </message>
     <message>
+        <source>Shadow-edge correction</source>
+        <translation>阴影边缘修正</translation>
+    </message>
+    <message>
+        <source>Carry dT/dv through the trajectory, so a shading pass resolves a shadow edge inside a triangle rather than at its border. Off gives one temperature per triangle, which is what the correction has to be measured against.</source>
+        <translation>沿轨迹携带 dT/dv，使着色阶段能在三角形内部而非其边界上解出阴影边缘。关闭时每个三角形只有一个温度，而这正是该修正需要比对的对象。</translation>
+    </message>
+    <message>
         <source>Status</source>
         <translation>状态</translation>
     </message>
@@ -4465,10 +3756,6 @@ Coverage — %3</source>
     <message>
         <source>Exchange: %1 entries (%2 runs), %3 sun samples</source>
         <translation>换热：%1 项（运行 %2 次），%3 个太阳采样</translation>
-    </message>
-    <message>
-        <source>Exchange: %1 entries (%2 runs)</source>
-        <translation type="vanished">交换: %1 项（%2 次计算）</translation>
     </message>
     <message>
         <source>Stepper: %1</source>
