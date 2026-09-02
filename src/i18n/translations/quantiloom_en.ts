@@ -573,6 +573,10 @@ May cause colour shifts.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>OpenEXR (spectral, one channel per band)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Render Hyperspectral Cube</source>
         <translation type="unfinished"></translation>
     </message>

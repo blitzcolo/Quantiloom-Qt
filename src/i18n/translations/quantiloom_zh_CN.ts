@@ -629,6 +629,10 @@ May cause colour shifts.</source>
         <translation>GeoTIFF</translation>
     </message>
     <message>
+        <source>OpenEXR (spectral, one channel per band)</source>
+        <translation>OpenEXR（光谱布局，每波段一个通道）</translation>
+    </message>
+    <message>
         <source>Render Hyperspectral Cube</source>
         <translation>渲染高光谱立方体</translation>
     </message>

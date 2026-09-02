@@ -34,7 +34,7 @@
 
 namespace {
 
-/// The four formats the core's cube writer accepts, as protocol strings.
+/// The five formats the core's cube writer accepts, as protocol strings.
 struct FormatOption {
     const char* id;
     const char* label;
@@ -44,6 +44,7 @@ const FormatOption kFormats[] = {
     {"envi_bil", QT_TRANSLATE_NOOP("HyperspectralExportDialog", "ENVI BIL (band interleaved by line)")},
     {"envi_bip", QT_TRANSLATE_NOOP("HyperspectralExportDialog", "ENVI BIP (band interleaved by pixel)")},
     {"geotiff",  QT_TRANSLATE_NOOP("HyperspectralExportDialog", "GeoTIFF")},
+    {"exr_spectral", QT_TRANSLATE_NOOP("HyperspectralExportDialog", "OpenEXR (spectral, one channel per band)")},
 };
 
 }  // namespace
