@@ -3742,6 +3742,30 @@ Coverage — %3</source>
         <translation>状态</translation>
     </message>
     <message>
+        <source>What if</source>
+        <translation>假设</translation>
+    </message>
+    <message>
+        <source>Convection h</source>
+        <translation>对流系数 h</translation>
+    </message>
+    <message>
+        <source>Emissivity</source>
+        <translation>发射率</translation>
+    </message>
+    <message>
+        <source>Solar absorptivity</source>
+        <translation>太阳吸收率</translation>
+    </message>
+    <message>
+        <source>Conductivity</source>
+        <translation>导热系数</translation>
+    </message>
+    <message>
+        <source>Heat capacity</source>
+        <translation>热容</translation>
+    </message>
+    <message>
         <source>Probe</source>
         <translation>探针</translation>
     </message>
@@ -3776,6 +3800,14 @@ Coverage — %3</source>
     <message>
         <source>Stepper: %1</source>
         <translation>步进器: %1</translation>
+    </message>
+    <message>
+        <source>Off. Move the slider to see what changing this parameter would do, before the solve is asked to do it.</source>
+        <translation>已关闭。拖动滑块，可在求解器给出结果之前先看到改动该参数会带来什么。</translation>
+    </message>
+    <message>
+        <source>%1%2% of the parameter, added as a first-order correction. Exact for a small step; a linearisation for a large one.</source>
+        <translation>该参数的 %1%2%，以一阶修正的形式叠加。步长小则精确，步长大则只是线性化。</translation>
     </message>
     <message>
         <source>Element %1: nothing to show.</source>
@@ -4071,6 +4103,14 @@ Right-drag orbits the camera, middle-drag pans, the wheel zooms; G/R/T switch tr
         <translation>红外反射</translation>
     </message>
     <message>
+        <source>Response to Shade</source>
+        <translation>对遮挡的响应</translation>
+    </message>
+    <message>
+        <source>Response to a Parameter</source>
+        <translation>对参数的响应</translation>
+    </message>
+    <message>
         <source>Vertex Positions (Hash)</source>
         <translation>顶点位置（哈希）</translation>
     </message>
@@ -4253,6 +4293,14 @@ Right-drag orbits the camera, middle-drag pans, the wheel zooms; G/R/T switch tr
     <message>
         <source>IR reflection of ambient thermal radiation.</source>
         <translation>对环境热辐射的红外反射。</translation>
+    </message>
+    <message>
+        <source>How many kelvin a surface would move between full shade and full sun. Where it is high, a triangle straddling a shadow edge is averaging two temperatures that are far apart, and a finer mesh would have said something different.</source>
+        <translation>表面在全遮挡与全日照之间会移动多少开尔文。数值高处，跨越阴影边缘的三角形正在平均两个相差很大的温度，更细的网格会给出不同的结果。</translation>
+    </message>
+    <message>
+        <source>How the temperature answers to the material parameter being previewed: blue where raising it cools the surface, red where it warms it. Needs that parameter in the solve&apos;s sensitivity list.</source>
+        <translation>温度对当前预览的材质参数的响应：蓝色表示提高该参数会使表面变冷，红色表示会变热。需要该参数出现在求解的灵敏度列表中。</translation>
     </message>
     <message>
         <source>Hash of 3 vertex positions. The same face should show similar colors. Different colors on one face mean index corruption.</source>

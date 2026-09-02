@@ -3699,6 +3699,30 @@ Coverage — %3</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>What if</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Convection h</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Emissivity</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Solar absorptivity</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Conductivity</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Heat capacity</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Probe</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3732,6 +3756,14 @@ Coverage — %3</source>
     </message>
     <message>
         <source>Stepper: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Off. Move the slider to see what changing this parameter would do, before the solve is asked to do it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1%2% of the parameter, added as a first-order correction. Exact for a small step; a linearisation for a large one.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -4027,6 +4059,14 @@ Right-drag orbits the camera, middle-drag pans, the wheel zooms; G/R/T switch tr
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Response to Shade</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Response to a Parameter</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Vertex Positions (Hash)</source>
         <translation type="unfinished"></translation>
     </message>
@@ -4208,6 +4248,14 @@ Right-drag orbits the camera, middle-drag pans, the wheel zooms; G/R/T switch tr
     </message>
     <message>
         <source>IR reflection of ambient thermal radiation.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>How many kelvin a surface would move between full shade and full sun. Where it is high, a triangle straddling a shadow edge is averaging two temperatures that are far apart, and a finer mesh would have said something different.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>How the temperature answers to the material parameter being previewed: blue where raising it cools the surface, red where it warms it. Needs that parameter in the solve&apos;s sensitivity list.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

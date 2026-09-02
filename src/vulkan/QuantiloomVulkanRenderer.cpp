@@ -1579,6 +1579,14 @@ QuantiloomVulkanRenderer::thermalElementAt(const quantiloom::PickResult& pick) c
     return m_renderContext->ThermalElementAt(pick);
 }
 
+quantiloom::Result<void, quantiloom::String> QuantiloomVulkanRenderer::setThermalWhatIf(
+    const quantiloom::ThermalSensitivityParameter parameter, const double step) {
+    if (!m_renderContext) {
+        return quantiloom::Result<void, quantiloom::String>::Err("no renderer");
+    }
+    return m_renderContext->SetThermalWhatIf(parameter, step);
+}
+
 quantiloom::Result<quantiloom::ThermalElementTrajectory, quantiloom::String>
 QuantiloomVulkanRenderer::elementTrajectory(const quantiloom::u32 element,
                                             const double fromHour, const double toHour,

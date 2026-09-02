@@ -1262,6 +1262,46 @@ void MainWindow::applyThermalParams(const quantiloom::ThermalSolveParams& incomi
     setSceneModified(true);
 }
 
+void MainWindow::applyThermalWhatIf(
+    const quantiloom::ThermalSensitivityParameter parameter, const double fraction) {
+    if (!m_thermalEnabled) {
+        return;
+    }
+
+    // The step is a fraction of the parameter, and the parameter's own value
+    // lives on a material rather than here. A representative one is enough for
+    // a preview: the tangent is per element, so a scene with two materials
+    // gets the right shape and a step scaled by one of them. Which is the
+    // honest limit of one slider for a whole scene, and the caption says the
+    // preview is a linearisation anyway.
+    double magnitude = 0.0;
+    switch (parameter) {
+        case quantiloom::ThermalSensitivityParameter::Convection:   magnitude = 10.0; break;
+        case quantiloom::ThermalSensitivityParameter::Emissivity:   magnitude = 0.9; break;
+        case quantiloom::ThermalSensitivityParameter::Absorptivity: magnitude = 0.7; break;
+        case quantiloom::ThermalSensitivityParameter::Conductivity: magnitude = 1.4; break;
+        case quantiloom::ThermalSensitivityParameter::HeatCapacity: magnitude = 2.0e6; break;
+    }
+    const double step = fraction * magnitude;
+
+    // Asking for a derivative the solve does not carry is a solve change, and
+    // it rebuilds the trajectory -- so it happens once, here, when the user
+    // first asks about that parameter, and every later move of the slider is
+    // the preview alone.
+    if (step != 0.0 &&
+        std::find(m_thermalParameterSensitivities.begin(),
+                  m_thermalParameterSensitivities.end(),
+                  parameter) == m_thermalParameterSensitivities.end()) {
+        m_thermalParameterSensitivities.push_back(parameter);
+        applyThermalParams(currentThermalParams());
+    }
+
+    const auto applied = m_vulkanWindow->setThermalWhatIf(parameter, step);
+    if (!applied.has_value()) {
+        showStatusMessage(QString::fromStdString(applied.error()));
+    }
+}
+
 void MainWindow::applyThermalTime(double time_h) {
     m_thermalTimeH = time_h;
     if (m_thermalEnabled) {
@@ -1985,6 +2025,8 @@ void MainWindow::setupDockWidgets() {
             this, &MainWindow::applyThermalParams);
     connect(m_thermalPanel, &ThermalPanel::thermalTimeChanged,
             this, &MainWindow::applyThermalTime);
+    connect(m_thermalPanel, &ThermalPanel::whatIfChanged,
+            this, &MainWindow::applyThermalWhatIf);
     connect(m_thermalPanel, &ThermalPanel::editGestureStarted,
             this, [this] {
                 m_thermalTimeBeforeGesture = m_thermalTimeH;

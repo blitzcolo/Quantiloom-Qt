@@ -292,6 +292,12 @@ private:
     /// because a chart that silently keeps the previous element is worse than
     /// an empty one.
     void updateThermalProbe(const std::optional<quantiloom::PickResult>& hit);
+
+    /// Preview what moving a material parameter would do. Adds the parameter
+    /// to the solve's sensitivity list the first time it is asked about, which
+    /// costs one re-solve; every later move of the slider costs a re-render.
+    void applyThermalWhatIf(quantiloom::ThermalSensitivityParameter parameter,
+                            double fraction);
     void applyThermalTime(double time_h);
     /// Push one material's thermal properties into the running solve, so a
     /// wetness or a thickness edit moves the viewport rather than only the

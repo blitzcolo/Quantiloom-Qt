@@ -57,12 +57,23 @@ signals:
     void editGestureStarted();
     void editGestureFinished();
 
+    /// The what-if preview: which material parameter, and how far to move it.
+    /// A step of zero means "off". Emitted on every slider move, because that
+    /// is the point -- no re-solve happens, so it can follow a drag.
+    void whatIfChanged(quantiloom::ThermalSensitivityParameter parameter, double step);
+
 private slots:
     void onEnabledToggled(bool checked);
     void onTimeSliderChanged(int minutes);
     void onTimeSpinChanged(double hours);
     void onParamChanged();
     void onBrowseForcing();
+    void onWhatIfChanged();
+
+private:
+    void updateWhatIfCaption();
+
+private slots:
 
 private:
     void setupUi();
@@ -124,6 +135,13 @@ private:
     /// In this panel rather than a dock of its own because it answers the
     /// question the controls above raise -- why is that surface that
     /// temperature -- and the answer reads best beside them.
+    /// The what-if preview. Beside the probe because they are two halves of
+    /// the same question: the probe says what happened, this says what would.
+    QGroupBox* m_whatIfGroup = nullptr;
+    QComboBox* m_whatIfParameter = nullptr;
+    QSlider* m_whatIfSlider = nullptr;
+    QLabel* m_whatIfCaption = nullptr;
+
     QGroupBox* m_probeGroup = nullptr;
     QLabel* m_probeCaption = nullptr;
     uiplot::TrajectoryPlotWidget* m_probePlot = nullptr;

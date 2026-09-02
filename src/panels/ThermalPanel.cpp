@@ -193,6 +193,40 @@ void ThermalPanel::setupUi() {
     statusLayout->addWidget(m_statusError);
     mainLayout->addWidget(m_statusGroup);
 
+    // The what-if preview. A step of the parameter, applied as a first-order
+    // correction to the field the solve already has: no re-solve, so the
+    // slider can be dragged and the viewport follows. What the two together
+    // show is the difference between a preview and a seek, which is the whole
+    // reason to have one.
+    m_whatIfGroup = new QGroupBox(this);
+    auto* whatIfLayout = new QVBoxLayout(m_whatIfGroup);
+    m_whatIfParameter = new QComboBox(m_whatIfGroup);
+    m_whatIfParameter->addItem(QString(),
+                               static_cast<int>(quantiloom::ThermalSensitivityParameter::Convection));
+    m_whatIfParameter->addItem(QString(),
+                               static_cast<int>(quantiloom::ThermalSensitivityParameter::Emissivity));
+    m_whatIfParameter->addItem(QString(),
+                               static_cast<int>(quantiloom::ThermalSensitivityParameter::Absorptivity));
+    m_whatIfParameter->addItem(QString(),
+                               static_cast<int>(quantiloom::ThermalSensitivityParameter::Conductivity));
+    m_whatIfParameter->addItem(QString(),
+                               static_cast<int>(quantiloom::ThermalSensitivityParameter::HeatCapacity));
+    // Percent of the parameter, so one slider suits h in W/m2K and rho c in
+    // J/m3K without either needing a range of its own. Centred at zero, which
+    // is the preview switched off.
+    m_whatIfSlider = new QSlider(Qt::Horizontal, m_whatIfGroup);
+    m_whatIfSlider->setRange(-50, 50);
+    m_whatIfSlider->setValue(0);
+    m_whatIfCaption = new QLabel(m_whatIfGroup);
+    m_whatIfCaption->setWordWrap(true);
+    whatIfLayout->addWidget(m_whatIfParameter);
+    whatIfLayout->addWidget(m_whatIfSlider);
+    whatIfLayout->addWidget(m_whatIfCaption);
+    connect(m_whatIfParameter, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &ThermalPanel::onWhatIfChanged);
+    connect(m_whatIfSlider, &QSlider::valueChanged, this, &ThermalPanel::onWhatIfChanged);
+    mainLayout->addWidget(m_whatIfGroup);
+
     // The probe. Given real height rather than left to the layout: a chart
     // squeezed into two rows of a docked panel is a chart nobody reads, and
     // this one is the answer to the question the controls above raise.
@@ -238,6 +272,13 @@ void ThermalPanel::retranslateUi() {
                "one temperature per triangle, which is what the correction has to "
                "be measured against."));
         m_statusGroup->setTitle(tr("Status"));
+        m_whatIfGroup->setTitle(tr("What if"));
+        m_whatIfParameter->setItemText(0, tr("Convection h"));
+        m_whatIfParameter->setItemText(1, tr("Emissivity"));
+        m_whatIfParameter->setItemText(2, tr("Solar absorptivity"));
+        m_whatIfParameter->setItemText(3, tr("Conductivity"));
+        m_whatIfParameter->setItemText(4, tr("Heat capacity"));
+        updateWhatIfCaption();
         m_probeGroup->setTitle(tr("Probe"));
         m_probePlot->setPlaceholderText(tr("Click a surface in the viewport."));
         m_probePlot->retranslate();
@@ -366,6 +407,31 @@ quantiloom::ThermalSolveParams ThermalPanel::params() const {
     p.parameterSensitivities = m_parameterSensitivities;
     p.dumpElementsFile = m_dumpElementsFile;
     return p;
+}
+
+void ThermalPanel::onWhatIfChanged() {
+    updateWhatIfCaption();
+    if (m_suppressSignals) return;
+    emit whatIfChanged(
+        static_cast<quantiloom::ThermalSensitivityParameter>(
+            m_whatIfParameter->currentData().toInt()),
+        m_whatIfSlider->value() / 100.0);
+}
+
+void ThermalPanel::updateWhatIfCaption() {
+    if (!m_whatIfCaption) return;
+    const int percent = m_whatIfSlider->value();
+    if (percent == 0) {
+        m_whatIfCaption->setText(
+            tr("Off. Move the slider to see what changing this parameter would do, "
+               "before the solve is asked to do it."));
+        return;
+    }
+    m_whatIfCaption->setText(
+        tr("%1%2% of the parameter, added as a first-order correction. Exact for a "
+           "small step; a linearisation for a large one.")
+            .arg(percent > 0 ? QStringLiteral("+") : QString())
+            .arg(percent));
 }
 
 void ThermalPanel::setProbe(const quantiloom::u32 element,

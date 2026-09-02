@@ -414,6 +414,10 @@ public:
     [[nodiscard]] quantiloom::Result<quantiloom::ThermalElementTrajectory, quantiloom::String>
     elementTrajectory(quantiloom::u32 element, double fromHour, double toHour,
                       quantiloom::u32 samples);
+    /// The what-if preview. No re-solve: it moves a scalar and re-renders,
+    /// which is what lets it follow a slider.
+    [[nodiscard]] quantiloom::Result<void, quantiloom::String> setThermalWhatIf(
+        quantiloom::ThermalSensitivityParameter parameter, double step);
 
     // ========================================================================
     // Display Enhancement

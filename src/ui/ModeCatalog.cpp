@@ -112,6 +112,8 @@ QVector<DebugVisualizationMode> debugModesIn(DebugCategory category) {
                 DebugVisualizationMode::IREmissivity,
                 DebugVisualizationMode::IREmission,
                 DebugVisualizationMode::IRReflection,
+                DebugVisualizationMode::SunSensitivity,
+                DebugVisualizationMode::ThermalSensitivity,
             };
         case DebugCategory::Diagnostics:
             return {
@@ -187,6 +189,10 @@ QString debugModeName(DebugVisualizationMode mode) {
         case DebugVisualizationMode::IREmissivity: return Tr::tr("IR Emissivity");
         case DebugVisualizationMode::IREmission:   return Tr::tr("IR Emission");
         case DebugVisualizationMode::IRReflection: return Tr::tr("IR Reflection");
+        case DebugVisualizationMode::SunSensitivity:
+            return Tr::tr("Response to Shade");
+        case DebugVisualizationMode::ThermalSensitivity:
+            return Tr::tr("Response to a Parameter");
 
         // Diagnostics
         case DebugVisualizationMode::VertexPositions: return Tr::tr("Vertex Positions (Hash)");
@@ -293,6 +299,15 @@ QString debugModeDescription(DebugVisualizationMode mode) {
             return Tr::tr("Thermal emission contribution: emissivity * Planck(T, lambda).");
         case DebugVisualizationMode::IRReflection:
             return Tr::tr("IR reflection of ambient thermal radiation.");
+        case DebugVisualizationMode::SunSensitivity:
+            return Tr::tr("How many kelvin a surface would move between full shade and "
+                       "full sun. Where it is high, a triangle straddling a shadow edge "
+                       "is averaging two temperatures that are far apart, and a finer "
+                       "mesh would have said something different.");
+        case DebugVisualizationMode::ThermalSensitivity:
+            return Tr::tr("How the temperature answers to the material parameter being "
+                       "previewed: blue where raising it cools the surface, red where it "
+                       "warms it. Needs that parameter in the solve's sensitivity list.");
 
         // Diagnostics
         case DebugVisualizationMode::VertexPositions:
@@ -580,6 +595,8 @@ constexpr DebugModeId kDebugModeIds[] = {
     {DebugVisualizationMode::IREmissivity, "ir_emissivity"},
     {DebugVisualizationMode::IREmission, "ir_emission"},
     {DebugVisualizationMode::IRReflection, "ir_reflection"},
+    {DebugVisualizationMode::SunSensitivity, "sun_sensitivity"},
+    {DebugVisualizationMode::ThermalSensitivity, "thermal_sensitivity"},
 
     {DebugVisualizationMode::VertexPositions, "vertex_positions"},
     {DebugVisualizationMode::IndexValues, "index_values"},
