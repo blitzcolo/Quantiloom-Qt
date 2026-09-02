@@ -25,6 +25,8 @@
 
 #include "MainWindow.hpp"
 
+#include "ThermalNames.hpp"
+
 #include "config/ConfigManager.hpp"
 #include "editing/SelectionManager.hpp"
 #include "editing/UndoStack.hpp"
@@ -193,6 +195,22 @@ QJsonObject ThermalStatusJson(bool enabled, double time_h,
     out["exchange_top_k"] = static_cast<int>(params.exchangeTopK);
     out["checkpoint_stride_h"] = params.checkpointStride_h;
     out["forcing_file"] = QString::fromStdString(params.forcingFile);
+
+    // The convection law and the three switches that size the solve state.
+    // Reported as well as accepted, because a caller that set one has no other
+    // way to confirm it took -- and because a status that lists nine fields
+    // out of thirteen reads as though the other four do not exist.
+    out["convection_model"] = thermalnames::convectionModelName(params.convectionModel);
+    out["convection_wind_a"] = params.convectionWindA_W_m2K;
+    out["convection_wind_b"] = params.convectionWindB_W_s_m3K;
+    out["convection_free_c"] = params.convectionFreeC;
+    out["convection_reference_height_m"] = params.convectionReferenceHeight_m;
+    out["convection_stable_damping"] = params.convectionStableDamping;
+    out["lateral_conduction"] = params.lateralConduction;
+    out["sun_memory_lags"] = static_cast<int>(params.sunMemoryLags);
+    out["sun_correction"] = params.sunCorrection;
+    out["parameter_sensitivities"] = QJsonArray::fromStringList(
+        thermalnames::sensitivityNames(params.parameterSensitivities));
 
     out["solve_valid"] = status.solveValid;
     out["element_count"] = static_cast<qint64>(status.elementCount);
@@ -779,8 +797,10 @@ void MainWindow::registerMcpTools() {
             "the next time query replays it.\n"
             "\n"
             "forcing_file is a CSV of time_h, air_k, direct normal irradiance, sun azimuth and "
-            "elevation in degrees, sky_k, and optionally diffuse irradiance and relative "
-            "humidity. With more than one row the shadows track the day; without one the "
+            "elevation in degrees, sky_k, and optionally diffuse irradiance, relative "
+            "humidity, a measured convection coefficient and a wind speed. The measured "
+            "coefficient wins over convection_model, which wins over the material's own "
+            "number. With more than one row the shadows track the day; without one the "
             "constant values here are used at a fixed sun.\n"
             "\n"
             "Undoable. Resets accumulation. Read the outcome from the returned status rather "
@@ -798,7 +818,19 @@ void MainWindow::registerMcpTools() {
     "exchange_rays": {"type": "integer", "description": "Hemisphere rays per element for the view factors."},
     "exchange_top_k": {"type": "integer", "description": "View-factor entries kept per element."},
     "checkpoint_stride_h": {"type": "number", "description": "Simulated hours between stored states. Shorter is more memory and a cheaper replay."},
-    "forcing_file": {"type": "string", "description": "Path to a forcing CSV, or empty for constant forcing."}
+    "forcing_file": {"type": "string", "description": "Path to a forcing CSV, or empty for constant forcing."},
+    "convection_model": {"type": "string", "enum": ["constant", "wind", "stability"],
+                         "description": "Where h comes from when the forcing does not state one. constant is the material's own number all day; wind is a + b U off the forcing's wind column; stability adds the free-convection floor that carries the exchange on a calm night. Anything but constant is solved on the CPU stepper."},
+    "convection_wind_a": {"type": "number", "description": "The intercept in h = a + b U, W/m2K. McAdams 5.7."},
+    "convection_wind_b": {"type": "number", "description": "The slope in h = a + b U, W s/m3K. McAdams 3.8."},
+    "convection_free_c": {"type": "number", "description": "The free-convection coefficient C in C |T_s - T_air|^(1/3). Read only under stability."},
+    "convection_reference_height_m": {"type": "number", "description": "Height the stability damping is referred to. Read only under stability."},
+    "convection_stable_damping": {"type": "number", "description": "Louis damping applied when the surface is colder than the air. Read only under stability."},
+    "lateral_conduction": {"type": "boolean", "description": "Let heat cross the edge between two triangles of one object. Turning it on rebuilds the mesh, not just a flag, because the shared edges are only carried when asked for. CPU stepper."},
+    "sun_memory_lags": {"type": "integer", "description": "How many of the sun's recent columns carry a tangent of their own, so a shading pass can trace a shadow at the hour it was cast instead of assuming it looked like now. Each slot costs a state vector and a ray per shaded pixel. CPU stepper."},
+    "sun_correction": {"type": "boolean", "description": "Carry dT/dv, so a shadow edge is resolved inside a triangle rather than at its border. Off gives one temperature per triangle, which is what the correction has to be measured against; it sizes the tangent out of the state rather than hiding it at the shader."},
+    "parameter_sensitivities": {"type": "array", "items": {"type": "string", "enum": ["h", "epsilon", "alpha", "k", "rhoc"]},
+                                "description": "Material parameters to differentiate the trajectory with respect to. Empty costs nothing. What they are for is a fit, and the viewport's what-if preview. CPU stepper."}
   }
 })";
         tool.handler = [this](const quantiloom::String& argumentsJson) {
@@ -843,6 +875,38 @@ void MainWindow::registerMcpTools() {
             if (args.contains(QStringLiteral("forcing_file"))) {
                 after.params.forcingFile =
                     args.value(QStringLiteral("forcing_file")).toString().toStdString();
+            }
+            if (args.contains(QStringLiteral("convection_model"))) {
+                after.params.convectionModel = thermalnames::convectionModelFromName(
+                    args.value(QStringLiteral("convection_model")).toString());
+            }
+            number(QStringLiteral("convection_wind_a"), after.params.convectionWindA_W_m2K);
+            number(QStringLiteral("convection_wind_b"), after.params.convectionWindB_W_s_m3K);
+            number(QStringLiteral("convection_free_c"), after.params.convectionFreeC);
+            number(QStringLiteral("convection_reference_height_m"),
+                   after.params.convectionReferenceHeight_m);
+            number(QStringLiteral("convection_stable_damping"),
+                   after.params.convectionStableDamping);
+            if (args.contains(QStringLiteral("lateral_conduction"))) {
+                after.params.lateralConduction =
+                    args.value(QStringLiteral("lateral_conduction")).toBool();
+            }
+            if (args.contains(QStringLiteral("sun_correction"))) {
+                after.params.sunCorrection =
+                    args.value(QStringLiteral("sun_correction")).toBool();
+            }
+            if (args.contains(QStringLiteral("sun_memory_lags"))) {
+                after.params.sunMemoryLags = static_cast<quantiloom::u32>(
+                    args.value(QStringLiteral("sun_memory_lags")).toInt(
+                        static_cast<int>(after.params.sunMemoryLags)));
+            }
+            if (args.contains(QStringLiteral("parameter_sensitivities"))) {
+                QStringList names;
+                for (const QJsonValue& v :
+                     args.value(QStringLiteral("parameter_sensitivities")).toArray()) {
+                    names << v.toString();
+                }
+                after.params.parameterSensitivities = thermalnames::sensitivitiesFromNames(names);
             }
 
             // Through the history, like every other route into these settings.

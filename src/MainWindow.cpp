@@ -21,6 +21,7 @@
 #include "panels/SpectralMaterialGenPanel.hpp"
 #include "panels/PropertiesPanel.hpp"
 #include "panels/CameraPanel.hpp"
+#include "ThermalNames.hpp"
 #include "panels/ComparisonPanel.hpp"
 #include "config/ConfigManager.hpp"
 #include "editing/SelectionManager.hpp"
@@ -1149,71 +1150,6 @@ void MainWindow::applyThermalEnabled(bool enabled) {
     }
     setSceneModified(true);
 }
-
-namespace {
-
-/// The convection law, by the spelling a config writes. Unknown falls back to
-/// the constant law rather than refusing the document: the SDK warns about the
-/// same string and does the same thing, and two readings of one key that
-/// disagreed would be worse than either.
-quantiloom::ThermalConvectionModel convectionModelFromName(const QString& name) {
-    if (name == QLatin1String("wind")) return quantiloom::ThermalConvectionModel::Wind;
-    if (name == QLatin1String("stability")) return quantiloom::ThermalConvectionModel::Stability;
-    return quantiloom::ThermalConvectionModel::Constant;
-}
-
-QString convectionModelName(quantiloom::ThermalConvectionModel model) {
-    switch (model) {
-        case quantiloom::ThermalConvectionModel::Wind:      return QStringLiteral("wind");
-        case quantiloom::ThermalConvectionModel::Stability: return QStringLiteral("stability");
-        case quantiloom::ThermalConvectionModel::Constant:  break;
-    }
-    return QStringLiteral("constant");
-}
-
-/// The five material parameters a trajectory can be differentiated with
-/// respect to, by the names thermal.parameter_sensitivities uses. A name this
-/// build does not know is dropped, which is what the SDK does with it too.
-quantiloom::Vector<quantiloom::ThermalSensitivityParameter>
-sensitivitiesFromNames(const QStringList& names) {
-    quantiloom::Vector<quantiloom::ThermalSensitivityParameter> out;
-    for (const QString& name : names) {
-        if (name == QLatin1String("h")) {
-            out.push_back(quantiloom::ThermalSensitivityParameter::Convection);
-        } else if (name == QLatin1String("epsilon")) {
-            out.push_back(quantiloom::ThermalSensitivityParameter::Emissivity);
-        } else if (name == QLatin1String("alpha")) {
-            out.push_back(quantiloom::ThermalSensitivityParameter::Absorptivity);
-        } else if (name == QLatin1String("k")) {
-            out.push_back(quantiloom::ThermalSensitivityParameter::Conductivity);
-        } else if (name == QLatin1String("rhoc")) {
-            out.push_back(quantiloom::ThermalSensitivityParameter::HeatCapacity);
-        }
-    }
-    return out;
-}
-
-QStringList sensitivityNames(
-    const quantiloom::Vector<quantiloom::ThermalSensitivityParameter>& parameters) {
-    QStringList out;
-    for (const auto p : parameters) {
-        switch (p) {
-            case quantiloom::ThermalSensitivityParameter::Convection:
-                out << QStringLiteral("h"); break;
-            case quantiloom::ThermalSensitivityParameter::Emissivity:
-                out << QStringLiteral("epsilon"); break;
-            case quantiloom::ThermalSensitivityParameter::Absorptivity:
-                out << QStringLiteral("alpha"); break;
-            case quantiloom::ThermalSensitivityParameter::Conductivity:
-                out << QStringLiteral("k"); break;
-            case quantiloom::ThermalSensitivityParameter::HeatCapacity:
-                out << QStringLiteral("rhoc"); break;
-        }
-    }
-    return out;
-}
-
-}  // namespace
 
 void MainWindow::applyThermalParams(const quantiloom::ThermalSolveParams& incoming) {
     // The panel builds a fresh struct from its widgets, so anything it does not
@@ -4405,7 +4341,7 @@ void MainWindow::applyConfig(const SceneConfig& config) {
     m_thermalForcingFile = config.thermalForcingFile;
     m_thermalSunCorrection = config.thermalSunCorrection;
     m_thermalDumpElements = config.thermalDumpElements;
-    m_thermalConvectionModel = convectionModelFromName(config.thermalConvectionModel);
+    m_thermalConvectionModel = thermalnames::convectionModelFromName(config.thermalConvectionModel);
     m_thermalConvectionWindA = config.thermalConvectionWindA;
     m_thermalConvectionWindB = config.thermalConvectionWindB;
     m_thermalConvectionFreeC = config.thermalConvectionFreeC;
@@ -4414,7 +4350,7 @@ void MainWindow::applyConfig(const SceneConfig& config) {
     m_thermalLateralConduction = config.thermalLateralConduction;
     m_thermalSunMemoryLags = config.thermalSunMemoryLags;
     m_thermalParameterSensitivities =
-        sensitivitiesFromNames(config.thermalParameterSensitivities);
+        thermalnames::sensitivitiesFromNames(config.thermalParameterSensitivities);
 
     // Populate the thermal panel from the config. The members above are
     // already the config's, so the panel gets exactly what the dispatchers
@@ -4631,7 +4567,7 @@ void MainWindow::collectCurrentConfig(SceneConfig& config) {
     config.thermalForcingFile = m_thermalForcingFile;
     config.thermalSunCorrection = m_thermalSunCorrection;
     config.thermalDumpElements = m_thermalDumpElements;
-    config.thermalConvectionModel = convectionModelName(m_thermalConvectionModel);
+    config.thermalConvectionModel = thermalnames::convectionModelName(m_thermalConvectionModel);
     config.thermalConvectionWindA = m_thermalConvectionWindA;
     config.thermalConvectionWindB = m_thermalConvectionWindB;
     config.thermalConvectionFreeC = m_thermalConvectionFreeC;
@@ -4639,7 +4575,7 @@ void MainWindow::collectCurrentConfig(SceneConfig& config) {
     config.thermalConvectionStableDamping = m_thermalConvectionStableDamping;
     config.thermalLateralConduction = m_thermalLateralConduction;
     config.thermalSunMemoryLags = m_thermalSunMemoryLags;
-    config.thermalParameterSensitivities = sensitivityNames(m_thermalParameterSensitivities);
+    config.thermalParameterSensitivities = thermalnames::sensitivityNames(m_thermalParameterSensitivities);
 
     config.thermographyEnabled = m_sensorPanel->isThermographyEnabled();
     config.thermography = m_sensorPanel->getThermographyParams();

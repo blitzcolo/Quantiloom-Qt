@@ -177,6 +177,7 @@ set(GUI_SOURCES
     src/SdkGuard.hpp
     src/MainWindow.cpp
     src/MainWindow.hpp
+    src/ThermalNames.hpp
     # MainWindow's MCP tool catalogue -- its own translation unit because it is
     # long, not because it is a separate class.
     src/McpTools.cpp
