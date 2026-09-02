@@ -545,6 +545,10 @@ QuantiloomVulkanWindow::thermalElementAt(const quantiloom::PickResult& pick) con
     return m_renderer->thermalElementAt(pick);
 }
 
+void QuantiloomVulkanWindow::setDebugParameter(const quantiloom::u32 value) {
+    withRenderer([value](QuantiloomVulkanRenderer& r) { r.setDebugParameter(value); });
+}
+
 quantiloom::Result<void, quantiloom::String> QuantiloomVulkanWindow::setThermalWhatIf(
     const quantiloom::ThermalSensitivityParameter parameter, const double step) {
     if (!m_renderer) {

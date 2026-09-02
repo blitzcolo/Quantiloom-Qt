@@ -1874,6 +1874,13 @@ void MainWindow::setupDockWidgets() {
                                    [this](const float& v) { applyWavelength(v); });
             });
 
+    connect(m_debugVisualizationPanel, &DebugVisualizationPanel::debugParameterChanged,
+            this, [this](quantiloom::u32 value) {
+                // No dispatcher and no history entry: this selects which of a
+                // debug view's numbers to look at, which is a way of looking
+                // rather than a change to the document.
+                m_vulkanWindow->setDebugParameter(value);
+            });
     connect(m_debugVisualizationPanel, &DebugVisualizationPanel::debugModeChanged,
             this, &MainWindow::onDebugModeChanged);
 

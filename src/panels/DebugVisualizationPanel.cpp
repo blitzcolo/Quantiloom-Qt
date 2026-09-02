@@ -8,6 +8,7 @@
 #include "../ui/ModeCatalog.hpp"
 #include "../ui/UiStyle.hpp"
 
+#include <QSpinBox>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QGroupBox>
@@ -59,6 +60,23 @@ void DebugVisualizationPanel::setupUi() {
     bindStyle([this] { uistyle::applyHintStyle(m_description); });
     modeLayout->addWidget(m_description);
 
+    // The sun column "Response to Shade" draws. Zero is the whole day, which
+    // is what a solve carrying no shadow memory has and therefore what this
+    // reads for nearly every scene; 1 and up are the individual hours a solve
+    // with sun_memory_lags remembers.
+    m_parameterCaption = new QLabel();
+    bindStyle([this] { uistyle::applyHintStyle(m_parameterCaption); });
+    m_parameterSpin = new QSpinBox();
+    m_parameterSpin->setRange(0, 8);
+    connect(m_parameterSpin, QOverload<int>::of(&QSpinBox::valueChanged), this,
+            [this](int value) {
+                emit debugParameterChanged(static_cast<quantiloom::u32>(value));
+            });
+    modeLayout->addWidget(m_parameterCaption);
+    modeLayout->addWidget(m_parameterSpin);
+    m_parameterCaption->setVisible(false);
+    m_parameterSpin->setVisible(false);
+
     bindText([this, modeGroup] {
         modeGroup->setTitle(tr("Debug Mode"));
         for (int i = 0; i < m_modeCombo->count(); ++i) {
@@ -108,11 +126,18 @@ void DebugVisualizationPanel::setupUi() {
 
 void DebugVisualizationPanel::retranslateUi() {
     PanelBase::retranslateUi();
+    m_parameterCaption->setText(tr("Sun column: 0 is the whole day, higher numbers "
+                                   "are the individual hours a solve with a shadow "
+                                   "memory remembers."));
     updateDescription(m_mode);
 }
 
 void DebugVisualizationPanel::setDebugMode(quantiloom::DebugVisualizationMode mode) {
     m_mode = mode;
+
+    const bool wantsParameter = mode == quantiloom::DebugVisualizationMode::SunSensitivity;
+    m_parameterCaption->setVisible(wantsParameter);
+    m_parameterSpin->setVisible(wantsParameter);
 
     const int index = m_modeCombo->findData(static_cast<int>(mode));
     if (index >= 0) {

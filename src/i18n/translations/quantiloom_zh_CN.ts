@@ -429,6 +429,10 @@ Help ▸ Reading Debug Output explains the colour encodings.</source>
 颜色编码的含义见「帮助 ▸ 调试输出判读」。</translation>
     </message>
     <message>
+        <source>Sun column: 0 is the whole day, higher numbers are the individual hours a solve with a shadow memory remembers.</source>
+        <translation>太阳列：0 表示全天，更大的数字对应带阴影记忆的求解所记住的各个时刻。</translation>
+    </message>
+    <message>
         <source>%1, %2 px</source>
         <translation>%1, %2 px</translation>
     </message>

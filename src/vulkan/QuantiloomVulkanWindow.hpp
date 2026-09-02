@@ -152,6 +152,7 @@ public:
      * @brief Set debug visualization mode
      */
     void setDebugMode(quantiloom::DebugVisualizationMode mode);
+    void setDebugParameter(quantiloom::u32 value);
 
     /**
      * @brief Update lighting parameters

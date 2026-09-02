@@ -419,6 +419,10 @@ public:
     [[nodiscard]] quantiloom::Result<void, quantiloom::String> setThermalWhatIf(
         quantiloom::ThermalSensitivityParameter parameter, double step);
 
+    /// The one number a debug view may need; SunSensitivity reads it as the
+    /// sun column to draw. Ignored by every other view.
+    void setDebugParameter(quantiloom::u32 value);
+
     // ========================================================================
     // Display Enhancement
     // ========================================================================

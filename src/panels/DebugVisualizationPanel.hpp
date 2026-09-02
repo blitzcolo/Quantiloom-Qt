@@ -17,6 +17,7 @@
 
 QT_BEGIN_NAMESPACE
 class QComboBox;
+class QSpinBox;
 class QLabel;
 class QGroupBox;
 QT_END_NAMESPACE
@@ -40,6 +41,8 @@ public:
 
 signals:
     void debugModeChanged(quantiloom::DebugVisualizationMode mode);
+    /// The one number the selected view needs, when it needs one.
+    void debugParameterChanged(quantiloom::u32 value);
 
 private slots:
     void onModeChanged(int index);
@@ -51,6 +54,11 @@ private:
     quantiloom::DebugVisualizationMode m_mode = quantiloom::DebugVisualizationMode::None;
 
     QComboBox* m_modeCombo = nullptr;
+    /// Which sun column "Response to Shade" draws. Shown only for that view,
+    /// because it is the only one with a parameter and a spin box that does
+    /// nothing beside every other mode is worse than no spin box.
+    QLabel* m_parameterCaption = nullptr;
+    QSpinBox* m_parameterSpin = nullptr;
     QLabel* m_description = nullptr;
     QLabel* m_categoryLabel = nullptr;
 

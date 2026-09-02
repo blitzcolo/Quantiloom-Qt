@@ -424,6 +424,10 @@ Help ▸ Reading Debug Output explains the colour encodings.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Sun column: 0 is the whole day, higher numbers are the individual hours a solve with a shadow memory remembers.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>%1, %2 px</source>
         <translation type="unfinished"></translation>
     </message>
