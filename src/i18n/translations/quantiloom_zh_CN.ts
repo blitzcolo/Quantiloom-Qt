@@ -1137,6 +1137,10 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation>传感器参数已更新</translation>
     </message>
     <message>
+        <source>The thermal solve is off.</source>
+        <translation>热求解已关闭。</translation>
+    </message>
+    <message>
         <source>Display enhancement off</source>
         <translation>已关闭显示增强</translation>
     </message>
@@ -3738,6 +3742,18 @@ Coverage — %3</source>
         <translation>状态</translation>
     </message>
     <message>
+        <source>Probe</source>
+        <translation>探针</translation>
+    </message>
+    <message>
+        <source>Click a surface in the viewport.</source>
+        <translation>在视口中点选一个表面。</translation>
+    </message>
+    <message>
+        <source>Click a surface to see its day and what heated it.</source>
+        <translation>点选一个表面，查看它一天的温度以及是什么加热了它。</translation>
+    </message>
+    <message>
         <source>Elements: %1 (%2 solved)</source>
         <translation>单元: %1（%2 已求解）</translation>
     </message>
@@ -3760,6 +3776,14 @@ Coverage — %3</source>
     <message>
         <source>Stepper: %1</source>
         <translation>步进器: %1</translation>
+    </message>
+    <message>
+        <source>Element %1: nothing to show.</source>
+        <translation>单元 %1：无可显示的内容。</translation>
+    </message>
+    <message>
+        <source>Element %1, %2 to %3 K over the day.</source>
+        <translation>单元 %1，全天 %2 至 %3 K。</translation>
     </message>
     <message>
         <source>Select Forcing CSV</source>
@@ -4372,6 +4396,57 @@ Right-drag orbits the camera, middle-drag pans, the wheel zooms; G/R/T switch tr
     <message>
         <source>Wavelength (nm)</source>
         <translation>波长 (nm)</translation>
+    </message>
+</context>
+<context>
+    <name>uiplot::TrajectoryPlotWidget</name>
+    <message>
+        <source>Surface</source>
+        <translation>表面</translation>
+    </message>
+    <message>
+        <source>Back face</source>
+        <translation>背面</translation>
+    </message>
+    <message>
+        <source>Sun</source>
+        <translation>太阳</translation>
+    </message>
+    <message>
+        <source>Long wave</source>
+        <translation>长波</translation>
+    </message>
+    <message>
+        <source>Convection</source>
+        <translation>对流</translation>
+    </message>
+    <message>
+        <source>Evaporation</source>
+        <translation>蒸发</translation>
+    </message>
+    <message>
+        <source>Into the slab</source>
+        <translation>导入板内</translation>
+    </message>
+    <message>
+        <source>Across edges</source>
+        <translation>跨边传导</translation>
+    </message>
+    <message>
+        <source>Hour</source>
+        <translation>时刻</translation>
+    </message>
+    <message>
+        <source>Temperature (K)</source>
+        <translation>温度 (K)</translation>
+    </message>
+    <message>
+        <source>Flux (W/m2), into the surface</source>
+        <translation>热流 (W/m2)，以流入表面为正</translation>
+    </message>
+    <message>
+        <source>No flux breakdown: this solve ran on a stepper that does not decompose its own energy balance.</source>
+        <translation>无热流分解：本次求解所用的步进器不分解自身的能量平衡。</translation>
     </message>
 </context>
 </TS>

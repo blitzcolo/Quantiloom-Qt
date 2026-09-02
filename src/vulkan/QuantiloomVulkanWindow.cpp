@@ -537,6 +537,25 @@ quantiloom::ThermalSolveStatus QuantiloomVulkanWindow::thermalSolveStatus() cons
     return {};
 }
 
+quantiloom::Result<quantiloom::u32, quantiloom::String>
+QuantiloomVulkanWindow::thermalElementAt(const quantiloom::PickResult& pick) const {
+    if (!m_renderer) {
+        return quantiloom::Result<quantiloom::u32, quantiloom::String>::Err("no renderer");
+    }
+    return m_renderer->thermalElementAt(pick);
+}
+
+quantiloom::Result<quantiloom::ThermalElementTrajectory, quantiloom::String>
+QuantiloomVulkanWindow::elementTrajectory(const quantiloom::u32 element,
+                                          const double fromHour, const double toHour,
+                                          const quantiloom::u32 samples) {
+    if (!m_renderer) {
+        return quantiloom::Result<quantiloom::ThermalElementTrajectory,
+                                  quantiloom::String>::Err("no renderer");
+    }
+    return m_renderer->elementTrajectory(element, fromHour, toHour, samples);
+}
+
 // ============================================================================
 // Viewport Overlay
 // ============================================================================

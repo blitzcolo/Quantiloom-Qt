@@ -5,6 +5,8 @@
 
 #include "ThermalPanel.hpp"
 
+#include <algorithm>
+
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDoubleSpinBox>
@@ -191,6 +193,19 @@ void ThermalPanel::setupUi() {
     statusLayout->addWidget(m_statusError);
     mainLayout->addWidget(m_statusGroup);
 
+    // The probe. Given real height rather than left to the layout: a chart
+    // squeezed into two rows of a docked panel is a chart nobody reads, and
+    // this one is the answer to the question the controls above raise.
+    m_probeGroup = new QGroupBox(this);
+    auto* probeLayout = new QVBoxLayout(m_probeGroup);
+    m_probeCaption = new QLabel(m_probeGroup);
+    m_probeCaption->setWordWrap(true);
+    m_probePlot = new uiplot::TrajectoryPlotWidget(m_probeGroup);
+    m_probePlot->setMinimumHeight(260);
+    probeLayout->addWidget(m_probeCaption);
+    probeLayout->addWidget(m_probePlot, 1);
+    mainLayout->addWidget(m_probeGroup, 1);
+
     mainLayout->addStretch();
 
     retranslateUi();
@@ -223,6 +238,13 @@ void ThermalPanel::retranslateUi() {
                "one temperature per triangle, which is what the correction has to "
                "be measured against."));
         m_statusGroup->setTitle(tr("Status"));
+        m_probeGroup->setTitle(tr("Probe"));
+        m_probePlot->setPlaceholderText(tr("Click a surface in the viewport."));
+        m_probePlot->retranslate();
+        if (m_probeCaption->text().isEmpty() || m_probeElement < 0) {
+            m_probeCaption->setText(tr("Click a surface to see its day and what "
+                                       "heated it."));
+        }
     });
 }
 
@@ -344,6 +366,30 @@ quantiloom::ThermalSolveParams ThermalPanel::params() const {
     p.parameterSensitivities = m_parameterSensitivities;
     p.dumpElementsFile = m_dumpElementsFile;
     return p;
+}
+
+void ThermalPanel::setProbe(const quantiloom::u32 element,
+                            const quantiloom::ThermalElementTrajectory& trajectory) {
+    m_probeElement = static_cast<int>(element);
+    m_probePlot->setTrajectory(trajectory);
+    if (trajectory.surfaceTemperature_K.empty()) {
+        m_probeCaption->setText(tr("Element %1: nothing to show.").arg(element));
+        return;
+    }
+    const auto [lo, hi] = std::minmax_element(trajectory.surfaceTemperature_K.begin(),
+                                              trajectory.surfaceTemperature_K.end());
+    m_probeCaption->setText(tr("Element %1, %2 to %3 K over the day.")
+                                .arg(element)
+                                .arg(*lo, 0, 'f', 1)
+                                .arg(*hi, 0, 'f', 1));
+}
+
+void ThermalPanel::clearProbe(const QString& reason) {
+    m_probeElement = -1;
+    m_probePlot->clear();
+    m_probeCaption->setText(reason.isEmpty()
+                                ? tr("Click a surface to see its day and what heated it.")
+                                : reason);
 }
 
 double ThermalPanel::time() const {

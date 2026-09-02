@@ -1140,6 +1140,12 @@ void MainWindow::applyThermalEnabled(bool enabled) {
         m_thermalPanel->setSolveEnabled(enabled);
     }
     m_thermalPanel->updateStatus(m_vulkanWindow->thermalSolveStatus());
+    // A probe of a solve that is off is a chart of nothing. Cleared rather
+    // than left standing, because a stale curve beside a switched-off solve is
+    // the kind of thing a reader believes.
+    if (!enabled) {
+        m_thermalPanel->clearProbe(tr("The thermal solve is off."));
+    }
     setSceneModified(true);
 }
 
@@ -4756,6 +4762,40 @@ void MainWindow::onViewportClicked(const QPointF& screenPos, Qt::KeyboardModifie
         // A real miss (the ray reached the sky), not a failed pick
         m_selectionManager->clearSelection();
     }
+
+    // The same click also aims the thermal probe. One gesture rather than a
+    // mode to enter, because the question it answers -- why is that surface
+    // that temperature -- is asked while looking at the surface, and a probe
+    // costs a replay from checkpoints rather than a solve.
+    updateThermalProbe(hit ? std::optional<quantiloom::PickResult>(*hit) : std::nullopt);
+}
+
+void MainWindow::updateThermalProbe(const std::optional<quantiloom::PickResult>& hit) {
+    if (!m_thermalEnabled) {
+        m_thermalPanel->clearProbe(tr("The thermal solve is off."));
+        return;
+    }
+    if (!hit || !hit->hit) {
+        m_thermalPanel->clearProbe();
+        return;
+    }
+
+    const auto element = m_vulkanWindow->thermalElementAt(*hit);
+    if (!element.has_value()) {
+        m_thermalPanel->clearProbe(QString::fromStdString(element.error()));
+        return;
+    }
+
+    // The whole day rather than the hour on screen: what a probe is for is the
+    // shape of the curve, and one point of it is what the viewport already
+    // shows. Sampled every quarter hour, which is finer than any forcing file
+    // this reads and cheap enough to redo on every click.
+    const auto trajectory = m_vulkanWindow->elementTrajectory(element.value(), 0.0, 24.0, 97);
+    if (!trajectory.has_value()) {
+        m_thermalPanel->clearProbe(QString::fromStdString(trajectory.error()));
+        return;
+    }
+    m_thermalPanel->setProbe(element.value(), trajectory.value());
 }
 
 void MainWindow::onSelectionChanged(const QSet<int>& selectedNodes) {

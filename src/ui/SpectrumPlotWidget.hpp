@@ -56,8 +56,20 @@ public:
     void setSeries(const QVector<Series>& series);
     void clear();
 
-    /// Y-axis caption. The X axis is always wavelength in nanometres.
+    /// Y-axis caption.
     void setValueAxisTitle(const QString& title);
+
+    /// X-axis caption. Wavelength in nanometres unless something says
+    /// otherwise, which is what this chart draws almost every time; a
+    /// trajectory against time is the exception that made it a setting.
+    void setDomainAxisTitle(const QString& title);
+
+    /// Whether the value axis includes zero whatever the data does. True for a
+    /// spectral quantity, which is non-negative and reads wrong on an axis
+    /// that starts at its own minimum. False for anything signed or far from
+    /// zero -- a flux, or a temperature near 300 K, where anchoring flattens
+    /// the whole curve against the top of the chart.
+    void setAnchorValueAxisAtZero(bool anchor);
 
     /// Text shown when there is nothing to draw -- "select a material", not an
     /// empty rectangle that gives no hint whether anything is wrong.
@@ -74,6 +86,8 @@ private:
     QLabel* m_placeholder = nullptr;
     QVector<Series> m_series;
     QString m_valueAxisTitle;
+    QString m_domainAxisTitle;
+    bool m_anchorAtZero = true;
     uistyle::StyleBindings m_styling;
 };
 

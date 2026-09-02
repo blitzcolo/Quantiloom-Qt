@@ -32,7 +32,10 @@
 #include <postprocess/SensorModel.hpp>
 #include <postprocess/Thermography.hpp>
 #include <renderer/DisplayControl.hpp>
+#include <renderer/Pick.hpp>
 #include <renderer/ThermalControl.hpp>
+
+#include <optional>
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 
@@ -283,6 +286,12 @@ private:
     /// panel showing what the user last typed rather than what is running.
     void applyThermalEnabled(bool enabled);
     void applyThermalParams(const quantiloom::ThermalSolveParams& incoming);
+
+    /// Point the thermal probe at whatever a click landed on, or say why it
+    /// could not. Every path through it leaves the panel saying something,
+    /// because a chart that silently keeps the previous element is worse than
+    /// an empty one.
+    void updateThermalProbe(const std::optional<quantiloom::PickResult>& hit);
     void applyThermalTime(double time_h);
     /// Push one material's thermal properties into the running solve, so a
     /// wetness or a thickness edit moves the viewport rather than only the

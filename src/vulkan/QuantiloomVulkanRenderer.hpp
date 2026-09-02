@@ -405,6 +405,16 @@ public:
     void setThermalTime(double time_h);
     [[nodiscard]] quantiloom::ThermalSolveStatus thermalSolveStatus() const;
 
+    /// The thermal element under a pick, and one element's history. Both are
+    /// read-only: the trajectory replays from checkpoints and puts the hour the
+    /// viewport is showing back before it returns, so a probe cannot move the
+    /// picture it is a probe of.
+    [[nodiscard]] quantiloom::Result<quantiloom::u32, quantiloom::String> thermalElementAt(
+        const quantiloom::PickResult& pick) const;
+    [[nodiscard]] quantiloom::Result<quantiloom::ThermalElementTrajectory, quantiloom::String>
+    elementTrajectory(quantiloom::u32 element, double fromHour, double toHour,
+                      quantiloom::u32 samples);
+
     // ========================================================================
     // Display Enhancement
     // ========================================================================

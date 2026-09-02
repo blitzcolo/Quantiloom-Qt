@@ -1094,6 +1094,10 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>The thermal solve is off.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Display enhancement off</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3695,6 +3699,18 @@ Coverage — %3</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Probe</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Click a surface in the viewport.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Click a surface to see its day and what heated it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Elements: %1 (%2 solved)</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3716,6 +3732,14 @@ Coverage — %3</source>
     </message>
     <message>
         <source>Stepper: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Element %1: nothing to show.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Element %1, %2 to %3 K over the day.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -4328,6 +4352,57 @@ Right-drag orbits the camera, middle-drag pans, the wheel zooms; G/R/T switch tr
     <message>
         <source>Wavelength (nm)</source>
         <translation type="unfinished">Wavelength (nm)</translation>
+    </message>
+</context>
+<context>
+    <name>uiplot::TrajectoryPlotWidget</name>
+    <message>
+        <source>Surface</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Back face</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sun</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Long wave</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Convection</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Evaporation</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Into the slab</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Across edges</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Hour</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Temperature (K)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Flux (W/m2), into the surface</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No flux breakdown: this solve ran on a stepper that does not decompose its own energy balance.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 </TS>

@@ -89,6 +89,16 @@ void SpectrumPlotWidget::setValueAxisTitle(const QString& title) {
     rebuild();
 }
 
+void SpectrumPlotWidget::setDomainAxisTitle(const QString& title) {
+    m_domainAxisTitle = title;
+    rebuild();
+}
+
+void SpectrumPlotWidget::setAnchorValueAxisAtZero(const bool anchor) {
+    m_anchorAtZero = anchor;
+    rebuild();
+}
+
 void SpectrumPlotWidget::setPlaceholderText(const QString& text) {
     m_placeholder->setText(text);
 }
@@ -121,8 +131,9 @@ void SpectrumPlotWidget::rebuild() {
 
     double lambdaMin = std::numeric_limits<double>::max();
     double lambdaMax = std::numeric_limits<double>::lowest();
-    double valueMin = 0.0;   // spectral quantities are non-negative; anchor at 0
-    double valueMax = std::numeric_limits<double>::lowest();
+    double valueMin = m_anchorAtZero ? 0.0 : std::numeric_limits<double>::max();
+    double valueMax = m_anchorAtZero ? std::numeric_limits<double>::lowest() : 0.0;
+    if (!m_anchorAtZero) valueMax = std::numeric_limits<double>::lowest();
 
     for (const Series& s : m_series) {
         if (s.points.isEmpty()) continue;
@@ -142,14 +153,23 @@ void SpectrumPlotWidget::rebuild() {
     }
 
     auto* axisX = new QValueAxis();
-    axisX->setTitleText(tr("Wavelength (nm)"));
+    axisX->setTitleText(m_domainAxisTitle.isEmpty() ? tr("Wavelength (nm)")
+                                                    : m_domainAxisTitle);
     axisX->setRange(lambdaMin, lambdaMax);
     chart->addAxis(axisX, Qt::AlignBottom);
 
     auto* axisY = new QValueAxis();
     axisY->setTitleText(m_valueAxisTitle);
-    // A flat curve at zero would otherwise collapse the axis to a point.
-    axisY->setRange(valueMin, valueMax > valueMin ? valueMax * 1.05 : valueMin + 1.0);
+    // A flat curve would otherwise collapse the axis to a point. Anchored at
+    // zero the headroom is a fraction of the peak; unanchored it is a fraction
+    // of the span, since the peak may be 300 and the span 3.
+    if (valueMax > valueMin) {
+        const double margin = m_anchorAtZero ? 0.05 * valueMax
+                                             : 0.05 * (valueMax - valueMin);
+        axisY->setRange(m_anchorAtZero ? valueMin : valueMin - margin, valueMax + margin);
+    } else {
+        axisY->setRange(valueMin, valueMin + 1.0);
+    }
     chart->addAxis(axisY, Qt::AlignLeft);
 
     const auto seriesList = chart->series();

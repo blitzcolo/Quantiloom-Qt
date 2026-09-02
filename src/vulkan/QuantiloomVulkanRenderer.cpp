@@ -1571,6 +1571,25 @@ quantiloom::ThermalSolveStatus QuantiloomVulkanRenderer::thermalSolveStatus() co
     return {};
 }
 
+quantiloom::Result<quantiloom::u32, quantiloom::String>
+QuantiloomVulkanRenderer::thermalElementAt(const quantiloom::PickResult& pick) const {
+    if (!m_renderContext) {
+        return quantiloom::Result<quantiloom::u32, quantiloom::String>::Err("no renderer");
+    }
+    return m_renderContext->ThermalElementAt(pick);
+}
+
+quantiloom::Result<quantiloom::ThermalElementTrajectory, quantiloom::String>
+QuantiloomVulkanRenderer::elementTrajectory(const quantiloom::u32 element,
+                                            const double fromHour, const double toHour,
+                                            const quantiloom::u32 samples) {
+    if (!m_renderContext) {
+        return quantiloom::Result<quantiloom::ThermalElementTrajectory,
+                                  quantiloom::String>::Err("no renderer");
+    }
+    return m_renderContext->GetElementTrajectory(element, fromHour, toHour, samples);
+}
+
 // ============================================================================
 // Sensor Simulation
 // ============================================================================

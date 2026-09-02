@@ -382,6 +382,11 @@ public:
     void setThermalSolveEnabled(bool enabled);
     void setThermalTime(double time_h);
     [[nodiscard]] quantiloom::ThermalSolveStatus thermalSolveStatus() const;
+    [[nodiscard]] quantiloom::Result<quantiloom::u32, quantiloom::String> thermalElementAt(
+        const quantiloom::PickResult& pick) const;
+    [[nodiscard]] quantiloom::Result<quantiloom::ThermalElementTrajectory, quantiloom::String>
+    elementTrajectory(quantiloom::u32 element, double fromHour, double toHour,
+                      quantiloom::u32 samples);
 
     // ========================================================================
     // Display Enhancement

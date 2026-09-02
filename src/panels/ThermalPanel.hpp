@@ -6,6 +6,7 @@
 #pragma once
 
 #include "../ui/PanelBase.hpp"
+#include "../ui/TrajectoryPlotWidget.hpp"
 
 #include <renderer/ThermalControl.hpp>
 
@@ -34,6 +35,15 @@ public:
     void setSolveEnabled(bool enabled);
     void setParams(const quantiloom::ThermalSolveParams& params);
     void setTime(double time_h);
+
+    /// Show one element's day. Called after a click in the viewport resolves
+    /// to an element the solve carries; @p element is only for the caption.
+    void setProbe(quantiloom::u32 element,
+                  const quantiloom::ThermalElementTrajectory& trajectory);
+    /// No element probed, or the last click did not land on one the solve
+    /// carries. The reason is the caption, because "nothing here" and "that
+    /// surface is not solved" send a user to different places.
+    void clearProbe(const QString& reason = {});
     void updateStatus(const quantiloom::ThermalSolveStatus& status);
 
     [[nodiscard]] bool isSolveEnabled() const;
@@ -109,6 +119,16 @@ private:
     QLabel* m_statusExchange = nullptr;
     QLabel* m_statusStepper = nullptr;
     QLabel* m_statusError = nullptr;
+
+    /// The probe: one element's temperatures and the fluxes that made them.
+    /// In this panel rather than a dock of its own because it answers the
+    /// question the controls above raise -- why is that surface that
+    /// temperature -- and the answer reads best beside them.
+    QGroupBox* m_probeGroup = nullptr;
+    QLabel* m_probeCaption = nullptr;
+    uiplot::TrajectoryPlotWidget* m_probePlot = nullptr;
+    /// -1 when nothing is probed, which is what the caption reads off.
+    int m_probeElement = -1;
 
     /// Fields of ThermalSolveParams the panel does not show. They still have
     /// to survive a round trip: params() builds the whole struct, so anything
