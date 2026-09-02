@@ -69,7 +69,7 @@ exported symbols). `src/libQuantiloom/CLAUDE.md` over there has the rule.
 
 | Path | What |
 |---|---|
-| `src/panels/` | 12 dockable parameter panels — most feature work lands here |
+| `src/panels/` | 13 dockable parameter panels — most feature work lands here |
 | `src/ui/` | Shell infrastructure: `PanelBase`, the debug/spectral `ModeCatalog`, workspaces, the viewport frame, shared styling |
 | `src/ui/theme/` | The nine themes as data (`Theme`) and the runtime switcher (`ThemeManager`). A theme is a style key, a palette, a few accent colours and an optional style sheet — adding one is a function returning a `Theme`, not code |
 | `src/dialogs/` | Preferences and the generated help pages |
@@ -82,6 +82,34 @@ exported symbols). `src/libQuantiloom/CLAUDE.md` over there has the rule.
 
 `src/panels/`, `src/vulkan/`, `src/config/` and `src/i18n/` each have their own
 `CLAUDE.md` with the constraints that apply there.
+
+## What a thermal scene can be asked here
+
+Three things the viewport does with derivatives the SDK's solve already
+carries, all of them read-only against the trajectory:
+
+- **A probe.** The click that selects a node also aims it: `ThermalElementAt`
+  turns the pick into an element and `GetElementTrajectory` replays that
+  element's whole day, which `TrajectoryPlotWidget` draws as temperatures above
+  and the six surface fluxes that produced them below. Two charts, because
+  kelvin near 300 and watts per square metre either side of zero on one axis
+  leaves the temperatures a flat line and the fluxes unreadable. Nothing is
+  re-solved and the hour on screen is restored, so a probe cannot move the
+  picture it is a probe of.
+- **A what-if slider.** `SetThermalWhatIf` renders `T + dT/dp * step`, so the
+  viewport follows a drag that a re-solve could not. The first ask about a
+  parameter adds it to `parameterSensitivities` and costs one re-solve, because
+  carrying a derivative is a solve change; every move after it costs a
+  re-render. That difference is the point of having it.
+- **Two debug views.** `SunSensitivity` draws what the shadow-edge correction
+  is worth per triangle, `ThermalSensitivity` draws dT/dp signed.
+
+And a comparison panel, which loads a reference EXR and reports bias, RMSE, the
+95th percentile and the worst pixel against the current frame, per channel. It
+reads the frame when asked rather than continuously — a path-traced image is
+still accumulating, and statistics against a moving image are statistics about
+the noise — and it refuses to resample a mismatched resolution, because what a
+resampling does to a radiance belongs to whoever made the measurement.
 
 ## Shell shape
 
