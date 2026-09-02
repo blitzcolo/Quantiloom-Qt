@@ -133,7 +133,13 @@ bool SameThermalParams(const quantiloom::ThermalSolveParams& a,
            a.skyTemperature_K == b.skyTemperature_K &&
            a.relativeHumidity == b.relativeHumidity &&
            a.forcingFile == b.forcingFile &&
-           a.checkpointStride_h == b.checkpointStride_h;
+           a.checkpointStride_h == b.checkpointStride_h &&
+           a.convectionModel == b.convectionModel &&
+           a.convectionWindA_W_m2K == b.convectionWindA_W_m2K &&
+           a.convectionWindB_W_s_m3K == b.convectionWindB_W_s_m3K &&
+           a.convectionFreeC == b.convectionFreeC &&
+           a.convectionReferenceHeight_m == b.convectionReferenceHeight_m &&
+           a.convectionStableDamping == b.convectionStableDamping;
 }
 
 /// The thermal solve as one undoable value. Three things the user thinks of
