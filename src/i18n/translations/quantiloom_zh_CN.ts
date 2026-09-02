@@ -323,6 +323,77 @@ Leave empty to auto-detect.</source>
     </message>
 </context>
 <context>
+    <name>ComparisonPanel</name>
+    <message>
+        <source>Comparison</source>
+        <translation>比对</translation>
+    </message>
+    <message>
+        <source>Load reference...</source>
+        <translation>载入参考...</translation>
+    </message>
+    <message>
+        <source>Compare with the current frame</source>
+        <translation>与当前帧比对</translation>
+    </message>
+    <message>
+        <source>No reference loaded. An EXR of a measurement, or of another render.</source>
+        <translation>尚未载入参考。可以是一次实测的 EXR，也可以是另一次渲染的。</translation>
+    </message>
+    <message>
+        <source>Load a reference, then compare.</source>
+        <translation>先载入参考，再进行比对。</translation>
+    </message>
+    <message>
+        <source>Load reference image</source>
+        <translation>载入参考图像</translation>
+    </message>
+    <message>
+        <source>OpenEXR (*.exr);;All files (*)</source>
+        <translation>OpenEXR (*.exr);;所有文件 (*)</translation>
+    </message>
+    <message>
+        <source>Could not read %1.</source>
+        <translation>无法读取 %1。</translation>
+    </message>
+    <message>
+        <source>Channel %1</source>
+        <translation>通道 %1</translation>
+    </message>
+    <message>
+        <source>%1: %2 x %3, %4 channel(s).</source>
+        <translation>%1：%2 x %3，%4 个通道。</translation>
+    </message>
+    <message>
+        <source>Reference loaded. Compare to read the current frame.</source>
+        <translation>参考已载入。点击比对以读取当前帧。</translation>
+    </message>
+    <message>
+        <source>The frame is %1 x %2 and the reference is %3 x %4. Match the render resolution to the reference rather than resampling either -- what a resampling does to a radiance belongs to whoever made the measurement.</source>
+        <translation>当前帧为 %1 x %2，参考为 %3 x %4。请把渲染分辨率调整为与参考一致，而不要对任何一方重采样——重采样对辐亮度做了什么，应由做测量的人来决定。</translation>
+    </message>
+    <message>
+        <source>That channel is not in both images.</source>
+        <translation>该通道并非两幅图像都有。</translation>
+    </message>
+    <message>
+        <source>Against %1, channel %2:
+  reference mean  %3
+  bias            %4  (%5%)
+  RMSE            %6
+  95th percentile %7
+  worst pixel     %8
+Bias is the render minus the reference, so positive means brighter.</source>
+        <translation>对照 %1，通道 %2：
+  参考均值    %3
+  偏差        %4  (%5%)
+  RMSE        %6
+  95 分位     %7
+  最差像素    %8
+偏差为渲染减去参考，因此为正表示更亮。</translation>
+    </message>
+</context>
+<context>
     <name>ConfigManager</name>
     <message>
         <source>Cannot open file for writing: %1</source>
@@ -1231,6 +1302,10 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
     <message>
         <source>Sensor parameters</source>
         <translation>传感器参数</translation>
+    </message>
+    <message>
+        <source>Could not read the current frame.</source>
+        <translation>无法读取当前帧。</translation>
     </message>
     <message>
         <source>Thermal time</source>

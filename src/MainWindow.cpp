@@ -21,6 +21,7 @@
 #include "panels/SpectralMaterialGenPanel.hpp"
 #include "panels/PropertiesPanel.hpp"
 #include "panels/CameraPanel.hpp"
+#include "panels/ComparisonPanel.hpp"
 #include "config/ConfigManager.hpp"
 #include "editing/SelectionManager.hpp"
 #include "editing/TransformGizmo.hpp"
@@ -1781,6 +1782,7 @@ void MainWindow::setupDockWidgets() {
     m_displayEnhancementPanel = new DisplayEnhancementPanel();
     m_thermalPanel = new ThermalPanel();
     m_spectralMaterialGenPanel = new SpectralMaterialGenPanel();
+    m_comparisonPanel = new ComparisonPanel();
 
     // Display enhancement is one checkbox and three parameters; it is a group
     // inside the render panel rather than a top-level dock of its own.
@@ -1797,6 +1799,7 @@ void MainWindow::setupDockWidgets() {
     createPanelDock(m_spectralLibraryPanel, Qt::RightDockWidgetArea);
     createPanelDock(m_debugVisualizationPanel, Qt::RightDockWidgetArea);
     createPanelDock(m_thermalPanel, Qt::RightDockWidgetArea);
+    createPanelDock(m_comparisonPanel, Qt::RightDockWidgetArea);
 
     // The generator is a full offline workflow -- table, chart, file import and
     // export -- and wants width. It lives as a floating tool window opened from
@@ -2027,6 +2030,18 @@ void MainWindow::setupDockWidgets() {
             this, &MainWindow::applyThermalTime);
     connect(m_thermalPanel, &ThermalPanel::whatIfChanged,
             this, &MainWindow::applyThermalWhatIf);
+
+    // The panel asks for a frame rather than reading one every time it wants
+    // to: a path-traced image is still moving while it accumulates, and
+    // statistics against a moving image are statistics about the noise.
+    connect(m_comparisonPanel, &ComparisonPanel::frameRequested, this, [this] {
+        auto frame = m_vulkanWindow->captureScreenshot();
+        if (!frame) {
+            showStatusMessage(tr("Could not read the current frame."));
+            return;
+        }
+        m_comparisonPanel->setRenderedImage(std::move(frame));
+    });
     connect(m_thermalPanel, &ThermalPanel::editGestureStarted,
             this, [this] {
                 m_thermalTimeBeforeGesture = m_thermalTimeH;

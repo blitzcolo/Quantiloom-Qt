@@ -79,6 +79,7 @@ class AtmosphericPanel;
 class SensorPanel;
 class DisplayEnhancementPanel;
 class SpectralMaterialGenPanel;
+class ComparisonPanel;
 class ThermalPanel;
 class ConfigManager;
 class ViewportFrame;
@@ -481,6 +482,7 @@ private:
     SensorPanel* m_sensorPanel = nullptr;
     DisplayEnhancementPanel* m_displayEnhancementPanel = nullptr;
     SpectralMaterialGenPanel* m_spectralMaterialGenPanel = nullptr;
+    ComparisonPanel* m_comparisonPanel = nullptr;
     ThermalPanel* m_thermalPanel = nullptr;
 
     // Display enhancement (CLAHE) settings

@@ -325,6 +325,71 @@ Leave empty to auto-detect.</source>
     </message>
 </context>
 <context>
+    <name>ComparisonPanel</name>
+    <message>
+        <source>Comparison</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Load reference...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Compare with the current frame</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No reference loaded. An EXR of a measurement, or of another render.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Load a reference, then compare.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Load reference image</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>OpenEXR (*.exr);;All files (*)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Could not read %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Channel %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1: %2 x %3, %4 channel(s).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Reference loaded. Compare to read the current frame.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The frame is %1 x %2 and the reference is %3 x %4. Match the render resolution to the reference rather than resampling either -- what a resampling does to a radiance belongs to whoever made the measurement.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>That channel is not in both images.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Against %1, channel %2:
+  reference mean  %3
+  bias            %4  (%5%)
+  RMSE            %6
+  95th percentile %7
+  worst pixel     %8
+Bias is the render minus the reference, so positive means brighter.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>ConfigManager</name>
     <message>
         <source>Cannot open file for writing: %1</source>
@@ -1183,6 +1248,10 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
     </message>
     <message>
         <source>Sensor parameters</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Could not read the current frame.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

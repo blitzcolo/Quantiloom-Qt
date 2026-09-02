@@ -245,7 +245,9 @@ set(GUI_SOURCES
     src/panels/PropertiesPanel.cpp
     src/panels/PropertiesPanel.hpp
     src/panels/CameraPanel.cpp
+    src/panels/ComparisonPanel.cpp
     src/panels/CameraPanel.hpp
+    src/panels/ComparisonPanel.hpp
     # Configuration management
     src/config/ConfigManager.cpp
     src/config/ConfigManager.hpp
