@@ -5000,6 +5000,10 @@ Right-drag orbits the camera, middle-drag pans, the wheel zooms; G/R/T switch tr
         <translation>RGB（默认）</translation>
     </message>
     <message>
+        <source>VIS (Sampled Wavelengths)</source>
+        <translation>可见光（采样波长）</translation>
+    </message>
+    <message>
         <source>VIS Fused (32-band Spectral)</source>
         <translation>可见光融合（32 波段光谱）</translation>
     </message>
@@ -5012,8 +5016,12 @@ Right-drag orbits the camera, middle-drag pans, the wheel zooms; G/R/T switch tr
         <translation>快速 RGB 渲染，不做光谱积分，适合实时预览。</translation>
     </message>
     <message>
-        <source>32-wavelength spectral integration with CIE XYZ color matching. Physically accurate but slower.</source>
-        <translation>32 个波长的光谱积分，配合 CIE XYZ 配色函数。物理更准确，但更慢。</translation>
+        <source>Four sampled wavelengths a path, weighted into CIE XYZ. Follows refraction wavelength by wavelength; converges with samples rather than being exact at one.</source>
+        <translation>每条路径四个采样波长，加权进 CIE XYZ。逐波长跟随折射；靠样本数收敛，而非在单一样本处精确。</translation>
+    </message>
+    <message>
+        <source>32-wavelength spectral integration with CIE XYZ color matching. No variance in wavelength, so it is the reference the sampled mode is measured against.</source>
+        <translation>32 个波长的光谱积分，配合 CIE XYZ 配色函数。波长上没有方差，因此用作采样模式的比对基准。</translation>
     </message>
     <message>
         <source>Monochromatic rendering at a single wavelength. Useful for spectral analysis and wavelength-specific effects.</source>

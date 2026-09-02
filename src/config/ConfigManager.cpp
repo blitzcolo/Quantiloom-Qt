@@ -642,6 +642,7 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
     QString modeStr;
     switch (config.spectralMode) {
         case quantiloom::SpectralMode::Single: modeStr = "single"; break;
+        case quantiloom::SpectralMode::VIS_Hero: modeStr = "vis_hero"; break;
         case quantiloom::SpectralMode::VIS_Fused: modeStr = "vis_fused"; break;
         case quantiloom::SpectralMode::MWIR_Fused: modeStr = "mwir_fused"; break;
         case quantiloom::SpectralMode::LWIR_Fused: modeStr = "lwir_fused"; break;

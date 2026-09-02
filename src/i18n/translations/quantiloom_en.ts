@@ -4812,6 +4812,10 @@ Right-drag orbits the camera, middle-drag pans, the wheel zooms; G/R/T switch tr
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>VIS (Sampled Wavelengths)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>VIS Fused (32-band Spectral)</source>
         <translation type="unfinished"></translation>
     </message>
@@ -4824,7 +4828,11 @@ Right-drag orbits the camera, middle-drag pans, the wheel zooms; G/R/T switch tr
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>32-wavelength spectral integration with CIE XYZ color matching. Physically accurate but slower.</source>
+        <source>Four sampled wavelengths a path, weighted into CIE XYZ. Follows refraction wavelength by wavelength; converges with samples rather than being exact at one.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>32-wavelength spectral integration with CIE XYZ color matching. No variance in wavelength, so it is the reference the sampled mode is measured against.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

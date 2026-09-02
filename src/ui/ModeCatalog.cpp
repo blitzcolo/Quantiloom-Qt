@@ -350,8 +350,13 @@ QString debugOutputInterpretation() {
 // ============================================================================
 
 QVector<SpectralMode> spectralModes() {
+    // Both visible modes are offered. They estimate one integral, so the
+    // viewport can switch between them and see the same scene: the sampled one
+    // to render with, the deterministic one to compare against when a frame
+    // looks wrong and the question is whether the noise is the reason.
     return {
         SpectralMode::RGB,
+        SpectralMode::VIS_Hero,
         SpectralMode::VIS_Fused,
         SpectralMode::Single,
         SpectralMode::NIR_Fused,
@@ -390,7 +395,10 @@ QString spectralModeName(SpectralMode mode) {
         // Band acronyms stay in Latin script in every locale -- they are the
         // conventional written form, not English words. See the glossary.
         case SpectralMode::RGB:        return QStringLiteral("RGB");
-        case SpectralMode::VIS_Fused:  return QStringLiteral("VIS");
+        case SpectralMode::VIS_Hero:   return QStringLiteral("VIS");
+        // The band plus its sample count, because this string is the viewport
+        // chip and the two visible modes are otherwise one word apart there.
+        case SpectralMode::VIS_Fused:  return QStringLiteral("VIS 32");
         case SpectralMode::Single:     return Tr::tr("Single Wavelength");
         case SpectralMode::NIR_Fused:  return QStringLiteral("NIR");
         case SpectralMode::SWIR_Fused: return QStringLiteral("SWIR");
@@ -404,6 +412,8 @@ QString spectralModeLabel(SpectralMode mode) {
     switch (mode) {
         case SpectralMode::RGB:
             return Tr::tr("RGB (Default)");
+        case SpectralMode::VIS_Hero:
+            return Tr::tr("VIS (Sampled Wavelengths)");
         case SpectralMode::VIS_Fused:
             return Tr::tr("VIS Fused (32-band Spectral)");
         case SpectralMode::Single:
@@ -437,9 +447,14 @@ QString spectralModeDescription(SpectralMode mode) {
         case SpectralMode::RGB:
             return Tr::tr("Fast RGB rendering, no spectral integration. "
                        "Best for real-time preview.");
+        case SpectralMode::VIS_Hero:
+            return Tr::tr("Four sampled wavelengths a path, weighted into CIE XYZ. "
+                       "Follows refraction wavelength by wavelength; converges with "
+                       "samples rather than being exact at one.");
         case SpectralMode::VIS_Fused:
             return Tr::tr("32-wavelength spectral integration with CIE XYZ color matching. "
-                       "Physically accurate but slower.");
+                       "No variance in wavelength, so it is the reference the sampled "
+                       "mode is measured against.");
         case SpectralMode::Single:
             return Tr::tr("Monochromatic rendering at a single wavelength. "
                        "Useful for spectral analysis and wavelength-specific effects.");
@@ -601,6 +616,7 @@ const char* spectralModeId(quantiloom::SpectralMode mode) {
     // reads back what this returns.
     switch (mode) {
         case quantiloom::SpectralMode::Single:        return "single";
+        case quantiloom::SpectralMode::VIS_Hero:      return "vis_hero";
         case quantiloom::SpectralMode::VIS_Fused:     return "vis_fused";
         case quantiloom::SpectralMode::Multispectral: return "multispectral";
         case quantiloom::SpectralMode::MWIR_Fused:    return "mwir_fused";

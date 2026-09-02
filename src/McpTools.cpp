@@ -894,16 +894,18 @@ void MainWindow::registerMcpTools() {
             "Change what the renderer integrates: spectral mode, single wavelength, target sample "
             "count and sampling seed. Give any subset.\n"
             "\n"
-            "mode takes an identifier, not a display name: rgb, single, vis_fused, nir_fused, "
-            "swir_fused, mwir_fused, lwir_fused, multispectral -- the same spellings a scene "
-            "configuration uses. wavelength_nm is read only by the modes that render at one "
+            "mode takes an identifier, not a display name: rgb, single, vis_hero, vis_fused, "
+            "nir_fused, swir_fused, mwir_fused, lwir_fused, multispectral -- the same spellings a "
+            "scene configuration uses. The two visible modes estimate one integral: vis_hero draws "
+            "wavelengths and converges, vis_fused sweeps a fixed grid and has no variance in "
+            "wavelength, which is what makes it worth comparing against. wavelength_nm is read only by the modes that render at one "
             "wavelength. Changing the mode or the wavelength resets accumulation; raising "
             "target_samples does not, so the render carries on from where it is.";
         tool.inputSchemaJson = R"({
   "type": "object",
   "properties": {
     "mode": {"type": "string",
-             "enum": ["rgb", "single", "vis_fused", "nir_fused", "swir_fused", "mwir_fused", "lwir_fused", "multispectral"]},
+             "enum": ["rgb", "single", "vis_hero", "vis_fused", "nir_fused", "swir_fused", "mwir_fused", "lwir_fused", "multispectral"]},
     "wavelength_nm": {"type": "number", "minimum": 100, "maximum": 20000},
     "target_samples": {"type": "integer", "minimum": 1},
     "seed": {"type": "integer", "minimum": 0,
