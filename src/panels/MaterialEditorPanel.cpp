@@ -129,9 +129,16 @@ void MaterialEditorPanel::setupUi() {
     emissiveLayout->setContentsMargins(0, 0, 0, 0);
     emissiveOuter->addWidget(emissiveRow);
 
+    // The ceiling is high because emissiveFactor is an HDR radiance scale, not
+    // a colour. A glTF material carrying KHR_materials_emissive_strength has
+    // the strength folded into these three numbers by the loader, so a sun
+    // panel authored at 0.9 x 10000 arrives here as 9000. Loading is
+    // signal-blocked, so a value above the ceiling would not corrupt the
+    // material on the way in -- it would show as the clamp, and the next edit
+    // of any one channel would write that clamp back over the other two.
     auto createSpinBox = [this]() {
         auto* spin = new QDoubleSpinBox();
-        spin->setRange(0.0, 100.0);
+        spin->setRange(0.0, 1.0e6);
         spin->setSingleStep(0.1);
         spin->setDecimals(2);
         connect(spin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
