@@ -901,6 +901,10 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation>&amp;Edit</translation>
     </message>
     <message>
+        <source>%1 is not a scene configuration: it names no scene.gltf, scene.usd or [[models]].</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Nothing selected to copy</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1275,6 +1279,10 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Building thermal epoch %1 of %2…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Local space</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1641,10 +1649,6 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
     </message>
     <message>
         <source>Failed to load configuration: %1</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>%1 is not a scene configuration: it names no scene.gltf or scene.usd.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

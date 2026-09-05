@@ -591,6 +591,14 @@ signals:
     void longOperationStarted(const QString& description);
     void longOperationFinished();
 
+    /// A thermal solve over a moving scene is measuring geometry epoch
+    /// @p epoch of @p count. Emitted synchronously from inside the SDK call
+    /// that triggered the build (a config applied, a gizmo drag finished, the
+    /// first hour asked for after either), on the GUI thread, once per epoch.
+    /// Nothing else on screen changes while it runs, so a listener that wants
+    /// to be seen has to repaint rather than wait for the event loop.
+    void thermalEpochBuilding(int epoch, int count);
+
     /**
      * @brief Emitted when the mouse moves over the viewport
      * @param x X coordinate in **device** pixels

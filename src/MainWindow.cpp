@@ -2322,6 +2322,19 @@ void MainWindow::setupConnections() {
                 m_viewportFrame->setBusyMessage(QString());
                 showStatusMessage(tr("Ready"));
             });
+
+    // The epoch build runs inside the SDK call that asked for the hour, so
+    // the event loop is not turning while it happens: the label is painted
+    // by hand or it is not painted until the build is over, which is exactly
+    // when it stops being useful. Not the long-operation overlay -- that one
+    // stands the MCP pump down and is for a build with a beginning and an
+    // end, whereas this is a counter.
+    connect(m_vulkanWindow, &QuantiloomVulkanWindow::thermalEpochBuilding,
+            this, [this](int epoch, int count) {
+                showStatusMessage(tr("Building thermal epoch %1 of %2\u2026")
+                                      .arg(epoch + 1).arg(count), 5000);
+                m_statusLabel->repaint();
+            });
 }
 
 void MainWindow::setupEditingSystem() {

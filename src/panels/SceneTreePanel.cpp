@@ -148,6 +148,14 @@ void SceneTreePanel::populateTree() {
                 nodeName = QString::fromStdString(mesh.name);
             }
         }
+        // A node from one of several [[models]] carries a "<model>/" prefix,
+        // and that prefix is the only thing telling two nodes of the same
+        // file apart -- the ground and the block in the timeline demo are
+        // both a mesh called "Cube". The mesh name stays for the single-file
+        // case, where it reads better than the loader's node names.
+        if (node.name.find('/') != std::string::npos) {
+            nodeName = QString::fromStdString(node.name);
+        }
 
         nodeItem->setText(0, nodeName);
         nodeItem->setText(1, tr("Node"));

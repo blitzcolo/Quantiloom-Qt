@@ -823,6 +823,11 @@ void MainWindow::registerMcpTools() {
             "and does not rebuild anything; changing any other field rebuilds the trajectory and "
             "the next time query replays it.\n"
             "\n"
+            "When the document declares a [timeline], time_h is the hour at the timeline's START "
+            "and which hour is rendered comes from the transport: read ql_get_timeline and move "
+            "the clock with ql_set_timeline_time. Setting time_h then shifts the whole mapping "
+            "and re-renders the current tick.\n"
+            "\n"
             "forcing_file is a CSV of time_h, air_k, direct normal irradiance, sun azimuth and "
             "elevation in degrees, sky_k, and optionally diffuse irradiance, relative "
             "humidity, a measured convection coefficient and a wind speed. The measured "
@@ -836,7 +841,7 @@ void MainWindow::registerMcpTools() {
   "type": "object",
   "properties": {
     "enabled": {"type": "boolean", "description": "Whether the solve drives the scene's temperatures."},
-    "time_h": {"type": "number", "description": "Hour of the simulated day to show. Cheap to move."},
+    "time_h": {"type": "number", "description": "Hour of the simulated day to show. Cheap to move. With a [timeline] it is the hour at the timeline's start instead; the transport picks the hour shown."},
     "start_time_h": {"type": "number", "description": "Hour the trajectory starts from."},
     "timestep_s": {"type": "number", "description": "Solver timestep, seconds. Compare against the shortest time constant in the status."},
     "layers": {"type": "integer", "description": "Nodes through the slab, 2-32. Above 32 the GPU stepper falls back to the CPU."},

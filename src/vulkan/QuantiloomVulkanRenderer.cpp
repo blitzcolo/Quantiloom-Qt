@@ -148,6 +148,16 @@ void QuantiloomVulkanRenderer::initSwapChainResources() {
     m_renderContext = std::move(result.value());
     m_initialized = true;
 
+    // The epoch build is synchronous on this thread and can take minutes on a
+    // large scene; this is how the shell gets to say which epoch it is on.
+    // Registered once here rather than per scene, because the SDK keeps it
+    // across scene loads and the preview it drives is rebuilt underneath.
+    m_renderContext->SetThermalEpochProgressCallback(
+        [this](quantiloom::u32 epoch, quantiloom::u32 count) {
+            emit m_window->thermalEpochBuilding(static_cast<int>(epoch),
+                                                static_cast<int>(count));
+        });
+
     // Everything the shell configured before this point -- lighting, spectral
     // mode, sensor model, camera, environment map -- was queued by the window
     // because there was nothing to apply it to. Replay it now, before the

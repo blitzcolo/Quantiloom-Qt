@@ -932,6 +932,10 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation>编辑(&amp;E)</translation>
     </message>
     <message>
+        <source>%1 is not a scene configuration: it names no scene.gltf, scene.usd or [[models]].</source>
+        <translation>%1 不是场景配置：其中没有 scene.gltf、scene.usd 或 [[models]]。</translation>
+    </message>
+    <message>
         <source>Nothing selected to copy</source>
         <translation>没有选中可复制的物体</translation>
     </message>
@@ -1328,6 +1332,10 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation>渲染器不可用</translation>
     </message>
     <message>
+        <source>Building thermal epoch %1 of %2…</source>
+        <translation>正在构建热学几何分段 %1 / %2…</translation>
+    </message>
+    <message>
         <source>Local space</source>
         <translation>局部坐标系</translation>
     </message>
@@ -1691,7 +1699,7 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
     </message>
     <message>
         <source>%1 is not a scene configuration: it names no scene.gltf or scene.usd.</source>
-        <translation>%1 不是场景配置：其中没有指定 scene.gltf 或 scene.usd。</translation>
+        <translation type="vanished">%1 不是场景配置：其中没有指定 scene.gltf 或 scene.usd。</translation>
     </message>
     <message>
         <source>Loaded configuration: %1</source>

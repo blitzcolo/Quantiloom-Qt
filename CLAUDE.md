@@ -123,7 +123,11 @@ the slider and says what hour it is showing rather than leaving a control that
 the next tick overwrites. The status line gains `epoch i / K` — how many
 piecewise-static geometry spans the solve was cut into, and which one this hour
 falls in. Scrubbing the clock re-solves the field but recomputes no view factors,
-which is what makes it draggable.
+which is what makes it draggable. What does recompute them is a plan change — a
+config applied, a gizmo drag finished — and the SDK measures every epoch
+synchronously inside that call, so the window's status bar says "Building
+thermal epoch 3 of 24…" from the SDK's progress callback and repaints itself by
+hand, the event loop being busy with the build.
 
 And a comparison panel, which loads a reference EXR and reports bias, RMSE, the
 95th percentile and the worst pixel against the current frame, per channel. It
