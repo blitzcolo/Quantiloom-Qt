@@ -61,6 +61,31 @@ the model would invalidate.
 configuration this exporter produced rendered here under `WarnAndDefault` and was
 refused by the CLI, which reads the same file under `Error`.
 
+### The clock and the models are carried, not read
+
+`[timeline]` and `[[models]]` round-trip as **text**. `Config::ToToml("<key>")` gives
+the block back the way the core serialised it, and `writeConfig()` prints it unchanged.
+
+That is not laziness. `end_s = "36h"` and `end_s = 129600` are the same timeline, and a
+motion is written in one of three grammars — keyframes, piecewise expressions over `t`
+and `s`, or a parametric engine — one of which has an expression parser behind it.
+Reading any of that here would be a second implementation of the thing this file exists
+to have exactly one of. What the panels show comes from `TimelineInfo`, which the SDK
+already resolved.
+
+One key inside `[timeline]` is Studio's: `time_s`, where the transport stands. It is
+stripped out of the carried body on the way in and written back from
+`m_timelineTimeS` on the way out. It is also the reason moving the transport does not
+mark the document modified — where you are looking is not an edit, and playback would
+otherwise mark a document dirty twenty times a second. A save records it either way.
+
+`[[nodes]]` gained a meaning it did not have: for a node the clock moves, it records the
+**rest pose** — where the node would stand with every trajectory at the identity — read
+from `nodeRestTransform()` rather than from the node's own transform. The transform is
+where the node is at the current tick, which is not a thing a document can record,
+because it would be wrong at every other tick. For a node with no trajectory the two are
+the same matrix.
+
 ### The quantitative spectral sections
 
 `[spectral_curves]`, `[refractive_index]`, `lighting.solar_lut*`,

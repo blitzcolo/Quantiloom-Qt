@@ -178,6 +178,47 @@ struct DuplicateConfig {
 };
 
 /**
+ * @struct TimelineConfig
+ * @brief The [timeline] block, carried rather than interpreted
+ *
+ * Studio does not read what these keys mean. It cannot: `end_s = "36h"` and
+ * `end_s = 129600` are the same timeline, and a second implementation of that
+ * grammar is exactly the divergence this file exists to prevent. What the
+ * panels display comes from `TimelineInfo`, which the SDK resolved.
+ *
+ * So the block travels as text, and the one key Studio owns -- `time_s`, where
+ * the transport stands -- is stripped out of it on the way in and written back
+ * separately on the way out.
+ */
+struct TimelineConfig {
+    bool present = false;
+
+    /// Everything under `[timeline]` except `time_s`, as the core serialised
+    /// it: one `key = value` per line, no header.
+    QString body;
+
+    /// `timeline.time_s`. Written whenever there is a timeline at all, because
+    /// a document with a clock records where it stands.
+    std::optional<double> timeS;
+};
+
+/**
+ * @struct ModelConfig
+ * @brief One `[[models]]` entry, for display only
+ *
+ * What a panel needs to say the scene has two models and one of them moves.
+ * The entries themselves are carried through SceneConfig::modelsToml verbatim,
+ * because the motion grammar is the core's and Studio has no business having a
+ * second reading of it.
+ */
+struct ModelConfig {
+    QString name;
+    QString file;
+    QString variant;
+    bool hasMotion = false;
+};
+
+/**
  * @struct HyperspectralConfig
  * @brief The [hyperspectral] block, read by the core's offline renderer
  *
@@ -397,6 +438,22 @@ struct SceneConfig {
 
     /// [hyperspectral] -- honoured by the offline renderer only.
     std::optional<HyperspectralConfig> hyperspectral;
+
+    /// [timeline] -- the clock, when the document has one.
+    TimelineConfig timeline;
+
+    /// [[models]], summarised for the panels.
+    QVector<ModelConfig> models;
+
+    /// The `[[models]]` block exactly as the core serialised it, written back
+    /// unchanged.
+    ///
+    /// Studio cannot author a trajectory and has no reading of the motion
+    /// grammar -- three grammars' worth of it, with an expression parser
+    /// behind one. Carrying the text is what lets a config with a hand-written
+    /// trajectory survive a save from here, which is the alternative to
+    /// silently deleting it. Empty when the file had no [[models]].
+    QString modelsToml;
 
     // Config file base directory (for resolving relative paths)
     QString baseDir;

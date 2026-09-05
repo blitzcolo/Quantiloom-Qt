@@ -51,6 +51,17 @@ of a sequence used to re-run an identical solve — up to 165 s each on a large
 scene. They now collapse to one. The CLI manifest it emits hits the same entries.
 `HyperspectralExportDialog` benefits the same way.
 
+From SDK 0.4.0 the key also covers every **geometry epoch**: a scene whose
+`[[models]]` move is solved across piecewise-static spans, and a truck two metres
+further along in epoch three gives a different trajectory at every hour after it.
+A static scene hashes exactly as it did, so its entries survive.
+
+The dialog's Timeline mode does not lean on the cache at all, and does not need
+to: it builds **one** `OfflineRenderer` and moves the clock between frames, so
+the mesh, the stepper, the steady state and the epoch schedule are paid for once
+and the trajectory is stepped forward rather than replayed. `Thermal cache: hit`
+per frame is what the manifest path prints, not this one.
+
 Two consequences worth remembering. A sequence render that used to take an hour
 finishing in minutes is the cache working, not a frame being skipped — the
 renderer logs `Thermal cache: hit` per frame either way. And the viewport is
@@ -103,6 +114,16 @@ carries, all of them read-only against the trajectory:
   re-render. That difference is the point of having it.
 - **Two debug views.** `SunSensitivity` draws what the shadow-edge correction
   is worth per triangle, `ThermalSensitivity` draws dT/dp signed.
+
+And, when the document has a `[timeline]`, the hour stops being something this
+panel sets. `thermal.time_h` then means **the hour the clock starts at**, and
+which hour is being rendered comes from the transport: `TimelinePanel` moves it,
+`applyTimelineTime` is the one route, and `ThermalPanel::setMappedHour` disables
+the slider and says what hour it is showing rather than leaving a control that
+the next tick overwrites. The status line gains `epoch i / K` — how many
+piecewise-static geometry spans the solve was cut into, and which one this hour
+falls in. Scrubbing the clock re-solves the field but recomputes no view factors,
+which is what makes it draggable.
 
 And a comparison panel, which loads a reference EXR and reports bias, RMSE, the
 95th percentile and the worst pixel against the current frame, per channel. It

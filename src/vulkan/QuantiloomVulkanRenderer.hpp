@@ -26,6 +26,7 @@
 #include <postprocess/SensorModel.hpp>
 #include <postprocess/Thermography.hpp>
 #include <renderer/ThermalControl.hpp>
+#include <renderer/TimelineControl.hpp>
 // For SolarLutSpec, held by value in an optional below (optional forbids an
 // incomplete type, unlike the unique_ptr<ExternalRenderContext> beside it).
 #include <renderer/ExternalRenderContext.hpp>
@@ -404,6 +405,31 @@ public:
     void setThermalSolveEnabled(bool enabled);
     void setThermalTime(double time_h);
     [[nodiscard]] quantiloom::ThermalSolveStatus thermalSolveStatus() const;
+
+    // ========================================================================
+    // Timeline
+    // ========================================================================
+
+    /// Move the clock. Puts the animated nodes where their trajectories say,
+    /// refits the acceleration structure and -- when the two are mapped --
+    /// re-solves the thermal field at the hour that second corresponds to.
+    /// A scene with no clock accepts this and does nothing.
+    void setTimelineTime(double time_s);
+
+    /// What the SDK resolved: the span, the tick rate, where the transport
+    /// stands, the mapped hour and the epoch count. `present` false means the
+    /// document declared no clock and nothing in it moves.
+    [[nodiscard]] quantiloom::TimelineInfo timelineInfo() const;
+
+    /// Tie the thermal hour to the clock: the hour at the timeline's start,
+    /// and how many simulated seconds one clock second is worth.
+    void setTimelineThermalMapping(double hourAtStart_h, double scale);
+
+    /// Where a node would stand with every trajectory at the identity -- what
+    /// a saved `[[nodes]]` records for a node the clock moves. Its own
+    /// transform is where it is right now, which is not a thing a document can
+    /// record.
+    [[nodiscard]] glm::mat4 nodeRestTransform(int nodeIndex) const;
 
     /// The thermal element under a pick, and one element's history. Both are
     /// read-only: the trajectory replays from checkpoints and puts the hour the

@@ -81,6 +81,7 @@ class DisplayEnhancementPanel;
 class SpectralMaterialGenPanel;
 class ComparisonPanel;
 class ThermalPanel;
+class TimelinePanel;
 class ConfigManager;
 class ViewportFrame;
 class TitleBar;
@@ -300,6 +301,18 @@ private:
     void applyThermalWhatIf(quantiloom::ThermalSensitivityParameter parameter,
                             double fraction);
     void applyThermalTime(double time_h);
+
+    /// Move the global clock. The one route: the panel's transport, the
+    /// &Timeline menu and the MCP tool all end here.
+    ///
+    /// Deliberately not an edit. It does not enter the undo stack and does not
+    /// mark the document modified: playback would push twenty commands a
+    /// second, and `time_s` is where you are looking rather than something you
+    /// changed. A save still records the tick the transport is on.
+    void applyTimelineTime(double time_s);
+    /// Push the current TimelineInfo into the panel and the thermal readout.
+    /// Called after anything that could have changed what the clock is.
+    void refreshTimelineInfo();
     /// Push one material's thermal properties into the running solve, so a
     /// wetness or a thickness edit moves the viewport rather than only the
     /// file that gets saved.
@@ -484,6 +497,7 @@ private:
     SpectralMaterialGenPanel* m_spectralMaterialGenPanel = nullptr;
     ComparisonPanel* m_comparisonPanel = nullptr;
     ThermalPanel* m_thermalPanel = nullptr;
+    TimelinePanel* m_timelinePanel = nullptr;
 
     // Display enhancement (CLAHE) settings
     /// The analytic sky's humidity, which LightingParams has no room for: it
@@ -499,6 +513,11 @@ private:
     /// rather than as a whole SceneConfig, which is only forward declared here.
     bool m_thermalEnabled = false;
     double m_thermalTimeH = 12.0;
+
+    /// Where the global clock stands, in timeline seconds. Session state as
+    /// far as the undo stack is concerned, document state as far as a save is:
+    /// `timeline.time_s` is written from here.
+    double m_timelineTimeS = 0.0;
     double m_thermalStartTimeH = 0.0;
     double m_thermalTimestepS = 60.0;
     int m_thermalLayers = 10;
@@ -656,6 +675,17 @@ private:
     QMenu* m_transformMenu = nullptr;
     QMenu* m_debugMenu = nullptr;
     QMenu* m_spectralMenu = nullptr;
+
+    // The &Timeline menu. Every entry is a shortcut to a public slot on
+    // TimelinePanel, because the menu bar is the complete catalogue and a
+    // panel is never the only route.
+    QMenu* m_timelineMenu = nullptr;
+    QAction* m_timelinePlayAction = nullptr;
+    QAction* m_timelinePrevAction = nullptr;
+    QAction* m_timelineNextAction = nullptr;
+    QAction* m_timelineStartAction = nullptr;
+    QAction* m_timelineEndAction = nullptr;
+    QAction* m_timelineLoopAction = nullptr;
     QMenu* m_qualityMenu = nullptr;
     QMenu* m_themeMenu = nullptr;
 

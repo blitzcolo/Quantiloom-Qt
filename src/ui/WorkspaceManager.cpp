@@ -58,6 +58,9 @@ QVector<WorkspaceManager::DockPlacement> WorkspaceManager::preset(const QString&
             {QStringLiteral("properties"), Qt::LeftDockWidgetArea,  false, 0,   460},
             {QStringLiteral("camera"),     Qt::RightDockWidgetArea, false, 432, 658},
             {QStringLiteral("lighting"),   Qt::RightDockWidgetArea, false, 0,   315},
+            // Under the viewport, the width of the window: a transport is read
+            // left to right and has nothing to gain from a column.
+            {QStringLiteral("timeline"),   Qt::BottomDockWidgetArea, false, 0, 190},
         };
     }
     if (id == QLatin1String("environment")) {

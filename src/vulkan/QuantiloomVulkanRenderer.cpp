@@ -1571,6 +1571,47 @@ quantiloom::ThermalSolveStatus QuantiloomVulkanRenderer::thermalSolveStatus() co
     return {};
 }
 
+void QuantiloomVulkanRenderer::setTimelineTime(double time_s) {
+    if (!m_renderContext) {
+        return;
+    }
+    auto result = m_renderContext->SetTimelineTime(time_s);
+    if (!result) {
+        qWarning() << "[Timeline] SetTimelineTime failed:"
+                   << QString::fromStdString(result.error());
+    }
+    // The SDK already reset accumulation for the paths that changed anything;
+    // this covers the one where it did not, and costs nothing when it did.
+    resetAccumulation();
+}
+
+quantiloom::TimelineInfo QuantiloomVulkanRenderer::timelineInfo() const {
+    if (m_renderContext) {
+        return m_renderContext->GetTimelineInfo();
+    }
+    return {};
+}
+
+void QuantiloomVulkanRenderer::setTimelineThermalMapping(double hourAtStart_h, double scale) {
+    if (!m_renderContext) {
+        return;
+    }
+    auto result = m_renderContext->SetTimelineThermalMapping(hourAtStart_h, scale);
+    if (!result) {
+        qWarning() << "[Timeline] SetTimelineThermalMapping failed:"
+                   << QString::fromStdString(result.error());
+        return;
+    }
+    resetAccumulation();
+}
+
+glm::mat4 QuantiloomVulkanRenderer::nodeRestTransform(int nodeIndex) const {
+    if (!m_renderContext || nodeIndex < 0) {
+        return glm::mat4(1.0f);
+    }
+    return m_renderContext->GetNodeRestTransform(static_cast<quantiloom::u32>(nodeIndex));
+}
+
 quantiloom::Result<quantiloom::u32, quantiloom::String>
 QuantiloomVulkanRenderer::thermalElementAt(const quantiloom::PickResult& pick) const {
     if (!m_renderContext) {

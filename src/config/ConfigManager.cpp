@@ -99,6 +99,39 @@ void ConfigManager::clearLoadedConfig() {
     m_loadedConfig.reset();
 }
 
+namespace {
+
+/// Split what `Config::ToToml("<key>")` produced into the header line and the
+/// body, dropping any line that sets @p ownedKey.
+///
+/// The core writes one `key = value` per line under the header, so a line-level
+/// filter is enough -- and it is the whole of how Studio carries a section it
+/// does not understand while still owning one key inside it.
+QString sectionBodyWithout(const std::string& serialised, const QString& ownedKey,
+                           std::optional<double>* ownedValue) {
+    QStringList kept;
+    const QStringList lines = QString::fromStdString(serialised).split('\n');
+    for (const QString& line : lines) {
+        const QString trimmed = line.trimmed();
+        if (trimmed.isEmpty() || trimmed.startsWith('[')) {
+            continue;  // the header, and the blank line after it
+        }
+        if (trimmed.startsWith(ownedKey + " =") || trimmed.startsWith(ownedKey + "=")) {
+            if (ownedValue != nullptr) {
+                const int eq = trimmed.indexOf('=');
+                bool parsed = false;
+                const double value = trimmed.mid(eq + 1).trimmed().toDouble(&parsed);
+                if (parsed) *ownedValue = value;
+            }
+            continue;
+        }
+        kept << trimmed;
+    }
+    return kept.join('\n');
+}
+
+}  // namespace
+
 void ConfigManager::extractSceneConfig(const quantiloom::Config& config, SceneConfig& out) {
     // Initialize with defaults
     out.lighting = quantiloom::CreateDefaultLightingParams();
@@ -145,6 +178,35 @@ void ConfigManager::extractSceneConfig(const quantiloom::Config& config, SceneCo
     out.usdPath = QString::fromStdString(config.GetString("scene.usd", ""));
     out.variant = QString::fromStdString(config.GetString("scene.variant", ""));
     out.worldUnitsToMeters = config.GetFloat("scene.world_units_to_meters", 1.0f);
+
+    // [timeline] and [[models]], both carried rather than interpreted.
+    //
+    // Studio has no reading of what these keys mean and must not acquire one:
+    // `end_s = "36h"` and `end_s = 129600` are the same timeline, and three
+    // grammars of motion -- one of them with an expression parser behind it --
+    // are not something a config writer should be duplicating. What the panels
+    // show comes from TimelineInfo, which the SDK resolved.
+    out.timeline = {};
+    out.models.clear();
+    out.modelsToml.clear();
+    if (config.HasSection("timeline")) {
+        out.timeline.present = true;
+        out.timeline.body =
+            sectionBodyWithout(config.ToToml("timeline"), "time_s", &out.timeline.timeS);
+    }
+
+    for (const quantiloom::Config& entry : config.GetTableArray("models")) {
+        ModelConfig model;
+        model.file = QString::fromStdString(entry.GetString("file", ""));
+        model.name = QString::fromStdString(entry.GetString("name", ""));
+        if (model.name.isEmpty()) {
+            model.name = QFileInfo(model.file).completeBaseName();
+        }
+        model.variant = QString::fromStdString(entry.GetString("variant", ""));
+        model.hasMotion = entry.HasSection("motion");
+        out.models.push_back(model);
+    }
+    out.modelsToml = QString::fromStdString(config.ToToml("models"));
 
     // [camera]
     auto camPos = config.GetArray<quantiloom::f32>("camera.position");
@@ -742,6 +804,20 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
     }
     out << "\n";
 
+    // [timeline] -- the block as it was read, plus the one key Studio owns.
+    // `time_s` is where the transport stands, and a document with a clock
+    // records that; everything else is carried verbatim.
+    if (config.timeline.present) {
+        out << "[timeline]\n";
+        if (!config.timeline.body.isEmpty()) {
+            out << config.timeline.body << "\n";
+        }
+        if (config.timeline.timeS) {
+            out << "time_s = " << *config.timeline.timeS << "\n";
+        }
+        out << "\n";
+    }
+
     // [camera]
     out << "[camera]\n";
     out << "position = [" << config.cameraPosition[0] << ", "
@@ -984,6 +1060,18 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
             }
             out << "\n";
         }
+    }
+
+    // [[models]] -- carried through unchanged. It has to come after every
+    // top-level scalar section above, because once an array of tables is open
+    // a bare `key = value` belongs to its last element rather than to the
+    // document.
+    if (!config.modelsToml.isEmpty()) {
+        out << config.modelsToml;
+        if (!config.modelsToml.endsWith('\n')) {
+            out << "\n";
+        }
+        out << "\n";
     }
 
     // [[duplicates]] - pasted nodes. Before [[nodes]], because the core

@@ -30,6 +30,11 @@
 
 #include "../config/ConfigManager.hpp"
 
+#include <renderer/OfflineRenderer.hpp>
+#include <renderer/TimelineControl.hpp>
+
+#include <QVector>
+
 QT_BEGIN_NAMESPACE
 class QComboBox;
 class QDoubleSpinBox;
@@ -38,6 +43,7 @@ class QLineEdit;
 class QLabel;
 class QProgressBar;
 class QPushButton;
+class QStackedWidget;
 class QThread;
 class QPlainTextEdit;
 QT_END_NAMESPACE
@@ -54,13 +60,18 @@ public:
     ///        the panels; the dialog overrides a copy and leaves this alone
     /// @param materialNames materials the open scene has, for the surface
     ///        whose temperature is being swept
+    /// @param timeline what the SDK says the open document's clock is. When
+    ///        `present` is false the Timeline mode is offered but disabled --
+    ///        a document with no clock has no ticks to render.
     SequenceRenderDialog(const SceneConfig& config, QStringList materialNames,
+                         const quantiloom::TimelineInfo& timeline,
                          QWidget* parent = nullptr);
     ~SequenceRenderDialog() override;
 
 private slots:
     void onBrowseOutputDir();
     void onSweepChanged();
+    void onModeChanged();
     void onStartOrCancel();
     void onExportManifest();
 
@@ -77,8 +88,38 @@ private:
     /// own [material_overrides] and renderer.output.
     [[nodiscard]] QString frameToml(const QString& baseToml, int index) const;
 
+    /// Which of the two things this dialog varies.
+    enum class Mode { TemperatureSweep, Timeline };
+    [[nodiscard]] Mode mode() const;
+
+    /// Ticks this run will render, in order. Empty in sweep mode.
+    [[nodiscard]] QVector<long long> timelineTicks() const;
+    /// Where frame @p index goes, for either mode.
+    [[nodiscard]] QString frameOutputPath(int index) const;
+
+    /// Write one rendered frame: the EXR, and a PNG beside it.
+    ///
+    /// The renderer hands back an image and writes nothing itself -- which is
+    /// the caller's job in the CLI too. Doing it here is what makes "N frames
+    /// written" true.
+    static bool writeFrame(const quantiloom::OfflineRenderOutput& output,
+                           const QString& exrPath, QString* error);
+
+    /// Start the timeline run: one renderer, the clock moved between frames.
+    void startTimelineRun();
+    /// Start the temperature sweep: a renderer per frame, as it always was.
+    void startSweepRun(const QString& baseToml);
+
     SceneConfig m_baseConfig;
     QStringList m_materialNames;
+    quantiloom::TimelineInfo m_timeline{};
+
+    QComboBox* m_modeCombo = nullptr;
+    QWidget* m_sweepPage = nullptr;
+    QWidget* m_timelinePage = nullptr;
+    QSpinBox* m_fromTick = nullptr;
+    QSpinBox* m_toTick = nullptr;
+    QSpinBox* m_everyTick = nullptr;
 
     QComboBox* m_materialCombo = nullptr;
     QDoubleSpinBox* m_startTemp = nullptr;

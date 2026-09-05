@@ -537,6 +537,30 @@ quantiloom::ThermalSolveStatus QuantiloomVulkanWindow::thermalSolveStatus() cons
     return {};
 }
 
+void QuantiloomVulkanWindow::setTimelineTime(double time_s) {
+    withRenderer([time_s](QuantiloomVulkanRenderer& r) { r.setTimelineTime(time_s); });
+}
+
+quantiloom::TimelineInfo QuantiloomVulkanWindow::timelineInfo() const {
+    if (m_renderer) {
+        return m_renderer->timelineInfo();
+    }
+    return {};
+}
+
+void QuantiloomVulkanWindow::setTimelineThermalMapping(double hourAtStart_h, double scale) {
+    withRenderer([hourAtStart_h, scale](QuantiloomVulkanRenderer& r) {
+        r.setTimelineThermalMapping(hourAtStart_h, scale);
+    });
+}
+
+glm::mat4 QuantiloomVulkanWindow::nodeRestTransform(int nodeIndex) const {
+    if (m_renderer) {
+        return m_renderer->nodeRestTransform(nodeIndex);
+    }
+    return glm::mat4(1.0f);
+}
+
 quantiloom::Result<quantiloom::u32, quantiloom::String>
 QuantiloomVulkanWindow::thermalElementAt(const quantiloom::PickResult& pick) const {
     if (!m_renderer) {

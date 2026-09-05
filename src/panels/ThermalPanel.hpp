@@ -10,6 +10,8 @@
 
 #include <renderer/ThermalControl.hpp>
 
+#include <optional>
+
 QT_BEGIN_NAMESPACE
 class QCheckBox;
 class QComboBox;
@@ -35,6 +37,15 @@ public:
     void setSolveEnabled(bool enabled);
     void setParams(const quantiloom::ThermalSolveParams& params);
     void setTime(double time_h);
+
+    /// The hour is being driven by the global clock rather than by this panel.
+    ///
+    /// With a `[timeline]`, `thermal.time_h` stops meaning "the hour to render"
+    /// and starts meaning "the hour the clock starts at" -- so the slider here
+    /// would be setting something the transport overwrites on its next tick.
+    /// Passing a value disables it and says what hour the clock is showing;
+    /// passing nullopt gives the panel its slider back.
+    void setMappedHour(std::optional<double> hour);
 
     /// Show one element's day. Called after a click in the viewport resolves
     /// to an element the solve carries; @p element is only for the caption.
@@ -72,6 +83,10 @@ private slots:
 
 private:
     void updateWhatIfCaption();
+
+    /// Set when the global clock owns the hour; the caption and the slider's
+    /// enabled state both read it.
+    std::optional<double> m_mappedHour;
 
 private slots:
 

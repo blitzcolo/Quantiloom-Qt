@@ -17,6 +17,7 @@
 #include "panels/AtmosphericPanel.hpp"
 #include "panels/SensorPanel.hpp"
 #include "panels/ThermalPanel.hpp"
+#include "panels/TimelinePanel.hpp"
 #include "panels/DisplayEnhancementPanel.hpp"
 #include "panels/SpectralMaterialGenPanel.hpp"
 #include "panels/PropertiesPanel.hpp"
@@ -568,6 +569,46 @@ void MainWindow::setupMenus() {
     });
     m_addEndmemberAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_E));
     m_addEndmemberAction->setEnabled(false);
+
+    // --- Timeline -------------------------------------------------------
+    // The menu bar is the complete catalogue: everything the transport panel
+    // does has an entry here with its shortcut, and both routes end at the
+    // same slot on the panel.
+    m_timelineMenu = m_menuBar->addMenu(QString());
+
+    // Ctrl+Space rather than Space: the bare key already toggles the gizmo
+    // between local and world space, and a transport that stole it would break
+    // a gesture people use constantly.
+    m_timelinePlayAction = m_timelineMenu->addAction(QString(), m_timelinePanel,
+                                                     &TimelinePanel::togglePlay);
+    m_timelinePlayAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_Space));
+
+    m_timelineMenu->addSeparator();
+
+    m_timelinePrevAction = m_timelineMenu->addAction(QString(), m_timelinePanel,
+                                                     &TimelinePanel::stepBack);
+    m_timelinePrevAction->setShortcut(QKeySequence(Qt::ALT | Qt::Key_Left));
+    m_timelineNextAction = m_timelineMenu->addAction(QString(), m_timelinePanel,
+                                                     &TimelinePanel::stepForward);
+    m_timelineNextAction->setShortcut(QKeySequence(Qt::ALT | Qt::Key_Right));
+    m_timelineStartAction = m_timelineMenu->addAction(QString(), m_timelinePanel,
+                                                      &TimelinePanel::goToStart);
+    m_timelineStartAction->setShortcut(QKeySequence(Qt::ALT | Qt::Key_Home));
+    m_timelineEndAction = m_timelineMenu->addAction(QString(), m_timelinePanel,
+                                                    &TimelinePanel::goToEnd);
+    m_timelineEndAction->setShortcut(QKeySequence(Qt::ALT | Qt::Key_End));
+
+    m_timelineMenu->addSeparator();
+
+    m_timelineLoopAction = m_timelineMenu->addAction(QString());
+    m_timelineLoopAction->setCheckable(true);
+    connect(m_timelineLoopAction, &QAction::toggled, m_timelinePanel, &TimelinePanel::setLoop);
+
+    // Nothing to drive until a document with a clock is open.
+    for (QAction* action : {m_timelinePlayAction, m_timelinePrevAction, m_timelineNextAction,
+                            m_timelineStartAction, m_timelineEndAction, m_timelineLoopAction}) {
+        action->setEnabled(false);
+    }
 
     // --- Tools ----------------------------------------------------------
     m_toolsMenu = m_menuBar->addMenu(QString());
@@ -1241,15 +1282,58 @@ void MainWindow::applyThermalWhatIf(
 
 void MainWindow::applyThermalTime(double time_h) {
     m_thermalTimeH = time_h;
-    if (m_thermalEnabled) {
+
+    // With a clock, the hour is not a thing to set directly: `thermal.time_h`
+    // means the hour at the timeline's START, and where the render is comes
+    // from the transport. Setting the mapping and re-applying the current
+    // second is the same operation said the right way round.
+    const quantiloom::TimelineInfo info = m_vulkanWindow->timelineInfo();
+    if (info.present) {
+        m_vulkanWindow->setTimelineThermalMapping(time_h, info.thermalTimeScale);
+        applyTimelineTime(m_timelineTimeS);
+    } else if (m_thermalEnabled) {
         m_vulkanWindow->setThermalTime(time_h);
     }
+
     {
         const QSignalBlocker block(m_thermalPanel);
         m_thermalPanel->setTime(time_h);
     }
     m_thermalPanel->updateStatus(m_vulkanWindow->thermalSolveStatus());
     setSceneModified(true);
+}
+
+void MainWindow::applyTimelineTime(double time_s) {
+    m_timelineTimeS = time_s;
+    m_vulkanWindow->setTimelineTime(time_s);
+    refreshTimelineInfo();
+
+    // Deliberately no setSceneModified and no undo command. Playback would
+    // push twenty commands a second, and where the transport stands is not an
+    // edit to the scene -- a save records it either way.
+}
+
+void MainWindow::refreshTimelineInfo() {
+    const quantiloom::TimelineInfo info = m_vulkanWindow->timelineInfo();
+    {
+        const QSignalBlocker block(m_timelinePanel);
+        m_timelinePanel->setInfo(info);
+    }
+    // With a clock the hour is not the thermal panel's to set: it follows the
+    // transport, and the panel says so rather than showing a slider that does
+    // nothing.
+    m_thermalPanel->setMappedHour(info.thermalMapped
+                                      ? std::optional<double>(info.currentThermalHour)
+                                      : std::nullopt);
+    if (info.present) {
+        m_thermalPanel->updateStatus(m_vulkanWindow->thermalSolveStatus());
+    }
+    for (QAction* action : {m_timelinePlayAction, m_timelineNextAction, m_timelinePrevAction,
+                            m_timelineStartAction, m_timelineEndAction, m_timelineLoopAction}) {
+        if (action != nullptr) {
+            action->setEnabled(info.present);
+        }
+    }
 }
 
 void MainWindow::applyThermalMaterial(const QString& name,
@@ -1718,6 +1802,7 @@ void MainWindow::setupDockWidgets() {
     m_sensorPanel = new SensorPanel();
     m_displayEnhancementPanel = new DisplayEnhancementPanel();
     m_thermalPanel = new ThermalPanel();
+    m_timelinePanel = new TimelinePanel();
     m_spectralMaterialGenPanel = new SpectralMaterialGenPanel();
     m_comparisonPanel = new ComparisonPanel();
 
@@ -1737,6 +1822,8 @@ void MainWindow::setupDockWidgets() {
     createPanelDock(m_debugVisualizationPanel, Qt::RightDockWidgetArea);
     createPanelDock(m_thermalPanel, Qt::RightDockWidgetArea);
     createPanelDock(m_comparisonPanel, Qt::RightDockWidgetArea);
+    // Along the bottom, under the viewport, the way a transport goes.
+    createPanelDock(m_timelinePanel, Qt::BottomDockWidgetArea);
 
     // The generator is a full offline workflow -- table, chart, file import and
     // export -- and wants width. It lives as a floating tool window opened from
@@ -1974,6 +2061,11 @@ void MainWindow::setupDockWidgets() {
             this, &MainWindow::applyThermalTime);
     connect(m_thermalPanel, &ThermalPanel::whatIfChanged,
             this, &MainWindow::applyThermalWhatIf);
+
+    // Timeline transport. The panel computes which tick; the dispatcher is the
+    // only thing that tells the renderer about it.
+    connect(m_timelinePanel, &TimelinePanel::timelineTimeChanged,
+            this, &MainWindow::applyTimelineTime);
 
     // The panel asks for a frame rather than reading one every time it wants
     // to: a path-traced image is still moving while it accumulates, and
@@ -2453,6 +2545,16 @@ void MainWindow::retranslateUi() {
         }
     }
     m_spectralMenu->setTitle(tr("&Spectral Mode"));
+    m_timelineMenu->setTitle(tr("&Timeline"));
+    m_timelinePlayAction->setText(tr("&Play / Pause"));
+    m_timelinePlayAction->setToolTip(
+        tr("Run the clock. Which of the two playback modes it uses is the panel's "
+           "Mode setting."));
+    m_timelinePrevAction->setText(tr("Pre&vious Tick"));
+    m_timelineNextAction->setText(tr("&Next Tick"));
+    m_timelineStartAction->setText(tr("Go to &Start"));
+    m_timelineEndAction->setText(tr("Go to &End"));
+    m_timelineLoopAction->setText(tr("&Loop"));
     for (auto it = m_spectralActions.constBegin(); it != m_spectralActions.constEnd(); ++it) {
         const auto mode = static_cast<quantiloom::SpectralMode>(it.key());
         it.value()->setText(catalog::spectralModeLabel(mode));
@@ -2759,10 +2861,13 @@ bool MainWindow::openPath(const QString& filePath) {
         // a scene there is nothing to render and applyConfig() would quietly
         // do nothing at all -- which is how opening an unrelated .toml from
         // some other project reported success and showed an empty viewport.
-        // The core rejects the same input for the same reason.
-        if (config.gltfPath.isEmpty() && config.usdPath.isEmpty()) {
+        // The core rejects the same input for the same reason -- and, since
+        // 0.4.0, accepts a third way of naming a scene: [[models]], which is
+        // how a config with a timeline places more than one file.
+        if (config.gltfPath.isEmpty() && config.usdPath.isEmpty() && config.models.isEmpty()) {
             QMessageBox::warning(this, tr("Open Failed"),
-                tr("%1 is not a scene configuration: it names no scene.gltf or scene.usd.")
+                tr("%1 is not a scene configuration: it names no scene.gltf, scene.usd "
+                   "or [[models]].")
                     .arg(QFileInfo(filePath).fileName()));
             return false;
         }
@@ -2878,7 +2983,8 @@ void MainWindow::onRenderSequence() {
         }
     }
 
-    SequenceRenderDialog dialog(config, materialNames, this);
+    SequenceRenderDialog dialog(config, materialNames, m_vulkanWindow->timelineInfo(),
+                                this);
     dialog.exec();
 }
 
@@ -3819,6 +3925,11 @@ void MainWindow::onRenderReachedTarget(uint32_t sampleCount) {
     if (m_renderSettingsPanel->autoExportOnComplete()) {
         autoExportRender(sampleCount);
     }
+
+    // "Step when converged" is exactly this moment: the frame has reached its
+    // sample target, so the next tick is worth looking at. Ignored in every
+    // other playback mode and when nothing is playing.
+    m_timelinePanel->notifyConverged();
 }
 
 // ============================================================================
@@ -4396,6 +4507,12 @@ void MainWindow::applyConfig(const SceneConfig& config) {
     if (!scenePath.isEmpty()) {
         m_currentSceneFile = scenePath;
         m_viewportFrame->setSceneLoaded(true);
+    } else if (!config.models.isEmpty()) {
+        // A document whose scene is [[models]] has no single file to name, and
+        // m_currentSceneFile stays empty so that a save does not invent a
+        // `scene.gltf` for it. The viewport still has something to show.
+        m_currentSceneFile.clear();
+        m_viewportFrame->setSceneLoaded(true);
     }
 }
 
@@ -4423,6 +4540,12 @@ void MainWindow::syncPanelsFromRenderer() {
     m_spectralConfigPanel->setWavelength(m_vulkanWindow->wavelength());
     m_lightingPanel->setSpectralMode(m_vulkanWindow->spectralMode());
     m_atmosphericPanel->setAtmosphericConfig(m_vulkanWindow->atmosphericConfig());
+
+    // The clock, read back rather than taken from the file, for the same
+    // reason as everything above it: the SDK resolved what `end_s = "36h"` and
+    // a fractional tick rate mean, and the panel shows what it decided.
+    m_timelineTimeS = m_vulkanWindow->timelineInfo().current_s;
+    refreshTimelineInfo();
 
     // The camera panel is not in this list: the renderer emits cameraChanged()
     // when it adopts one, which is the single dispatcher for camera state.
@@ -4453,6 +4576,12 @@ void MainWindow::collectCurrentConfig(SceneConfig& config) {
     // the carried-forward copy is the only other source and it goes stale the
     // moment anything sets a new one.
     config.samplingSeed = m_vulkanWindow->samplingSeed();
+
+    // Where the transport stands. The rest of [timeline] is carried verbatim
+    // in config.timeline.body, which nothing here edits.
+    if (config.timeline.present) {
+        config.timeline.timeS = m_timelineTimeS;
+    }
 
     config.cameraOrthographic = m_vulkanWindow->cameraIsOrthographic();
     config.cameraOrthoHeight = m_vulkanWindow->cameraOrthoHeight();
@@ -4658,7 +4787,12 @@ void MainWindow::collectCurrentConfig(SceneConfig& config) {
 
         NodeConfig nodeConfig;
         nodeConfig.name = QString::fromStdString(node.name);
-        nodeConfig.transform = node.transform;
+        // The REST pose, not the transform. For a node the clock moves, the
+        // transform is where it is at this instant -- which is not a thing a
+        // document can record, because it would be wrong at every other tick.
+        // The SDK solves the composition for it; a node with no trajectory
+        // gets the same matrix either way.
+        nodeConfig.transform = m_vulkanWindow->nodeRestTransform(nodeIndex);
 
         // Replace an entry the file already carried for this node rather than
         // adding a second one the core would apply in file order.

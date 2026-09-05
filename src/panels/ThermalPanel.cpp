@@ -6,6 +6,7 @@
 #include "ThermalPanel.hpp"
 
 #include <algorithm>
+#include <cmath>
 
 #include <QCheckBox>
 #include <QComboBox>
@@ -248,8 +249,18 @@ void ThermalPanel::setupUi() {
 void ThermalPanel::retranslateUi() {
     bindText([this] {
         m_enableCheck->setText(tr("Enable thermal solve"));
-        m_timeGroup->setTitle(tr("Time of Day"));
-        m_timeCaption->setText(tr("Simulation time"));
+        if (!m_mappedHour) m_timeGroup->setTitle(tr("Time of Day"));
+        if (m_mappedHour) {
+            m_timeGroup->setTitle(tr("Time of Day — following the timeline (%1 h)")
+                                      .arg(*m_mappedHour, 0, 'f', 3));
+            m_timeCaption->setText(tr("Hour at timeline start"));
+            m_timeSpin->setToolTip(
+                tr("With a [timeline], this is the hour the clock starts at. Which "
+                   "hour is being rendered comes from the transport."));
+        } else {
+            m_timeCaption->setText(tr("Simulation time"));
+            m_timeSpin->setToolTip(QString());
+        }
         m_paramsGroup->setTitle(tr("Solver Parameters"));
         m_startTimeCaption->setText(tr("Start time"));
         m_timestepCaption->setText(tr("Timestep"));
@@ -331,6 +342,21 @@ void ThermalPanel::setTime(double time_h) {
     m_timeSpin->setValue(time_h);
     m_timeSlider->setValue(static_cast<int>(time_h * 60.0));
     m_suppressSignals = false;
+}
+
+void ThermalPanel::setMappedHour(std::optional<double> hour) {
+    if (m_mappedHour.has_value() == hour.has_value() &&
+        (!hour.has_value() || std::abs(*hour - *m_mappedHour) < 1e-9)) {
+        return;
+    }
+    m_mappedHour = hour;
+
+    // The slider and the spin box mean different things now, so only one of
+    // them goes away: the spin box still sets the hour the clock STARTS at,
+    // which is a real thing to edit. The slider set the hour being rendered,
+    // which the transport now owns.
+    m_timeSlider->setEnabled(!m_mappedHour.has_value());
+    retranslateUi();
 }
 
 void ThermalPanel::updateStatus(const quantiloom::ThermalSolveStatus& s) {

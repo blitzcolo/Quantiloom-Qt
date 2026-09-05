@@ -21,6 +21,7 @@
 #include <renderer/Pick.hpp>
 #include <renderer/DisplayControl.hpp>
 #include <renderer/ThermalControl.hpp>
+#include <renderer/TimelineControl.hpp>
 
 #include "../editing/GizmoModel.hpp"
 
@@ -383,6 +384,15 @@ public:
     void setThermalSolveEnabled(bool enabled);
     void setThermalTime(double time_h);
     [[nodiscard]] quantiloom::ThermalSolveStatus thermalSolveStatus() const;
+
+    // ========================================================================
+    // Timeline
+    // ========================================================================
+
+    void setTimelineTime(double time_s);
+    [[nodiscard]] quantiloom::TimelineInfo timelineInfo() const;
+    void setTimelineThermalMapping(double hourAtStart_h, double scale);
+    [[nodiscard]] glm::mat4 nodeRestTransform(int nodeIndex) const;
     [[nodiscard]] quantiloom::Result<quantiloom::u32, quantiloom::String> thermalElementAt(
         const quantiloom::PickResult& pick) const;
     [[nodiscard]] quantiloom::Result<quantiloom::ThermalElementTrajectory, quantiloom::String>

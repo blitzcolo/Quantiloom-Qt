@@ -82,6 +82,16 @@ Translate consistently. Left column is the source term, right is the Chinese to 
 | display enhancement | 显示增强 |
 | debug visualization | 调试可视化 |
 | screenshot / export image | 截图 / 导出图像 |
+| timeline | 时间轴 |
+| tick | 时间刻 |
+| keyframe | 关键帧 |
+| playback | 播放 |
+| scrub (the timeline) | 拖动时间轴 |
+| transport (play/step controls) | 走带 |
+| thermal geometry epoch | 热学几何分段 |
+| rest pose | 静止姿态 |
+| model (a `[[models]]` entry) | 模型 |
+| trajectory / motion | 轨迹 / 运动 |
 
 Temperatures always carry their qualifier: 大气温度, 地表温度, 物体温度, 探测器温度,
 聚类温度. One bare "temperature" for five different quantities is what the qualifiers

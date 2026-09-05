@@ -52,11 +52,38 @@
 
 #include <glm/gtc/matrix_transform.hpp>
 
+#include <algorithm>
 #include <cmath>
 
 namespace mcp = quantiloom::mcp;
 
 namespace {
+
+/// Everything TimelineInfo carries, under the names the tools' descriptions
+/// use. One place, so the read tool and the write tool cannot describe the
+/// clock differently.
+QJsonObject TimelineJson(const quantiloom::TimelineInfo& info) {
+    QJsonObject out;
+    out["present"] = info.present;
+    if (!info.present) {
+        return out;
+    }
+    out["start_s"] = info.start_s;
+    out["end_s"] = info.end_s;
+    out["ticks_per_second"] = info.ticksPerSecond;
+    out["tick_count"] = static_cast<double>(info.TickCount());
+    out["current_s"] = info.current_s;
+    out["current_tick"] = static_cast<double>(info.TickOf(info.current_s));
+    out["thermal_mapped"] = info.thermalMapped;
+    out["thermal_hour_at_start"] = info.thermalHourAtStart;
+    out["thermal_time_scale"] = info.thermalTimeScale;
+    out["current_thermal_hour"] = info.currentThermalHour;
+    out["thermal_epoch_count"] = static_cast<int>(info.thermalEpochCount);
+    out["current_thermal_epoch"] = static_cast<int>(info.currentThermalEpoch);
+    out["animated_nodes"] = static_cast<int>(info.animatedNodeCount);
+    out["models"] = static_cast<int>(info.modelCount);
+    return out;
+}
 
 mcp::ToolResult Json(const QJsonObject& document) {
     return mcp::ToolResult::Text(
@@ -959,6 +986,84 @@ void MainWindow::registerMcpTools() {
             return Json(ThermalStatusJson(m_thermalEnabled, m_thermalTimeH,
                                           currentThermalParams(),
                                           m_vulkanWindow->thermalSolveStatus()));
+        };
+        add(tool);
+    }
+
+    {
+        mcp::ToolDef tool;
+        tool.name = "ql_get_timeline";
+        tool.description =
+            "The global clock: the span it covers, its tick rate, where the transport stands, "
+            "and what it drives.\n"
+            "\n"
+            "Read `present` first. False means the open document declares no [timeline] and "
+            "nothing in it moves -- every other field is then meaningless rather than zero.\n"
+            "\n"
+            "Seconds are what everything is stated in; a tick is a frame of the grid those "
+            "seconds are sampled on, and ticks_per_second relates them (it is a real number, so "
+            "a month-long timeline sampled every 150 s is 0.006667). thermal_mapped says the "
+            "hour follows the clock: thermal.time_h then means the hour at the START of the "
+            "timeline, and current_thermal_hour is what is being rendered. thermal_epoch_count "
+            "is how many piecewise-static spans the thermal solve was cut into -- one means "
+            "nothing moved far enough to matter.";
+        tool.inputSchemaJson = R"({"type":"object","properties":{}})";
+        tool.readOnly = true;
+        tool.handler = [this](const quantiloom::String&) {
+            return Json(TimelineJson(m_vulkanWindow->timelineInfo()));
+        };
+        add(tool);
+    }
+
+    {
+        mcp::ToolDef tool;
+        tool.name = "ql_set_timeline_time";
+        tool.description =
+            "Move the global clock. Give either time_s or tick, not both.\n"
+            "\n"
+            "Puts every animated node where its trajectory says, refits the acceleration "
+            "structure and -- when the hour follows the clock -- re-solves the thermal field at "
+            "the hour that second maps to. Cheap enough to scrub: no view factors are "
+            "recomputed, because the trajectory the geometry epochs were measured from has not "
+            "changed.\n"
+            "\n"
+            "NOT undoable, and it does not mark the document modified: where the transport "
+            "stands is what you are looking at rather than an edit to the scene. A save records "
+            "it either way. A document with no [timeline] accepts this and does nothing; read "
+            "the returned state rather than assuming it moved.";
+        tool.inputSchemaJson = R"({
+  "type": "object",
+  "properties": {
+    "time_s": {"type": "number", "description": "Where to put the clock, in timeline seconds. Clamped to the span."},
+    "tick": {"type": "integer", "description": "The same thing said in frames of the tick grid. Ignored when time_s is given."}
+  }
+})";
+        tool.handler = [this](const quantiloom::String& argumentsJson) {
+            QJsonObject args;
+            mcp::ToolResult error;
+            if (!ParseArgs(argumentsJson, args, error)) {
+                return error;
+            }
+
+            const quantiloom::TimelineInfo info = m_vulkanWindow->timelineInfo();
+            if (!info.present) {
+                return Json(TimelineJson(info));
+            }
+
+            double target = info.current_s;
+            if (args.contains(QStringLiteral("time_s"))) {
+                target = args.value(QStringLiteral("time_s")).toDouble(target);
+            } else if (args.contains(QStringLiteral("tick"))) {
+                target = info.TimeOfTick(
+                    static_cast<long long>(args.value(QStringLiteral("tick")).toInt(0)));
+            }
+            target = std::clamp(target, info.start_s, std::max(info.end_s, info.start_s));
+
+            // Straight to the dispatcher rather than through an undo command:
+            // moving the clock is deliberately not an edit, and playback would
+            // otherwise push twenty commands a second onto the stack.
+            applyTimelineTime(target);
+            return Json(TimelineJson(m_vulkanWindow->timelineInfo()));
         };
         add(tool);
     }

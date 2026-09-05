@@ -1515,6 +1515,38 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>&amp;Timeline</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Play / Pause</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Run the clock. Which of the two playback modes it uses is the panel&apos;s Mode setting.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Pre&amp;vious Tick</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Next Tick</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Go to &amp;Start</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Go to &amp;End</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Loop</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Main Toolbar</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3102,6 +3134,22 @@ Rebuild with:
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Material temperature sweep</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Timeline</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This document declares no [timeline], so there are no ticks to render.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Vary:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Sweep</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3131,6 +3179,22 @@ Rebuild with:
     </message>
     <message>
         <source>Samples per frame:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>From tick:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>To tick:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Render every Nth tick. The clock still passes through the ones in between -- the thermal trajectory is stepped, not skipped.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Every:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -3167,6 +3231,22 @@ Rebuild with:
     </message>
     <message>
         <source>Close</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>the renderer returned an empty frame</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>could not write %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>That tick range is empty.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 frames at %2 samples each, on one device.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -3247,6 +3327,14 @@ Rebuild with:
     </message>
     <message>
         <source>%1 frames written.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The document is not valid TOML: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The sequence failed: %1</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -3712,6 +3800,18 @@ Coverage — %3</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Time of Day — following the timeline (%1 h)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Hour at timeline start</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>With a [timeline], this is the hour the clock starts at. Which hour is being rendered comes from the transport.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Simulation time</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3861,6 +3961,109 @@ Coverage — %3</source>
     </message>
     <message>
         <source>CSV files (*.csv);;All files (*)</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>TimelinePanel</name>
+    <message>
+        <source>Timeline</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Transport</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Playback</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Tick</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Time</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Mode</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Speed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Loop</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Go to start (Alt+Home)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Previous tick (Alt+Left)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Pause (Ctrl+Space)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Play (Ctrl+Space)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Next tick (Alt+Right)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Go to end (Alt+End)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Real time</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Step when converged</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Real time advances on a timer. Step when converged waits for each frame to reach its sample target first, which is the only way to watch a path-traced sequence without watching the noise.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Multiplies the tick rate during playback. A timeline that spans a month is not watchable at one tick per twentieth of a second.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Moving the clock is not an edit: it does not enter the undo stack and does not mark the document modified. Saving records where it stands.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This scene declares no [timeline]. Add one, with [[models]] carrying a motion, to give it a clock.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No timeline</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Tick %1 / %2   %3   %4 animated node(s) over %5 model(s)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Thermal hour %1 h   geometry epoch %2 / %3   %4 simulated s per clock s</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 s</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 d %2</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

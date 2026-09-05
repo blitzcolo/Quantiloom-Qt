@@ -1560,6 +1560,38 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation>光谱模式(&amp;S)</translation>
     </message>
     <message>
+        <source>&amp;Timeline</source>
+        <translation>时间轴(&amp;T)</translation>
+    </message>
+    <message>
+        <source>&amp;Play / Pause</source>
+        <translation>播放/暂停(&amp;P)</translation>
+    </message>
+    <message>
+        <source>Run the clock. Which of the two playback modes it uses is the panel&apos;s Mode setting.</source>
+        <translation>让时钟走起来。用两种播放方式中的哪一种，由面板上的「模式」决定。</translation>
+    </message>
+    <message>
+        <source>Pre&amp;vious Tick</source>
+        <translation>上一时间刻(&amp;V)</translation>
+    </message>
+    <message>
+        <source>&amp;Next Tick</source>
+        <translation>下一时间刻(&amp;N)</translation>
+    </message>
+    <message>
+        <source>Go to &amp;Start</source>
+        <translation>回到起点(&amp;S)</translation>
+    </message>
+    <message>
+        <source>Go to &amp;End</source>
+        <translation>跳到终点(&amp;E)</translation>
+    </message>
+    <message>
+        <source>&amp;Loop</source>
+        <translation>循环(&amp;L)</translation>
+    </message>
+    <message>
         <source>Main Toolbar</source>
         <translation>主工具栏</translation>
     </message>
@@ -3224,6 +3256,54 @@ Rebuild with:
         <translation> K</translation>
     </message>
     <message>
+        <source>Material temperature sweep</source>
+        <translation>材质温度扫描</translation>
+    </message>
+    <message>
+        <source>Timeline</source>
+        <translation>时间轴</translation>
+    </message>
+    <message>
+        <source>This document declares no [timeline], so there are no ticks to render.</source>
+        <translation>本文档没有声明 [timeline]，因此没有可渲染的时间刻。</translation>
+    </message>
+    <message>
+        <source>Vary:</source>
+        <translation>变化量：</translation>
+    </message>
+    <message>
+        <source>From tick:</source>
+        <translation>起始时间刻：</translation>
+    </message>
+    <message>
+        <source>To tick:</source>
+        <translation>结束时间刻：</translation>
+    </message>
+    <message>
+        <source>Render every Nth tick. The clock still passes through the ones in between -- the thermal trajectory is stepped, not skipped.</source>
+        <translation>每 N 个时间刻渲染一帧。中间的时间刻时钟仍会走过——热学轨迹是逐步推进的，不是跳过的。</translation>
+    </message>
+    <message>
+        <source>Every:</source>
+        <translation>每隔：</translation>
+    </message>
+    <message>
+        <source>the renderer returned an empty frame</source>
+        <translation>渲染器返回了空帧</translation>
+    </message>
+    <message>
+        <source>could not write %1</source>
+        <translation>无法写入 %1</translation>
+    </message>
+    <message>
+        <source>That tick range is empty.</source>
+        <translation>该时间刻区间为空。</translation>
+    </message>
+    <message>
+        <source>%1 frames at %2 samples each, on one device.</source>
+        <translation>%1 帧，每帧 %2 采样，在同一台设备上完成。</translation>
+    </message>
+    <message>
         <source>The open scene has no materials to sweep.</source>
         <translation>当前场景没有可供扫描的材质。</translation>
     </message>
@@ -3298,6 +3378,14 @@ Rebuild with:
     <message>
         <source>%1 frames written.</source>
         <translation>已写出 %1 帧。</translation>
+    </message>
+    <message>
+        <source>The document is not valid TOML: %1</source>
+        <translation>文档不是有效的 TOML：%1</translation>
+    </message>
+    <message>
+        <source>The sequence failed: %1</source>
+        <translation>序列渲染失败：%1</translation>
     </message>
 </context>
 <context>
@@ -3761,6 +3849,18 @@ Coverage — %3</source>
         <translation>时刻</translation>
     </message>
     <message>
+        <source>Time of Day — following the timeline (%1 h)</source>
+        <translation>时刻 —— 跟随时间轴（%1 h）</translation>
+    </message>
+    <message>
+        <source>Hour at timeline start</source>
+        <translation>时间轴起点的时刻</translation>
+    </message>
+    <message>
+        <source>With a [timeline], this is the hour the clock starts at. Which hour is being rendered comes from the transport.</source>
+        <translation>存在 [timeline] 时，这里是时钟起点的小时数；实际渲染的是哪一小时由走带决定。</translation>
+    </message>
+    <message>
         <source>Simulation time</source>
         <translation>模拟时间</translation>
     </message>
@@ -3911,6 +4011,109 @@ Coverage — %3</source>
     <message>
         <source>CSV files (*.csv);;All files (*)</source>
         <translation>CSV 文件 (*.csv);;所有文件 (*)</translation>
+    </message>
+</context>
+<context>
+    <name>TimelinePanel</name>
+    <message>
+        <source>Timeline</source>
+        <translation>时间轴</translation>
+    </message>
+    <message>
+        <source>Transport</source>
+        <translation>走带</translation>
+    </message>
+    <message>
+        <source>Playback</source>
+        <translation>播放</translation>
+    </message>
+    <message>
+        <source>Tick</source>
+        <translation>时间刻</translation>
+    </message>
+    <message>
+        <source>Time</source>
+        <translation>时间</translation>
+    </message>
+    <message>
+        <source>Mode</source>
+        <translation>模式</translation>
+    </message>
+    <message>
+        <source>Speed</source>
+        <translation>速度</translation>
+    </message>
+    <message>
+        <source>Loop</source>
+        <translation>循环</translation>
+    </message>
+    <message>
+        <source>Go to start (Alt+Home)</source>
+        <translation>回到起点（Alt+Home）</translation>
+    </message>
+    <message>
+        <source>Previous tick (Alt+Left)</source>
+        <translation>上一时间刻（Alt+Left）</translation>
+    </message>
+    <message>
+        <source>Pause (Ctrl+Space)</source>
+        <translation>暂停（Ctrl+Space）</translation>
+    </message>
+    <message>
+        <source>Play (Ctrl+Space)</source>
+        <translation>播放（Ctrl+Space）</translation>
+    </message>
+    <message>
+        <source>Next tick (Alt+Right)</source>
+        <translation>下一时间刻（Alt+Right）</translation>
+    </message>
+    <message>
+        <source>Go to end (Alt+End)</source>
+        <translation>跳到终点（Alt+End）</translation>
+    </message>
+    <message>
+        <source>Real time</source>
+        <translation>实时</translation>
+    </message>
+    <message>
+        <source>Step when converged</source>
+        <translation>收敛后步进</translation>
+    </message>
+    <message>
+        <source>Real time advances on a timer. Step when converged waits for each frame to reach its sample target first, which is the only way to watch a path-traced sequence without watching the noise.</source>
+        <translation>「实时」按定时器推进。「收敛后步进」会等每一帧达到目标采样数再前进——这是观看路径追踪序列时唯一不会只看到噪声的方式。</translation>
+    </message>
+    <message>
+        <source>Multiplies the tick rate during playback. A timeline that spans a month is not watchable at one tick per twentieth of a second.</source>
+        <translation>播放时对时间刻率的倍率。跨度一个月的时间轴，按每二十分之一秒一个时间刻是看不完的。</translation>
+    </message>
+    <message>
+        <source>Moving the clock is not an edit: it does not enter the undo stack and does not mark the document modified. Saving records where it stands.</source>
+        <translation>移动时钟不算编辑：它不进入撤销栈，也不会把文档标记为已修改。保存时仍会记录它停在哪里。</translation>
+    </message>
+    <message>
+        <source>This scene declares no [timeline]. Add one, with [[models]] carrying a motion, to give it a clock.</source>
+        <translation>本场景没有声明 [timeline]。加上一个，并让 [[models]] 带上运动轨迹，就有时钟了。</translation>
+    </message>
+    <message>
+        <source>No timeline</source>
+        <translation>无时间轴</translation>
+    </message>
+    <message>
+        <source>Tick %1 / %2   %3   %4 animated node(s) over %5 model(s)</source>
+        <translation>时间刻 %1 / %2   %3   %5 个模型中有 %4 个运动节点</translation>
+    </message>
+    <message>
+        <source>Thermal hour %1 h   geometry epoch %2 / %3   %4 simulated s per clock s</source>
+        <translation>热学时刻 %1 h   几何分段 %2 / %3   每时钟秒 %4 模拟秒</translation>
+    </message>
+    <message>
+        <source>%1 s</source>
+        <translation>%1 s</translation>
+    </message>
+    <message>
+        <source>%1 d %2</source>
+        <translation>%1 天 %2</translation>
     </message>
 </context>
 <context>
