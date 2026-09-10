@@ -1545,7 +1545,7 @@ void MainWindow::setMcpServerRunning(bool running) {
 
     QSettings settings;
     const quantiloom::u16 port =
-        static_cast<quantiloom::u16>(settings.value(kMcpPortKey, 8767).toUInt());
+        static_cast<quantiloom::u16>(settings.value(kMcpPortKey, 8600).toUInt());
 
     quantiloom::mcp::ServerOptions options;
     options.port = port;
