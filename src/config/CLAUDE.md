@@ -98,9 +98,19 @@ and saving it stripped every one of them — the illuminant included, which turn
 spectral modes black, and the NMF database reference, which is the core's flagship
 measured-material path. A file lost its meaning by being looked at.
 
-The optional ones (`default_temperature_k`, the two `quality` gates, `[hyperspectral]`)
-are `std::optional` so that a file which never spelled them out does not acquire them
-on save. When a panel eventually owns one of these, it moves into the ordinary
+The three USD load options — `scene.usd_time_code`, `scene.usd_payloads` and
+`scene.usd_stage_metrics` — are in the same group and there for the same reason.
+Studio has no widget for any of them and no reading of what they mean: which
+sample an animated stage is read at, whether its payloads are opened, and whether
+its `upAxis` and `metersPerUnit` are folded into the node transforms are all
+decided in the core, in `ConfigResolve.cpp` and `RenderCore.cpp`. `scene.variant`
+sits beside them and is shared by both formats — a glTF variant name or a USD
+`/Root/Car{color=red}` spec, and which syntax it is in follows from which loader
+reads it. Studio carries all four so that saving does not lose them.
+
+The optional ones (`default_temperature_k`, the two `quality` gates, `[hyperspectral]`,
+`usd_time_code`, `usd_stage_metrics`) are `std::optional` so that a file which never
+spelled them out does not acquire them on save. When a panel eventually owns one of these, it moves into the ordinary
 "panel owns it, `collectCurrentConfig()` reads it back" group; the round trip is
 already in place.
 

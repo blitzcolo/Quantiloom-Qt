@@ -264,14 +264,34 @@ struct SceneConfig {
     // [scene]
     QString gltfPath;
     QString usdPath;
-    /// KHR_materials_variants selection, by name. Empty means the file's own
-    /// per-primitive materials, which is what glTF calls vanilla behaviour --
-    /// the format declares the names but has no "default variant" field, so
-    /// the choice belongs here. Mirrored in the writer as well as the reader:
-    /// [scene] is regenerated from this struct on save, so a key with no field
-    /// is silently dropped from any config Studio touches.
+    /// scene.variant -- for a glTF, a KHR_materials_variants selection by name;
+    /// for a USD, "/Root/Car{color=red}", comma-separated, or a bare
+    /// "set=variant" for every prim owning the set. Empty means the file's own
+    /// materials and default variants, which is what glTF calls vanilla
+    /// behaviour -- the format declares the names but has no "default variant"
+    /// field, so the choice belongs here. Which syntax the string is in follows
+    /// from which loader reads it. Mirrored in the writer as well as the
+    /// reader: [scene] is regenerated from this struct on save, so a key with
+    /// no field is silently dropped from any config Studio touches.
     QString variant;
     float worldUnitsToMeters = 1.0f;
+
+    /// scene.usd_time_code -- which sample a USD stage is read at. Absent means
+    /// the stage's own default time, which is not time zero: time zero is a
+    /// sample an unanimated attribute does not have. Optional so a file that
+    /// never pinned an instant does not acquire one by being saved.
+    std::optional<double> usdTimeCode;
+
+    /// scene.usd_payloads -- "all" or "none". Empty means the key was absent
+    /// and the core's default ("all") stands; "none" opens the stage's
+    /// hierarchy without the heavy geometry hanging off it.
+    QString usdPayloads;
+
+    /// scene.usd_stage_metrics -- whether a USD stage's upAxis and authored
+    /// metersPerUnit are folded into its node transforms. Absent means the
+    /// core's default, which is on; a scene that was authored against the
+    /// unfolded orientation turns it off.
+    std::optional<bool> usdStageMetrics;
 
     // [camera]
     float cameraPosition[3] = {0.0f, 0.0f, 5.0f};

@@ -179,6 +179,20 @@ void ConfigManager::extractSceneConfig(const quantiloom::Config& config, SceneCo
     out.variant = QString::fromStdString(config.GetString("scene.variant", ""));
     out.worldUnitsToMeters = config.GetFloat("scene.world_units_to_meters", 1.0f);
 
+    // The three USD load options. Studio has no widget for any of them and no
+    // reading of what they mean -- the core decides that, in ConfigResolve and
+    // RenderCore -- so they are carried purely so that saving does not lose
+    // them. Presence is the value, hence Has() rather than a default.
+    out.usdTimeCode.reset();
+    if (config.Has("scene.usd_time_code")) {
+        out.usdTimeCode = config.Get<double>("scene.usd_time_code", 0.0);
+    }
+    out.usdPayloads = QString::fromStdString(config.GetString("scene.usd_payloads", ""));
+    out.usdStageMetrics.reset();
+    if (config.Has("scene.usd_stage_metrics")) {
+        out.usdStageMetrics = config.Get<bool>("scene.usd_stage_metrics", true);
+    }
+
     // [timeline] and [[models]], both carried rather than interpreted.
     //
     // Studio has no reading of what these keys mean and must not acquire one:
@@ -789,6 +803,17 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
     // backfill does not acquire one by being saved.
     if (config.defaultTemperatureK) {
         out << "default_temperature_k = " << *config.defaultTemperatureK << "\n";
+    }
+    // The USD load options, each written only when the file named it, so a
+    // scene that never asked for one does not acquire it by being saved.
+    if (config.usdTimeCode) {
+        out << "usd_time_code = " << *config.usdTimeCode << "\n";
+    }
+    if (!config.usdPayloads.isEmpty()) {
+        out << "usd_payloads = " << tomlQuoted(config.usdPayloads) << "\n";
+    }
+    if (config.usdStageMetrics) {
+        out << "usd_stage_metrics = " << (*config.usdStageMetrics ? "true" : "false") << "\n";
     }
     if (!config.removedNodes.isEmpty()) {
         // Nodes the file placed but the user deleted; the core tombstones
