@@ -631,6 +631,36 @@ if(BUILD_TESTING)
     endif()
     add_test(NAME camera_motion_config_roundtrip
              COMMAND camera_motion_config_test)
+
+    add_executable(camera_sequence_dialog_test
+        tests/test_camera_sequence_dialog.cpp
+        src/dialogs/SequenceRenderDialog.cpp
+        src/dialogs/SequenceRenderDialog.hpp
+        src/config/ConfigManager.cpp
+        src/config/ConfigManager.hpp
+        src/ui/UiStyle.cpp
+        src/ui/UiStyle.hpp
+        src/ui/theme/ThemeManager.cpp
+        src/ui/theme/ThemeManager.hpp)
+    add_dependencies(camera_sequence_dialog_test QuantiloomQt)
+    target_include_directories(camera_sequence_dialog_test PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src)
+    target_link_libraries(camera_sequence_dialog_test PRIVATE
+        Qt6::Core Qt6::Gui Qt6::Widgets ${QUANTILOOM_LIBRARIES})
+    target_compile_definitions(camera_sequence_dialog_test PRIVATE
+        QUANTILOOM_DEV_ROOT="${QUANTILOOM_DEV_ROOT}")
+    if(QUANTILOOM_PLATFORM_WINDOWS)
+        target_compile_definitions(camera_sequence_dialog_test PRIVATE QUANTILOOM_PLATFORM_WINDOWS)
+    elseif(QUANTILOOM_PLATFORM_LINUX)
+        target_compile_definitions(camera_sequence_dialog_test PRIVATE QUANTILOOM_PLATFORM_LINUX)
+    elseif(QUANTILOOM_PLATFORM_MACOS)
+        target_compile_definitions(camera_sequence_dialog_test PRIVATE QUANTILOOM_PLATFORM_MACOS)
+    endif()
+    if(MSVC)
+        target_compile_options(camera_sequence_dialog_test PRIVATE /utf-8 /W4)
+    endif()
+    add_test(NAME camera_sequence_dialog_history COMMAND camera_sequence_dialog_test)
+    set_tests_properties(camera_sequence_dialog_history PROPERTIES TIMEOUT 120)
 endif()
 
 message(STATUS "========================================")

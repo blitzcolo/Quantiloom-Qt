@@ -514,6 +514,11 @@ QuantiloomVulkanWindow::reprocessCameraDisplay(
     return m_renderer->reprocessCameraDisplay(config);
 }
 
+quantiloom::CameraHistoryStatus QuantiloomVulkanWindow::cameraHistoryStatus() const {
+    return m_renderer ? m_renderer->cameraHistoryStatus()
+                      : quantiloom::CameraHistoryStatus{};
+}
+
 quantiloom::Result<quantiloom::camera::CameraOutput, quantiloom::String>
 QuantiloomVulkanWindow::captureCameraProducts(double timeSeconds) {
     if (!m_renderer) {

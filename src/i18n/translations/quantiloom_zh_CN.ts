@@ -1010,6 +1010,10 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         </translation>
     </message>
     <message>
+        <source>Camera history reset: %1</source>
+        <translation type="vanished">相机采集历史已重置：%1</translation>
+    </message>
+    <message>
         <source>ETA %1</source>
         <translation>剩余 %1</translation>
     </message>
@@ -1166,6 +1170,10 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation>材质已修改</translation>
     </message>
     <message>
+        <source>Camera history reset</source>
+        <translation>相机采集历史已重置</translation>
+    </message>
+    <message>
         <source>-- spp/s</source>
         <translation>-- spp/s</translation>
     </message>
@@ -1236,8 +1244,16 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation>光源已加载</translation>
     </message>
     <message>
+        <source>Camera configuration failed: %1</source>
+        <translation>相机配置失败：%1</translation>
+    </message>
+    <message>
         <source>The thermal solve is off.</source>
         <translation>热求解已关闭。</translation>
+    </message>
+    <message>
+        <source>Camera history will reset on the next frame</source>
+        <translation>相机采集历史将在下一帧重置</translation>
     </message>
     <message>
         <source>Timeline</source>
@@ -3573,6 +3589,18 @@ Rebuild with:
         <translation>表面辐射穿过目标与镜头之间空气后保留的比例。设为 1 表示忽略大气，适合短距离测量。</translation>
     </message>
     <message>
+        <source>Preview: camera simulation off</source>
+        <translation>预览：相机模拟已关闭</translation>
+    </message>
+    <message>
+        <source>Preview: RGB input approximation; device spectrum unavailable</source>
+        <translation>预览：RGB 输入近似，无法恢复设备光谱响应</translation>
+    </message>
+    <message>
+        <source>Preview: GPU spectral sampling, effective PSF, up to %1 exposure positions</source>
+        <translation>预览：GPU 光谱采样、有效 PSF，最多 %1 个曝光时间位置</translation>
+    </message>
+    <message>
         <source>Effective band: %1–%2 nm</source>
         <translation>有效波段：%1–%2 nm</translation>
     </message>
@@ -3724,6 +3752,10 @@ Rebuild with:
         <translation>{index} 为补零的帧号；{temperature} 为该帧温度（开尔文，取整）。</translation>
     </message>
     <message>
+        <source>Render every Nth scene tick. Thermal motion follows scene time; camera acquisitions follow the device frame period independently.</source>
+        <translation>每隔 N 个场景时间刻导出一帧。热运动跟随场景时间；相机采集独立地按设备帧周期进行。</translation>
+    </message>
+    <message>
         <source>Export Manifest...</source>
         <translation>导出清单...</translation>
     </message>
@@ -3777,7 +3809,7 @@ Rebuild with:
     </message>
     <message>
         <source>Render every Nth tick. The clock still passes through the ones in between -- the thermal trajectory is stepped, not skipped.</source>
-        <translation>每 N 个时间刻渲染一帧。中间的时间刻时钟仍会走过——热学轨迹是逐步推进的，不是跳过的。</translation>
+        <translation type="vanished">每 N 个时间刻渲染一帧。中间的时间刻时钟仍会走过——热学轨迹是逐步推进的，不是跳过的。</translation>
     </message>
     <message>
         <source>Every:</source>

@@ -1187,7 +1187,15 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Camera configuration failed: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>The thermal solve is off.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Camera history will reset on the next frame</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -2011,6 +2019,10 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
     <message>
         <source>Wavelength: %1 nm</source>
         <translation>Wavelength: %1 nm</translation>
+    </message>
+    <message>
+        <source>Camera history reset</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>-- spp/s</source>
@@ -3519,6 +3531,18 @@ Rebuild with:
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Preview: camera simulation off</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Preview: RGB input approximation; device spectrum unavailable</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Preview: GPU spectral sampling, effective PSF, up to %1 exposure positions</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Effective band: %1–%2 nm</source>
         <translation>Effective band: %1–%2 nm</translation>
     </message>
@@ -3682,7 +3706,7 @@ Rebuild with:
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Render every Nth tick. The clock still passes through the ones in between -- the thermal trajectory is stepped, not skipped.</source>
+        <source>Render every Nth scene tick. Thermal motion follows scene time; camera acquisitions follow the device frame period independently.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

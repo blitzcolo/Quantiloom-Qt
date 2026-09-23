@@ -23,6 +23,7 @@
 #include <QFileInfo>
 #include <QFile>
 #include <QDir>
+#include <QCoreApplication>
 #include <QThread>
 #include <QPointer>
 #include <QMessageBox>
@@ -32,14 +33,32 @@
 #include <core/Config.hpp>
 #include <core/Image.hpp>
 #include <io/ImageIO.hpp>
+#include <postprocess/CameraConfigIO.hpp>
 #include <renderer/OfflineRenderer.hpp>
 
 #include <algorithm>
 #include <exception>
+#include <limits>
 #include <optional>
 #include <utility>
 
 namespace {
+quantiloom::OfflineRenderer::InitParams offlineInit(const QString& baseDir) {
+    quantiloom::OfflineRenderer::InitParams init;
+    init.baseDir = baseDir.toStdString();
+    for (const QString& candidate : {
+             qEnvironmentVariable("QUANTILOOM_ATMOS_MODELS"),
+             QDir::current().filePath(QStringLiteral("assets/atmos_models")),
+             QDir(QCoreApplication::applicationDirPath()).filePath(
+                 QStringLiteral("assets/atmos_models"))}) {
+        if (!candidate.isEmpty() && QDir(candidate).exists()) {
+            init.atmosphereModelPackFallback = candidate.toStdString();
+            break;
+        }
+    }
+    return init;
+}
+
 bool writeCameraProducts(const quantiloom::camera::CameraOutput& output,
                          const QString& exrPath, QString* error) {
     const QFileInfo file(exrPath);
@@ -127,6 +146,7 @@ void SequenceRenderDialog::setupUi() {
     // ------------------------------------------------------------------
     auto* modeRow = new QFormLayout();
     m_modeCombo = new QComboBox(this);
+    m_modeCombo->setObjectName(QStringLiteral("sequenceMode"));
     m_modeCombo->addItem(tr("Material temperature sweep"));
     m_modeCombo->addItem(tr("Timeline"));
     if (!m_timeline.present) {
@@ -186,6 +206,7 @@ void SequenceRenderDialog::setupUi() {
     sweepLayout->addRow(tr("Frames:"), m_frameCount);
 
     m_spp = new QSpinBox();
+    m_spp->setObjectName(QStringLiteral("sequenceSpp"));
     m_spp->setRange(1, 100000);
     m_spp->setValue(static_cast<int>(m_baseConfig.spp));
     m_spp->setToolTip(tr("Samples per frame. Every frame is traced to completion, "
@@ -206,6 +227,7 @@ void SequenceRenderDialog::setupUi() {
                            : 0;
 
     m_fromTick = new QSpinBox();
+    m_fromTick->setObjectName(QStringLiteral("sequenceFromTick"));
     m_fromTick->setRange(0, lastTick);
     m_fromTick->setValue(0);
     connect(m_fromTick, QOverload<int>::of(&QSpinBox::valueChanged),
@@ -213,6 +235,7 @@ void SequenceRenderDialog::setupUi() {
     timelineLayout->addRow(tr("From tick:"), m_fromTick);
 
     m_toTick = new QSpinBox();
+    m_toTick->setObjectName(QStringLiteral("sequenceToTick"));
     m_toTick->setRange(0, lastTick);
     m_toTick->setValue(lastTick);
     connect(m_toTick, QOverload<int>::of(&QSpinBox::valueChanged),
@@ -220,11 +243,12 @@ void SequenceRenderDialog::setupUi() {
     timelineLayout->addRow(tr("To tick:"), m_toTick);
 
     m_everyTick = new QSpinBox();
+    m_everyTick->setObjectName(QStringLiteral("sequenceEveryTick"));
     m_everyTick->setRange(1, 10000);
     m_everyTick->setValue(1);
     m_everyTick->setToolTip(
-        tr("Render every Nth tick. The clock still passes through the ones in "
-           "between -- the thermal trajectory is stepped, not skipped."));
+        tr("Render every Nth scene tick. Thermal motion follows scene time; "
+           "camera acquisitions follow the device frame period independently."));
     connect(m_everyTick, QOverload<int>::of(&QSpinBox::valueChanged),
             this, &SequenceRenderDialog::onSweepChanged);
     timelineLayout->addRow(tr("Every:"), m_everyTick);
@@ -240,6 +264,7 @@ void SequenceRenderDialog::setupUi() {
 
     auto* dirRow = new QHBoxLayout();
     m_outputDirEdit = new QLineEdit(m_baseConfig.baseDir);
+    m_outputDirEdit->setObjectName(QStringLiteral("sequenceOutputDir"));
     auto* browse = new QPushButton(tr("..."));
     browse->setMaximumWidth(32);
     connect(browse, &QPushButton::clicked, this, &SequenceRenderDialog::onBrowseOutputDir);
@@ -248,6 +273,7 @@ void SequenceRenderDialog::setupUi() {
     outputLayout->addRow(tr("Directory:"), dirRow);
 
     m_nameTemplateEdit = new QLineEdit(QStringLiteral("frame_{index}_{temperature}K.exr"));
+    m_nameTemplateEdit->setObjectName(QStringLiteral("sequenceNameTemplate"));
     m_nameTemplateEdit->setToolTip(
         tr("{index} is the frame number, zero padded; {temperature} is its "
            "temperature in kelvin, rounded."));
@@ -284,6 +310,7 @@ void SequenceRenderDialog::setupUi() {
     connect(m_manifestButton, &QPushButton::clicked,
             this, &SequenceRenderDialog::onExportManifest);
     m_startButton = new QPushButton(tr("Render"));
+    m_startButton->setObjectName(QStringLiteral("sequenceStart"));
     m_startButton->setDefault(true);
     connect(m_startButton, &QPushButton::clicked, this, &SequenceRenderDialog::onStartOrCancel);
     m_closeButton = new QPushButton(tr("Close"));
@@ -641,7 +668,8 @@ void SequenceRenderDialog::startSweepRun(const QString& baseToml) {
     m_progress->setValue(0);
 
     QPointer<SequenceRenderDialog> self(this);
-    m_worker = QThread::create([this, self, frames, paths, frameCount] {
+    const QString baseDir = m_baseConfig.baseDir;
+    m_worker = QThread::create([this, self, frames, paths, frameCount, baseDir] {
         QString error;
         int rendered = 0;
 
@@ -666,7 +694,7 @@ void SequenceRenderDialog::startSweepRun(const QString& baseToml) {
                 // A device per frame, as the cube export does: OfflineRenderer
                 // owns its own, so nothing here touches the viewport's.
                 auto renderer = quantiloom::OfflineRenderer::Create(
-                    parsed.value(), quantiloom::OfflineRenderer::InitParams{});
+                    parsed.value(), offlineInit(baseDir));
                 if (!renderer.has_value()) {
                     error = tr("Frame %1: %2").arg(i + 1)
                                 .arg(QString::fromStdString(renderer.error()));
@@ -764,8 +792,7 @@ void SequenceRenderDialog::startTimelineRun() {
                 // acceleration structure built once, the thermal geometry
                 // schedule measured once, and its trajectory stepped forward
                 // between frames rather than restarted from the beginning.
-                quantiloom::OfflineRenderer::InitParams init;
-                init.baseDir = baseDir.toStdString();
+                const auto init = offlineInit(baseDir);
                 auto renderer = quantiloom::OfflineRenderer::Create(parsed.value(), init);
                 if (!renderer.has_value()) {
                     error = QString::fromStdString(renderer.error());
@@ -779,21 +806,45 @@ void SequenceRenderDialog::startTimelineRun() {
                             cameraConfig.readout.framePeriodSeconds);
                         if (!warmed) error = QString::fromStdString(warmed.error());
                     }
+                    const double firstTime = timeline.TimeOfTick(firstTick);
+                    quantiloom::u64 nextDeviceSlot = 0;
+                    quantiloom::u64 cachedDeviceSlot =
+                        std::numeric_limits<quantiloom::u64>::max();
+                    std::optional<quantiloom::camera::CameraOutput> products;
                     int i = 0;
-                    for (long long tick = firstTick; error.isEmpty() && tick <= lastTick; ++tick) {
+                    for (long long tick = firstTick; error.isEmpty() && tick <= lastTick;
+                         tick += everyTick) {
                         if (m_cancelled) break;
                         const double time = timeline.TimeOfTick(tick);
-                        if ((tick - firstTick) % everyTick != 0) {
-                            if (cameraConfig.enabled) {
+                        quantiloom::u64 targetDeviceSlot = 0;
+                        if (cameraConfig.enabled) {
+                            const auto target = quantiloom::camera::CameraAcquisitionIndexAt(
+                                firstTime, cameraConfig.readout.framePeriodSeconds, time);
+                            if (!target) {
+                                error = tr("Tick %1: %2").arg(tick)
+                                            .arg(QString::fromStdString(target.error()));
+                                break;
+                            }
+                            targetDeviceSlot = target.value();
+                            while (nextDeviceSlot < targetDeviceSlot) {
+                                const auto at = quantiloom::camera::CameraAcquisitionTimeAt(
+                                    firstTime, cameraConfig.readout.framePeriodSeconds,
+                                    nextDeviceSlot);
+                                if (!at) {
+                                    error = tr("Tick %1: %2").arg(tick)
+                                                .arg(QString::fromStdString(at.error()));
+                                    break;
+                                }
                                 const auto advanced = renderer.value()->AdvanceCameraState(
-                                    cameraState, time);
+                                    cameraState, at.value());
                                 if (!advanced) {
                                     error = tr("Tick %1: %2").arg(tick)
                                                 .arg(QString::fromStdString(advanced.error()));
                                     break;
                                 }
+                                ++nextDeviceSlot;
                             }
-                            continue;
+                            if (!error.isEmpty()) break;
                         }
 
                         QMetaObject::invokeMethod(self, [self, i, frameCount] {
@@ -815,15 +866,25 @@ void SequenceRenderDialog::startTimelineRun() {
                                         .arg(QString::fromStdString(output.error));
                             break;
                         }
-                        std::optional<quantiloom::camera::CameraOutput> products;
-                        if (cameraConfig.enabled) {
-                            auto captured = renderer.value()->CaptureCamera(cameraState, time);
+                        if (cameraConfig.enabled && cachedDeviceSlot != targetDeviceSlot) {
+                            const auto at = quantiloom::camera::CameraAcquisitionTimeAt(
+                                firstTime, cameraConfig.readout.framePeriodSeconds,
+                                targetDeviceSlot);
+                            if (!at) {
+                                error = tr("Tick %1: %2").arg(tick)
+                                            .arg(QString::fromStdString(at.error()));
+                                break;
+                            }
+                            auto captured = renderer.value()->CaptureCamera(
+                                cameraState, at.value());
                             if (!captured) {
                                 error = tr("Frame %1: %2").arg(i + 1)
                                             .arg(QString::fromStdString(captured.error()));
                                 break;
                             }
                             products = std::move(captured.value());
+                            cachedDeviceSlot = targetDeviceSlot;
+                            nextDeviceSlot = targetDeviceSlot + 1;
                         }
                         QString writeError;
                         if (!writeFrame(output, paths.at(i), &writeError)) {

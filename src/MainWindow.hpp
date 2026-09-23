@@ -530,6 +530,7 @@ private:
     /// far as the undo stack is concerned, document state as far as a save is:
     /// `timeline.time_s` is written from here.
     double m_timelineTimeS = 0.0;
+    quint64 m_lastCameraHistoryEpoch = 0;
     double m_thermalStartTimeH = 0.0;
     double m_thermalTimestepS = 60.0;
     int m_thermalLayers = 10;

@@ -400,11 +400,10 @@ public:
     // Physical camera (M5-3)
     // ========================================================================
 
-    /// Apply a whole versioned camera configuration. Response/optics/readout
-    /// changes invalidate the next device measurement; the SDK rebuilds its
-    /// tables and pipelines on the next frame. Display-only changes should
-    /// go through reprocessCameraDisplay() instead, so the acquisition
-    /// history is never touched.
+    /// Apply a versioned camera configuration. Readout-only edits re-record
+    /// the current device tick without discarding history; optical and
+    /// dynamic-exposure edits rebuild measurement resources. Display-only
+    /// edits use reprocessCameraDisplay().
     quantiloom::Result<void, quantiloom::String> setCameraConfig(
         const quantiloom::camera::CameraConfig& config);
 
@@ -420,6 +419,7 @@ public:
     /// stored first so a later full setCameraConfig carries the same values.
     quantiloom::Result<void, quantiloom::String> reprocessCameraDisplay(
         const quantiloom::camera::CameraConfig& config);
+    [[nodiscard]] quantiloom::CameraHistoryStatus cameraHistoryStatus() const;
 
     /// Commit one explicit device acquisition at @p timeSeconds and read back
     /// every product the current product request enables. Used by the export

@@ -1726,11 +1726,20 @@ void QuantiloomVulkanRenderer::setSensorParams(const quantiloom::SensorParams& p
 
 quantiloom::Result<void, quantiloom::String> QuantiloomVulkanRenderer::setCameraConfig(
     const quantiloom::camera::CameraConfig& config) {
-    m_cameraConfig = config;
-    m_sensorEnabled = config.enabled;
-
     if (!m_renderContext) {
         return quantiloom::Result<void, quantiloom::String>::Err("no renderer");
+    }
+    auto readout = m_renderContext->TryUpdateCameraReadoutConfig(config);
+    if (!readout) return quantiloom::Result<void, quantiloom::String>::Err(
+        readout.error());
+    if (readout.value()) {
+        m_cameraConfig = config;
+        m_sensorEnabled = config.enabled;
+        // Core has already rerun detector/ADC/ISP from the standing measured
+        // rate. Present that product, including the persistent CLAHE branch,
+        // without tracing or advancing the acquisition index.
+        requestDisplayReprocess();
+        return quantiloom::Result<void, quantiloom::String>::Ok();
     }
     auto applied = m_renderContext->SetCameraConfig(config);
     if (!applied) {
@@ -1738,6 +1747,8 @@ quantiloom::Result<void, quantiloom::String> QuantiloomVulkanRenderer::setCamera
                    << QString::fromStdString(applied.error());
         return applied;
     }
+    m_cameraConfig = config;
+    m_sensorEnabled = config.enabled;
     // Tier-3 changes rebuild the measurement on the SDK side; the display on
     // screen no longer reflects the settings, and a loop stopped at its target
     // would never redraw it -- same reasoning as setSensorEnabled above.
@@ -1748,21 +1759,25 @@ quantiloom::Result<void, quantiloom::String> QuantiloomVulkanRenderer::setCamera
 quantiloom::Result<void, quantiloom::String>
 QuantiloomVulkanRenderer::reprocessCameraDisplay(
     const quantiloom::camera::CameraConfig& config) {
-    m_cameraConfig = config;
-    m_sensorEnabled = config.enabled;
-
     if (!m_renderContext) {
         return quantiloom::Result<void, quantiloom::String>::Err("no renderer");
     }
-    auto applied = m_renderContext->SetCameraConfig(config);
+    auto applied = m_renderContext->UpdateCameraDisplayConfig(config);
     if (!applied) {
         return applied;
     }
-    // Tier-1: re-run the display half of the ISP over the last completed
-    // acquisition. No ray is retraced, no statistics pass runs, and the
-    // acquisition index never advances -- the noise streams key on it, so the
-    // reprocessed display is bit-identical for unchanged parameters.
-    return m_renderContext->ReprocessCameraDisplay();
+    m_cameraConfig = config;
+    m_sensorEnabled = config.enabled;
+    // The queued present re-runs display processing over the last completed
+    // acquisition. This also works before the first capture: the first frame
+    // uses the new settings without resetting the scheduler or device state.
+    requestDisplayReprocess();
+    return quantiloom::Result<void, quantiloom::String>::Ok();
+}
+
+quantiloom::CameraHistoryStatus QuantiloomVulkanRenderer::cameraHistoryStatus() const {
+    return m_renderContext ? m_renderContext->GetCameraHistoryStatus()
+                           : quantiloom::CameraHistoryStatus{};
 }
 
 quantiloom::Result<quantiloom::camera::CameraOutput, quantiloom::String>

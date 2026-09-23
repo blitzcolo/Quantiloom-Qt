@@ -555,6 +555,9 @@ void SensorPanel::setupUi() {
     m_provenanceLabel = new QLabel();
     m_provenanceLabel->setWordWrap(true);
     statusLayout->addRow(m_provenanceLabel);
+    m_previewLabel = new QLabel();
+    m_previewLabel->setWordWrap(true);
+    statusLayout->addRow(m_previewLabel);
 
     mainLayout->addWidget(m_statusGroup);
 
@@ -912,6 +915,16 @@ void SensorPanel::updateKindVisibility() {
 }
 
 void SensorPanel::updateStatusArea() {
+    if (!m_camera.enabled) {
+        m_previewLabel->setText(tr("Preview: camera simulation off"));
+    } else if (m_camera.inputKind ==
+               quantiloom::camera::CameraInputKind::FastRgbApproximation) {
+        m_previewLabel->setText(tr("Preview: RGB input approximation; device spectrum unavailable"));
+    } else {
+        m_previewLabel->setText(
+            tr("Preview: GPU spectral sampling, effective PSF, up to %1 exposure positions")
+                .arg(m_camera.quality.gpuTimePositions));
+    }
     const auto& device = m_camera.device;
 
     if (device.effectiveMaxNm > device.effectiveMinNm && device.effectiveMinNm > 0.0) {

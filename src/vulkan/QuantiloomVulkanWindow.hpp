@@ -33,6 +33,7 @@ struct Material;
 struct LightingParams;
 struct Image;
 struct SensorParams;
+struct CameraHistoryStatus;
 struct ThermographyParams;
 struct ComplexRefractiveIndex;
 struct AtmosphereNNConfig;
@@ -385,6 +386,7 @@ public:
     /// acquisition without advancing its history.
     quantiloom::Result<void, quantiloom::String> reprocessCameraDisplay(
         const quantiloom::camera::CameraConfig& config);
+    [[nodiscard]] quantiloom::CameraHistoryStatus cameraHistoryStatus() const;
     /// Commit one explicit acquisition at @p timeSeconds and read back the
     /// enabled device products. Used by the export menu.
     quantiloom::Result<quantiloom::camera::CameraOutput, quantiloom::String>

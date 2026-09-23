@@ -255,6 +255,7 @@ private:
     QLabel* m_effectiveBandLabel = nullptr;
     QLabel* m_calibrationLabel = nullptr;
     QLabel* m_provenanceLabel = nullptr;
+    QLabel* m_previewLabel = nullptr;
 
     // Thermography group (collapsible): the camera's reporting model.
     CollapsibleGroupBox* m_thermographyGroup = nullptr;

@@ -1114,9 +1114,46 @@ void MainWindow::applySensorEnabled(bool enabled) {
 }
 
 void MainWindow::applyCameraConfig(const quantiloom::camera::CameraConfig& config) {
-    m_vulkanWindow->setCameraConfig(config);
+    const bool wasAnimated = !m_vulkanWindow->cameraConfig().motion.keys.empty();
+    const bool willAnimate = !config.motion.keys.empty();
+    const auto applied = m_vulkanWindow->setCameraConfig(config);
+    if (!applied) {
+        m_sensorPanel->setCameraConfig(m_vulkanWindow->cameraConfig());
+        m_cameraPanel->setMotion(m_vulkanWindow->cameraConfig().motion);
+        showStatusMessage(tr("Camera configuration failed: %1")
+                              .arg(QString::fromStdString(applied.error())));
+        return;
+    }
+    if (!wasAnimated && willAnimate && m_lastConfig) {
+        // The viewport pose becomes a temporary preview once motion is
+        // authored. Preserve its static baseline before the first seek.
+        glm::vec3 position, target, up;
+        float fov = 45.0f;
+        m_vulkanWindow->getCameraState(position, target, up, fov);
+        for (int axis = 0; axis < 3; ++axis) {
+            m_lastConfig->cameraPosition[axis] = position[axis];
+            m_lastConfig->cameraLookAt[axis] = target[axis];
+            m_lastConfig->cameraUp[axis] = up[axis];
+        }
+        m_lastConfig->cameraFovY = fov;
+    }
     m_sensorPanel->setCameraConfig(config);
     m_cameraPanel->setMotion(config.motion);
+    if (willAnimate) {
+        applyTimelineTime(m_timelineTimeS);
+    } else if (wasAnimated && m_lastConfig) {
+        m_vulkanWindow->setCamera(
+            glm::vec3(m_lastConfig->cameraPosition[0],
+                      m_lastConfig->cameraPosition[1],
+                      m_lastConfig->cameraPosition[2]),
+            glm::vec3(m_lastConfig->cameraLookAt[0],
+                      m_lastConfig->cameraLookAt[1],
+                      m_lastConfig->cameraLookAt[2]),
+            glm::vec3(m_lastConfig->cameraUp[0],
+                      m_lastConfig->cameraUp[1],
+                      m_lastConfig->cameraUp[2]),
+            m_lastConfig->cameraFovY);
+    }
     setSceneModified(true);
     showStatusMessage(tr("Camera configuration updated"));
 }
@@ -1126,12 +1163,13 @@ void MainWindow::applyCameraDisplay(const quantiloom::camera::CameraConfig& conf
     // last completed acquisition. No ray is retraced and the acquisition
     // history never advances.
     const auto applied = m_vulkanWindow->reprocessCameraDisplay(config);
-    m_sensorPanel->setCameraConfig(config);
-    setSceneModified(true);
     if (!applied) {
+        m_sensorPanel->setCameraConfig(m_vulkanWindow->cameraConfig());
         showStatusMessage(tr("Camera display reprocess failed: %1")
                               .arg(QString::fromStdString(applied.error())));
     } else {
+        m_sensorPanel->setCameraConfig(config);
+        setSceneModified(true);
         showStatusMessage(tr("Camera display updated"));
     }
 }
@@ -1335,6 +1373,8 @@ void MainWindow::applyThermalTime(double time_h) {
 void MainWindow::applyTimelineTime(double time_s) {
     m_timelineTimeS = time_s;
     m_vulkanWindow->setTimelineTime(time_s);
+    if (m_vulkanWindow->cameraHistoryStatus().historyReset)
+        showStatusMessage(tr("Camera history will reset on the next frame"));
     refreshTimelineInfo();
     const auto info = m_vulkanWindow->timelineInfo();
     m_cameraPanel->setCurrentTime(info.present ? info.TimeOfTick(info.TickOf(time_s)) : time_s);
@@ -1346,9 +1386,9 @@ void MainWindow::applyTimelineTime(double time_s) {
             float fov = 45.0f;
             m_vulkanWindow->getCameraState(staticPosition, staticTarget, up, fov);
             const auto& key = pose.value();
-            m_cameraPanel->setCameraState(
+            m_vulkanWindow->setCamera(
                 glm::vec3(key.position[0], key.position[1], key.position[2]),
-                glm::vec3(key.lookAt[0], key.lookAt[1], key.lookAt[2]), fov);
+                glm::vec3(key.lookAt[0], key.lookAt[1], key.lookAt[2]), up, fov);
         }
     }
 
@@ -1486,7 +1526,8 @@ void MainWindow::applyCameraPose(const glm::vec3& position, const glm::vec3& tar
     m_vulkanWindow->setCamera(position, target, up, fovY);
     // No write-back: the renderer emits cameraChanged() when it adopts a pose,
     // and onCameraChanged() is the single point that shows it.
-    setSceneModified(true);
+    if (m_vulkanWindow->cameraConfig().motion.keys.empty())
+        setSceneModified(true);
 }
 
 void MainWindow::applyCameraFov(float fovYDegrees) {
@@ -4018,6 +4059,11 @@ void MainWindow::onDeleteNodes() {
 }
 
 void MainWindow::onFrameRendered(float frameTimeMs, uint32_t sampleCount) {
+    const auto cameraHistory = m_vulkanWindow->cameraHistoryStatus();
+    if (cameraHistory.epoch > m_lastCameraHistoryEpoch) {
+        showStatusMessage(tr("Camera history reset"));
+    }
+    m_lastCameraHistoryEpoch = cameraHistory.epoch;
     // Smoothed, because the per-frame figure jitters too fast to read. The
     // weight is on the history rather than the newest sample for the same
     // reason. An interval longer than a second is the render loop starting up
@@ -4820,8 +4866,17 @@ void MainWindow::syncPanelsFromRenderer() {
     // reason as everything above it: the SDK resolved what `end_s = "36h"` and
     // a fractional tick rate mean, and the panel shows what it decided.
     m_timelineTimeS = m_vulkanWindow->timelineInfo().current_s;
+    m_lastCameraHistoryEpoch = m_vulkanWindow->cameraHistoryStatus().epoch;
     refreshTimelineInfo();
     m_cameraPanel->setMotion(m_vulkanWindow->cameraConfig().motion);
+    if (!m_vulkanWindow->cameraConfig().motion.keys.empty()) {
+        // sceneLoaded can fire while the SDK's ApplyConfig is still on its
+        // stack. Seeking from here would re-enter that half-built context.
+        const double initialTime = m_timelineTimeS;
+        QTimer::singleShot(0, this, [this, initialTime] {
+            if (m_vulkanWindow->getScene()) applyTimelineTime(initialTime);
+        });
+    }
 
     // The camera panel is not in this list: the renderer emits cameraChanged()
     // when it adopts one, which is the single dispatcher for camera state.
