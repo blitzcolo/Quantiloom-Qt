@@ -497,6 +497,37 @@ void QuantiloomVulkanWindow::setSensorParams(const quantiloom::SensorParams& par
     withRenderer([params](QuantiloomVulkanRenderer& r) { r.setSensorParams(params); });
 }
 
+quantiloom::Result<void, quantiloom::String> QuantiloomVulkanWindow::setCameraConfig(
+    const quantiloom::camera::CameraConfig& config) {
+    if (!m_renderer) {
+        return quantiloom::Result<void, quantiloom::String>::Err("no renderer");
+    }
+    return m_renderer->setCameraConfig(config);
+}
+
+quantiloom::Result<void, quantiloom::String>
+QuantiloomVulkanWindow::reprocessCameraDisplay(
+    const quantiloom::camera::CameraConfig& config) {
+    if (!m_renderer) {
+        return quantiloom::Result<void, quantiloom::String>::Err("no renderer");
+    }
+    return m_renderer->reprocessCameraDisplay(config);
+}
+
+quantiloom::Result<quantiloom::camera::CameraOutput, quantiloom::String>
+QuantiloomVulkanWindow::captureCameraProducts(double timeSeconds) {
+    if (!m_renderer) {
+        return quantiloom::Result<quantiloom::camera::CameraOutput,
+                                  quantiloom::String>::Err("no renderer");
+    }
+    return m_renderer->captureCameraProducts(timeSeconds);
+}
+
+quantiloom::camera::CameraConfig QuantiloomVulkanWindow::cameraConfig() const {
+    static const quantiloom::camera::CameraConfig kEmpty;
+    return m_renderer ? m_renderer->cameraConfig() : kEmpty;
+}
+
 void QuantiloomVulkanWindow::setDisplayEnhancement(
     const quantiloom::DisplayEnhancementParams& params) {
     withRenderer([&params](QuantiloomVulkanRenderer& r) { r.setDisplayEnhancement(params); });

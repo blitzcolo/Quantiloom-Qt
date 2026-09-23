@@ -71,6 +71,7 @@
 #include <QTimer>
 #include <QVBoxLayout>
 #include <QFileInfo>
+#include <QFile>
 #include <QSettings>
 #include <QDebug>
 #include <QDateTime>
@@ -78,15 +79,16 @@
 #include <QStandardPaths>
 
 #include <core/Types.hpp>
+#include <core/Config.hpp>
 #include <core/Image.hpp>
 #include <io/ImageIO.hpp>
 #include <io/SpectralIO.hpp>
 #include <renderer/ExternalRenderContext.hpp>
 #include <core/Log.hpp>
 #include <scene/Material.hpp>
+#include <postprocess/CameraConfigIO.hpp>
 #include <scene/Scene.hpp>
 #include <renderer/LightingParams.hpp>
-#include <postprocess/SensorModel.hpp>
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <cmath>
@@ -396,6 +398,12 @@ void MainWindow::setupMenus() {
     // a file the viewport cannot show, like the two above it.
     m_dumpThermalElementsAction = m_fileMenu->addAction(
         QString(), this, &MainWindow::onDumpThermalElements);
+    // The device's own products -- RAW DN, corrected signal, band measurement,
+    // apparent temperature, display -- each with its units and calibration
+    // metadata, beside the chosen file name. A File action because what it
+    // writes is files the viewport does not show.
+    m_exportCameraProductsAction = m_fileMenu->addAction(
+        QString(), this, &MainWindow::onExportCameraProducts);
     m_exportImageAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_E));
 
     m_screenshotAction = m_fileMenu->addAction(QString(), this, &MainWindow::onTakeScreenshot);
@@ -575,6 +583,9 @@ void MainWindow::setupMenus() {
     // does has an entry here with its shortcut, and both routes end at the
     // same slot on the panel.
     m_timelineMenu = m_menuBar->addMenu(QString());
+    m_timelineCreateAction = m_timelineMenu->addAction(
+        QString(), this, &MainWindow::createDefaultTimeline);
+    m_timelineMenu->addSeparator();
 
     // Ctrl+Space rather than Space: the bare key already toggles the gizmo
     // between local and world space, and a transport that stole it would break
@@ -603,6 +614,15 @@ void MainWindow::setupMenus() {
     m_timelineLoopAction = m_timelineMenu->addAction(QString());
     m_timelineLoopAction->setCheckable(true);
     connect(m_timelineLoopAction, &QAction::toggled, m_timelinePanel, &TimelinePanel::setLoop);
+    m_timelineMenu->addSeparator();
+    m_cameraCaptureKeyAction = m_timelineMenu->addAction(
+        QString(), m_cameraPanel, &CameraPanel::captureRequested);
+    m_cameraAddKeyAction = m_timelineMenu->addAction(
+        QString(), m_cameraPanel, &CameraPanel::addKeyframe);
+    m_cameraUpdateKeyAction = m_timelineMenu->addAction(
+        QString(), m_cameraPanel, &CameraPanel::updateKeyframe);
+    m_cameraDeleteKeyAction = m_timelineMenu->addAction(
+        QString(), m_cameraPanel, &CameraPanel::deleteKeyframe);
 
     // Nothing to drive until a document with a clock is open.
     for (QAction* action : {m_timelinePlayAction, m_timelinePrevAction, m_timelineNextAction,
@@ -916,13 +936,6 @@ void MainWindow::applySpectralMode(quantiloom::SpectralMode mode) {
     m_spectralConfigPanel->setSpectralMode(mode);
     m_viewportFrame->setSpectralMode(mode);
 
-    // The sensitivity readout is quoted per band: the same detector resolves
-    // ten times finer in the LWIR than in the MWIR at room temperature.
-    if (const auto band = quantiloom::GetFusedBandInfo(mode); band.has_value()) {
-        m_sensorPanel->setNetdBand(static_cast<double>(band->lambdaMinNm),
-                                   static_cast<double>(band->lambdaMaxNm));
-    }
-
     setSceneModified(true);
     showStatusMessage(tr("Spectral mode: %1").arg(catalog::spectralModeName(mode)));
 }
@@ -1094,17 +1107,33 @@ void MainWindow::applyAtmosphere(const quantiloom::AtmosphereNNConfig& config) {
 
 void MainWindow::applySensorEnabled(bool enabled) {
     m_vulkanWindow->setSensorEnabled(enabled);
-    m_sensorPanel->setSensorEnabled(enabled);
+    m_sensorPanel->setCameraEnabled(enabled);
     setSceneModified(true);
-    showStatusMessage(enabled ? tr("Sensor simulation enabled")
-                              : tr("Sensor simulation disabled"));
+    showStatusMessage(enabled ? tr("Camera simulation enabled")
+                              : tr("Camera simulation disabled"));
 }
 
-void MainWindow::applySensorParams(const quantiloom::SensorParams& params) {
-    m_vulkanWindow->setSensorParams(params);
-    m_sensorPanel->setSensorParams(params);
+void MainWindow::applyCameraConfig(const quantiloom::camera::CameraConfig& config) {
+    m_vulkanWindow->setCameraConfig(config);
+    m_sensorPanel->setCameraConfig(config);
+    m_cameraPanel->setMotion(config.motion);
     setSceneModified(true);
-    showStatusMessage(tr("Sensor parameters updated"));
+    showStatusMessage(tr("Camera configuration updated"));
+}
+
+void MainWindow::applyCameraDisplay(const quantiloom::camera::CameraConfig& config) {
+    // Display-only tier: the SDK re-runs the display half of the ISP over the
+    // last completed acquisition. No ray is retraced and the acquisition
+    // history never advances.
+    const auto applied = m_vulkanWindow->reprocessCameraDisplay(config);
+    m_sensorPanel->setCameraConfig(config);
+    setSceneModified(true);
+    if (!applied) {
+        showStatusMessage(tr("Camera display reprocess failed: %1")
+                              .arg(QString::fromStdString(applied.error())));
+    } else {
+        showStatusMessage(tr("Camera display updated"));
+    }
 }
 
 void MainWindow::applyThermographyParams(bool enabled,
@@ -1307,14 +1336,57 @@ void MainWindow::applyTimelineTime(double time_s) {
     m_timelineTimeS = time_s;
     m_vulkanWindow->setTimelineTime(time_s);
     refreshTimelineInfo();
+    const auto info = m_vulkanWindow->timelineInfo();
+    m_cameraPanel->setCurrentTime(info.present ? info.TimeOfTick(info.TickOf(time_s)) : time_s);
+    const auto& motion = m_vulkanWindow->cameraConfig().motion;
+    if (!motion.keys.empty()) {
+        const auto pose = quantiloom::camera::CameraPoseAt(motion, time_s);
+        if (pose) {
+            glm::vec3 staticPosition, staticTarget, up;
+            float fov = 45.0f;
+            m_vulkanWindow->getCameraState(staticPosition, staticTarget, up, fov);
+            const auto& key = pose.value();
+            m_cameraPanel->setCameraState(
+                glm::vec3(key.position[0], key.position[1], key.position[2]),
+                glm::vec3(key.lookAt[0], key.lookAt[1], key.lookAt[2]), fov);
+        }
+    }
 
     // Deliberately no setSceneModified and no undo command. Playback would
     // push twenty commands a second, and where the transport stands is not an
     // edit to the scene -- a save records it either way.
 }
 
+void MainWindow::createDefaultTimeline() {
+    if (!m_vulkanWindow->getScene()) return;
+    if (m_vulkanWindow->timelineInfo().present) return;
+    SceneConfig config;
+    collectCurrentConfig(config);
+    config.timeline.present = true;
+    config.timeline.body = QStringLiteral(
+        "start_s = 0\nend_s = 10\nticks_per_second = 20\n");
+    config.timeline.timeS = 0.0;
+    const QString toml = m_configManager->exportConfigToString(config);
+    auto parsed = quantiloom::Config::Parse(toml.toStdString());
+    if (!parsed) {
+        QMessageBox::warning(this, tr("Timeline"),
+                             QString::fromStdString(parsed.error()));
+        return;
+    }
+    m_lastConfig = std::make_unique<SceneConfig>(config);
+    m_timelineTimeS = 0.0;
+    auto document = std::make_shared<quantiloom::Config>(std::move(parsed.value()));
+    m_configManager->adoptRawConfig(document);
+    m_vulkanWindow->applyConfig(document, config.baseDir);
+    setSceneModified(true);
+}
+
 void MainWindow::refreshTimelineInfo() {
     const quantiloom::TimelineInfo info = m_vulkanWindow->timelineInfo();
+    if (m_timelineCreateAction)
+        m_timelineCreateAction->setEnabled(!info.present && m_vulkanWindow->getScene());
+    m_cameraPanel->setCurrentTime(
+        info.present ? info.TimeOfTick(info.TickOf(info.current_s)) : info.current_s);
     {
         const QSignalBlocker block(m_timelinePanel);
         m_timelinePanel->setInfo(info);
@@ -1900,6 +1972,33 @@ void MainWindow::setupDockWidgets() {
             this, [this](const glm::vec3& direction) {
                 m_vulkanWindow->setViewDirection(direction);
             });
+    connect(m_cameraPanel, &CameraPanel::captureRequested, this, [this] {
+        glm::vec3 position, target, up;
+        float fov = 45.0f;
+        m_vulkanWindow->getCameraState(position, target, up, fov);
+        m_cameraPanel->capturePose(position, target);
+    });
+    connect(m_timelinePanel, &TimelinePanel::createTimelineRequested,
+            this, &MainWindow::createDefaultTimeline);
+    connect(m_cameraPanel, &CameraPanel::previewTimeRequested,
+            this, &MainWindow::applyTimelineTime);
+    connect(m_cameraPanel, &CameraPanel::motionEdited, this,
+            [this](const quantiloom::camera::CameraMotionConfig& motion) {
+        m_timelinePanel->setPlaying(false);
+        if (const auto valid = quantiloom::camera::ValidateCameraMotion(motion); !valid) {
+            m_cameraPanel->setMotion(m_vulkanWindow->cameraConfig().motion);
+            QMessageBox::warning(this, tr("Camera trajectory"),
+                                 QString::fromStdString(valid.error()));
+            return;
+        }
+        auto next = m_vulkanWindow->cameraConfig();
+        next.motion = motion;
+        pushSettingCommand(CommandId::ModifyCamera, tr("Camera keyframe"),
+                           m_vulkanWindow->cameraConfig(), next,
+                           [this](const quantiloom::camera::CameraConfig& value) {
+                               applyCameraConfig(value);
+                           });
+    });
 
     connect(m_spectralMaterialGenPanel, &SpectralMaterialGenPanel::materialChanged,
             this, &MainWindow::onMaterialChanged);
@@ -2016,16 +2115,24 @@ void MainWindow::setupDockWidgets() {
     // Sensor panel signals
     connect(m_sensorPanel, &SensorPanel::enabledChanged,
             this, [this](bool enabled) {
-                pushSettingCommand(CommandId::ModifySensor, tr("Sensor simulation"),
+                pushSettingCommand(CommandId::ModifySensor, tr("Camera simulation"),
                                    m_vulkanWindow->sensorEnabled(), enabled,
                                    [this](const bool& v) { applySensorEnabled(v); });
             });
-    connect(m_sensorPanel, &SensorPanel::paramsChanged,
-            this, [this](const quantiloom::SensorParams& params) {
-                pushSettingCommand(CommandId::ModifySensor, tr("Sensor parameters"),
-                                   m_vulkanWindow->sensorParams(), params,
-                                   [this](const quantiloom::SensorParams& v) {
-                                       applySensorParams(v);
+    connect(m_sensorPanel, &SensorPanel::cameraConfigChanged,
+            this, [this](const quantiloom::camera::CameraConfig& config) {
+                pushSettingCommand(CommandId::ModifyCamera, tr("Camera configuration"),
+                                   m_vulkanWindow->cameraConfig(), config,
+                                   [this](const quantiloom::camera::CameraConfig& v) {
+                                       applyCameraConfig(v);
+                                   });
+            });
+    connect(m_sensorPanel, &SensorPanel::cameraDisplayChanged,
+            this, [this](const quantiloom::camera::CameraConfig& config) {
+                pushSettingCommand(CommandId::ModifyCamera, tr("Camera display"),
+                                   m_vulkanWindow->cameraConfig(), config,
+                                   [this](const quantiloom::camera::CameraConfig& v) {
+                                       applyCameraDisplay(v);
                                    });
             });
 
@@ -2453,6 +2560,11 @@ void MainWindow::retranslateUi() {
     m_dumpThermalElementsAction->setToolTip(
         tr("Write the solved temperature per triangle at the hour on screen, "
            "with the material properties the solve actually used."));
+    m_exportCameraProductsAction->setText(tr("Export Camera &Products..."));
+    m_exportCameraProductsAction->setToolTip(
+        tr("Commit one device acquisition and write every enabled product "
+           "(RAW DN, corrected signal, band measurement, apparent temperature, "
+           "display) with its units and calibration status."));
     m_exportImageAction->setToolTip(
         tr("Write the accumulated render without display enhancement."));
     m_screenshotAction->setText(tr("Save Screensho&t (as displayed)"));
@@ -2559,6 +2671,11 @@ void MainWindow::retranslateUi() {
     }
     m_spectralMenu->setTitle(tr("&Spectral Mode"));
     m_timelineMenu->setTitle(tr("&Timeline"));
+    m_timelineCreateAction->setText(tr("Create Default Timeline"));
+    m_cameraCaptureKeyAction->setText(tr("Capture Camera Keyframe"));
+    m_cameraAddKeyAction->setText(tr("Add Camera Keyframe"));
+    m_cameraUpdateKeyAction->setText(tr("Update Camera Keyframe"));
+    m_cameraDeleteKeyAction->setText(tr("Delete Camera Keyframe"));
     m_timelinePlayAction->setText(tr("&Play / Pause"));
     m_timelinePlayAction->setToolTip(
         tr("Run the clock. Which of the two playback modes it uses is the panel's "
@@ -3033,6 +3150,150 @@ void MainWindow::onDumpThermalElements() {
     showStatusMessage(tr("Wrote the thermal elements at %1 h to %2")
                           .arg(m_thermalTimeH, 0, 'f', 2)
                           .arg(QFileInfo(fileName).fileName()));
+}
+
+void MainWindow::onExportCameraProducts() {
+    if (!m_vulkanWindow->getScene()) {
+        QMessageBox::information(this, tr("No Scene"),
+            tr("Open a scene before exporting camera products."));
+        return;
+    }
+    if (!m_vulkanWindow->sensorEnabled()) {
+        QMessageBox::information(this, tr("Camera Disabled"),
+            tr("Turn the camera simulation on before exporting its products: "
+               "the products are what the device measured, and with the camera "
+               "off there is no device."));
+        return;
+    }
+
+    QString fileName = QFileDialog::getSaveFileName(
+        this,
+        tr("Export Camera Products"),
+        QString(),
+        tr("EXR Image (*.exr);;All Files (*)"));
+    if (fileName.isEmpty()) return;
+    if (!fileName.endsWith(QLatin1String(".exr"), Qt::CaseInsensitive)) {
+        fileName += QStringLiteral(".exr");
+    }
+    const QString base = fileName.left(fileName.size() - 4);
+
+    // The product request is export intent, not document state: widen it on
+    // the renderer for this capture only, so saving the scene afterwards does
+    // not start claiming every product on every render.
+    quantiloom::camera::CameraConfig camera = m_vulkanWindow->cameraConfig();
+    camera.products.rawDn = true;
+    camera.products.correctedDeviceSignal = true;
+    camera.products.bandMeasurement = true;
+    camera.products.display = true;
+    camera.products.apparentTemperature =
+        camera.device.detector == quantiloom::camera::DetectorKind::Thermal;
+    camera.products.cieLinearSrgb =
+        camera.device.detector == quantiloom::camera::DetectorKind::Photon &&
+        camera.device.cfa != quantiloom::camera::CfaPattern::Mono;
+    if (auto applied = m_vulkanWindow->setCameraConfig(camera); !applied) {
+        QMessageBox::warning(this, tr("Export Failed"),
+            tr("Could not update the camera product request:\n%1")
+                .arg(QString::fromStdString(applied.error())));
+        return;
+    }
+
+    // The acquisition time: the clock's current tick when the scene has one,
+    // else the only instant an unanimated scene has.
+    const quantiloom::TimelineInfo timeline = m_vulkanWindow->timelineInfo();
+    const double timeSeconds = timeline.present ? timeline.current_s : 0.0;
+
+    auto captured = m_vulkanWindow->captureCameraProducts(timeSeconds);
+    if (!captured) {
+        QMessageBox::warning(this, tr("Export Failed"),
+            tr("Could not capture the camera products:\n%1")
+                .arg(QString::fromStdString(captured.error())));
+        return;
+    }
+    const quantiloom::camera::CameraOutput& products = captured.value();
+
+    // Every product the request enabled, with the file suffix and the kind
+    // label its SignalDescriptor carries. Traced radiance is not requested
+    // here: it is the renderer's own output, which Export Image already
+    // writes, and labelling it a camera product would blur that.
+    struct ProductSpec {
+        const quantiloom::camera::CameraProduct* product;
+        const char* suffix;
+        const char* kind;
+    };
+    const ProductSpec specs[] = {
+        {products.rawDn ? &*products.rawDn : nullptr, "raw_dn", "raw_dn"},
+        {products.correctedDeviceSignal ? &*products.correctedDeviceSignal : nullptr,
+         "corrected", "corrected_device_signal"},
+        {products.bandMeasurement ? &*products.bandMeasurement : nullptr,
+         "band_measurement", "band_measurement"},
+        {products.apparentTemperature ? &*products.apparentTemperature : nullptr,
+         "apparent_temperature", "apparent_temperature"},
+        {products.cieLinearSrgb ? &*products.cieLinearSrgb : nullptr,
+         "cie_linear_srgb", "cie_linear_srgb"},
+        {products.display ? &*products.display : nullptr, "display", "display"},
+    };
+
+    QStringList written;
+    QStringList metadata;
+    for (const ProductSpec& spec : specs) {
+        if (!spec.product) {
+            continue;
+        }
+        const QString path = base + QLatin1Char('_') + QLatin1String(spec.suffix) +
+                             QLatin1String(".exr");
+        if (!quantiloom::ImageIO::WriteEXR(path.toStdString(), spec.product->image)) {
+            QMessageBox::warning(this, tr("Export Failed"),
+                tr("Failed to save the image:\n%1").arg(path));
+            continue;
+        }
+        written << QFileInfo(path).fileName();
+
+        // The sidecar is ASCII on purpose: a Windows console on a CJK locale
+        // is not the only place these land, and the metadata is for diffing
+        // as much as for reading.
+        const auto& signal = spec.product->signal;
+        QString calibration;
+        switch (signal.calibration) {
+            case quantiloom::camera::CalibrationStatus::HardwareReference:
+                calibration = QStringLiteral("hardware_reference"); break;
+            case quantiloom::camera::CalibrationStatus::Calibrated:
+                calibration = QStringLiteral("calibrated"); break;
+            case quantiloom::camera::CalibrationStatus::GenericAssumption:
+            default:
+                calibration = QStringLiteral("generic_assumption"); break;
+        }
+        metadata << QStringLiteral("[%1] kind=%2 unit=%3 calibration=%4 "
+                                   "acquisition=%5 exposure=[%6, %7] s")
+                        .arg(QLatin1String(spec.suffix), QLatin1String(spec.kind),
+                             QString::fromStdString(signal.unit), calibration)
+                        .arg(signal.acquisitionIndex)
+                        .arg(signal.exposureStartSeconds, 0, 'g', 9)
+                        .arg(signal.exposureEndSeconds, 0, 'g', 9);
+    }
+
+    if (written.isEmpty()) {
+        QMessageBox::warning(this, tr("Export Failed"),
+            tr("The acquisition completed but no product was enabled in the "
+               "camera's product request."));
+        return;
+    }
+
+    // A sidecar next to the products, so the units and calibration status
+    // travel with the files instead of living in a dialog nobody can replay.
+    const QString sidecarPath = base + QLatin1String("_products.txt");
+    QFile sidecar(sidecarPath);
+    if (sidecar.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        QTextStream sidecarOut(&sidecar);
+        sidecarOut << "Quantiloom camera products\n";
+        sidecarOut << "acquisition_time_s = " << timeSeconds << "\n";
+        for (const QString& line : std::as_const(metadata)) {
+            sidecarOut << line << "\n";
+        }
+    }
+
+    showStatusMessage(tr("Exported %1 camera product(s) to %2")
+                          .arg(written.size())
+                          .arg(QFileInfo(fileName).dir().dirName()));
 }
 
 void MainWindow::onExportImage() {
@@ -4450,8 +4711,9 @@ void MainWindow::applyConfig(const SceneConfig& config) {
                                        config.lighting.atmosphereTemperature_K,
                                        config.skyRelativeHumidity);
 
-    m_sensorPanel->setSensorParams(config.sensorParams);   // Params first,
-    m_sensorPanel->setSensorEnabled(config.sensorEnabled);  // then enabled state
+    m_sensorPanel->setCameraConfig(config.cameraConfig);    // Params first,
+    m_cameraPanel->setMotion(config.cameraConfig.motion);
+    m_sensorPanel->setCameraEnabled(config.sensorEnabled);  // then enabled state
     m_thermalProperties.clear();
     for (const MaterialConfig& material : config.materialConfigs) {
         if (material.hasThermal()) {
@@ -4559,6 +4821,7 @@ void MainWindow::syncPanelsFromRenderer() {
     // a fractional tick rate mean, and the panel shows what it decided.
     m_timelineTimeS = m_vulkanWindow->timelineInfo().current_s;
     refreshTimelineInfo();
+    m_cameraPanel->setMotion(m_vulkanWindow->cameraConfig().motion);
 
     // The camera panel is not in this list: the renderer emits cameraChanged()
     // when it adopts one, which is the single dispatcher for camera state.
@@ -4660,9 +4923,12 @@ void MainWindow::collectCurrentConfig(SceneConfig& config) {
         glm::vec3 up;
         float fovY = 45.0f;
         m_vulkanWindow->getCameraState(position, target, up, fovY);
+        const bool motionEnabled = !m_vulkanWindow->cameraConfig().motion.keys.empty();
         for (int axis = 0; axis < 3; ++axis) {
-            config.cameraPosition[axis] = position[axis];
-            config.cameraLookAt[axis] = target[axis];
+            if (!motionEnabled || !m_lastConfig) {
+                config.cameraPosition[axis] = position[axis];
+                config.cameraLookAt[axis] = target[axis];
+            }
             config.cameraUp[axis] = up[axis];
         }
         config.cameraFovY = fovY;
@@ -4695,13 +4961,15 @@ void MainWindow::collectCurrentConfig(SceneConfig& config) {
     // the renderer is running on.
     config.lighting = *m_lightingParams;
 
-    // Collect sensor settings
+    // Collect camera settings. The panel keeps the enabled flag inside its
+    // CameraConfig in sync with the switch, so the serialized tree carries it.
     config.clearSkyModel = m_atmosphericPanel->clearSkyEnabled();
     config.skyAirTemperatureK = m_atmosphericPanel->atmosphereTemperatureK();
     config.skyRelativeHumidity = m_atmosphericPanel->relativeHumidity();
 
-    config.sensorEnabled = m_sensorPanel->isSensorEnabled();
-    config.sensorParams = m_sensorPanel->getSensorParams();
+    config.sensorEnabled = m_sensorPanel->isCameraEnabled();
+    config.cameraConfig = m_sensorPanel->getCameraConfig();
+    config.cameraConfig.enabled = config.sensorEnabled;
     config.thermalEnabled = m_thermalEnabled;
     config.thermalTimeH = m_thermalTimeH;
     config.thermalStartTimeH = m_thermalStartTimeH;

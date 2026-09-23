@@ -221,7 +221,7 @@ Leave empty to auto-detect.</source>
     <name>CameraPanel</name>
     <message>
         <source>Camera</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Camera</translation>
     </message>
     <message>
         <source>Pose</source>
@@ -257,6 +257,38 @@ Leave empty to auto-detect.</source>
     </message>
     <message>
         <source>Reset View</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Camera trajectory</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Key time:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Key position:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Key look at:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Capture pose</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add key</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Update key</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delete key</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -486,7 +518,7 @@ CLAHE maps each tile separately: more local detail, but brightness no longer tel
     </message>
     <message>
         <source>Palette:</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Palette:</translation>
     </message>
     <message>
         <source>Greyscale (white-hot)</source>
@@ -498,7 +530,7 @@ CLAHE maps each tile separately: more local detail, but brightness no longer tel
     </message>
     <message>
         <source>Ironbow</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ironbow</translation>
     </message>
     <message>
         <source>Rainbow (false colour)</source>
@@ -1070,14 +1102,6 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Sensor simulation enabled</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Sensor simulation disabled</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Ready</source>
         <translation>Ready</translation>
     </message>
@@ -1163,11 +1187,11 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Sensor parameters updated</source>
+        <source>The thermal solve is off.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>The thermal solve is off.</source>
+        <source>Timeline</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1184,7 +1208,7 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
     </message>
     <message>
         <source>CLAHE</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">CLAHE</translation>
     </message>
     <message>
         <source>greyscale</source>
@@ -1243,6 +1267,14 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Camera trajectory</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Camera keyframe</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Spectral mode</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1251,11 +1283,7 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation type="unfinished">Wavelength</translation>
     </message>
     <message>
-        <source>Sensor simulation</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Sensor parameters</source>
+        <source>Camera simulation</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1527,6 +1555,26 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Create Default Timeline</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Capture Camera Keyframe</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add Camera Keyframe</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Update Camera Keyframe</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delete Camera Keyframe</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>&amp;Play / Pause</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1719,6 +1767,14 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
     </message>
     <message>
         <source>Wrote the thermal elements at %1 h to %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open a scene before exporting camera products.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>EXR Image (*.exr);;All Files (*)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1994,7 +2050,7 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
     </message>
     <message>
         <source>%1 %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 %2</translation>
     </message>
     <message>
         <source>(%1,%2) %3</source>
@@ -2055,6 +2111,78 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
     <message>
         <source>Thermal solve</source>
         <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Camera simulation enabled</source>
+        <translation>Camera simulation enabled</translation>
+    </message>
+    <message>
+        <source>Camera simulation disabled</source>
+        <translation>Camera simulation disabled</translation>
+    </message>
+    <message>
+        <source>Camera configuration updated</source>
+        <translation>Camera configuration updated</translation>
+    </message>
+    <message>
+        <source>Camera display reprocess failed: %1</source>
+        <translation>Camera display reprocess failed: %1</translation>
+    </message>
+    <message>
+        <source>Camera display updated</source>
+        <translation>Camera display updated</translation>
+    </message>
+    <message>
+        <source>Camera configuration</source>
+        <translation>Camera configuration</translation>
+    </message>
+    <message>
+        <source>Camera display</source>
+        <translation>Camera display</translation>
+    </message>
+    <message>
+        <source>Camera parameters</source>
+        <translation>Camera parameters</translation>
+    </message>
+    <message>
+        <source>Export Camera &amp;Products...</source>
+        <translation>Export Camera &amp;Products...</translation>
+    </message>
+    <message>
+        <source>Commit one device acquisition and write every enabled product (RAW DN, corrected signal, band measurement, apparent temperature, display) with its units and calibration status.</source>
+        <translation>Commit one device acquisition and write every enabled product (RAW DN, corrected signal, band measurement, apparent temperature, display) with its units and calibration status.</translation>
+    </message>
+    <message>
+        <source>Export Camera Products</source>
+        <translation>Export Camera Products</translation>
+    </message>
+    <message>
+        <source>Camera Disabled</source>
+        <translation>Camera Disabled</translation>
+    </message>
+    <message>
+        <source>Turn the camera simulation on before exporting its products: the products are what the device measured, and with the camera off there is no device.</source>
+        <translation>Turn the camera simulation on before exporting its products: the products are what the device measured, and with the camera off there is no device.</translation>
+    </message>
+    <message>
+        <source>Could not update the camera product request:
+%1</source>
+        <translation>Could not update the camera product request:
+%1</translation>
+    </message>
+    <message>
+        <source>Could not capture the camera products:
+%1</source>
+        <translation>Could not capture the camera products:
+%1</translation>
+    </message>
+    <message>
+        <source>The acquisition completed but no product was enabled in the camera&apos;s product request.</source>
+        <translation>The acquisition completed but no product was enabled in the camera&apos;s product request.</translation>
+    </message>
+    <message>
+        <source>Exported %1 camera product(s) to %2</source>
+        <translation>Exported %1 camera product(s) to %2</translation>
     </message>
 </context>
 <context>
@@ -2693,6 +2821,10 @@ Pick a node or a material in the scene tree.</source>
         <source>The renderer is not ready yet.</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>could not write %1</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>QuantiloomVulkanRenderer</name>
@@ -2895,176 +3027,52 @@ Rebuild with:
 <context>
     <name>SensorPanel</name>
     <message>
-        <source>Enable Sensor Simulation</source>
-        <translation>Enable Sensor Simulation</translation>
-    </message>
-    <message>
-        <source>Optics</source>
-        <translation>Optics</translation>
-    </message>
-    <message>
-        <source>Focal Length:</source>
-        <translation>Focal Length:</translation>
-    </message>
-    <message>
-        <source>Aperture:</source>
-        <translation>Aperture:</translation>
+        <source>Camera</source>
+        <translation>Camera</translation>
     </message>
     <message>
         <source>Detector</source>
         <translation>Detector</translation>
     </message>
     <message>
-        <source>Sensor</source>
-        <translation type="unfinished"></translation>
+        <source>Optics</source>
+        <translation>Optics</translation>
+    </message>
+    <message>
+        <source>Readout</source>
+        <translation>Readout</translation>
+    </message>
+    <message>
+        <source>Photon Detector</source>
+        <translation>Photon Detector</translation>
+    </message>
+    <message>
+        <source>Thermal Detector</source>
+        <translation>Thermal Detector</translation>
+    </message>
+    <message>
+        <source>Image Signal Processor</source>
+        <translation>Image Signal Processor</translation>
+    </message>
+    <message>
+        <source>Infrared Display</source>
+        <translation>Infrared Display</translation>
+    </message>
+    <message>
+        <source>Coverage and Calibration</source>
+        <translation>Coverage and Calibration</translation>
     </message>
     <message>
         <source>Thermography</source>
-        <translation type="unfinished"></translation>
+        <translation>Thermography</translation>
     </message>
     <message>
-        <source>Write a temperature map when rendering</source>
-        <translation type="unfinished"></translation>
+        <source>Enable Camera Simulation</source>
+        <translation>Enable Camera Simulation</translation>
     </message>
     <message>
-        <source>Lens focal length. With the pixel pitch it sets the angular size of a pixel, and so how much of the scene one pixel averages.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Pixel Pitch:</source>
-        <translation>Pixel Pitch:</translation>
-    </message>
-    <message>
-        <source>Centre-to-centre spacing of the detector elements. Sets how much area collects photons for one pixel.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Quantum Efficiency:</source>
-        <translation>Quantum Efficiency:</translation>
-    </message>
-    <message>
-        <source>Fraction of arriving photons that become signal electrons. 1.0 would convert every photon.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Well Capacity:</source>
-        <translation>Well Capacity:</translation>
-    </message>
-    <message>
-        <source>Electrons a pixel can hold before it saturates. Anything brighter clips to white.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Bit Depth:</source>
-        <translation>Bit Depth:</translation>
-    </message>
-    <message>
-        <source>Bits per pixel out of the converter. Sets how finely the electron count is quantised.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Integration Time:</source>
-        <translation>Integration Time:</translation>
-    </message>
-    <message>
-        <source>Temperature of the detector itself. Drives dark current, and for thermal bands the self-emission the optics see.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Assumed Emissivity:</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>What the camera is told the surface&apos;s emissivity is. 1 gives apparent temperature, which is what a campaign records when it will not assume one -- and which reads cold for any real surface.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Reflected Temperature:</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Temperature of whatever the surface reflects, usually the sky. Ignored at emissivity 1, since a blackbody reflects nothing.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Path Transmittance:</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Fraction of the surface&apos;s radiation that survives the air between it and the lens. 1 removes the atmosphere from the model, which is right for a short measurement distance.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Path Temperature:</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Temperature of that air. Used only when the transmittance is below 1.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Sensitivity needs the sensor simulation on.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Sensitivity: band has no usable slope here.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Sensitivity: noiseless — any difference resolves.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>NETD %1 mK at 300 K over %2–%3 µm, well capacity aside.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>ADC</source>
-        <translation>ADC</translation>
-    </message>
-    <message>
-        <source>Gain:</source>
-        <translation>Gain:</translation>
-    </message>
-    <message>
-        <source>Noise Model</source>
-        <translation>Noise Model</translation>
-    </message>
-    <message>
-        <source>Auto (diffraction)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>f-number, focal length divided by entrance pupil diameter. Lower collects more light: irradiance on the detector goes as 1/(1 + 4 f-number squared).</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>PSF Width:</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Gaussian blur width of the point spread function, in pixels. Auto derives it from the aperture and wavelength; setting it here holds the blur fixed while the aperture varies, and 0 disables it.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>How long the detector collects per frame. Longer gathers more signal and more dark current with it.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Electrons per digital number. Lower means finer steps, at the cost of clipping sooner.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Read Noise:</source>
-        <translation>Read Noise:</translation>
-    </message>
-    <message>
-        <source>Noise the readout electronics add per pixel, in electrons RMS. Independent of exposure -- it is what limits the darkest tones.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Dark Current:</source>
-        <translation>Dark Current:</translation>
+        <source>Auto (Airy)</source>
+        <translation>Auto (Airy)</translation>
     </message>
     <message>
         <source>Photon Shot Noise (Poisson)</source>
@@ -3083,12 +3091,224 @@ Rebuild with:
         <translation>Fixed Pattern Noise (FPN)</translation>
     </message>
     <message>
-        <source>FPN Parameters</source>
-        <translation>FPN Parameters</translation>
+        <source>Enable NUC</source>
+        <translation>Enable NUC</translation>
     </message>
     <message>
-        <source>Electrons generated thermally per second with no light at all. Multiplied by the integration time, and roughly doubles every 7 K.</source>
-        <translation type="unfinished"></translation>
+        <source>Auto Exposure</source>
+        <translation>Auto Exposure</translation>
+    </message>
+    <message>
+        <source>Auto White Balance</source>
+        <translation>Auto White Balance</translation>
+    </message>
+    <message>
+        <source>Denoise</source>
+        <translation>Denoise</translation>
+    </message>
+    <message>
+        <source>Sharpen</source>
+        <translation>Sharpen</translation>
+    </message>
+    <message>
+        <source>Empirical Display Noise</source>
+        <translation>Empirical Display Noise</translation>
+    </message>
+    <message>
+        <source>Temporal Drift</source>
+        <translation>Temporal Drift</translation>
+    </message>
+    <message>
+        <source>Write a temperature map when rendering</source>
+        <translation>Write a temperature map when rendering</translation>
+    </message>
+    <message>
+        <source>Custom (current values)</source>
+        <translation>Custom (current values)</translation>
+    </message>
+    <message>
+        <source>Photon counting</source>
+        <translation>Photon counting</translation>
+    </message>
+    <message>
+        <source>Thermal (bolometer)</source>
+        <translation>Thermal (bolometer)</translation>
+    </message>
+    <message>
+        <source>Monochrome</source>
+        <translation>Monochrome</translation>
+    </message>
+    <message>
+        <source>Multi-channel</source>
+        <translation>Multi-channel</translation>
+    </message>
+    <message>
+        <source>Global</source>
+        <translation>Global</translation>
+    </message>
+    <message>
+        <source>Rolling</source>
+        <translation>Rolling</translation>
+    </message>
+    <message>
+        <source>Linear AGC</source>
+        <translation>Linear AGC</translation>
+    </message>
+    <message>
+        <source>Histogram Equalize</source>
+        <translation>Histogram Equalize</translation>
+    </message>
+    <message>
+        <source>CLAHE</source>
+        <translation>CLAHE</translation>
+    </message>
+    <message>
+        <source>White-hot</source>
+        <translation>White-hot</translation>
+    </message>
+    <message>
+        <source>Black-hot</source>
+        <translation>Black-hot</translation>
+    </message>
+    <message>
+        <source>Ironbow</source>
+        <translation>Ironbow</translation>
+    </message>
+    <message>
+        <source>Rainbow</source>
+        <translation>Rainbow</translation>
+    </message>
+    <message>
+        <source>Viridis</source>
+        <translation>Viridis</translation>
+    </message>
+    <message>
+        <source>Colour Filter Array:</source>
+        <translation>Colour Filter Array:</translation>
+    </message>
+    <message>
+        <source>How one scalar per pixel maps to colour channels. Monochrome reads one channel; Bayer patterns alternate R/G/B filters; multi-channel reads up to three channels per pixel.</source>
+        <translation>How one scalar per pixel maps to colour channels. Monochrome reads one channel; Bayer patterns alternate R/G/B filters; multi-channel reads up to three channels per pixel.</translation>
+    </message>
+    <message>
+        <source>Focal Length:</source>
+        <translation>Focal Length:</translation>
+    </message>
+    <message>
+        <source>Lens focal length. With the pixel pitch it sets the angular size of a pixel, and so how much of the scene one pixel averages.</source>
+        <translation>Lens focal length. With the pixel pitch it sets the angular size of a pixel, and so how much of the scene one pixel averages.</translation>
+    </message>
+    <message>
+        <source>Aperture:</source>
+        <translation>Aperture:</translation>
+    </message>
+    <message>
+        <source>f-number, focal length divided by entrance pupil diameter. Lower collects more light: irradiance on the detector goes as 1/(1 + 4 f-number squared).</source>
+        <translation>f-number, focal length divided by entrance pupil diameter. Lower collects more light: irradiance on the detector goes as 1/(1 + 4 f-number squared).</translation>
+    </message>
+    <message>
+        <source>Pixel Pitch:</source>
+        <translation>Pixel Pitch:</translation>
+    </message>
+    <message>
+        <source>Centre-to-centre spacing of the detector elements. Sets how much area collects photons for one pixel.</source>
+        <translation>Centre-to-centre spacing of the detector elements. Sets how much area collects photons for one pixel.</translation>
+    </message>
+    <message>
+        <source>PSF Width:</source>
+        <translation>PSF Width:</translation>
+    </message>
+    <message>
+        <source>Gaussian blur width of the point spread function, in pixels. Auto derives it from the aperture and wavelength; setting it here holds the blur fixed while the aperture varies, and 0 disables it.</source>
+        <translation>Gaussian blur width of the point spread function, in pixels. Auto derives it from the aperture and wavelength; setting it here holds the blur fixed while the aperture varies, and 0 disables it.</translation>
+    </message>
+    <message>
+        <source>Shutter:</source>
+        <translation>Shutter:</translation>
+    </message>
+    <message>
+        <source>Global exposes every pixel at once; rolling exposes row by row, which shears moving edges by the row delay.</source>
+        <translation>Global exposes every pixel at once; rolling exposes row by row, which shears moving edges by the row delay.</translation>
+    </message>
+    <message>
+        <source>Row Delay:</source>
+        <translation>Row Delay:</translation>
+    </message>
+    <message>
+        <source>Time between the starts of consecutive rows under a rolling shutter. The exposure of the last row starts this much later than the first.</source>
+        <translation>Time between the starts of consecutive rows under a rolling shutter. The exposure of the last row starts this much later than the first.</translation>
+    </message>
+    <message>
+        <source>Exposure Time:</source>
+        <translation>Exposure Time:</translation>
+    </message>
+    <message>
+        <source>How long the detector collects per frame. Longer gathers more signal and more dark current with it.</source>
+        <translation>How long the detector collects per frame. Longer gathers more signal and more dark current with it.</translation>
+    </message>
+    <message>
+        <source>Frame Period:</source>
+        <translation>Frame Period:</translation>
+    </message>
+    <message>
+        <source>Time from one frame&apos;s exposure midpoint to the next; the reciprocal is the frame rate.</source>
+        <translation>Time from one frame&apos;s exposure midpoint to the next; the reciprocal is the frame rate.</translation>
+    </message>
+    <message>
+        <source>Analog Gain:</source>
+        <translation>Analog Gain:</translation>
+    </message>
+    <message>
+        <source>Gain applied before the converter. Multiplies signal and read noise together, so it does not add information -- it trades well depth for brightness.</source>
+        <translation>Gain applied before the converter. Multiplies signal and read noise together, so it does not add information -- it trades well depth for brightness.</translation>
+    </message>
+    <message>
+        <source>Conversion Gain:</source>
+        <translation>Conversion Gain:</translation>
+    </message>
+    <message>
+        <source>Electrons per digital number. Lower means finer steps, at the cost of clipping sooner.</source>
+        <translation>Electrons per digital number. Lower means finer steps, at the cost of clipping sooner.</translation>
+    </message>
+    <message>
+        <source>Black Level:</source>
+        <translation>Black Level:</translation>
+    </message>
+    <message>
+        <source>Digital number the converter reports for a pixel that collected nothing. Everything below it clips to zero.</source>
+        <translation>Digital number the converter reports for a pixel that collected nothing. Everything below it clips to zero.</translation>
+    </message>
+    <message>
+        <source>ADC Bits:</source>
+        <translation>ADC Bits:</translation>
+    </message>
+    <message>
+        <source>Bits out of the analogue-to-digital converter. Sets how finely the electron count is quantised.</source>
+        <translation>Bits out of the analogue-to-digital converter. Sets how finely the electron count is quantised.</translation>
+    </message>
+    <message>
+        <source>Full Well:</source>
+        <translation>Full Well:</translation>
+    </message>
+    <message>
+        <source>Electrons a pixel can hold before it saturates. Anything brighter clips to white.</source>
+        <translation>Electrons a pixel can hold before it saturates. Anything brighter clips to white.</translation>
+    </message>
+    <message>
+        <source>Read Noise:</source>
+        <translation>Read Noise:</translation>
+    </message>
+    <message>
+        <source>Noise the readout electronics add per pixel, in electrons RMS. Independent of exposure -- it is what limits the darkest tones.</source>
+        <translation>Noise the readout electronics add per pixel, in electrons RMS. Independent of exposure -- it is what limits the darkest tones.</translation>
+    </message>
+    <message>
+        <source>Dark Current:</source>
+        <translation>Dark Current:</translation>
+    </message>
+    <message>
+        <source>Electrons generated thermally per second with no light at all. Multiplied by the exposure time, and roughly doubles every 7 K.</source>
+        <translation>Electrons generated thermally per second with no light at all. Multiplied by the exposure time, and roughly doubles every 7 K.</translation>
     </message>
     <message>
         <source>PRNU Sigma:</source>
@@ -3096,35 +3316,303 @@ Rebuild with:
     </message>
     <message>
         <source>Photo-Response Non-Uniformity: pixel-to-pixel spread in sensitivity, as a fraction. A fixed multiplicative pattern, visible in bright areas.</source>
-        <translation type="unfinished"></translation>
+        <translation>Photo-Response Non-Uniformity: pixel-to-pixel spread in sensitivity, as a fraction. A fixed multiplicative pattern, visible in bright areas.</translation>
     </message>
     <message>
         <source>DSNU Sigma:</source>
         <translation>DSNU Sigma:</translation>
     </message>
     <message>
-        <source>Enable NUC</source>
-        <translation>Enable NUC</translation>
-    </message>
-    <message>
         <source>Dark Signal Non-Uniformity: pixel-to-pixel spread in dark current, in electrons. A fixed additive pattern, visible in dark areas.</source>
+        <translation>Dark Signal Non-Uniformity: pixel-to-pixel spread in dark current, in electrons. A fixed additive pattern, visible in dark areas.</translation>
+    </message>
+    <message>
+        <source>NUC Residual:</source>
+        <translation>NUC Residual:</translation>
+    </message>
+    <message>
+        <source>Fraction of the fixed pattern the Non-Uniformity Correction leaves behind. 0 removes all of it, which no real calibration does.</source>
+        <translation>Fraction of the fixed pattern the Non-Uniformity Correction leaves behind. 0 removes all of it, which no real calibration does.</translation>
+    </message>
+    <message>
+        <source>Time Constant:</source>
+        <translation>Time Constant:</translation>
+    </message>
+    <message>
+        <source>First-order thermal response time of a pixel. How long a bolometer takes to settle after the scene in front of it changes.</source>
+        <translation>First-order thermal response time of a pixel. How long a bolometer takes to settle after the scene in front of it changes.</translation>
+    </message>
+    <message>
+        <source>Responsivity:</source>
+        <translation>Responsivity:</translation>
+    </message>
+    <message>
+        <source>Digital numbers out per watt of absorbed scene power. Sets the absolute scale of the thermal chain.</source>
+        <translation>Digital numbers out per watt of absorbed scene power. Sets the absolute scale of the thermal chain.</translation>
+    </message>
+    <message>
+        <source>Drift:</source>
+        <translation>Drift:</translation>
+    </message>
+    <message>
+        <source>Slow additive drift of the reported value, in DN per second. What makes a microbolometer wander between calibrations.</source>
+        <translation>Slow additive drift of the reported value, in DN per second. What makes a microbolometer wander between calibrations.</translation>
+    </message>
+    <message>
+        <source>NETD:</source>
+        <translation>NETD:</translation>
+    </message>
+    <message>
+        <source>Noise-equivalent temperature difference at the reference temperature, in millikelvin. Only meaningful with the reference temperature and optical condition the datasheet specifies.</source>
+        <translation>Noise-equivalent temperature difference at the reference temperature, in millikelvin. Only meaningful with the reference temperature and optical condition the datasheet specifies.</translation>
+    </message>
+    <message>
+        <source>NETD Reference Temperature:</source>
+        <translation>NETD Reference Temperature:</translation>
+    </message>
+    <message>
+        <source>Scene temperature the NETD was quoted at. A NETD without its reference temperature attached means nothing.</source>
+        <translation>Scene temperature the NETD was quoted at. A NETD without its reference temperature attached means nothing.</translation>
+    </message>
+    <message>
+        <source>AE Target Luminance:</source>
+        <translation>AE Target Luminance:</translation>
+    </message>
+    <message>
+        <source>Mean display value the auto-exposure loop aims for, as a fraction of the well. The classic 18% grey-card value.</source>
+        <translation>Mean display value the auto-exposure loop aims for, as a fraction of the well. The classic 18% grey-card value.</translation>
+    </message>
+    <message>
+        <source>AE Smoothing:</source>
+        <translation>AE Smoothing:</translation>
+    </message>
+    <message>
+        <source>Fraction of the computed exposure correction applied per acquisition. Lower damps oscillation at the cost of slower convergence; 1 disables smoothing.</source>
+        <translation>Fraction of the computed exposure correction applied per acquisition. Lower damps oscillation at the cost of slower convergence; 1 disables smoothing.</translation>
+    </message>
+    <message>
+        <source>AE Min Exposure:</source>
+        <translation>AE Min Exposure:</translation>
+    </message>
+    <message>
+        <source>Shortest exposure the auto-exposure loop may request.</source>
+        <translation>Shortest exposure the auto-exposure loop may request.</translation>
+    </message>
+    <message>
+        <source>AE Max Exposure:</source>
+        <translation>AE Max Exposure:</translation>
+    </message>
+    <message>
+        <source>Longest exposure the auto-exposure loop may request.</source>
+        <translation>Longest exposure the auto-exposure loop may request.</translation>
+    </message>
+    <message>
+        <source>AE Max Gain:</source>
+        <translation>AE Max Gain:</translation>
+    </message>
+    <message>
+        <source>Highest analog gain the auto-exposure loop may request.</source>
+        <translation>Highest analog gain the auto-exposure loop may request.</translation>
+    </message>
+    <message>
+        <source>White Balance R:</source>
+        <translation>White Balance R:</translation>
+    </message>
+    <message>
+        <source>White Balance G:</source>
+        <translation>White Balance G:</translation>
+    </message>
+    <message>
+        <source>White Balance B:</source>
+        <translation>White Balance B:</translation>
+    </message>
+    <message>
+        <source>Per-channel gain applied before the colour transform. Auto white balance drives these when it is on.</source>
+        <translation>Per-channel gain applied before the colour transform. Auto white balance drives these when it is on.</translation>
+    </message>
+    <message>
+        <source>Tone Gamma:</source>
+        <translation>Tone Gamma:</translation>
+    </message>
+    <message>
+        <source>Display transfer exponent applied in the ISP. 1 leaves the tone linear.</source>
+        <translation>Display transfer exponent applied in the ISP. 1 leaves the tone linear.</translation>
+    </message>
+    <message>
+        <source>Denoise Strength:</source>
+        <translation>Denoise Strength:</translation>
+    </message>
+    <message>
+        <source>How hard the ISP denoiser smooths. 0 leaves the image alone even with denoise on.</source>
+        <translation>How hard the ISP denoiser smooths. 0 leaves the image alone even with denoise on.</translation>
+    </message>
+    <message>
+        <source>Sharpen Strength:</source>
+        <translation>Sharpen Strength:</translation>
+    </message>
+    <message>
+        <source>How hard the ISP sharpening kernel works on edges. 0 leaves the image alone even with sharpen on.</source>
+        <translation>How hard the ISP sharpening kernel works on edges. 0 leaves the image alone even with sharpen on.</translation>
+    </message>
+    <message>
+        <source>Hue Offset:</source>
+        <translation>Hue Offset:</translation>
+    </message>
+    <message>
+        <source>Rotation applied to the hue of the displayed image, in degrees. 0 leaves hue alone.</source>
+        <translation>Rotation applied to the hue of the displayed image, in degrees. 0 leaves hue alone.</translation>
+    </message>
+    <message>
+        <source>Saturation Scale:</source>
+        <translation>Saturation Scale:</translation>
+    </message>
+    <message>
+        <source>Multiplier on colour saturation. 0 gives a monochrome display; 1 leaves it alone.</source>
+        <translation>Multiplier on colour saturation. 0 gives a monochrome display; 1 leaves it alone.</translation>
+    </message>
+    <message>
+        <source>Value Gamma:</source>
+        <translation>Value Gamma:</translation>
+    </message>
+    <message>
+        <source>Exponent applied to the display value after tone mapping. 1 leaves it alone.</source>
+        <translation>Exponent applied to the display value after tone mapping. 1 leaves it alone.</translation>
+    </message>
+    <message>
+        <source>Noise Sigma:</source>
+        <translation>Noise Sigma:</translation>
+    </message>
+    <message>
+        <source>Sigma of the empirical display noise stream, in display-value units. The pattern is keyed on the acquisition index, so the same acquisition always shows the same noise.</source>
+        <translation>Sigma of the empirical display noise stream, in display-value units. The pattern is keyed on the acquisition index, so the same acquisition always shows the same noise.</translation>
+    </message>
+    <message>
+        <source>Drift Sigma:</source>
+        <translation>Drift Sigma:</translation>
+    </message>
+    <message>
+        <source>Sigma of the empirical temporal drift stream, in display-value units. Slow frame-to-frame wander on top of the noise.</source>
+        <translation>Sigma of the empirical temporal drift stream, in display-value units. Slow frame-to-frame wander on top of the noise.</translation>
+    </message>
+    <message>
+        <source>Tone:</source>
+        <translation>Tone:</translation>
+    </message>
+    <message>
+        <source>Contrast operator for the infrared display. Linear AGC is globally monotone and safe to read values off; histogram equalize stretches the whole frame; CLAHE is tile-local and only for finding edges.</source>
+        <translation>Contrast operator for the infrared display. Linear AGC is globally monotone and safe to read values off; histogram equalize stretches the whole frame; CLAHE is tile-local and only for finding edges.</translation>
+    </message>
+    <message>
+        <source>Palette:</source>
+        <translation>Palette:</translation>
+    </message>
+    <message>
+        <source>Colour map from display value to colour. Changes colour only, never contrast.</source>
+        <translation>Colour map from display value to colour. Changes colour only, never contrast.</translation>
+    </message>
+    <message>
+        <source>What the camera is told the surface&apos;s emissivity is. 1 gives apparent temperature, which is what a campaign records when it will not assume one -- and which reads cold for any real surface.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>NUC Efficiency:</source>
-        <translation>NUC Efficiency:</translation>
-    </message>
-    <message>
-        <source>IR Detector</source>
-        <translation>IR Detector</translation>
-    </message>
-    <message>
-        <source>How much of the fixed pattern the Non-Uniformity Correction removes. 1.0 removes all of it, which no real calibration does.</source>
+        <source>Fraction of the surface&apos;s radiation that survives the air between it and the lens. 1 removes the atmosphere from the model, which is right for a short measurement distance.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Detector Temperature:</source>
-        <translation>Detector Temperature:</translation>
+        <source>Effective band: %1–%2 nm</source>
+        <translation>Effective band: %1–%2 nm</translation>
+    </message>
+    <message>
+        <source>Effective band: not set by this device</source>
+        <translation>Effective band: not set by this device</translation>
+    </message>
+    <message>
+        <source>hardware reference</source>
+        <translation>hardware reference</translation>
+    </message>
+    <message>
+        <source>calibrated</source>
+        <translation>calibrated</translation>
+    </message>
+    <message>
+        <source>generic assumption</source>
+        <translation>generic assumption</translation>
+    </message>
+    <message>
+        <source>Calibration status: %1</source>
+        <translation>Calibration status: %1</translation>
+    </message>
+    <message>
+        <source>manufacturer</source>
+        <translation>manufacturer</translation>
+    </message>
+    <message>
+        <source>digitized</source>
+        <translation>digitized</translation>
+    </message>
+    <message>
+        <source>derived</source>
+        <translation>derived</translation>
+    </message>
+    <message>
+        <source>assumed</source>
+        <translation>assumed</translation>
+    </message>
+    <message>
+        <source>other grades</source>
+        <translation>other grades</translation>
+    </message>
+    <message>
+        <source>%1 parameters: %2</source>
+        <translation>%1 parameters: %2</translation>
+    </message>
+    <message>
+        <source>No provenance records — generic defaults.</source>
+        <translation>No provenance records — generic defaults.</translation>
+    </message>
+    <message>
+        <source>%1 %2</source>
+        <translation>%1 %2</translation>
+    </message>
+    <message>
+        <source>Assumed Emissivity:</source>
+        <translation>Assumed Emissivity:</translation>
+    </message>
+    <message>
+        <source>What the camera is told the surface&amp;apos;s emissivity is. 1 gives apparent temperature, which is what a campaign records when it will not assume one -- and which reads cold for any real surface.</source>
+        <translation type="vanished">What the camera is told the surface&amp;apos;s emissivity is. 1 gives apparent temperature, which is what a campaign records when it will not assume one -- and which reads cold for any real surface.</translation>
+    </message>
+    <message>
+        <source>Reflected Temperature:</source>
+        <translation>Reflected Temperature:</translation>
+    </message>
+    <message>
+        <source>Temperature of whatever the surface reflects, usually the sky. Ignored at emissivity 1, since a blackbody reflects nothing.</source>
+        <translation>Temperature of whatever the surface reflects, usually the sky. Ignored at emissivity 1, since a blackbody reflects nothing.</translation>
+    </message>
+    <message>
+        <source>Path Transmittance:</source>
+        <translation>Path Transmittance:</translation>
+    </message>
+    <message>
+        <source>Fraction of the surface&amp;apos;s radiation that survives the air between it and the lens. 1 removes the atmosphere from the model, which is right for a short measurement distance.</source>
+        <translation type="vanished">Fraction of the surface&amp;apos;s radiation that survives the air between it and the lens. 1 removes the atmosphere from the model, which is right for a short measurement distance.</translation>
+    </message>
+    <message>
+        <source>Path Temperature:</source>
+        <translation>Path Temperature:</translation>
+    </message>
+    <message>
+        <source>Temperature of that air. Used only when the transmittance is below 1.</source>
+        <translation>Temperature of that air. Used only when the transmittance is below 1.</translation>
+    </message>
+    <message>
+        <source>Read Noise (DN):</source>
+        <translation>Read Noise (DN):</translation>
+    </message>
+    <message>
+        <source>Noise the readout adds per pixel, in digital numbers RMS. Independent of scene power.</source>
+        <translation>Noise the readout adds per pixel, in digital numbers RMS. Independent of scene power.</translation>
     </message>
 </context>
 <context>
@@ -3335,6 +3823,10 @@ Rebuild with:
     </message>
     <message>
         <source>The document is not valid TOML: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Tick %1: %2</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -3976,6 +4468,10 @@ Coverage — %3</source>
     </message>
     <message>
         <source>Transport</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Create 0-10 s timeline (20 ticks/s)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

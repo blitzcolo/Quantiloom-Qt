@@ -261,6 +261,38 @@ Leave empty to auto-detect.</source>
         <translation>重置视角</translation>
     </message>
     <message>
+        <source>Camera trajectory</source>
+        <translation>相机轨迹</translation>
+    </message>
+    <message>
+        <source>Key time:</source>
+        <translation>关键帧时间：</translation>
+    </message>
+    <message>
+        <source>Key position:</source>
+        <translation>关键帧位置：</translation>
+    </message>
+    <message>
+        <source>Key look at:</source>
+        <translation>关键帧注视点：</translation>
+    </message>
+    <message>
+        <source>Capture pose</source>
+        <translation>捕获姿态</translation>
+    </message>
+    <message>
+        <source>Add key</source>
+        <translation>添加关键帧</translation>
+    </message>
+    <message>
+        <source>Update key</source>
+        <translation>更新关键帧</translation>
+    </message>
+    <message>
+        <source>Delete key</source>
+        <translation>删除关键帧</translation>
+    </message>
+    <message>
         <source>Front</source>
         <translation>前</translation>
     </message>
@@ -1090,14 +1122,6 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation>大气预设：%1</translation>
     </message>
     <message>
-        <source>Sensor simulation enabled</source>
-        <translation>已启用传感器仿真</translation>
-    </message>
-    <message>
-        <source>Sensor simulation disabled</source>
-        <translation>已关闭传感器仿真</translation>
-    </message>
-    <message>
         <source>Ready</source>
         <translation>就绪</translation>
     </message>
@@ -1212,12 +1236,12 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation>光源已加载</translation>
     </message>
     <message>
-        <source>Sensor parameters updated</source>
-        <translation>传感器参数已更新</translation>
-    </message>
-    <message>
         <source>The thermal solve is off.</source>
         <translation>热求解已关闭。</translation>
+    </message>
+    <message>
+        <source>Timeline</source>
+        <translation>时间轴</translation>
     </message>
     <message>
         <source>Display enhancement off</source>
@@ -1296,6 +1320,14 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation>MCP :%1</translation>
     </message>
     <message>
+        <source>Camera trajectory</source>
+        <translation>相机轨迹</translation>
+    </message>
+    <message>
+        <source>Camera keyframe</source>
+        <translation>相机关键帧</translation>
+    </message>
+    <message>
         <source>Spectral mode</source>
         <translation>光谱模式</translation>
     </message>
@@ -1304,12 +1336,8 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation>波长</translation>
     </message>
     <message>
-        <source>Sensor simulation</source>
-        <translation>传感器仿真</translation>
-    </message>
-    <message>
-        <source>Sensor parameters</source>
-        <translation>传感器参数</translation>
+        <source>Camera simulation</source>
+        <translation>相机模拟</translation>
     </message>
     <message>
         <source>Could not read the current frame.</source>
@@ -1572,6 +1600,26 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation>时间轴(&amp;T)</translation>
     </message>
     <message>
+        <source>Create Default Timeline</source>
+        <translation>创建默认时间轴</translation>
+    </message>
+    <message>
+        <source>Capture Camera Keyframe</source>
+        <translation>捕获相机关键帧</translation>
+    </message>
+    <message>
+        <source>Add Camera Keyframe</source>
+        <translation>添加相机关键帧</translation>
+    </message>
+    <message>
+        <source>Update Camera Keyframe</source>
+        <translation>更新相机关键帧</translation>
+    </message>
+    <message>
+        <source>Delete Camera Keyframe</source>
+        <translation>删除相机关键帧</translation>
+    </message>
+    <message>
         <source>&amp;Play / Pause</source>
         <translation>播放/暂停(&amp;P)</translation>
     </message>
@@ -1786,6 +1834,14 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
 %1</source>
         <translation>保存图像失败：
 %1</translation>
+    </message>
+    <message>
+        <source>Open a scene before exporting camera products.</source>
+        <translation>请先打开场景，再导出相机产品。</translation>
+    </message>
+    <message>
+        <source>EXR Image (*.exr);;All Files (*)</source>
+        <translation>EXR 图像 (*.exr);;所有文件 (*)</translation>
     </message>
     <message>
         <source>Rendering (infinite)</source>
@@ -2082,6 +2138,78 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
     <message>
         <source>Thermal solve</source>
         <translation>热求解</translation>
+    </message>
+    <message>
+        <source>Camera simulation enabled</source>
+        <translation>相机仿真已启用</translation>
+    </message>
+    <message>
+        <source>Camera simulation disabled</source>
+        <translation>相机仿真已禁用</translation>
+    </message>
+    <message>
+        <source>Camera configuration updated</source>
+        <translation>相机配置已更新</translation>
+    </message>
+    <message>
+        <source>Camera display reprocess failed: %1</source>
+        <translation>相机显示重处理失败：%1</translation>
+    </message>
+    <message>
+        <source>Camera display updated</source>
+        <translation>相机显示已更新</translation>
+    </message>
+    <message>
+        <source>Camera configuration</source>
+        <translation>相机配置</translation>
+    </message>
+    <message>
+        <source>Camera display</source>
+        <translation>相机显示</translation>
+    </message>
+    <message>
+        <source>Camera parameters</source>
+        <translation>相机参数</translation>
+    </message>
+    <message>
+        <source>Export Camera &amp;Products...</source>
+        <translation>导出相机产品(&amp;P)...</translation>
+    </message>
+    <message>
+        <source>Commit one device acquisition and write every enabled product (RAW DN, corrected signal, band measurement, apparent temperature, display) with its units and calibration status.</source>
+        <translation>提交一次设备采集，并写出所有启用的产品（RAW DN、校正信号、波段测量、表观温度、显示图），附带单位与标定状态。</translation>
+    </message>
+    <message>
+        <source>Export Camera Products</source>
+        <translation>导出相机产品</translation>
+    </message>
+    <message>
+        <source>Camera Disabled</source>
+        <translation>相机已禁用</translation>
+    </message>
+    <message>
+        <source>Turn the camera simulation on before exporting its products: the products are what the device measured, and with the camera off there is no device.</source>
+        <translation>导出相机产品前请先启用相机仿真：产品记录的是设备所测量的内容，相机关闭时就不存在设备。</translation>
+    </message>
+    <message>
+        <source>Could not update the camera product request:
+%1</source>
+        <translation>无法更新相机产品请求：
+%1</translation>
+    </message>
+    <message>
+        <source>Could not capture the camera products:
+%1</source>
+        <translation>无法采集相机产品：
+%1</translation>
+    </message>
+    <message>
+        <source>The acquisition completed but no product was enabled in the camera&apos;s product request.</source>
+        <translation>采集已完成，但相机的产品请求中未启用任何产品。</translation>
+    </message>
+    <message>
+        <source>Exported %1 camera product(s) to %2</source>
+        <translation>已将 %1 个相机产品导出到 %2</translation>
     </message>
 </context>
 <context>
@@ -2737,6 +2865,10 @@ Pick a node or a material in the scene tree.</source>
         <source>The renderer is not ready yet.</source>
         <translation>渲染器尚未就绪。</translation>
     </message>
+    <message>
+        <source>could not write %1</source>
+        <translation>无法写入 %1</translation>
+    </message>
 </context>
 <context>
     <name>QuantiloomVulkanRenderer</name>
@@ -2949,176 +3081,52 @@ Rebuild with:
 <context>
     <name>SensorPanel</name>
     <message>
-        <source>Thermography</source>
-        <translation>热成像反演</translation>
-    </message>
-    <message>
-        <source>Write a temperature map when rendering</source>
-        <translation>渲染时输出温度图</translation>
-    </message>
-    <message>
-        <source>Assumed Emissivity:</source>
-        <translation>假定发射率：</translation>
-    </message>
-    <message>
-        <source>What the camera is told the surface&apos;s emissivity is. 1 gives apparent temperature, which is what a campaign records when it will not assume one -- and which reads cold for any real surface.</source>
-        <translation>告知相机的表面发射率。取 1 得到表观温度，即测量活动在不愿假定发射率时所记录的量——对任何真实表面它都会偏冷。</translation>
-    </message>
-    <message>
-        <source>Reflected Temperature:</source>
-        <translation>反射源温度：</translation>
-    </message>
-    <message>
-        <source>Temperature of whatever the surface reflects, usually the sky. Ignored at emissivity 1, since a blackbody reflects nothing.</source>
-        <translation>表面所反射之物的温度，通常是天空。发射率为 1 时忽略，因为黑体不反射。</translation>
-    </message>
-    <message>
-        <source>Path Transmittance:</source>
-        <translation>路径透过率：</translation>
-    </message>
-    <message>
-        <source>Fraction of the surface&apos;s radiation that survives the air between it and the lens. 1 removes the atmosphere from the model, which is right for a short measurement distance.</source>
-        <translation>表面辐射穿过它与镜头之间空气后残存的比例。取 1 即在模型中去掉大气，适用于近距离测量。</translation>
-    </message>
-    <message>
-        <source>Path Temperature:</source>
-        <translation>路径温度：</translation>
-    </message>
-    <message>
-        <source>Temperature of that air. Used only when the transmittance is below 1.</source>
-        <translation>该段空气的温度。仅在透过率小于 1 时使用。</translation>
-    </message>
-    <message>
-        <source>Sensitivity needs the sensor simulation on.</source>
-        <translation>灵敏度需要先启用传感器仿真。</translation>
-    </message>
-    <message>
-        <source>Sensitivity: band has no usable slope here.</source>
-        <translation>灵敏度：该波段在此处没有可用的斜率。</translation>
-    </message>
-    <message>
-        <source>Sensitivity: noiseless — any difference resolves.</source>
-        <translation>灵敏度：无噪声——任意温差均可分辨。</translation>
-    </message>
-    <message>
-        <source>NETD %1 mK at 300 K over %2–%3 µm, well capacity aside.</source>
-        <translation>NETD %1 mK（300 K，%2–%3 µm），未计阱容限制。</translation>
-    </message>
-    <message>
-        <source>Enable Sensor Simulation</source>
-        <translation>启用传感器仿真</translation>
-    </message>
-    <message>
-        <source>Optics</source>
-        <translation>光学系统</translation>
-    </message>
-    <message>
-        <source>Focal Length:</source>
-        <translation>焦距:</translation>
-    </message>
-    <message>
-        <source>Aperture:</source>
-        <translation>光圈:</translation>
+        <source>Camera</source>
+        <translation>相机</translation>
     </message>
     <message>
         <source>Detector</source>
         <translation>探测器</translation>
     </message>
     <message>
-        <source>Sensor</source>
-        <translation>传感器</translation>
+        <source>Optics</source>
+        <translation>光学系统</translation>
     </message>
     <message>
-        <source>Lens focal length. With the pixel pitch it sets the angular size of a pixel, and so how much of the scene one pixel averages.</source>
-        <translation>镜头焦距。与像元间距共同决定单个像素的角尺寸，也就决定了一个像素平均了多大范围的场景。</translation>
+        <source>Readout</source>
+        <translation>读出</translation>
     </message>
     <message>
-        <source>Pixel Pitch:</source>
-        <translation>像元尺寸:</translation>
+        <source>Photon Detector</source>
+        <translation>光子探测器</translation>
     </message>
     <message>
-        <source>Centre-to-centre spacing of the detector elements. Sets how much area collects photons for one pixel.</source>
-        <translation>探测器单元的中心间距。决定单个像素用多大面积收集光子。</translation>
+        <source>Thermal Detector</source>
+        <translation>热探测器</translation>
     </message>
     <message>
-        <source>Quantum Efficiency:</source>
-        <translation>量子效率:</translation>
+        <source>Image Signal Processor</source>
+        <translation>图像信号处理 (ISP)</translation>
     </message>
     <message>
-        <source>Fraction of arriving photons that become signal electrons. 1.0 would convert every photon.</source>
-        <translation>入射光子转化为信号电子的比例。1.0 表示每个光子都被转换。</translation>
+        <source>Infrared Display</source>
+        <translation>红外显示</translation>
     </message>
     <message>
-        <source>Well Capacity:</source>
-        <translation>满阱容量:</translation>
+        <source>Coverage and Calibration</source>
+        <translation>波段覆盖与标定</translation>
     </message>
     <message>
-        <source>Electrons a pixel can hold before it saturates. Anything brighter clips to white.</source>
-        <translation>像素饱和前可容纳的电子数。更亮的部分将被截断为白色。</translation>
+        <source>Thermography</source>
+        <translation>热成像反演</translation>
     </message>
     <message>
-        <source>Bit Depth:</source>
-        <translation>位深:</translation>
+        <source>Enable Camera Simulation</source>
+        <translation>启用相机仿真</translation>
     </message>
     <message>
-        <source>Bits per pixel out of the converter. Sets how finely the electron count is quantised.</source>
-        <translation>模数转换输出的每像素位数。决定电子数被量化的精细程度。</translation>
-    </message>
-    <message>
-        <source>Integration Time:</source>
-        <translation>积分时间:</translation>
-    </message>
-    <message>
-        <source>Temperature of the detector itself. Drives dark current, and for thermal bands the self-emission the optics see.</source>
-        <translation>探测器自身的温度。决定暗电流；在热成像波段还决定光学系统看到的自发辐射。</translation>
-    </message>
-    <message>
-        <source>ADC</source>
-        <translation>模数转换</translation>
-    </message>
-    <message>
-        <source>Gain:</source>
-        <translation>增益:</translation>
-    </message>
-    <message>
-        <source>Noise Model</source>
-        <translation>噪声模型</translation>
-    </message>
-    <message>
-        <source>Auto (diffraction)</source>
-        <translation>自动（衍射）</translation>
-    </message>
-    <message>
-        <source>f-number, focal length divided by entrance pupil diameter. Lower collects more light: irradiance on the detector goes as 1/(1 + 4 f-number squared).</source>
-        <translation>f 数，即焦距除以入瞳直径。数值越小进光越多：探测器上的辐照度正比于 1/(1 + 4 f 数的平方)。</translation>
-    </message>
-    <message>
-        <source>PSF Width:</source>
-        <translation>PSF 宽度：</translation>
-    </message>
-    <message>
-        <source>Gaussian blur width of the point spread function, in pixels. Auto derives it from the aperture and wavelength; setting it here holds the blur fixed while the aperture varies, and 0 disables it.</source>
-        <translation>点扩散函数的高斯模糊宽度，以像素计。「自动」由光圈与波长推导；在此指定可在光圈变化时保持模糊宽度不变，填 0 则不做模糊。</translation>
-    </message>
-    <message>
-        <source>How long the detector collects per frame. Longer gathers more signal and more dark current with it.</source>
-        <translation>每帧的积分时长。时间越长收集的信号越多，暗电流也随之增加。</translation>
-    </message>
-    <message>
-        <source>Electrons per digital number. Lower means finer steps, at the cost of clipping sooner.</source>
-        <translation>每个数字量化单位对应的电子数。数值越小量化步长越细，但也更早截断。</translation>
-    </message>
-    <message>
-        <source>Read Noise:</source>
-        <translation>读出噪声:</translation>
-    </message>
-    <message>
-        <source>Noise the readout electronics add per pixel, in electrons RMS. Independent of exposure -- it is what limits the darkest tones.</source>
-        <translation>读出电路为每个像素引入的噪声，单位为电子均方根。与曝光无关，是暗部细节的极限所在。</translation>
-    </message>
-    <message>
-        <source>Dark Current:</source>
-        <translation>暗电流:</translation>
+        <source>Auto (Airy)</source>
+        <translation>自动（Airy 衍射）</translation>
     </message>
     <message>
         <source>Photon Shot Noise (Poisson)</source>
@@ -3137,12 +3145,224 @@ Rebuild with:
         <translation>固定图案噪声 (FPN)</translation>
     </message>
     <message>
-        <source>FPN Parameters</source>
-        <translation>FPN 参数</translation>
+        <source>Enable NUC</source>
+        <translation>启用非均匀性校正</translation>
     </message>
     <message>
-        <source>Electrons generated thermally per second with no light at all. Multiplied by the integration time, and roughly doubles every 7 K.</source>
-        <translation>完全无光时每秒热激发产生的电子数。与积分时间相乘，温度每升高约 7 K 翻一倍。</translation>
+        <source>Auto Exposure</source>
+        <translation>自动曝光</translation>
+    </message>
+    <message>
+        <source>Auto White Balance</source>
+        <translation>自动白平衡</translation>
+    </message>
+    <message>
+        <source>Denoise</source>
+        <translation>降噪</translation>
+    </message>
+    <message>
+        <source>Sharpen</source>
+        <translation>锐化</translation>
+    </message>
+    <message>
+        <source>Empirical Display Noise</source>
+        <translation>经验显示噪声</translation>
+    </message>
+    <message>
+        <source>Temporal Drift</source>
+        <translation>时间漂移</translation>
+    </message>
+    <message>
+        <source>Write a temperature map when rendering</source>
+        <translation>渲染时输出温度图</translation>
+    </message>
+    <message>
+        <source>Custom (current values)</source>
+        <translation>自定义（当前值）</translation>
+    </message>
+    <message>
+        <source>Photon counting</source>
+        <translation>光子计数</translation>
+    </message>
+    <message>
+        <source>Thermal (bolometer)</source>
+        <translation>热式（微测辐射热计）</translation>
+    </message>
+    <message>
+        <source>Monochrome</source>
+        <translation>单色</translation>
+    </message>
+    <message>
+        <source>Multi-channel</source>
+        <translation>多通道</translation>
+    </message>
+    <message>
+        <source>Global</source>
+        <translation>全局</translation>
+    </message>
+    <message>
+        <source>Rolling</source>
+        <translation>卷帘</translation>
+    </message>
+    <message>
+        <source>Linear AGC</source>
+        <translation>线性 AGC</translation>
+    </message>
+    <message>
+        <source>Histogram Equalize</source>
+        <translation>直方图均衡</translation>
+    </message>
+    <message>
+        <source>CLAHE</source>
+        <translation>CLAHE</translation>
+    </message>
+    <message>
+        <source>White-hot</source>
+        <translation>白热</translation>
+    </message>
+    <message>
+        <source>Black-hot</source>
+        <translation>黑热</translation>
+    </message>
+    <message>
+        <source>Ironbow</source>
+        <translation>铁红 (Ironbow)</translation>
+    </message>
+    <message>
+        <source>Rainbow</source>
+        <translation>彩虹</translation>
+    </message>
+    <message>
+        <source>Viridis</source>
+        <translation>Viridis</translation>
+    </message>
+    <message>
+        <source>Colour Filter Array:</source>
+        <translation>彩色滤波阵列：</translation>
+    </message>
+    <message>
+        <source>How one scalar per pixel maps to colour channels. Monochrome reads one channel; Bayer patterns alternate R/G/B filters; multi-channel reads up to three channels per pixel.</source>
+        <translation>每个像素的一个标量如何映射到颜色通道。单色读取一个通道；Bayer 图案交替排列 R/G/B 滤波；多通道每像素读取至多三个通道。</translation>
+    </message>
+    <message>
+        <source>Focal Length:</source>
+        <translation>焦距:</translation>
+    </message>
+    <message>
+        <source>Lens focal length. With the pixel pitch it sets the angular size of a pixel, and so how much of the scene one pixel averages.</source>
+        <translation>镜头焦距。与像元间距共同决定单个像素的角尺寸，也就决定了一个像素平均了多大范围的场景。</translation>
+    </message>
+    <message>
+        <source>Aperture:</source>
+        <translation>光圈:</translation>
+    </message>
+    <message>
+        <source>f-number, focal length divided by entrance pupil diameter. Lower collects more light: irradiance on the detector goes as 1/(1 + 4 f-number squared).</source>
+        <translation>f 数，即焦距除以入瞳直径。数值越小进光越多：探测器上的辐照度正比于 1/(1 + 4 f 数的平方)。</translation>
+    </message>
+    <message>
+        <source>Pixel Pitch:</source>
+        <translation>像元尺寸:</translation>
+    </message>
+    <message>
+        <source>Centre-to-centre spacing of the detector elements. Sets how much area collects photons for one pixel.</source>
+        <translation>探测器单元的中心间距。决定单个像素用多大面积收集光子。</translation>
+    </message>
+    <message>
+        <source>PSF Width:</source>
+        <translation>PSF 宽度:</translation>
+    </message>
+    <message>
+        <source>Gaussian blur width of the point spread function, in pixels. Auto derives it from the aperture and wavelength; setting it here holds the blur fixed while the aperture varies, and 0 disables it.</source>
+        <translation>点扩散函数的高斯模糊宽度，以像素计。「自动」由光圈与波长推导；在此指定可在光圈变化时保持模糊宽度不变，填 0 则不做模糊。</translation>
+    </message>
+    <message>
+        <source>Shutter:</source>
+        <translation>快门:</translation>
+    </message>
+    <message>
+        <source>Global exposes every pixel at once; rolling exposes row by row, which shears moving edges by the row delay.</source>
+        <translation>全局快门所有像素同时曝光；卷帘快门逐行曝光，会以行延迟剪切运动边缘。</translation>
+    </message>
+    <message>
+        <source>Row Delay:</source>
+        <translation>行延迟:</translation>
+    </message>
+    <message>
+        <source>Time between the starts of consecutive rows under a rolling shutter. The exposure of the last row starts this much later than the first.</source>
+        <translation>卷帘快门下相邻行曝光开始的时间间隔。末行的曝光比首行晚开始这么久。</translation>
+    </message>
+    <message>
+        <source>Exposure Time:</source>
+        <translation>曝光时间:</translation>
+    </message>
+    <message>
+        <source>How long the detector collects per frame. Longer gathers more signal and more dark current with it.</source>
+        <translation>探测器每帧的收集时长。时间越长收集的信号越多，暗电流也随之增加。</translation>
+    </message>
+    <message>
+        <source>Frame Period:</source>
+        <translation>帧周期:</translation>
+    </message>
+    <message>
+        <source>Time from one frame&apos;s exposure midpoint to the next; the reciprocal is the frame rate.</source>
+        <translation>相邻两帧曝光中点之间的时间；其倒数为帧率。</translation>
+    </message>
+    <message>
+        <source>Analog Gain:</source>
+        <translation>模拟增益:</translation>
+    </message>
+    <message>
+        <source>Gain applied before the converter. Multiplies signal and read noise together, so it does not add information -- it trades well depth for brightness.</source>
+        <translation>转换前施加的增益。信号与读出噪声同时被放大，因此并不增加信息量——只是以阱深换取亮度。</translation>
+    </message>
+    <message>
+        <source>Conversion Gain:</source>
+        <translation>转换增益:</translation>
+    </message>
+    <message>
+        <source>Electrons per digital number. Lower means finer steps, at the cost of clipping sooner.</source>
+        <translation>每个数字量化单位对应的电子数。数值越小量化步长越细，但也更早截断。</translation>
+    </message>
+    <message>
+        <source>Black Level:</source>
+        <translation>黑电平:</translation>
+    </message>
+    <message>
+        <source>Digital number the converter reports for a pixel that collected nothing. Everything below it clips to zero.</source>
+        <translation>像素未收集任何电荷时转换器报告的数字值。低于它的值都被截断为零。</translation>
+    </message>
+    <message>
+        <source>ADC Bits:</source>
+        <translation>ADC 位数:</translation>
+    </message>
+    <message>
+        <source>Bits out of the analogue-to-digital converter. Sets how finely the electron count is quantised.</source>
+        <translation>模数转换输出的每像素位数。决定电子数被量化的精细程度。</translation>
+    </message>
+    <message>
+        <source>Full Well:</source>
+        <translation>满阱容量:</translation>
+    </message>
+    <message>
+        <source>Electrons a pixel can hold before it saturates. Anything brighter clips to white.</source>
+        <translation>像素饱和前可容纳的电子数。更亮的部分将被截断为白色。</translation>
+    </message>
+    <message>
+        <source>Read Noise:</source>
+        <translation>读出噪声:</translation>
+    </message>
+    <message>
+        <source>Noise the readout electronics add per pixel, in electrons RMS. Independent of exposure -- it is what limits the darkest tones.</source>
+        <translation>读出电路为每个像素引入的噪声，单位为电子均方根。与曝光无关，是暗部细节的极限所在。</translation>
+    </message>
+    <message>
+        <source>Dark Current:</source>
+        <translation>暗电流:</translation>
+    </message>
+    <message>
+        <source>Electrons generated thermally per second with no light at all. Multiplied by the exposure time, and roughly doubles every 7 K.</source>
+        <translation>完全无光时每秒热激发产生的电子数。与曝光时间相乘，温度每升高约 7 K 翻一倍。</translation>
     </message>
     <message>
         <source>PRNU Sigma:</source>
@@ -3157,28 +3377,296 @@ Rebuild with:
         <translation>DSNU 标准差:</translation>
     </message>
     <message>
-        <source>Enable NUC</source>
-        <translation>启用非均匀性校正</translation>
-    </message>
-    <message>
         <source>Dark Signal Non-Uniformity: pixel-to-pixel spread in dark current, in electrons. A fixed additive pattern, visible in dark areas.</source>
         <translation>暗信号非均匀性：像素间暗电流的离散度，单位为电子。属于固定的加性图案，在暗区可见。</translation>
     </message>
     <message>
-        <source>NUC Efficiency:</source>
-        <translation>NUC 校正效率:</translation>
+        <source>NUC Residual:</source>
+        <translation>NUC 残差:</translation>
     </message>
     <message>
-        <source>IR Detector</source>
-        <translation>红外探测器</translation>
+        <source>Fraction of the fixed pattern the Non-Uniformity Correction leaves behind. 0 removes all of it, which no real calibration does.</source>
+        <translation>非均匀性校正后残留的固定图案比例。0 表示完全消除，实际标定无法做到。</translation>
     </message>
     <message>
-        <source>How much of the fixed pattern the Non-Uniformity Correction removes. 1.0 removes all of it, which no real calibration does.</source>
-        <translation>非均匀性校正能消除的固定图案比例。1.0 表示完全消除，实际标定无法做到。</translation>
+        <source>Time Constant:</source>
+        <translation>时间常数:</translation>
     </message>
     <message>
-        <source>Detector Temperature:</source>
-        <translation>探测器温度:</translation>
+        <source>First-order thermal response time of a pixel. How long a bolometer takes to settle after the scene in front of it changes.</source>
+        <translation>像素的一阶热响应时间。表示场景变化后微测辐射热计需要多久才能稳定。</translation>
+    </message>
+    <message>
+        <source>Responsivity:</source>
+        <translation>响应度:</translation>
+    </message>
+    <message>
+        <source>Digital numbers out per watt of absorbed scene power. Sets the absolute scale of the thermal chain.</source>
+        <translation>每瓦被吸收场景功率所对应的输出数字值。决定热链的绝对尺度。</translation>
+    </message>
+    <message>
+        <source>Drift:</source>
+        <translation>漂移:</translation>
+    </message>
+    <message>
+        <source>Slow additive drift of the reported value, in DN per second. What makes a microbolometer wander between calibrations.</source>
+        <translation>报告值的缓慢加性漂移，单位为 DN/s。正是它让非制冷探测器在两次标定之间缓慢游走。</translation>
+    </message>
+    <message>
+        <source>NETD:</source>
+        <translation>NETD:</translation>
+    </message>
+    <message>
+        <source>Noise-equivalent temperature difference at the reference temperature, in millikelvin. Only meaningful with the reference temperature and optical condition the datasheet specifies.</source>
+        <translation>参考温度下的噪声等效温差，单位为毫开尔文。只有连同厂家标明的参考温度与光学条件一起才有意义。</translation>
+    </message>
+    <message>
+        <source>NETD Reference Temperature:</source>
+        <translation>NETD 参考温度:</translation>
+    </message>
+    <message>
+        <source>Scene temperature the NETD was quoted at. A NETD without its reference temperature attached means nothing.</source>
+        <translation>厂家标称 NETD 时所对应的场景温度。没有参考温度的 NETD 没有意义。</translation>
+    </message>
+    <message>
+        <source>AE Target Luminance:</source>
+        <translation>AE 目标亮度:</translation>
+    </message>
+    <message>
+        <source>Mean display value the auto-exposure loop aims for, as a fraction of the well. The classic 18% grey-card value.</source>
+        <translation>自动曝光回路瞄准的平均显示值，以满阱的分数表示。经典的 18% 灰卡取值。</translation>
+    </message>
+    <message>
+        <source>AE Smoothing:</source>
+        <translation>AE 平滑:</translation>
+    </message>
+    <message>
+        <source>Fraction of the computed exposure correction applied per acquisition. Lower damps oscillation at the cost of slower convergence; 1 disables smoothing.</source>
+        <translation>每次采集所施加的曝光修正比例。数值越小振荡越弱但收敛越慢；1 表示不平滑。</translation>
+    </message>
+    <message>
+        <source>AE Min Exposure:</source>
+        <translation>AE 最短曝光:</translation>
+    </message>
+    <message>
+        <source>Shortest exposure the auto-exposure loop may request.</source>
+        <translation>自动曝光回路可请求的最短曝光时间。</translation>
+    </message>
+    <message>
+        <source>AE Max Exposure:</source>
+        <translation>AE 最长曝光:</translation>
+    </message>
+    <message>
+        <source>Longest exposure the auto-exposure loop may request.</source>
+        <translation>自动曝光回路可请求的最长曝光时间。</translation>
+    </message>
+    <message>
+        <source>AE Max Gain:</source>
+        <translation>AE 最大增益:</translation>
+    </message>
+    <message>
+        <source>Highest analog gain the auto-exposure loop may request.</source>
+        <translation>自动曝光回路可请求的最高模拟增益。</translation>
+    </message>
+    <message>
+        <source>White Balance R:</source>
+        <translation>白平衡 R:</translation>
+    </message>
+    <message>
+        <source>White Balance G:</source>
+        <translation>白平衡 G:</translation>
+    </message>
+    <message>
+        <source>White Balance B:</source>
+        <translation>白平衡 B:</translation>
+    </message>
+    <message>
+        <source>Per-channel gain applied before the colour transform. Auto white balance drives these when it is on.</source>
+        <translation>色彩变换前按通道施加的增益。自动白平衡开启时由它驱动这三个值。</translation>
+    </message>
+    <message>
+        <source>Tone Gamma:</source>
+        <translation>色调伽马:</translation>
+    </message>
+    <message>
+        <source>Display transfer exponent applied in the ISP. 1 leaves the tone linear.</source>
+        <translation>ISP 中施加的显示传递指数。1 表示保持线性。</translation>
+    </message>
+    <message>
+        <source>Denoise Strength:</source>
+        <translation>降噪强度:</translation>
+    </message>
+    <message>
+        <source>How hard the ISP denoiser smooths. 0 leaves the image alone even with denoise on.</source>
+        <translation>ISP 降噪的平滑力度。即使开启降噪，取 0 也不改变图像。</translation>
+    </message>
+    <message>
+        <source>Sharpen Strength:</source>
+        <translation>锐化强度:</translation>
+    </message>
+    <message>
+        <source>How hard the ISP sharpening kernel works on edges. 0 leaves the image alone even with sharpen on.</source>
+        <translation>ISP 锐化核对边缘的作用力度。即使开启锐化，取 0 也不改变图像。</translation>
+    </message>
+    <message>
+        <source>Hue Offset:</source>
+        <translation>色相偏移:</translation>
+    </message>
+    <message>
+        <source>Rotation applied to the hue of the displayed image, in degrees. 0 leaves hue alone.</source>
+        <translation>对显示图像色相施加的旋转，单位为度。0 表示不改变色相。</translation>
+    </message>
+    <message>
+        <source>Saturation Scale:</source>
+        <translation>饱和度缩放:</translation>
+    </message>
+    <message>
+        <source>Multiplier on colour saturation. 0 gives a monochrome display; 1 leaves it alone.</source>
+        <translation>颜色饱和度的乘数。0 得到单色显示；1 表示不改变。</translation>
+    </message>
+    <message>
+        <source>Value Gamma:</source>
+        <translation>明度伽马:</translation>
+    </message>
+    <message>
+        <source>Exponent applied to the display value after tone mapping. 1 leaves it alone.</source>
+        <translation>色调映射后作用于显示值的指数。1 表示不改变。</translation>
+    </message>
+    <message>
+        <source>Noise Sigma:</source>
+        <translation>噪声 Sigma:</translation>
+    </message>
+    <message>
+        <source>Sigma of the empirical display noise stream, in display-value units. The pattern is keyed on the acquisition index, so the same acquisition always shows the same noise.</source>
+        <translation>经验显示噪声流的标准差，以显示值为单位。噪声图样以采集序号为键，同一次采集始终呈现相同的噪声。</translation>
+    </message>
+    <message>
+        <source>Drift Sigma:</source>
+        <translation>漂移 Sigma:</translation>
+    </message>
+    <message>
+        <source>Sigma of the empirical temporal drift stream, in display-value units. Slow frame-to-frame wander on top of the noise.</source>
+        <translation>经验时间漂移流的标准差，以显示值为单位。叠加在噪声之上的缓慢帧间游移。</translation>
+    </message>
+    <message>
+        <source>Tone:</source>
+        <translation>色调算子:</translation>
+    </message>
+    <message>
+        <source>Contrast operator for the infrared display. Linear AGC is globally monotone and safe to read values off; histogram equalize stretches the whole frame; CLAHE is tile-local and only for finding edges.</source>
+        <translation>红外显示的对比度算子。线性 AGC 全局单调，可以放心读取数值；直方图均衡拉伸整帧；CLAHE 是分块局部的，只用于寻找边缘。</translation>
+    </message>
+    <message>
+        <source>Palette:</source>
+        <translation>调色板:</translation>
+    </message>
+    <message>
+        <source>Colour map from display value to colour. Changes colour only, never contrast.</source>
+        <translation>从显示值到颜色的色图。只改变颜色，绝不改变对比度。</translation>
+    </message>
+    <message>
+        <source>What the camera is told the surface&apos;s emissivity is. 1 gives apparent temperature, which is what a campaign records when it will not assume one -- and which reads cold for any real surface.</source>
+        <translation>相机采用的表面发射率。设为 1 可得到表观温度，适合不预设发射率的测量；真实表面会显得偏冷。</translation>
+    </message>
+    <message>
+        <source>Fraction of the surface&apos;s radiation that survives the air between it and the lens. 1 removes the atmosphere from the model, which is right for a short measurement distance.</source>
+        <translation>表面辐射穿过目标与镜头之间空气后保留的比例。设为 1 表示忽略大气，适合短距离测量。</translation>
+    </message>
+    <message>
+        <source>Effective band: %1–%2 nm</source>
+        <translation>有效波段：%1–%2 nm</translation>
+    </message>
+    <message>
+        <source>Effective band: not set by this device</source>
+        <translation>有效波段：该设备未设定</translation>
+    </message>
+    <message>
+        <source>hardware reference</source>
+        <translation>硬件参考</translation>
+    </message>
+    <message>
+        <source>calibrated</source>
+        <translation>已标定</translation>
+    </message>
+    <message>
+        <source>generic assumption</source>
+        <translation>通用假设</translation>
+    </message>
+    <message>
+        <source>Calibration status: %1</source>
+        <translation>标定状态：%1</translation>
+    </message>
+    <message>
+        <source>manufacturer</source>
+        <translation>厂家数据</translation>
+    </message>
+    <message>
+        <source>digitized</source>
+        <translation>数字化</translation>
+    </message>
+    <message>
+        <source>derived</source>
+        <translation>推导</translation>
+    </message>
+    <message>
+        <source>assumed</source>
+        <translation>假设</translation>
+    </message>
+    <message>
+        <source>other grades</source>
+        <translation>其他等级</translation>
+    </message>
+    <message>
+        <source>%1 parameters: %2</source>
+        <translation>%1 个参数：%2</translation>
+    </message>
+    <message>
+        <source>No provenance records — generic defaults.</source>
+        <translation>无来源记录——通用默认值。</translation>
+    </message>
+    <message>
+        <source>%1 %2</source>
+        <translation>%1 %2</translation>
+    </message>
+    <message>
+        <source>Assumed Emissivity:</source>
+        <translation>假定发射率：</translation>
+    </message>
+    <message>
+        <source>What the camera is told the surface&amp;apos;s emissivity is. 1 gives apparent temperature, which is what a campaign records when it will not assume one -- and which reads cold for any real surface.</source>
+        <translation type="vanished">告知相机的表面发射率。取 1 得到表观温度，即测量活动在不愿假定发射率时所记录的量——对任何真实表面它都会偏冷。</translation>
+    </message>
+    <message>
+        <source>Reflected Temperature:</source>
+        <translation>反射源温度:</translation>
+    </message>
+    <message>
+        <source>Temperature of whatever the surface reflects, usually the sky. Ignored at emissivity 1, since a blackbody reflects nothing.</source>
+        <translation>表面所反射之物的温度，通常是天空。发射率为 1 时忽略，因为黑体不反射。</translation>
+    </message>
+    <message>
+        <source>Path Transmittance:</source>
+        <translation>路径透过率:</translation>
+    </message>
+    <message>
+        <source>Fraction of the surface&amp;apos;s radiation that survives the air between it and the lens. 1 removes the atmosphere from the model, which is right for a short measurement distance.</source>
+        <translation type="vanished">表面辐射穿过它与镜头之间空气后残存的比例。取 1 即在模型中去掉大气，适用于近距离测量。</translation>
+    </message>
+    <message>
+        <source>Path Temperature:</source>
+        <translation>路径温度:</translation>
+    </message>
+    <message>
+        <source>Temperature of that air. Used only when the transmittance is below 1.</source>
+        <translation>该段空气的温度。仅在透过率小于 1 时使用。</translation>
+    </message>
+    <message>
+        <source>Read Noise (DN):</source>
+        <translation>读出噪声 (DN):</translation>
+    </message>
+    <message>
+        <source>Noise the readout adds per pixel, in digital numbers RMS. Independent of scene power.</source>
+        <translation>读出电路为每个像素引入的噪声，单位为数字值均方根。与场景功率无关。</translation>
     </message>
 </context>
 <context>
@@ -3390,6 +3878,10 @@ Rebuild with:
     <message>
         <source>The document is not valid TOML: %1</source>
         <translation>文档不是有效的 TOML：%1</translation>
+    </message>
+    <message>
+        <source>Tick %1: %2</source>
+        <translation>时间刻 %1：%2</translation>
     </message>
     <message>
         <source>The sequence failed: %1</source>
@@ -4030,6 +4522,10 @@ Coverage — %3</source>
     <message>
         <source>Transport</source>
         <translation>走带</translation>
+    </message>
+    <message>
+        <source>Create 0-10 s timeline (20 ticks/s)</source>
+        <translation>创建 0–10 秒时间轴（每秒 20 时间刻）</translation>
     </message>
     <message>
         <source>Playback</source>

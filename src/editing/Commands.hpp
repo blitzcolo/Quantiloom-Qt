@@ -43,6 +43,11 @@ enum class CommandId {
     ModifyWavelength = 10,
     ModifyEnvironmentMap = 11,
     ModifyThermal = 12,
+    // The versioned physical camera (M5-3): preset, detector, optics, readout,
+    // noise, AE/AWB and the display-side ISP/HSV grading. One id for the whole
+    // CameraConfig snapshot, the same way ModifySensor was one id for the old
+    // SensorParams snapshot.
+    ModifyCamera = 13,
 };
 
 /**

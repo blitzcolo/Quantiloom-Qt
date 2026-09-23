@@ -607,6 +607,32 @@ endif()
 # ============================================================================
 # Summary
 # ============================================================================
+include(CTest)
+if(BUILD_TESTING)
+    add_executable(camera_motion_config_test
+        tests/test_camera_motion_config.cpp
+        src/config/ConfigManager.cpp
+        src/config/ConfigManager.hpp)
+    # The app's post-build step deploys the SDK and Qt runtime beside both exes.
+    add_dependencies(camera_motion_config_test QuantiloomQt)
+    target_include_directories(camera_motion_config_test PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src)
+    target_link_libraries(camera_motion_config_test PRIVATE
+        Qt6::Core Qt6::Gui Qt6::Widgets ${QUANTILOOM_LIBRARIES})
+    if(QUANTILOOM_PLATFORM_WINDOWS)
+        target_compile_definitions(camera_motion_config_test PRIVATE QUANTILOOM_PLATFORM_WINDOWS)
+    elseif(QUANTILOOM_PLATFORM_LINUX)
+        target_compile_definitions(camera_motion_config_test PRIVATE QUANTILOOM_PLATFORM_LINUX)
+    elseif(QUANTILOOM_PLATFORM_MACOS)
+        target_compile_definitions(camera_motion_config_test PRIVATE QUANTILOOM_PLATFORM_MACOS)
+    endif()
+    if(MSVC)
+        target_compile_options(camera_motion_config_test PRIVATE /utf-8 /W4)
+    endif()
+    add_test(NAME camera_motion_config_roundtrip
+             COMMAND camera_motion_config_test)
+endif()
+
 message(STATUS "========================================")
 message(STATUS "  QuantiloomQt Configuration")
 message(STATUS "========================================")

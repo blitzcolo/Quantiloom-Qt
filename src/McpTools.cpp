@@ -1691,9 +1691,10 @@ void MainWindow::registerMcpTools() {
         mcp::ToolDef tool;
         tool.name = "ql_set_sensor";
         tool.description =
-            "Configure the GPU sensor simulation -- the imaging chain between the radiance and "
-            "the displayed pixel: optics, detector, ADC and noise. Give any subset; keys match "
-            "the [sensor] section of a scene configuration.\n"
+            "Configure the physical camera simulation -- the imaging chain between the radiance and "
+            "the displayed pixel: optics, readout, detector noise and ADC. Give any subset; keys "
+            "match the legacy [sensor] section of a scene configuration and land on the versioned "
+            "camera's photon chain.\n"
             "\n"
             "This is what makes the viewport look like a camera instead of a path tracer. It "
             "applies in real time, so ql_capture_viewport view 'display' shows its effect; view "
@@ -1706,18 +1707,17 @@ void MainWindow::registerMcpTools() {
     "f_number": {"type": "number", "minimum": 0.5},
     "pixel_pitch_um": {"type": "number", "minimum": 0.1},
     "psf_sigma_px": {"type": "number", "minimum": -1, "description": "Gaussian PSF width in pixels. Negative derives it from aperture and wavelength; 0 disables the blur."},
-    "quantum_efficiency": {"type": "number", "minimum": 0, "maximum": 1},
+    "quantum_efficiency": {"type": "number", "minimum": 0, "maximum": 1, "description": "Flat QE applied to the first photon channel's response curve."},
     "well_capacity_e": {"type": "number", "minimum": 1},
     "integration_time_s": {"type": "number", "minimum": 0},
     "bit_depth": {"type": "integer", "minimum": 1, "maximum": 32},
-    "gain": {"type": "number", "minimum": 0},
+    "gain": {"type": "number", "minimum": 0, "description": "Electrons per digital number."},
     "read_noise_e_rms": {"type": "number", "minimum": 0},
     "dark_current_e_s": {"type": "number", "minimum": 0},
     "enable_poisson_noise": {"type": "boolean"},
     "enable_read_noise": {"type": "boolean"},
     "enable_dark_current": {"type": "boolean"},
-    "enable_fpn": {"type": "boolean"},
-    "detector_temperature_k": {"type": "number", "minimum": 0}
+    "enable_fpn": {"type": "boolean"}
   }
 })";
         tool.handler = [this](const quantiloom::String& argumentsJson) {
@@ -1727,10 +1727,10 @@ void MainWindow::registerMcpTools() {
                 return error;
             }
 
-            quantiloom::SensorParams params = m_sensorPanel->getSensorParams();
-            const auto setF = [&args](const char* key, float& field) {
+            quantiloom::camera::CameraConfig camera = m_sensorPanel->getCameraConfig();
+            const auto setD = [&args](const char* key, double& field) {
                 if (args.contains(QLatin1String(key))) {
-                    field = static_cast<float>(args.value(QLatin1String(key)).toDouble());
+                    field = args.value(QLatin1String(key)).toDouble();
                 }
             };
             const auto setB = [&args](const char* key, bool& field) {
@@ -1738,48 +1738,61 @@ void MainWindow::registerMcpTools() {
                     field = args.value(QLatin1String(key)).toBool();
                 }
             };
-            setF("focal_length_mm", params.focalLength_mm);
-            setF("f_number", params.fNumber);
-            setF("pixel_pitch_um", params.pixelPitch_um);
-            setF("psf_sigma_px", params.psfSigma_px);
-            setF("quantum_efficiency", params.quantumEfficiency);
-            setF("well_capacity_e", params.wellCapacity_e);
-            setF("integration_time_s", params.integrationTime_s);
-            if (args.contains(QStringLiteral("bit_depth"))) {
-                params.bitDepth = static_cast<quantiloom::u32>(
-                    args.value(QStringLiteral("bit_depth")).toInt());
+            setD("focal_length_mm", camera.optics.focalLengthMm);
+            setD("f_number", camera.optics.fNumber);
+            setD("pixel_pitch_um", camera.optics.pixelPitchUm);
+            setD("psf_sigma_px", camera.optics.psfSigmaPixelsOverride);
+            if (args.contains(QStringLiteral("quantum_efficiency")) &&
+                !camera.device.channels.empty()) {
+                // A scalar QE rewrites the first photon channel's response as
+                // a flat curve over the band it already covers.
+                auto& response = camera.device.channels.front().response;
+                if (response.quantumEfficiency &&
+                    response.quantumEfficiency->wavelengthNm.size() >= 2) {
+                    auto& curve = *response.quantumEfficiency;
+                    const double value = args.value(QStringLiteral("quantum_efficiency")).toDouble();
+                    std::fill(curve.value.begin(), curve.value.end(), value);
+                }
             }
-            setF("gain", params.gain);
-            setF("read_noise_e_rms", params.readNoise_e_rms);
-            setF("dark_current_e_s", params.darkCurrent_e_s);
-            setB("enable_poisson_noise", params.enablePoissonNoise);
-            setB("enable_read_noise", params.enableReadNoise);
-            setB("enable_dark_current", params.enableDarkCurrent);
-            setB("enable_fpn", params.enableFPN);
-            setF("detector_temperature_k", params.detectorTemperature_K);
+            setD("well_capacity_e", camera.photon.fullWellElectrons);
+            setD("integration_time_s", camera.readout.exposureSeconds);
+            if (args.contains(QStringLiteral("bit_depth"))) {
+                const auto bits = static_cast<quantiloom::u32>(
+                    args.value(QStringLiteral("bit_depth")).toInt());
+                camera.readout.adcBits = bits;
+                camera.readout.outputBits = bits;
+            }
+            setD("gain", camera.readout.electronsPerDn);
+            setD("read_noise_e_rms", camera.photon.readNoiseElectronsRms);
+            setD("dark_current_e_s", camera.photon.darkCurrentElectronsPerSecond);
+            setB("enable_poisson_noise", camera.photon.enableShotNoise);
+            setB("enable_read_noise", camera.photon.enableReadNoise);
+            setB("enable_dark_current", camera.photon.enableDarkCurrent);
+            camera.photon.enableDarkShotNoise = camera.photon.enableDarkCurrent;
+            setB("enable_fpn", camera.photon.enableFpn);
 
-            pushSettingCommand(CommandId::ModifySensor, tr("Sensor parameters"),
-                               m_vulkanWindow->sensorParams(), params,
-                               [this](const quantiloom::SensorParams& v) {
-                                   applySensorParams(v);
+            pushSettingCommand(CommandId::ModifyCamera, tr("Camera parameters"),
+                               m_vulkanWindow->cameraConfig(), camera,
+                               [this](const quantiloom::camera::CameraConfig& v) {
+                                   applyCameraConfig(v);
                                });
             if (args.contains(QStringLiteral("enabled"))) {
                 const bool enabled = args.value(QStringLiteral("enabled")).toBool();
-                pushSettingCommand(CommandId::ModifySensor, tr("Sensor simulation"),
+                pushSettingCommand(CommandId::ModifySensor, tr("Camera simulation"),
                                    m_vulkanWindow->sensorEnabled(), enabled,
                                    [this](const bool& v) { applySensorEnabled(v); });
             }
 
-            const auto now = m_sensorPanel->getSensorParams();
+            const auto now = m_sensorPanel->getCameraConfig();
             QJsonObject out;
-            out["enabled"] = m_sensorPanel->isSensorEnabled();
-            out["focal_length_mm"] = now.focalLength_mm;
-            out["f_number"] = now.fNumber;
-            out["gain"] = now.gain;
-            out["integration_time_s"] = now.integrationTime_s;
-            out["bit_depth"] = static_cast<qint64>(now.bitDepth);
-            out["enable_poisson_noise"] = now.enablePoissonNoise;
-            out["enable_fpn"] = now.enableFPN;
+            out["enabled"] = m_sensorPanel->isCameraEnabled();
+            out["focal_length_mm"] = now.optics.focalLengthMm;
+            out["f_number"] = now.optics.fNumber;
+            out["gain"] = now.readout.electronsPerDn;
+            out["integration_time_s"] = now.readout.exposureSeconds;
+            out["bit_depth"] = static_cast<qint64>(now.readout.adcBits);
+            out["enable_poisson_noise"] = now.photon.enableShotNoise;
+            out["enable_fpn"] = now.photon.enableFpn;
             return Json(out);
         };
         add(tool);

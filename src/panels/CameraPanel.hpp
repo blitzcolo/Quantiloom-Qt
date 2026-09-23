@@ -14,12 +14,15 @@
 #include "../ui/PanelBase.hpp"
 
 #include <glm/glm.hpp>
+#include <postprocess/CameraPipeline.hpp>
+#include <optional>
 
 QT_BEGIN_NAMESPACE
 class QDoubleSpinBox;
 class QGroupBox;
 class QLabel;
 class QPushButton;
+class QComboBox;
 QT_END_NAMESPACE
 
 class CameraPanel : public PanelBase {
@@ -35,6 +38,14 @@ public:
     /// Show a pose that came from somewhere else (mouse, config, preset).
     /// Does not emit.
     void setCameraState(const glm::vec3& position, const glm::vec3& target, float fovYDegrees);
+    void setMotion(const quantiloom::camera::CameraMotionConfig& motion);
+    void setCurrentTime(double seconds);
+    void capturePose(const glm::vec3& position, const glm::vec3& target);
+
+public slots:
+    void addKeyframe();
+    void updateKeyframe();
+    void deleteKeyframe();
 
 signals:
     void cameraEdited(const glm::vec3& position, const glm::vec3& target);
@@ -42,6 +53,9 @@ signals:
     void resetRequested();
     /// One of the six standard directions, as a unit vector from the target.
     void viewDirectionRequested(const glm::vec3& direction);
+    void motionEdited(const quantiloom::camera::CameraMotionConfig& motion);
+    void captureRequested();
+    void previewTimeRequested(double seconds);
 
 private slots:
     void onPoseFieldChanged();
@@ -66,6 +80,22 @@ private:
 
     QGroupBox* m_presetGroup = nullptr;
     QPushButton* m_resetButton = nullptr;
+
+    QGroupBox* m_motionGroup = nullptr;
+    QComboBox* m_keyList = nullptr;
+    QDoubleSpinBox* m_keyTime = nullptr;
+    QDoubleSpinBox* m_keyPosition[3] = {nullptr, nullptr, nullptr};
+    QDoubleSpinBox* m_keyTarget[3] = {nullptr, nullptr, nullptr};
+    QPushButton* m_captureButton = nullptr;
+    QPushButton* m_addButton = nullptr;
+    QPushButton* m_updateButton = nullptr;
+    QPushButton* m_deleteButton = nullptr;
+    QLabel* m_keyTimeCaption = nullptr;
+    QLabel* m_keyPositionCaption = nullptr;
+    QLabel* m_keyTargetCaption = nullptr;
+    quantiloom::camera::CameraMotionConfig m_motion;
+    double m_currentTime = 0.0;
+    std::optional<double> m_selectAfterEdit;
 
     bool m_updatingFields = false;
 };

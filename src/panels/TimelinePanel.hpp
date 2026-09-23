@@ -43,6 +43,7 @@ class QSlider;
 class QSpinBox;
 class QTimer;
 class QToolButton;
+class QPushButton;
 QT_END_NAMESPACE
 
 class TimelinePanel : public PanelBase {
@@ -79,6 +80,7 @@ public slots:
     void setLoop(bool loop);
 
 signals:
+    void createTimelineRequested();
     /// Where the clock should stand now. The only thing this panel asks for.
     void timelineTimeChanged(double time_s);
     void playbackStateChanged(bool playing);
@@ -121,6 +123,7 @@ private:
     QDoubleSpinBox* m_secondsSpin = nullptr;
 
     QGroupBox* m_transportGroup = nullptr;
+    QPushButton* m_createButton = nullptr;
     QGroupBox* m_playbackGroup = nullptr;
     QLabel* m_tickCaption = nullptr;
     QLabel* m_secondsCaption = nullptr;

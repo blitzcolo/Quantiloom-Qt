@@ -29,7 +29,7 @@
 #include <atmos/AtmosphereNNConfig.hpp>
 #include <core/Types.hpp>
 #include <mcp/McpServer.hpp>
-#include <postprocess/SensorModel.hpp>
+#include <postprocess/CameraPipeline.hpp>
 #include <postprocess/Thermography.hpp>
 #include <renderer/DisplayControl.hpp>
 #include <renderer/Pick.hpp>
@@ -142,6 +142,10 @@ private slots:
     void onExportHyperspectralCube();
     void onRenderSequence();
     void onDumpThermalElements();
+    /// Commit one explicit device acquisition and write every enabled camera
+    /// product (RAW DN, corrected signal, band measurement, apparent
+    /// temperature, display) next to a chosen base name.
+    void onExportCameraProducts();
 
     // Render menu actions
     void onStartRender();
@@ -276,7 +280,14 @@ private:
     void applyEnvironmentMap(const QString& path, bool enabled);
     void applyAtmosphere(const quantiloom::AtmosphereNNConfig& config);
     void applySensorEnabled(bool enabled);
-    void applySensorParams(const quantiloom::SensorParams& params);
+    /// The two camera dispatchers, matching the panel's two change signals.
+    /// Structural edits (detector, optics, readout, noise, AE/AWB) re-measure
+    /// through SetCameraConfig; display-only edits (white balance, denoise,
+    /// sharpen, HSV, IR tone/palette) reprocess the display over the last
+    /// acquisition without advancing its history. Both are document state and
+    /// undoable.
+    void applyCameraConfig(const quantiloom::camera::CameraConfig& config);
+    void applyCameraDisplay(const quantiloom::camera::CameraConfig& config);
     /// What the virtual camera is told about the surface. Changes what a
     /// measurement is reported as, never what is measured, so it is a reading
     /// of the render rather than an edit of the scene.
@@ -310,6 +321,7 @@ private:
     /// second, and `time_s` is where you are looking rather than something you
     /// changed. A save still records the tick the transport is on.
     void applyTimelineTime(double time_s);
+    void createDefaultTimeline();
     /// Push the current TimelineInfo into the panel and the thermal readout.
     /// Called after anything that could have changed what the clock is.
     void refreshTimelineInfo();
@@ -657,6 +669,7 @@ private:
     QAction* m_exportCubeAction = nullptr;
     QAction* m_renderSequenceAction = nullptr;
     QAction* m_dumpThermalElementsAction = nullptr;
+    QAction* m_exportCameraProductsAction = nullptr;
     QAction* m_resetAccumulationAction = nullptr;
     QAction* m_spectralGenAction = nullptr;
     QAction* m_assignSpectrumAction = nullptr;
@@ -686,6 +699,11 @@ private:
     QAction* m_timelineStartAction = nullptr;
     QAction* m_timelineEndAction = nullptr;
     QAction* m_timelineLoopAction = nullptr;
+    QAction* m_timelineCreateAction = nullptr;
+    QAction* m_cameraCaptureKeyAction = nullptr;
+    QAction* m_cameraAddKeyAction = nullptr;
+    QAction* m_cameraUpdateKeyAction = nullptr;
+    QAction* m_cameraDeleteKeyAction = nullptr;
     QMenu* m_qualityMenu = nullptr;
     QMenu* m_themeMenu = nullptr;
 
@@ -852,4 +870,3 @@ void MainWindow::pushSettingCommand(CommandId id, const QString& description,
         id, /*gestureId=*/-1, description, before, after,
         std::function<void(const T&)>(std::forward<Apply>(apply))));
 }
-

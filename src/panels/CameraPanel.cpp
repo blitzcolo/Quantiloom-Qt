@@ -7,6 +7,8 @@
 #include "../ui/UiStyle.hpp"
 
 #include <QDoubleSpinBox>
+#include <QComboBox>
+#include <QSignalBlocker>
 #include <QFormLayout>
 #include <QGridLayout>
 #include <QGroupBox>
@@ -14,6 +16,9 @@
 #include <QLabel>
 #include <QPushButton>
 #include <QVBoxLayout>
+
+#include <algorithm>
+#include <cmath>
 
 CameraPanel::CameraPanel(QWidget* parent)
     : PanelBase(parent)
@@ -114,6 +119,69 @@ void CameraPanel::setupUi() {
 
     mainLayout->addWidget(m_presetGroup);
 
+    m_motionGroup = new QGroupBox(this);
+    auto* motionLayout = new QFormLayout(m_motionGroup);
+    m_keyList = new QComboBox(m_motionGroup);
+    connect(m_keyList, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, [this](int index) {
+                if (index < 0 || index >= static_cast<int>(m_motion.keys.size())) return;
+                const auto& key = m_motion.keys[static_cast<size_t>(index)];
+                m_updatingFields = true;
+                m_keyTime->setValue(key.timeSeconds);
+                for (int axis = 0; axis < 3; ++axis) {
+                    m_keyPosition[axis]->setValue(key.position[axis]);
+                    m_keyTarget[axis]->setValue(key.lookAt[axis]);
+                }
+                m_updatingFields = false;
+                emit previewTimeRequested(key.timeSeconds);
+            });
+    motionLayout->addRow(m_keyList);
+    m_keyTime = new QDoubleSpinBox(m_motionGroup);
+    m_keyTime->setRange(-1e9, 1e9);
+    m_keyTime->setDecimals(15);
+    m_keyTime->setKeyboardTracking(false);
+    m_keyTimeCaption = new QLabel(m_motionGroup);
+    motionLayout->addRow(m_keyTimeCaption, m_keyTime);
+    auto makeKeyTriple = [this](QDoubleSpinBox* (&fields)[3]) {
+        auto* row = new QHBoxLayout();
+        for (int axis = 0; axis < 3; ++axis) {
+            auto* spin = new QDoubleSpinBox(m_motionGroup);
+            spin->setRange(-1e9, 1e9);
+            spin->setDecimals(15);
+            spin->setKeyboardTracking(false);
+            fields[axis] = spin;
+            row->addWidget(new QLabel(QString::fromLatin1("XYZ").mid(axis, 1), m_motionGroup));
+            row->addWidget(spin);
+        }
+        return row;
+    };
+    m_keyPositionCaption = new QLabel(m_motionGroup);
+    m_keyTargetCaption = new QLabel(m_motionGroup);
+    motionLayout->addRow(m_keyPositionCaption, makeKeyTriple(m_keyPosition));
+    motionLayout->addRow(m_keyTargetCaption, makeKeyTriple(m_keyTarget));
+    auto* keyButtons = new QHBoxLayout();
+    m_captureButton = new QPushButton(m_motionGroup);
+    m_addButton = new QPushButton(m_motionGroup);
+    m_updateButton = new QPushButton(m_motionGroup);
+    m_deleteButton = new QPushButton(m_motionGroup);
+    keyButtons->addWidget(m_captureButton);
+    keyButtons->addWidget(m_addButton);
+    keyButtons->addWidget(m_updateButton);
+    keyButtons->addWidget(m_deleteButton);
+    motionLayout->addRow(keyButtons);
+    connect(m_captureButton, &QPushButton::clicked, this, &CameraPanel::captureRequested);
+    connect(m_addButton, &QPushButton::clicked, this, &CameraPanel::addKeyframe);
+    connect(m_updateButton, &QPushButton::clicked, this, &CameraPanel::updateKeyframe);
+    connect(m_deleteButton, &QPushButton::clicked, this, &CameraPanel::deleteKeyframe);
+    connect(m_keyTime, &QDoubleSpinBox::editingFinished, this, &CameraPanel::updateKeyframe);
+    for (int axis = 0; axis < 3; ++axis) {
+        connect(m_keyPosition[axis], &QDoubleSpinBox::editingFinished,
+                this, &CameraPanel::updateKeyframe);
+        connect(m_keyTarget[axis], &QDoubleSpinBox::editingFinished,
+                this, &CameraPanel::updateKeyframe);
+    }
+    mainLayout->addWidget(m_motionGroup);
+
     auto* hint = new QLabel(this);
     bindStyle([hint] { uistyle::applyHintStyle(hint); });
     mainLayout->addWidget(hint);
@@ -131,6 +199,14 @@ void CameraPanel::setupUi() {
 
         m_presetGroup->setTitle(tr("Views"));
         m_resetButton->setText(tr("Reset View"));
+        m_motionGroup->setTitle(tr("Camera trajectory"));
+        m_keyTimeCaption->setText(tr("Key time:"));
+        m_keyPositionCaption->setText(tr("Key position:"));
+        m_keyTargetCaption->setText(tr("Key look at:"));
+        m_captureButton->setText(tr("Capture pose"));
+        m_addButton->setText(tr("Add key"));
+        m_updateButton->setText(tr("Update key"));
+        m_deleteButton->setText(tr("Delete key"));
         for (QPushButton* button : presetButtons) {
             const QString id = button->property("presetId").toString();
             if (id == QLatin1String("front"))       button->setText(tr("Front"));
@@ -163,6 +239,13 @@ void CameraPanel::setCameraState(const glm::vec3& position, const glm::vec3& tar
         m_target[axis]->setValue(target[axis]);
     }
     m_fovSpin->setValue(fovYDegrees);
+    if (m_motion.keys.empty()) {
+        m_keyTime->setValue(m_currentTime);
+        for (int axis = 0; axis < 3; ++axis) {
+            m_keyPosition[axis]->setValue(position[axis]);
+            m_keyTarget[axis]->setValue(target[axis]);
+        }
+    }
     m_updatingFields = false;
 
     m_distanceLabel->setText(QString::number(glm::length(position - target), 'f', 3));
@@ -199,4 +282,93 @@ void CameraPanel::onFovChanged(double value) {
         return;
     }
     emit fovEdited(static_cast<float>(value));
+}
+
+void CameraPanel::setMotion(const quantiloom::camera::CameraMotionConfig& motion) {
+    int selected = m_keyList->currentIndex();
+    m_motion = motion;
+    const bool previewEditedKey = m_selectAfterEdit.has_value();
+    if (m_selectAfterEdit) {
+        const auto at = std::find_if(m_motion.keys.begin(), m_motion.keys.end(),
+            [this](const auto& key) { return key.timeSeconds == *m_selectAfterEdit; });
+        if (at != m_motion.keys.end())
+            selected = static_cast<int>(std::distance(m_motion.keys.begin(), at));
+        m_selectAfterEdit.reset();
+    }
+    const QSignalBlocker block(m_keyList);
+    m_keyList->clear();
+    for (const auto& key : m_motion.keys)
+        m_keyList->addItem(QString::number(key.timeSeconds, 'g', 12) + QStringLiteral(" s"));
+    m_keyList->setCurrentIndex(m_motion.keys.empty() ? -1 :
+        std::clamp(selected, 0, static_cast<int>(m_motion.keys.size()) - 1));
+    if (m_keyList->currentIndex() >= 0) {
+        const auto& key = m_motion.keys[static_cast<size_t>(m_keyList->currentIndex())];
+        m_updatingFields = true;
+        m_keyTime->setValue(key.timeSeconds);
+        for (int axis = 0; axis < 3; ++axis) {
+            m_keyPosition[axis]->setValue(key.position[axis]);
+            m_keyTarget[axis]->setValue(key.lookAt[axis]);
+        }
+        m_updatingFields = false;
+        if (previewEditedKey) emit previewTimeRequested(key.timeSeconds);
+    }
+}
+
+void CameraPanel::setCurrentTime(double seconds) {
+    m_currentTime = seconds;
+    if (m_keyList->currentIndex() < 0) m_keyTime->setValue(seconds);
+}
+
+void CameraPanel::capturePose(const glm::vec3& position, const glm::vec3& target) {
+    for (int axis = 0; axis < 3; ++axis) {
+        m_keyPosition[axis]->setValue(position[axis]);
+        m_keyTarget[axis]->setValue(target[axis]);
+    }
+    m_keyTime->setValue(m_currentTime);
+    if (m_keyList->currentIndex() < 0) addKeyframe();
+    else updateKeyframe();
+}
+
+void CameraPanel::addKeyframe() {
+    quantiloom::camera::CameraMotionConfig next = m_motion;
+    quantiloom::camera::CameraPoseKey key;
+    // Adding follows the transport grid. The selected key's numeric time is
+    // for editing that key; reusing it here would create a duplicate.
+    key.timeSeconds = m_currentTime;
+    for (int axis = 0; axis < 3; ++axis) {
+        key.position[axis] = m_keyPosition[axis]->value();
+        key.lookAt[axis] = m_keyTarget[axis]->value();
+    }
+    const auto at = std::lower_bound(next.keys.begin(), next.keys.end(), key.timeSeconds,
+        [](const auto& entry, double time) { return entry.timeSeconds < time; });
+    next.keys.insert(at, key);
+    m_selectAfterEdit = key.timeSeconds;
+    emit motionEdited(next);
+}
+
+void CameraPanel::updateKeyframe() {
+    if (m_updatingFields) return;
+    const int selected = m_keyList->currentIndex();
+    if (selected < 0 || selected >= static_cast<int>(m_motion.keys.size())) return;
+    quantiloom::camera::CameraMotionConfig next = m_motion;
+    next.keys.erase(next.keys.begin() + selected);
+    quantiloom::camera::CameraPoseKey key;
+    key.timeSeconds = m_keyTime->value();
+    for (int axis = 0; axis < 3; ++axis) {
+        key.position[axis] = m_keyPosition[axis]->value();
+        key.lookAt[axis] = m_keyTarget[axis]->value();
+    }
+    const auto at = std::lower_bound(next.keys.begin(), next.keys.end(), key.timeSeconds,
+        [](const auto& entry, double time) { return entry.timeSeconds < time; });
+    next.keys.insert(at, key);
+    m_selectAfterEdit = key.timeSeconds;
+    emit motionEdited(next);
+}
+
+void CameraPanel::deleteKeyframe() {
+    const int selected = m_keyList->currentIndex();
+    if (selected < 0 || selected >= static_cast<int>(m_motion.keys.size())) return;
+    quantiloom::camera::CameraMotionConfig next = m_motion;
+    next.keys.erase(next.keys.begin() + selected);
+    emit motionEdited(next);
 }

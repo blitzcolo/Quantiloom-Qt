@@ -18,6 +18,7 @@
 #include <glm/glm.hpp>
 #include <core/SpectralData.hpp>
 #include <core/Types.hpp>
+#include <postprocess/CameraPipeline.hpp>
 #include <renderer/Pick.hpp>
 #include <renderer/DisplayControl.hpp>
 #include <renderer/ThermalControl.hpp>
@@ -276,6 +277,8 @@ public:
     /// a change is replacing (the undo history does).
     [[nodiscard]] bool sensorEnabled() const;
     [[nodiscard]] quantiloom::SensorParams sensorParams() const;
+    /// The versioned physical camera currently in effect (M5-3).
+    [[nodiscard]] quantiloom::camera::CameraConfig cameraConfig() const;
     quantiloom::DebugVisualizationMode debugMode() const;
 
     /**
@@ -370,6 +373,23 @@ public:
      * @param params Sensor parameters (optics, detector, noise, etc.)
      */
     void setSensorParams(const quantiloom::SensorParams& params);
+
+    // ========================================================================
+    // Physical camera (M5-3)
+    // ========================================================================
+
+    /// Apply a whole versioned camera configuration (re-measurement tier).
+    quantiloom::Result<void, quantiloom::String> setCameraConfig(
+        const quantiloom::camera::CameraConfig& config);
+    /// Display-only camera changes: reprocess the display over the last
+    /// acquisition without advancing its history.
+    quantiloom::Result<void, quantiloom::String> reprocessCameraDisplay(
+        const quantiloom::camera::CameraConfig& config);
+    /// Commit one explicit acquisition at @p timeSeconds and read back the
+    /// enabled device products. Used by the export menu.
+    quantiloom::Result<quantiloom::camera::CameraOutput, quantiloom::String>
+    captureCameraProducts(double timeSeconds);
+
     /// What the camera is told about the surface, for the readout above.
     /// Display-side: no accumulation reset.
     void setThermographyParams(const quantiloom::ThermographyParams& params);

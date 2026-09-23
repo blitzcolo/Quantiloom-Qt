@@ -19,7 +19,7 @@ class QTextStream;
 #include <core/Types.hpp>
 #include <glm/glm.hpp>
 #include <renderer/LightingParams.hpp>
-#include <postprocess/SensorModel.hpp>
+#include <postprocess/CameraPipeline.hpp>
 #include <postprocess/Thermography.hpp>
 
 /**
@@ -324,7 +324,13 @@ struct SceneConfig {
 
     // [sensor]
     bool sensorEnabled = false;
-    quantiloom::SensorParams sensorParams;
+    /// The versioned physical camera. Reading goes through the SDK's
+    /// ParseCameraConfig, which migrates legacy unversioned [sensor] keys;
+    /// writing goes through CameraConfigToToml, so the GUI and the CLI emit
+    /// the same sections. `sensorEnabled` mirrors cameraConfig.enabled -- the
+    /// panel's switch is a separate undo step from the parameters, and both
+    /// read and write keep the two consistent.
+    quantiloom::camera::CameraConfig cameraConfig;
 
     // [thermography] -- what the virtual camera is told about the surface it
     // looks at, so a render can be turned into the temperature map a thermal
@@ -514,6 +520,10 @@ public:
      * @return The config, or nullptr when the open document is not one
      */
     std::shared_ptr<const quantiloom::Config> sharedRawConfig() const;
+
+    /// Adopt a validated in-memory document after an editor creates a new
+    /// section, so later mode switches read the same config as the renderer.
+    void adoptRawConfig(std::shared_ptr<quantiloom::Config> config);
 
     /**
      * @brief Forget the loaded config, so getRawConfig() reports none.

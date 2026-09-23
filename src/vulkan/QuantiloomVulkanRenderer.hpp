@@ -23,6 +23,7 @@
 #include <core/Types.hpp>
 #include <renderer/LightingParams.hpp>
 #include <atmos/AtmosphereNNConfig.hpp>
+#include <postprocess/CameraPipeline.hpp>
 #include <postprocess/SensorModel.hpp>
 #include <postprocess/Thermography.hpp>
 #include <renderer/ThermalControl.hpp>
@@ -396,6 +397,38 @@ public:
     const quantiloom::SensorParams& getSensorParams() const { return m_sensorParams; }
 
     // ========================================================================
+    // Physical camera (M5-3)
+    // ========================================================================
+
+    /// Apply a whole versioned camera configuration. Response/optics/readout
+    /// changes invalidate the next device measurement; the SDK rebuilds its
+    /// tables and pipelines on the next frame. Display-only changes should
+    /// go through reprocessCameraDisplay() instead, so the acquisition
+    /// history is never touched.
+    quantiloom::Result<void, quantiloom::String> setCameraConfig(
+        const quantiloom::camera::CameraConfig& config);
+
+    /// The camera configuration this renderer last applied (or read back
+    /// from the SDK after ApplyConfig).
+    [[nodiscard]] const quantiloom::camera::CameraConfig& cameraConfig() const {
+        return m_cameraConfig;
+    }
+
+    /// Tier-1 invalidation: re-run the display half of the ISP (demosaic ->
+    /// colour -> display -> HSV) over the last completed acquisition. No ray
+    /// is retraced and the acquisition state never advances. The config is
+    /// stored first so a later full setCameraConfig carries the same values.
+    quantiloom::Result<void, quantiloom::String> reprocessCameraDisplay(
+        const quantiloom::camera::CameraConfig& config);
+
+    /// Commit one explicit device acquisition at @p timeSeconds and read back
+    /// every product the current product request enables. Used by the export
+    /// menu; the running viewport scheduler is otherwise what advances the
+    /// detector.
+    quantiloom::Result<quantiloom::camera::CameraOutput, quantiloom::String>
+    captureCameraProducts(double timeSeconds);
+
+    // ========================================================================
     // Thermal Solve
     // ========================================================================
 
@@ -579,6 +612,11 @@ private:
     bool m_sensorEnabled = false;
     uint32_t m_samplingSeed = quantiloom::constants::DEFAULT_SAMPLING_SEED;
     quantiloom::SensorParams m_sensorParams;
+    /// The versioned physical camera last applied to (or read back from) the
+    /// SDK. The undo stack snapshots this value; keeping our own copy is what
+    /// lets the shell restore a camera configuration without re-reading the
+    /// renderer.
+    quantiloom::camera::CameraConfig m_cameraConfig;
     /// What the camera is told, for the temperature readout. Display-side
     /// only: it changes what a measurement is reported as, never what is
     /// measured, so it never resets the accumulation.

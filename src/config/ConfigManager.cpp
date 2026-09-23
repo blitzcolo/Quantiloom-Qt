@@ -11,24 +11,18 @@
 #include <QDebug>
 
 #include <core/Log.hpp>
+#include <postprocess/CameraConfigIO.hpp>
 #include <postprocess/PostprocessConfig.hpp>
 #include <renderer/LightingParams.hpp>
 
 #include <glm/gtc/matrix_transform.hpp>
 
-// Reading is delegated to the SDK's PostprocessConfig::ParseSensorParams, but
-// writing is hand-rolled TOML below, so the two drift apart whenever the SDK
-// adds a field: noiseSeed was parsed on load and dropped on save, which made a
-// config that had been through this GUI stop matching the one the CLI reads.
-//
-// This assert is the tripwire. If it fires, the SDK's SensorParams changed --
-// diff it against ParseSensorParams and against the [sensor] block in
-// saveConfig() below, then update the expected size. The SDK/GUI boundary is
-// already a single MSVC toolchain (SRS CON-04), so the layout is well-defined.
-static_assert(sizeof(quantiloom::SensorParams) == 88,
-              "SensorParams changed size: a field was added or removed. Check "
-              "that saveConfig() still writes every key ParseSensorParams reads "
-              "before updating this number.");
+// The camera's [sensor] tree is the SDK's serialization, in both directions:
+// reading goes through ParseCameraConfig (which also migrates legacy
+// unversioned [sensor] keys) and writing through CameraConfigToToml, so the
+// GUI and the CLI emit byte-identical sections and the two cannot drift the
+// way the hand-rolled writer once drifted from ParseSensorParams (noiseSeed
+// was parsed on load and dropped on save for a while).
 
 // TOML basic strings give the backslash to escape sequences, so streaming a
 // value into quotes raw writes a file the loader refuses to read back: a
@@ -77,12 +71,14 @@ bool ConfigManager::loadConfig(const QString& filePath, SceneConfig& outConfig) 
     // Store the loaded config for later use
     m_loadedConfig = std::make_shared<quantiloom::Config>(std::move(result.value()));
 
-    // Extract values for UI panels
-    extractSceneConfig(*m_loadedConfig, outConfig);
-
-    // Store base directory for resolving relative paths
+    // Store base directory for resolving relative paths before extracting, so
+    // the camera's response-curve files resolve the same way the SDK's own
+    // ApplyConfig will resolve them.
     QFileInfo fileInfo(filePath);
     outConfig.baseDir = fileInfo.absolutePath();
+
+    // Extract values for UI panels
+    extractSceneConfig(*m_loadedConfig, outConfig);
 
     return true;
 }
@@ -93,6 +89,10 @@ const quantiloom::Config* ConfigManager::getRawConfig() const {
 
 std::shared_ptr<const quantiloom::Config> ConfigManager::sharedRawConfig() const {
     return m_loadedConfig;
+}
+
+void ConfigManager::adoptRawConfig(std::shared_ptr<quantiloom::Config> config) {
+    m_loadedConfig = std::move(config);
 }
 
 void ConfigManager::clearLoadedConfig() {
@@ -388,10 +388,26 @@ void ConfigManager::extractSceneConfig(const quantiloom::Config& config, SceneCo
         out.thermalParameterSensitivities << QString::fromStdString(name);
     }
 
-    // [sensor]
-    out.sensorEnabled = config.Get<bool>("sensor.enabled", false);
-    // Always parse sensor params so they're available if user enables later
-    out.sensorParams = quantiloom::PostprocessConfig::ParseSensorParams(config);
+    // [sensor] -- the versioned physical camera. ParseCameraConfig migrates a
+    // legacy unversioned [sensor] block, and reads a versioned one (optionally
+    // starting from sensor.preset). Parsed whether or not it is enabled, so a
+    // host can turn it on later without rereading the file.
+    {
+        auto camera = quantiloom::ParseCameraConfig(
+            config, out.spectralMode, out.baseDir.toStdString());
+        if (camera) {
+            out.cameraConfig = std::move(*camera);
+        } else {
+            // A camera section that fails to parse (a missing response file,
+            // a bad version) must not stop the document opening: the editor
+            // shows the rest. The SDK's own ApplyConfig reports the same error
+            // when the scene is applied, so the user still sees it.
+            qWarning() << "[ConfigManager] camera config ignored:"
+                       << QString::fromStdString(camera.error());
+            out.cameraConfig = quantiloom::camera::CameraConfig{};
+        }
+        out.sensorEnabled = out.cameraConfig.enabled;
+    }
 
     // [thermography] - same rule: parsed whether or not it is on, so turning
     // it off and saving does not discard what the camera was told.
@@ -764,10 +780,10 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
         default: modeStr = "rgb"; break;
     }
     out << "mode = " << tomlQuoted(modeStr) << "\n";
-    // Written for every mode, not just Single: PostprocessConfig reads
-    // spectral.wavelength_nm into SensorParams::wavelength_nm regardless of
-    // mode, so omitting it here silently reset the sensor's peak wavelength
-    // to 550 nm on the next load.
+    // Written for every mode, not just Single: the legacy sensor migration
+    // reads spectral.wavelength_nm regardless of mode, so omitting it here
+    // silently reset the migrated sensor's peak wavelength to 550 nm on the
+    // next load.
     out << "wavelength_nm = " << config.wavelength_nm << "\n";
     out << "lambda_min = " << config.lambda_min << "\n";
     out << "lambda_max = " << config.lambda_max << "\n";
@@ -1140,36 +1156,20 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
         out << "]\n\n";
     }
 
-    out << "[sensor]\n";
-    out << "enabled = " << (config.sensorEnabled ? "true" : "false") << "\n";
-    out << "focal_length_mm = " << config.sensorParams.focalLength_mm << "\n";
-    out << "f_number = " << config.sensorParams.fNumber << "\n";
-    out << "pixel_pitch_um = " << config.sensorParams.pixelPitch_um << "\n";
-    out << "psf_sigma_px = " << config.sensorParams.psfSigma_px << "\n";
-    out << "quantum_efficiency = " << config.sensorParams.quantumEfficiency << "\n";
-    out << "well_capacity_e = " << config.sensorParams.wellCapacity_e << "\n";
-    out << "read_noise_e_rms = " << config.sensorParams.readNoise_e_rms << "\n";
-    out << "dark_current_e_s = " << config.sensorParams.darkCurrent_e_s << "\n";
-    out << "integration_time_s = " << config.sensorParams.integrationTime_s << "\n";
-    out << "bit_depth = " << config.sensorParams.bitDepth << "\n";
-    out << "gain = " << config.sensorParams.gain << "\n";
-    out << "enable_poisson_noise = " << (config.sensorParams.enablePoissonNoise ? "true" : "false") << "\n";
-    out << "enable_read_noise = " << (config.sensorParams.enableReadNoise ? "true" : "false") << "\n";
-    out << "enable_dark_current = " << (config.sensorParams.enableDarkCurrent ? "true" : "false") << "\n";
-    out << "enable_fpn = " << (config.sensorParams.enableFPN ? "true" : "false") << "\n";
-    out << "noise_seed = " << config.sensorParams.noiseSeed << "\n";
-    out << "detector_temperature_k = " << config.sensorParams.detectorTemperature_K << "\n";
-    out << "\n";
-
-    // [sensor.fpn] - written unconditionally. ParseSensorParams reads these
-    // whether or not FPN is enabled, so exporting them only when enabled meant
-    // tuning the FPN values, turning FPN off, and saving discarded the tuning.
-    out << "[sensor.fpn]\n";
-    out << "prnu_sigma = " << config.sensorParams.prnuSigma << "\n";
-    out << "dsnu_sigma_e = " << config.sensorParams.dsnuSigma_e << "\n";
-    out << "enable_nuc = " << (config.sensorParams.enableNUC ? "true" : "false") << "\n";
-    out << "nuc_efficiency = " << config.sensorParams.nucEfficiency << "\n";
-    out << "\n";
+    // [sensor] -- the versioned physical camera, serialized by the SDK so the
+    // GUI and the CLI emit the same sections. The tree includes [sensor.optics]
+    // through [sensor.products], [isp], [isp.auto], [isp.hsv], [effects.hsv]
+    // and any [[sensor.channels]]/[[sensor.parameter_sources]] the config
+    // carries. Written unconditionally for the same reason [thermal] is: the
+    // parameters outlive the switch that reads them. The enabled flag lives
+    // on the panel's switch, which is a separate undo step, so it is folded
+    // into the serialized config here.
+    {
+        quantiloom::camera::CameraConfig camera = config.cameraConfig;
+        camera.enabled = config.sensorEnabled;
+        out << QString::fromStdString(quantiloom::CameraConfigToToml(camera));
+        out << "\n";
+    }
 
     // [thermography] - what the camera is told, which decides what the
     // temperature map means. Unconditional for the same reason [sensor.fpn]

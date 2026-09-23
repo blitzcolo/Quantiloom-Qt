@@ -588,6 +588,12 @@ void QuantiloomVulkanRenderer::applyConfigToContext(bool isFreshOpen) {
             m_orbitYaw = std::atan2(dir.x, dir.z);
         }
         emit m_window->cameraChanged();
+
+        // The SDK parsed and applied the versioned camera itself; read its
+        // resolution back so the shell's copy matches what is running (the
+        // legacy SensorParams facade alone would not carry it).
+        m_cameraConfig = m_renderContext->GetCameraConfig();
+        m_sensorEnabled = m_cameraConfig.enabled;
     } else {
         if (m_hasLightingParams) {
             m_renderContext->SetLightingParams(m_lightingParams);
@@ -600,6 +606,16 @@ void QuantiloomVulkanRenderer::applyConfigToContext(bool isFreshOpen) {
         applyAtmosphereToContext();
         m_renderContext->SetCameraLookAt(m_cameraPosition, m_cameraTarget, m_cameraUp);
         m_renderContext->SetCameraFOV(m_cameraFovY);
+        // The camera the user configured rides over the file's, the same way
+        // the lighting params do. A camera that is off applied nothing this
+        // session, so the file's own (already applied) configuration stands.
+        if (m_cameraConfig.enabled) {
+            if (auto updated = m_renderContext->SetCameraConfig(m_cameraConfig);
+                !updated) {
+                qWarning() << "  camera config re-push failed:"
+                           << QString::fromStdString(updated.error());
+            }
+        }
 
         // Curves and the illuminant loaded from panels this session. ApplyConfig
         // above restored only the ones the file named, and these were appended
@@ -1702,6 +1718,68 @@ void QuantiloomVulkanRenderer::setSensorParams(const quantiloom::SensorParams& p
                  << ", dsnu_sigma=" << params.dsnuSigma_e << "e-"
                  << ", nuc=" << params.enableNUC << "(eff=" << params.nucEfficiency << ")";
     }
+}
+
+// ============================================================================
+// Physical camera (M5-3)
+// ============================================================================
+
+quantiloom::Result<void, quantiloom::String> QuantiloomVulkanRenderer::setCameraConfig(
+    const quantiloom::camera::CameraConfig& config) {
+    m_cameraConfig = config;
+    m_sensorEnabled = config.enabled;
+
+    if (!m_renderContext) {
+        return quantiloom::Result<void, quantiloom::String>::Err("no renderer");
+    }
+    auto applied = m_renderContext->SetCameraConfig(config);
+    if (!applied) {
+        qWarning() << "[Camera] SetCameraConfig failed:"
+                   << QString::fromStdString(applied.error());
+        return applied;
+    }
+    // Tier-3 changes rebuild the measurement on the SDK side; the display on
+    // screen no longer reflects the settings, and a loop stopped at its target
+    // would never redraw it -- same reasoning as setSensorEnabled above.
+    requestDisplayReprocess();
+    return quantiloom::Result<void, quantiloom::String>::Ok();
+}
+
+quantiloom::Result<void, quantiloom::String>
+QuantiloomVulkanRenderer::reprocessCameraDisplay(
+    const quantiloom::camera::CameraConfig& config) {
+    m_cameraConfig = config;
+    m_sensorEnabled = config.enabled;
+
+    if (!m_renderContext) {
+        return quantiloom::Result<void, quantiloom::String>::Err("no renderer");
+    }
+    auto applied = m_renderContext->SetCameraConfig(config);
+    if (!applied) {
+        return applied;
+    }
+    // Tier-1: re-run the display half of the ISP over the last completed
+    // acquisition. No ray is retraced, no statistics pass runs, and the
+    // acquisition index never advances -- the noise streams key on it, so the
+    // reprocessed display is bit-identical for unchanged parameters.
+    return m_renderContext->ReprocessCameraDisplay();
+}
+
+quantiloom::Result<quantiloom::camera::CameraOutput, quantiloom::String>
+QuantiloomVulkanRenderer::captureCameraProducts(double timeSeconds) {
+    if (!m_renderContext) {
+        return quantiloom::Result<quantiloom::camera::CameraOutput,
+                                  quantiloom::String>::Err("no renderer");
+    }
+    // Commit one explicit acquisition at the requested time so the products
+    // below describe this moment, not whatever frame happened to complete
+    // last. Errors (e.g. the camera disabled) propagate to the caller.
+    auto advanced = m_renderContext->AdvanceCameraTo(timeSeconds);
+    if (!advanced) {
+        return quantiloom::Result<quantiloom::camera::CameraOutput,
+                                  quantiloom::String>::Err(advanced.error());
+    }
+    return m_renderContext->CaptureCameraProducts();
 }
 
 void QuantiloomVulkanRenderer::setDisplayEnhancement(

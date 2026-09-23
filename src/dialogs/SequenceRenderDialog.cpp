@@ -21,6 +21,7 @@
 #include <QPushButton>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QFile>
 #include <QDir>
 #include <QThread>
 #include <QPointer>
@@ -35,6 +36,56 @@
 
 #include <algorithm>
 #include <exception>
+#include <optional>
+#include <utility>
+
+namespace {
+bool writeCameraProducts(const quantiloom::camera::CameraOutput& output,
+                         const QString& exrPath, QString* error) {
+    const QFileInfo file(exrPath);
+    const QString base = file.absolutePath() + QLatin1Char('/') + file.completeBaseName();
+    QStringList metadata;
+    for (const auto& [product, suffix] : {
+             std::pair{&output.bandMeasurement, "_measurement"},
+             std::pair{&output.rawDn, "_rawdn"},
+             std::pair{&output.correctedDeviceSignal, "_corrected"},
+             std::pair{&output.apparentTemperature, "_tapp"},
+             std::pair{&output.display, "_display"},
+             std::pair{&output.cieLinearSrgb, "_cie"},
+             std::pair{&output.tracedRadiance, "_spectral"}}) {
+        if (!*product) continue;
+        const QString path = base + QString::fromLatin1(suffix) + QStringLiteral(".exr");
+        if (!quantiloom::ImageIO::WriteEXR(path.toStdString(), (*product)->image)) {
+            if (error) *error = QObject::tr("could not write %1").arg(path);
+            return false;
+        }
+        const auto& signal = (*product)->signal;
+        const char* calibration = "generic_assumption";
+        if (signal.calibration == quantiloom::camera::CalibrationStatus::HardwareReference)
+            calibration = "hardware_reference";
+        else if (signal.calibration == quantiloom::camera::CalibrationStatus::Calibrated)
+            calibration = "calibrated";
+        metadata << QStringLiteral("%1 unit=%2 calibration=%3 acquisition=%4 exposure=[%5, %6] s")
+                        .arg(QFileInfo(path).fileName(), QString::fromStdString(signal.unit),
+                             QString::fromLatin1(calibration))
+                        .arg(signal.acquisitionIndex)
+                        .arg(signal.exposureStartSeconds, 0, 'g', 9)
+                        .arg(signal.exposureEndSeconds, 0, 'g', 9);
+    }
+    QFile sidecar(base + QStringLiteral("_products.txt"));
+    if (!sidecar.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        if (error) *error = QObject::tr("could not write %1").arg(sidecar.fileName());
+        return false;
+    }
+    QTextStream out(&sidecar);
+    out << "Quantiloom camera products\n";
+    for (const auto& line : std::as_const(metadata)) out << line << '\n';
+    if (output.display)
+        quantiloom::ImageIO::WritePNG((base + QStringLiteral(".png")).toStdString(),
+                                      output.display->image);
+    return true;
+}
+} // namespace
 
 SequenceRenderDialog::SequenceRenderDialog(const SceneConfig& config,
                                            QStringList materialNames,
@@ -501,7 +552,10 @@ void SequenceRenderDialog::onExportManifest() {
                                      .replace(QStringLiteral("00000"), QStringLiteral("{tick:05}"))
             << "\"\n"
             << "#\n"
-            << "# ...or, one renderer per frame, with `batch " << QFileInfo(path).fileName()
+            << "# Batch lines below create independent devices per frame.\n"
+            << "# For an enabled camera, use the sequence command above so every\n"
+            << "# intermediate tick advances acquisition history.\n"
+            << "# Batch preview: `batch " << QFileInfo(path).fileName()
             << "`:\n"
             << "\n";
         for (int i = 0; i < ticks.size(); ++i) {
@@ -674,11 +728,8 @@ void SequenceRenderDialog::startTimelineRun() {
     const QVector<long long> ticks = timelineTicks();
     QStringList paths;
     paths.reserve(ticks.size());
-    QVector<double> times;
-    times.reserve(ticks.size());
     for (int i = 0; i < ticks.size(); ++i) {
         paths << frameOutputPath(i);
-        times << m_timeline.TimeOfTick(ticks.at(i));
     }
 
     m_running = true;
@@ -693,7 +744,12 @@ void SequenceRenderDialog::startTimelineRun() {
     const QString baseDir = m_baseConfig.baseDir;
 
     QPointer<SequenceRenderDialog> self(this);
-    m_worker = QThread::create([this, self, toml, paths, times, frameCount, baseDir] {
+    const auto timeline = m_timeline;
+    const long long firstTick = m_fromTick->value();
+    const long long lastTick = m_toTick->value();
+    const int everyTick = m_everyTick->value();
+    m_worker = QThread::create([this, self, toml, paths, frameCount, baseDir,
+                                timeline, firstTick, lastTick, everyTick] {
         QString error;
         int rendered = 0;
 
@@ -714,8 +770,31 @@ void SequenceRenderDialog::startTimelineRun() {
                 if (!renderer.has_value()) {
                     error = QString::fromStdString(renderer.error());
                 } else {
-                    for (int i = 0; i < frameCount; ++i) {
+                    quantiloom::camera::CaptureState cameraState;
+                    const auto& cameraConfig = renderer.value()->GetCameraConfig();
+                    if (cameraConfig.enabled && cameraConfig.warmup.seconds > 0.0) {
+                        cameraState.frameTimeSeconds = timeline.TimeOfTick(firstTick);
+                        const auto warmed = renderer.value()->WarmUpCamera(
+                            cameraState, cameraConfig.warmup.seconds,
+                            cameraConfig.readout.framePeriodSeconds);
+                        if (!warmed) error = QString::fromStdString(warmed.error());
+                    }
+                    int i = 0;
+                    for (long long tick = firstTick; error.isEmpty() && tick <= lastTick; ++tick) {
                         if (m_cancelled) break;
+                        const double time = timeline.TimeOfTick(tick);
+                        if ((tick - firstTick) % everyTick != 0) {
+                            if (cameraConfig.enabled) {
+                                const auto advanced = renderer.value()->AdvanceCameraState(
+                                    cameraState, time);
+                                if (!advanced) {
+                                    error = tr("Tick %1: %2").arg(tick)
+                                                .arg(QString::fromStdString(advanced.error()));
+                                    break;
+                                }
+                            }
+                            continue;
+                        }
 
                         QMetaObject::invokeMethod(self, [self, i, frameCount] {
                             if (!self) return;
@@ -724,7 +803,7 @@ void SequenceRenderDialog::startTimelineRun() {
                             self->m_progress->setValue(i * 100 / frameCount);
                         }, Qt::QueuedConnection);
 
-                        auto moved = renderer.value()->SetTimelineTime(times.at(i));
+                        auto moved = renderer.value()->SetTimelineTime(time);
                         if (!moved) {
                             error = tr("Frame %1: %2").arg(i + 1)
                                         .arg(QString::fromStdString(moved.error()));
@@ -736,12 +815,30 @@ void SequenceRenderDialog::startTimelineRun() {
                                         .arg(QString::fromStdString(output.error));
                             break;
                         }
+                        std::optional<quantiloom::camera::CameraOutput> products;
+                        if (cameraConfig.enabled) {
+                            auto captured = renderer.value()->CaptureCamera(cameraState, time);
+                            if (!captured) {
+                                error = tr("Frame %1: %2").arg(i + 1)
+                                            .arg(QString::fromStdString(captured.error()));
+                                break;
+                            }
+                            products = std::move(captured.value());
+                        }
                         QString writeError;
                         if (!writeFrame(output, paths.at(i), &writeError)) {
                             error = tr("Frame %1: %2").arg(i + 1).arg(writeError);
                             break;
                         }
+                        if (products) {
+                            QString productError;
+                            if (!writeCameraProducts(*products, paths.at(i), &productError)) {
+                                error = tr("Frame %1: %2").arg(i + 1).arg(productError);
+                                break;
+                            }
+                        }
                         ++rendered;
+                        ++i;
                     }
                 }
             }

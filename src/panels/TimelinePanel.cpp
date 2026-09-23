@@ -17,6 +17,7 @@
 #include <QStyle>
 #include <QTimer>
 #include <QToolButton>
+#include <QPushButton>
 #include <QVBoxLayout>
 
 #include <algorithm>
@@ -104,6 +105,10 @@ void TimelinePanel::setupUi() {
 
     transportLayout->addLayout(spinForm);
     mainLayout->addWidget(m_transportGroup);
+    m_createButton = new QPushButton(this);
+    connect(m_createButton, &QPushButton::clicked,
+            this, &TimelinePanel::createTimelineRequested);
+    mainLayout->addWidget(m_createButton);
 
     // ------------------------------------------------------------------
     // Playback
@@ -159,6 +164,7 @@ void TimelinePanel::setupUi() {
 void TimelinePanel::retranslateUi() {
     bindText([this] {
         m_transportGroup->setTitle(tr("Transport"));
+        m_createButton->setText(tr("Create 0-10 s timeline (20 ticks/s)"));
         m_playbackGroup->setTitle(tr("Playback"));
         m_tickCaption->setText(tr("Tick"));
         m_secondsCaption->setText(tr("Time"));
@@ -207,6 +213,7 @@ void TimelinePanel::setInfo(const quantiloom::TimelineInfo& info) {
 
     const bool enabled = info.present;
     m_transportGroup->setEnabled(enabled);
+    m_createButton->setVisible(!enabled);
     m_playbackGroup->setEnabled(enabled);
     if (!enabled && m_playing) {
         setPlaying(false);
