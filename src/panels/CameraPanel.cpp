@@ -39,9 +39,10 @@ void CameraPanel::setupUi() {
     // --- pose -------------------------------------------------------------
     m_poseGroup = new QGroupBox(this);
     auto* poseLayout = new QFormLayout(m_poseGroup);
+    poseLayout->setRowWrapPolicy(QFormLayout::WrapAllRows);
 
     auto makeTriple = [this](QDoubleSpinBox* (&fields)[3]) {
-        auto* row = new QHBoxLayout();
+        auto* row = new QGridLayout();
         // Axis symbols, verbatim in every locale -- see PropertiesPanel.
         static const char* const kAxisNames[3] = {"X", "Y", "Z"};
         for (int axis = 0; axis < 3; ++axis) {
@@ -53,8 +54,8 @@ void CameraPanel::setupUi() {
             connect(spin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
                     this, &CameraPanel::onPoseFieldChanged);
             fields[axis] = spin;
-            row->addWidget(new QLabel(QString::fromLatin1(kAxisNames[axis])));
-            row->addWidget(spin, 1);
+            row->addWidget(new QLabel(QString::fromLatin1(kAxisNames[axis])), axis, 0);
+            row->addWidget(spin, axis, 1);
         }
         return row;
     };
@@ -121,6 +122,7 @@ void CameraPanel::setupUi() {
 
     m_motionGroup = new QGroupBox(this);
     auto* motionLayout = new QFormLayout(m_motionGroup);
+    motionLayout->setRowWrapPolicy(QFormLayout::WrapAllRows);
     m_keyList = new QComboBox(m_motionGroup);
     connect(m_keyList, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, [this](int index) {
@@ -143,15 +145,15 @@ void CameraPanel::setupUi() {
     m_keyTimeCaption = new QLabel(m_motionGroup);
     motionLayout->addRow(m_keyTimeCaption, m_keyTime);
     auto makeKeyTriple = [this](QDoubleSpinBox* (&fields)[3]) {
-        auto* row = new QHBoxLayout();
+        auto* row = new QGridLayout();
         for (int axis = 0; axis < 3; ++axis) {
             auto* spin = new QDoubleSpinBox(m_motionGroup);
             spin->setRange(-1e9, 1e9);
             spin->setDecimals(15);
             spin->setKeyboardTracking(false);
             fields[axis] = spin;
-            row->addWidget(new QLabel(QString::fromLatin1("XYZ").mid(axis, 1), m_motionGroup));
-            row->addWidget(spin);
+            row->addWidget(new QLabel(QString::fromLatin1("XYZ").mid(axis, 1), m_motionGroup), axis, 0);
+            row->addWidget(spin, axis, 1);
         }
         return row;
     };
@@ -159,15 +161,15 @@ void CameraPanel::setupUi() {
     m_keyTargetCaption = new QLabel(m_motionGroup);
     motionLayout->addRow(m_keyPositionCaption, makeKeyTriple(m_keyPosition));
     motionLayout->addRow(m_keyTargetCaption, makeKeyTriple(m_keyTarget));
-    auto* keyButtons = new QHBoxLayout();
+    auto* keyButtons = new QGridLayout();
     m_captureButton = new QPushButton(m_motionGroup);
     m_addButton = new QPushButton(m_motionGroup);
     m_updateButton = new QPushButton(m_motionGroup);
     m_deleteButton = new QPushButton(m_motionGroup);
-    keyButtons->addWidget(m_captureButton);
-    keyButtons->addWidget(m_addButton);
-    keyButtons->addWidget(m_updateButton);
-    keyButtons->addWidget(m_deleteButton);
+    keyButtons->addWidget(m_captureButton, 0, 0);
+    keyButtons->addWidget(m_addButton, 0, 1);
+    keyButtons->addWidget(m_updateButton, 1, 0);
+    keyButtons->addWidget(m_deleteButton, 1, 1);
     motionLayout->addRow(keyButtons);
     connect(m_captureButton, &QPushButton::clicked, this, &CameraPanel::captureRequested);
     connect(m_addButton, &QPushButton::clicked, this, &CameraPanel::addKeyframe);

@@ -56,6 +56,7 @@
 #include <QComboBox>
 #include <QKeyEvent>
 #include <QToolBar>
+#include <QWidgetAction>
 #include <QStyle>
 #include <QDockWidget>
 #include <QScreen>
@@ -590,39 +591,29 @@ void MainWindow::setupMenus() {
     // Ctrl+Space rather than Space: the bare key already toggles the gizmo
     // between local and world space, and a transport that stole it would break
     // a gesture people use constantly.
-    m_timelinePlayAction = m_timelineMenu->addAction(QString(), m_timelinePanel,
-                                                     &TimelinePanel::togglePlay);
+    m_timelinePlayAction = m_timelineMenu->addAction(QString());
     m_timelinePlayAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_Space));
 
     m_timelineMenu->addSeparator();
 
-    m_timelinePrevAction = m_timelineMenu->addAction(QString(), m_timelinePanel,
-                                                     &TimelinePanel::stepBack);
+    m_timelinePrevAction = m_timelineMenu->addAction(QString());
     m_timelinePrevAction->setShortcut(QKeySequence(Qt::ALT | Qt::Key_Left));
-    m_timelineNextAction = m_timelineMenu->addAction(QString(), m_timelinePanel,
-                                                     &TimelinePanel::stepForward);
+    m_timelineNextAction = m_timelineMenu->addAction(QString());
     m_timelineNextAction->setShortcut(QKeySequence(Qt::ALT | Qt::Key_Right));
-    m_timelineStartAction = m_timelineMenu->addAction(QString(), m_timelinePanel,
-                                                      &TimelinePanel::goToStart);
+    m_timelineStartAction = m_timelineMenu->addAction(QString());
     m_timelineStartAction->setShortcut(QKeySequence(Qt::ALT | Qt::Key_Home));
-    m_timelineEndAction = m_timelineMenu->addAction(QString(), m_timelinePanel,
-                                                    &TimelinePanel::goToEnd);
+    m_timelineEndAction = m_timelineMenu->addAction(QString());
     m_timelineEndAction->setShortcut(QKeySequence(Qt::ALT | Qt::Key_End));
 
     m_timelineMenu->addSeparator();
 
     m_timelineLoopAction = m_timelineMenu->addAction(QString());
     m_timelineLoopAction->setCheckable(true);
-    connect(m_timelineLoopAction, &QAction::toggled, m_timelinePanel, &TimelinePanel::setLoop);
     m_timelineMenu->addSeparator();
-    m_cameraCaptureKeyAction = m_timelineMenu->addAction(
-        QString(), m_cameraPanel, &CameraPanel::captureRequested);
-    m_cameraAddKeyAction = m_timelineMenu->addAction(
-        QString(), m_cameraPanel, &CameraPanel::addKeyframe);
-    m_cameraUpdateKeyAction = m_timelineMenu->addAction(
-        QString(), m_cameraPanel, &CameraPanel::updateKeyframe);
-    m_cameraDeleteKeyAction = m_timelineMenu->addAction(
-        QString(), m_cameraPanel, &CameraPanel::deleteKeyframe);
+    m_cameraCaptureKeyAction = m_timelineMenu->addAction(QString());
+    m_cameraAddKeyAction = m_timelineMenu->addAction(QString());
+    m_cameraUpdateKeyAction = m_timelineMenu->addAction(QString());
+    m_cameraDeleteKeyAction = m_timelineMenu->addAction(QString());
 
     // Nothing to drive until a document with a clock is open.
     for (QAction* action : {m_timelinePlayAction, m_timelinePrevAction, m_timelineNextAction,
@@ -865,16 +856,31 @@ void MainWindow::setupToolBar() {
 
     m_spectralComboLabel = new QLabel(this);
     m_spectralCombo = new QComboBox(this);
-    m_spectralCombo->setMinimumContentsLength(14);
+    m_spectralCombo->setMinimumContentsLength(10);
+    m_spectralCombo->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
     m_mainToolBar->addWidget(m_spectralComboLabel);
     m_mainToolBar->addWidget(m_spectralCombo);
 
     m_debugComboLabel = new QLabel(this);
     m_debugCombo = new QComboBox(this);
-    m_debugCombo->setMinimumContentsLength(18);
+    m_debugCombo->setMinimumContentsLength(12);
+    m_debugCombo->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
     m_mainToolBar->addWidget(m_debugComboLabel);
     m_mainToolBar->addWidget(m_debugCombo);
 
+    const auto firstAction = m_mainToolBar->actions().first();
+    for (auto* widget : {static_cast<QWidget*>(m_spectralComboLabel),
+                         static_cast<QWidget*>(m_spectralCombo),
+                         static_cast<QWidget*>(m_debugComboLabel),
+                         static_cast<QWidget*>(m_debugCombo)}) {
+        for (auto* action : m_mainToolBar->actions()) {
+            auto* widgetAction = qobject_cast<QWidgetAction*>(action);
+            if (widgetAction && widgetAction->defaultWidget() == widget) {
+                m_mainToolBar->insertAction(firstAction, action);
+                break;
+            }
+        }
+    }
     m_mainToolBar->addSeparator();
     m_mainToolBar->addAction(m_screenshotAction);
 
@@ -926,6 +932,13 @@ void MainWindow::applySpectralMode(quantiloom::SpectralMode mode) {
         m_lightingPanel->repickNormalisation();
     }
 
+    syncSpectralModeUi(mode);
+
+    setSceneModified(true);
+    showStatusMessage(tr("Spectral mode: %1").arg(catalog::spectralModeName(mode)));
+}
+
+void MainWindow::syncSpectralModeUi(quantiloom::SpectralMode mode) {
     if (QAction* action = m_spectralActions.value(static_cast<int>(mode), nullptr)) {
         action->setChecked(true);
     }
@@ -936,8 +949,6 @@ void MainWindow::applySpectralMode(quantiloom::SpectralMode mode) {
     m_spectralConfigPanel->setSpectralMode(mode);
     m_viewportFrame->setSpectralMode(mode);
 
-    setSceneModified(true);
-    showStatusMessage(tr("Spectral mode: %1").arg(catalog::spectralModeName(mode)));
 }
 
 void MainWindow::applyTargetSpp(uint32_t spp) {
@@ -1028,13 +1039,12 @@ void MainWindow::applyEnvironmentMap(const QString& path, bool enabled) {
 }
 
 void MainWindow::applyIlluminant(const LightingPanel::IlluminantChoice& choice) {
-    m_illuminant = choice;
-    m_lightingPanel->setIlluminant(choice);
-
     // "none" is the RGB fallback: there is nothing to load, and the LUT
     // already in the context stays until a scene reload clears it. Saying so
     // is the panel's warning, not an error here.
     if (choice.kind == QLatin1String("none")) {
+        m_illuminant = choice;
+        m_lightingPanel->setIlluminant(choice);
         setSceneModified(true);
         showStatusMessage(tr("Illuminant: RGB radiance only"));
         return;
@@ -1066,7 +1076,14 @@ void MainWindow::applyIlluminant(const LightingPanel::IlluminantChoice& choice) 
             return;
         }
         spec.pathOrEqualEnergy = QDir::toNativeSeparators(choice.path).toStdString();
-        baseDir = QFileInfo(choice.path).absolutePath();
+        baseDir = m_lastConfig ? m_lastConfig->baseDir : QDir::currentPath();
+        if (m_lastConfig && choice.path == m_loadedIlluminant.path) {
+            if (m_lastConfig->solarLutColumns.size() >= 2) {
+                spec.directColumn = m_lastConfig->solarLutColumns[0];
+                spec.diffuseColumn = m_lastConfig->solarLutColumns[1];
+            }
+            spec.diffuseIsGlobal = m_lastConfig->solarLutDiffuseIsGlobal;
+        }
     }
 
     if (const auto error = m_vulkanWindow->setSolarLutFromSpec(spec, baseDir)) {
@@ -1075,6 +1092,8 @@ void MainWindow::applyIlluminant(const LightingPanel::IlluminantChoice& choice) 
         return;
     }
 
+    m_illuminant = choice;
+    m_lightingPanel->setIlluminant(choice);
     // The core derived sun and sky RGB from the spectrum so that both halves
     // of the renderer describe one sun; take that back into the shell's copy
     // and the panel, or they would keep showing the values it replaced.
@@ -1088,8 +1107,8 @@ void MainWindow::applyIlluminant(const LightingPanel::IlluminantChoice& choice) 
 QString MainWindow::resolveBundledIlluminant() {
     // Same candidate order as every other bundled asset.
     const QStringList candidates{
-        QDir::currentPath() + QStringLiteral("/assets/luts/astmg173.csv"),
         QCoreApplication::applicationDirPath() + QStringLiteral("/assets/luts/astmg173.csv"),
+        QDir::currentPath() + QStringLiteral("/assets/luts/astmg173.csv"),
     };
     for (const QString& path : candidates) {
         if (QFileInfo::exists(path)) {
@@ -1591,7 +1610,6 @@ void MainWindow::applyMaterial(int index, const quantiloom::Material& material) 
     // before it instead.
     auto command = std::make_unique<ModifyMaterialCommand>(
         m_vulkanWindow, index, previous, applied);
-    command->execute();
     m_undoStack->push(std::move(command));
 
     m_editedMaterials.insert(index);
@@ -1624,7 +1642,6 @@ void MainWindow::applyNodeTransform(int nodeIndex, const glm::mat4& transform) {
     // way the node was moved.
     auto command = std::make_unique<TransformNodeCommand>(
         m_vulkanWindow, nodeIndex, previous, transform);
-    command->execute();
     m_undoStack->push(std::move(command));
 
     m_editedNodes.insert(nodeIndex);
@@ -2377,6 +2394,21 @@ void MainWindow::updateRenderProgress() {
 }
 
 void MainWindow::setupConnections() {
+    // The menu is built before the docks, so panel receivers exist only now.
+    connect(m_timelinePlayAction, &QAction::triggered, m_timelinePanel, &TimelinePanel::togglePlay);
+    connect(m_timelinePrevAction, &QAction::triggered, m_timelinePanel, &TimelinePanel::stepBack);
+    connect(m_timelineNextAction, &QAction::triggered, m_timelinePanel, &TimelinePanel::stepForward);
+    connect(m_timelineStartAction, &QAction::triggered, m_timelinePanel, &TimelinePanel::goToStart);
+    connect(m_timelineEndAction, &QAction::triggered, m_timelinePanel, &TimelinePanel::goToEnd);
+    connect(m_timelineLoopAction, &QAction::toggled, m_timelinePanel, &TimelinePanel::setLoop);
+    connect(m_cameraCaptureKeyAction, &QAction::triggered, m_cameraPanel,
+            &CameraPanel::captureRequested);
+    connect(m_cameraAddKeyAction, &QAction::triggered, m_cameraPanel, &CameraPanel::addKeyframe);
+    connect(m_cameraUpdateKeyAction, &QAction::triggered, m_cameraPanel,
+            &CameraPanel::updateKeyframe);
+    connect(m_cameraDeleteKeyAction, &QAction::triggered, m_cameraPanel,
+            &CameraPanel::deleteKeyframe);
+
     // Connect Vulkan window signals
     connect(m_vulkanWindow, &QuantiloomVulkanWindow::frameRendered,
             this, &MainWindow::onFrameRendered);
@@ -2396,11 +2428,44 @@ void MainWindow::setupConnections() {
                 if (success) {
                     // The open is only now known to have worked, which is the
                     // first point at which the file is worth remembering.
-                    rememberRecentFile(m_pendingOpenPath);
+                    const bool openedDocument = !m_pendingOpenPath.isEmpty();
+                    const HistorySuppressor noHistory(m_suppressHistory);
+                    if (openedDocument) {
+                        if (m_pendingDocumentConfig) {
+                            applyConfig(*m_pendingDocumentConfig);
+                            m_currentConfigFile = m_pendingOpenPath;
+                            m_configManager->adoptRawConfig(
+                                std::make_shared<quantiloom::Config>(*m_pendingRawConfig));
+                        } else {
+                            m_lastConfig.reset();
+                            m_loadedLighting.reset();
+                            m_currentConfigFile.clear();
+                            m_currentSceneFile = m_pendingOpenPath;
+                            m_configManager->clearLoadedConfig();
+                            m_editedNodes.clear();
+                            m_editedMaterials.clear();
+                            m_illuminant = {};
+                            m_illuminant.kind = QStringLiteral("none");
+                            m_lightingPanel->setIlluminant(m_illuminant);
+                        }
+                        setCurrentDocument(m_pendingOpenPath);
+                        rememberRecentFile(m_pendingOpenPath);
+                    }
                     m_pendingOpenPath.clear();
+                    m_pendingDocumentConfig.reset();
+                    m_pendingRawConfig.reset();
                     updatePanelsFromScene();
-                    seedPastedNodesFromDocument();
+                    if (openedDocument) seedPastedNodesFromDocument();
                     syncPanelsFromRenderer();
+                    if (openedDocument) {
+                        m_loadedLighting = std::make_unique<quantiloom::LightingParams>(*m_lightingParams);
+                        m_undoStack->clear();
+                        SceneConfig saved;
+                        collectCurrentConfig(saved);
+                        m_cleanDocument = m_configManager->exportConfigToString(saved);
+                        m_sceneModified = false;
+                        setWindowModified(false);
+                    }
                     showStatusMessage(message);
                 } else {
                     // The whole failure branch runs a turn later, because none
@@ -2418,6 +2483,8 @@ void MainWindow::setupConnections() {
                     // which is why it came up empty and took the window with
                     // it.
                     m_pendingOpenPath.clear();
+                    m_pendingDocumentConfig.reset();
+                    m_pendingRawConfig.reset();
 
                     QMetaObject::invokeMethod(this, [this, message]() {
                         // Deliberately *not* returning to the guidance page.
@@ -2496,6 +2563,8 @@ void MainWindow::setupEditingSystem() {
     // Connect undo stack state changes
     connect(m_undoStack, &UndoStack::canUndoChanged, this, &MainWindow::onUndoRedoChanged);
     connect(m_undoStack, &UndoStack::canRedoChanged, this, &MainWindow::onUndoRedoChanged);
+    connect(m_undoStack, &UndoStack::cleanChanged, this,
+            [this](bool) { refreshDocumentModified(); });
     // Fires after every push, undo and redo: undo/redo move node transforms
     // under the panels, which otherwise showed the pre-undo values until the
     // node was deselected and reselected.
@@ -2506,6 +2575,7 @@ void MainWindow::setupEditingSystem() {
                 // re-read the selection
                 refreshTopologyIfChanged();
                 refreshSelectionPanels();
+                refreshDocumentModified();
             });
 
     // Connect selection changes
@@ -2822,11 +2892,24 @@ void MainWindow::setCurrentDocument(const QString& filePath) {
 }
 
 void MainWindow::setSceneModified(bool modified) {
-    if (m_sceneModified == modified) {
-        return;
+    if (m_suppressHistory) return;
+    if (!modified) {
+        SceneConfig config;
+        collectCurrentConfig(config);
+        m_cleanDocument = m_configManager->exportConfigToString(config);
+        m_undoStack->setClean();
     }
-    m_sceneModified = modified;
-    setWindowModified(modified);
+    refreshDocumentModified();
+}
+
+void MainWindow::refreshDocumentModified() {
+    if (m_suppressHistory) return;
+    SceneConfig config;
+    collectCurrentConfig(config);
+    // Compare the persistent document as well as the history position: direct
+    // edits (including the camera) must survive an undo back to a clean index.
+    m_sceneModified = m_configManager->exportConfigToString(config) != m_cleanDocument;
+    setWindowModified(m_sceneModified);
 }
 
 bool MainWindow::confirmDiscardChanges() {
@@ -3020,64 +3103,32 @@ void MainWindow::openFromCommandLine(const QString& filePath) {
 }
 
 bool MainWindow::openPath(const QString& filePath) {
+    if (!m_pendingOpenPath.isEmpty()) return false;
+    std::unique_ptr<SceneConfig> pending;
+    std::shared_ptr<const quantiloom::Config> raw;
     if (filePath.endsWith(QLatin1String(".toml"), Qt::CaseInsensitive)) {
-        SceneConfig config;
-        if (!m_configManager->loadConfig(filePath, config)) {
+        ConfigManager loader;
+        pending = std::make_unique<SceneConfig>();
+        if (!loader.loadConfig(filePath, *pending)) {
             QMessageBox::warning(this, tr("Open Failed"),
-                tr("Failed to load configuration: %1").arg(m_configManager->lastError()));
+                tr("Failed to load configuration: %1").arg(loader.lastError()));
             return false;
         }
-        // Any syntactically valid TOML parses, so a successful load says
-        // nothing about whether this file is a *scene* configuration. Without
-        // a scene there is nothing to render and applyConfig() would quietly
-        // do nothing at all -- which is how opening an unrelated .toml from
-        // some other project reported success and showed an empty viewport.
-        // The core rejects the same input for the same reason -- and, since
-        // 0.4.0, accepts a third way of naming a scene: [[models]], which is
-        // how a config with a timeline places more than one file.
-        if (config.gltfPath.isEmpty() && config.usdPath.isEmpty() && config.models.isEmpty()) {
+        if (pending->gltfPath.isEmpty() && pending->usdPath.isEmpty() && pending->models.isEmpty()) {
             QMessageBox::warning(this, tr("Open Failed"),
                 tr("%1 is not a scene configuration: it names no scene.gltf, scene.usd "
-                   "or [[models]].")
-                    .arg(QFileInfo(filePath).fileName()));
+                   "or [[models]].").arg(QFileInfo(filePath).fileName()));
             return false;
         }
-
-        m_currentConfigFile = filePath;
-        m_pendingOpenPath = filePath;
-        // Panels first, then the render context -- and the two read the file
-        // through different code. What the panels show comes from
-        // ConfigManager; what renders comes from the SDK, which interprets the
-        // same ~50 keys the CLI does. syncPanelsFromRenderer() reconciles them
-        // once the scene reports loaded, so the widgets end up showing what is
-        // actually being rendered rather than this repo's reading of the file.
-        applyConfig(config);
-        m_vulkanWindow->applyConfig(m_configManager->sharedRawConfig(), config.baseDir);
-        setSceneModified(false);
-        setCurrentDocument(filePath);
-        showStatusMessage(tr("Loaded configuration: %1").arg(QFileInfo(filePath).fileName()));
-        return true;
+        raw = loader.sharedRawConfig();
     }
-
-    // A bare model has no configuration behind it, so there is no document to
-    // save over -- Save will ask for a destination the first time.
-    m_currentSceneFile = filePath;
-    m_currentConfigFile.clear();
-    // And no configuration behind it means the previous document's must go.
-    // applySpectralConfig() runs on every successful load and reads whatever
-    // getRawConfig() still holds, so a TOML opened earlier used to lend this
-    // model its solar LUT and spectral curves.
-    m_configManager->clearLoadedConfig();
-    // Show the render surface *before* asking for the load: the Vulkan window
-    // only creates its renderer once it is exposed, so keeping the guidance
-    // page up until the scene reports success would wait on a renderer that
-    // was itself waiting to be shown.
     m_pendingOpenPath = filePath;
+    m_pendingDocumentConfig = std::move(pending);
+    m_pendingRawConfig = raw;
     m_viewportFrame->setSceneLoaded(true);
-    m_vulkanWindow->loadScene(filePath);
-    setSceneModified(false);
-    setCurrentDocument(filePath);
-    showStatusMessage(tr("Loading %1...").arg(QFileInfo(filePath).fileName()));
+    const HistorySuppressor noHistory(m_suppressHistory);
+    if (raw) m_vulkanWindow->applyConfig(raw, m_pendingDocumentConfig->baseDir);
+    else m_vulkanWindow->loadScene(filePath);
     return true;
 }
 
@@ -3896,9 +3947,9 @@ void MainWindow::executePaste(const std::vector<PasteNodesCommand::Spec>& specs,
     }
 
     auto command = std::make_unique<PasteNodesCommand>(m_vulkanWindow, placed);
-    command->execute();
-    const QVector<int> created = command->createdIndices();
+    auto* pasted = command.get();
     m_undoStack->push(std::move(command));
+    const QVector<int> created = pasted->createdIndices();
 
     // Register each copy for [[duplicates]] persistence, matched through its
     // unique name so a partial paste cannot misalign the mapping
@@ -4050,7 +4101,6 @@ void MainWindow::onDeleteNodes() {
     std::sort(indices.begin(), indices.end());
 
     auto command = std::make_unique<RemoveNodesCommand>(m_vulkanWindow, indices);
-    command->execute();
     m_undoStack->push(std::move(command));
 
     refreshAfterTopologyChange();
@@ -4334,8 +4384,8 @@ std::filesystem::path MainWindow::spectralDatabasePath(const QString& databaseId
         ? QStringLiteral("quantiloom_basis_v3_%1.qlbin").arg(databaseId)
         : QStringLiteral("quantiloom_materials_%1.json").arg(databaseId);
     const QStringList roots{
-        QDir::currentPath() + QStringLiteral("/assets/spectral"),
         QCoreApplication::applicationDirPath() + QStringLiteral("/assets/spectral"),
+        QDir::currentPath() + QStringLiteral("/assets/spectral"),
     };
     for (const QString& root : roots) {
         const QString candidate = QDir(root).filePath(leaf);
@@ -4695,6 +4745,7 @@ void MainWindow::applyConfig(const SceneConfig& config) {
     // starts from this so fields with no widget behind them survive a load/save
     // round trip instead of reverting to defaults.
     m_lastConfig = std::make_unique<SceneConfig>(config);
+    m_loadedLighting.reset();
 
     // A new document, so nothing has been edited in it yet. What the file
     // already said is in m_lastConfig and is carried forward from there.
@@ -4722,20 +4773,18 @@ void MainWindow::applyConfig(const SceneConfig& config) {
 
     m_lightingPanel->setEnvironmentMap(config.environmentMap, config.environmentMapEnabled);
 
-    if (config.cameraOrthographic) {
-        applyCameraProjection(true);
-    }
 
     // The illuminant the document names, mapped back onto the panel's choice.
-    // The bundled ASTM spectrum is recognised by its column layout rather than
-    // its path, so a config that names its own copy still reads as "ASTM".
+    // Only the deployed ASTM table is the built-in illuminant.
     {
         LightingPanel::IlluminantChoice choice;
         if (config.solarLutPath.isEmpty()) {
             choice.kind = QStringLiteral("none");
         } else if (config.solarLutPath == QLatin1String("equal_energy")) {
             choice.kind = QStringLiteral("equal_energy");
-        } else if (config.solarLutDiffuseIsGlobal &&
+        } else if (QFileInfo(QDir(config.baseDir).absoluteFilePath(config.solarLutPath)).canonicalFilePath() ==
+                       QFileInfo(resolveBundledIlluminant()).canonicalFilePath() &&
+                   !resolveBundledIlluminant().isEmpty() && config.solarLutDiffuseIsGlobal &&
                    config.solarLutColumns.size() >= 2 &&
                    config.solarLutColumns[0] == 4 && config.solarLutColumns[1] == 3) {
             choice.kind = QStringLiteral("astm");
@@ -4746,6 +4795,7 @@ void MainWindow::applyConfig(const SceneConfig& config) {
         choice.normaliseUnitLuminance =
             config.solarLutNormalise == QLatin1String("unit_luminance");
         m_illuminant = choice;
+        m_loadedIlluminant = choice;
         m_lightingPanel->setIlluminant(choice);
     }
 
@@ -4857,7 +4907,13 @@ void MainWindow::syncPanelsFromRenderer() {
         m_lastConfig ? m_lastConfig->environmentMap : QString(),
         lighting.enableEnvironmentMap != 0);
 
-    m_spectralConfigPanel->setSpectralMode(m_vulkanWindow->spectralMode());
+    const auto mode = m_vulkanWindow->spectralMode();
+    syncSpectralModeUi(mode);
+    { const QSignalBlocker blocker(m_orthographicAction);
+      m_orthographicAction->setChecked(m_vulkanWindow->cameraIsOrthographic()); }
+    m_renderSettingsPanel->setTargetSPP(m_vulkanWindow->targetSPP());
+    for (auto* action : m_qualityGroup->actions())
+        action->setChecked(action->data().toUInt() == m_vulkanWindow->targetSPP());
     m_spectralConfigPanel->setWavelength(m_vulkanWindow->wavelength());
     m_lightingPanel->setSpectralMode(m_vulkanWindow->spectralMode());
     m_atmosphericPanel->setAtmosphericConfig(m_vulkanWindow->atmosphericConfig());
@@ -4919,7 +4975,13 @@ void MainWindow::collectCurrentConfig(SceneConfig& config) {
 
     // The illuminant, as the core's own keys. The panel holds a choice; these
     // are what a scene file says, and what ResolveSolarLut reads back.
-    if (m_illuminant.kind == QLatin1String("none")) {
+    const bool illuminantUnchanged = m_lastConfig &&
+        m_illuminant.kind == m_loadedIlluminant.kind &&
+        m_illuminant.path == m_loadedIlluminant.path &&
+        m_illuminant.normaliseUnitLuminance == m_loadedIlluminant.normaliseUnitLuminance;
+    if (illuminantUnchanged) {
+        // Preserve the document's path, columns and normalization verbatim.
+    } else if (m_illuminant.kind == QLatin1String("none")) {
         config.solarLutPath.clear();
         config.solarLutColumns.clear();
         config.solarLutNormalise.clear();
@@ -4931,7 +4993,7 @@ void MainWindow::collectCurrentConfig(SceneConfig& config) {
         config.solarLutNormalise = m_illuminant.normaliseUnitLuminance
             ? QStringLiteral("unit_luminance") : QString();
     } else if (m_illuminant.kind == QLatin1String("astm")) {
-        config.solarLutPath = QStringLiteral("assets/luts/astmg173.csv");
+        config.solarLutPath = resolveBundledIlluminant();
         config.solarLutColumns = {4, 3};
         config.solarLutDiffuseIsGlobal = true;
         config.solarLutNormalise = m_illuminant.normaliseUnitLuminance
@@ -4941,8 +5003,10 @@ void MainWindow::collectCurrentConfig(SceneConfig& config) {
         // The core's libRadtran defaults; a file chosen by hand is assumed to
         // be in that layout, which is the only thing this shell could assume
         // without reading the file itself.
-        config.solarLutColumns.clear();
-        config.solarLutDiffuseIsGlobal = false;
+        if (!m_lastConfig || m_illuminant.path != m_loadedIlluminant.path) {
+            config.solarLutColumns.clear();
+            config.solarLutDiffuseIsGlobal = false;
+        }
         config.solarLutNormalise = m_illuminant.normaliseUnitLuminance
             ? QStringLiteral("unit_luminance") : QString();
     }
@@ -4998,7 +5062,7 @@ void MainWindow::collectCurrentConfig(SceneConfig& config) {
     // Record the loaded scene under the right key. Only one of the two is
     // written, or a USD scene would be exported as both `gltf` and `usd` now
     // that config.usdPath survives from the loaded config.
-    if (!m_currentSceneFile.isEmpty()) {
+    if (!m_lastConfig && !m_currentSceneFile.isEmpty()) {
         if (m_currentSceneFile == config.usdPath ||
             m_currentSceneFile.endsWith(".usd", Qt::CaseInsensitive) ||
             m_currentSceneFile.endsWith(".usda", Qt::CaseInsensitive) ||
@@ -5014,7 +5078,10 @@ void MainWindow::collectCurrentConfig(SceneConfig& config) {
 
     // Lighting: the merged struct the shell maintains, which is the same one
     // the renderer is running on.
-    config.lighting = *m_lightingParams;
+    if (!m_lastConfig || !m_loadedLighting ||
+        std::memcmp(m_loadedLighting.get(), m_lightingParams.get(),
+                    sizeof(quantiloom::LightingParams)) != 0)
+        config.lighting = *m_lightingParams;
 
     // Collect camera settings. The panel keeps the enabled flag inside its
     // CameraConfig in sync with the switch, so the serialized tree carries it.

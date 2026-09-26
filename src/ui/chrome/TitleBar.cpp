@@ -151,6 +151,7 @@ TitleBar::TitleBar(QWidget* parent) : QWidget(parent) {
         update();
     });
 
+    window()->installEventFilter(this);
     retranslateUi();
 }
 
@@ -174,6 +175,8 @@ void TitleBar::setWindowMaximized(bool maximized) {
 void TitleBar::retranslateUi() {
     if (window()) {
         m_titleText = window()->windowTitle();
+        m_titleText.replace(QStringLiteral("[*]"),
+                            window()->isWindowModified() ? QStringLiteral("*") : QString());
         update();
     }
     m_minimise->setToolTip(tr("Minimise"));
@@ -237,11 +240,11 @@ void TitleBar::changeEvent(QEvent* e) {
     QWidget::changeEvent(e);
 }
 
-bool TitleBar::event(QEvent* e) {
-    // The window title is a document name that changes as files are opened and
-    // edited, so it is mirrored rather than copied once.
-    if (e->type() == QEvent::WindowTitleChange) {
+bool TitleBar::eventFilter(QObject* watched, QEvent* e) {
+    // These events belong to the top-level window, not its caption child.
+    if (watched == window() &&
+        (e->type() == QEvent::WindowTitleChange || e->type() == QEvent::ModifiedChange)) {
         retranslateUi();
     }
-    return QWidget::event(e);
+    return QWidget::eventFilter(watched, e);
 }

@@ -187,8 +187,8 @@ private:
     /// executable for an installed build.
     [[nodiscard]] static QDir assetsDir() {
         const QStringList candidates{
-            QDir::currentPath() + QStringLiteral("/assets/spectral"),
             QCoreApplication::applicationDirPath() + QStringLiteral("/assets/spectral"),
+            QDir::currentPath() + QStringLiteral("/assets/spectral"),
         };
         for (const QString& path : candidates) {
             if (QDir(path).exists()) {

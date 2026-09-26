@@ -606,7 +606,7 @@ private:
     ///        the context's resolved values replace this class's members. False
     ///        on a rebuild of the same document, where those members are the
     ///        user's edits and are re-pushed over it.
-    void applyConfigToContext(bool isFreshOpen);
+    bool applyConfigToContext(bool isFreshOpen);
 
     // Sensor simulation
     bool m_sensorEnabled = false;

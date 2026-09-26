@@ -2,7 +2,7 @@
 
 Qt6 desktop GUI for the Quantiloom spectral path tracer. Holds no physics of its own —
 it links a prebuilt SDK and drives it through `ExternalRenderContext`. C++20, one CMake
-target, ~10k lines.
+target, ~35k lines across 94 source files.
 
 ## Build: WSL2 shell, Windows toolchain
 
@@ -51,7 +51,7 @@ of a sequence used to re-run an identical solve — up to 165 s each on a large
 scene. They now collapse to one. The CLI manifest it emits hits the same entries.
 `HyperspectralExportDialog` benefits the same way.
 
-From SDK 0.4.0 the key also covers every **geometry epoch**: a scene whose
+From SDK 0.3.2 the key also covers every **geometry epoch**: a scene whose
 `[[models]]` move is solved across piecewise-static spans, and a truck two metres
 further along in epoch three gives a different trajectory at every hour after it.
 A static scene hashes exactly as it did, so its entries survive.
@@ -80,14 +80,16 @@ exported symbols). `src/libQuantiloom/CLAUDE.md` over there has the rule.
 
 | Path | What |
 |---|---|
-| `src/panels/` | 13 dockable parameter panels — most feature work lands here |
+| `src/panels/` | 16 dockable panels — most feature work lands here. `ComparisonPanel` holds a render against a reference EXR; `TimelinePanel` is the transport for a document with a `[timeline]`, and `TrajectoryPlotWidget` in `src/ui/` draws what a thermal probe returns |
 | `src/ui/` | Shell infrastructure: `PanelBase`, the debug/spectral `ModeCatalog`, workspaces, the viewport frame, shared styling |
-| `src/ui/theme/` | The nine themes as data (`Theme`) and the runtime switcher (`ThemeManager`). A theme is a style key, a palette, a few accent colours and an optional style sheet — adding one is a function returning a `Theme`, not code |
-| `src/dialogs/` | Preferences and the generated help pages |
+| `src/ui/theme/` | The ten themes as data (`Theme`) and the runtime switcher (`ThemeManager`). A theme is a style key, a palette, a few accent colours and an optional style sheet — adding one is a function returning a `Theme`, not code |
+| `src/dialogs/` | Preferences, the generated help pages, the hyperspectral cube export (three formats: ENVI, spectral EXR, TIFF) and the sequence render dialog, whose Timeline mode drives one `OfflineRenderer` across the clock |
 | `src/vulkan/` | Qt↔SDK render bridge and orbit camera; the only `ExternalRenderContext` caller |
 | `src/config/` | TOML load/save (`ConfigManager`) |
 | `src/editing/` | Selection, undo stack, transform gizmo |
 | `src/i18n/` | Qt Linguist `.ts` (en + zh_CN) and the runtime `LanguageManager` |
+| `src/McpTools.cpp` | The 30 `ql_*` tools the embedded MCP server answers on `127.0.0.1:8600`; edits made through them enter the undo stack. `ql_set_thermal` takes every field of a solve, and `ql_get_thermal_status` reports them all |
+| `src/ThermalNames.hpp` | The four converters (to and from names) between two `[thermal]` vocabularies and the SDK enums: the convection model and the parameter-sensitivity list. A TOML key and a tool argument are the same string, so both boundaries read this one header |
 | `assets/configs/` | Hand-written TOML scene configs; also the core CLI's input format |
 | `assets/spectral/` | Baked copies from Quantiloom-dev. CMake warns at configure time when they drift; `scripts/sync_spectral_assets.sh --sync` re-copies and re-pins |
 

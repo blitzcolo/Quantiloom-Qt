@@ -1,4 +1,7 @@
 #include "config/ConfigManager.hpp"
+#include "editing/UndoStack.hpp"
+#include <QDir>
+#include <QFileInfo>
 
 #include <postprocess/CameraPresets.hpp>
 #include <core/Config.hpp>
@@ -12,10 +15,84 @@
 #include <memory>
 #include <utility>
 
+namespace {
+class CountingCommand : public Command {
+public:
+    CountingCommand(int& value, int& executions, int before, int after)
+        : Command(QStringLiteral("counter")), value(value), executions(executions),
+          before(before), after(after) {}
+    void execute() override { ++executions; value = after; }
+    void undo() override { value = before; }
+    int id() const override { return 1; }
+    bool mergeWith(const Command* other) override {
+        const auto* next = dynamic_cast<const CountingCommand*>(other);
+        if (!next) return false;
+        after = next->after;
+        return true;
+    }
+    int& value;
+    int& executions;
+    int before, after;
+};
+
+bool historyRegression() {
+    UndoStack stack;
+    int value = 0, executions = 0;
+    stack.push(std::make_unique<CountingCommand>(value, executions, 0, 1));
+    if (executions != 1 || value != 1) return false;
+    stack.setClean();
+    stack.push(std::make_unique<CountingCommand>(value, executions, 1, 2));
+    if (executions != 2 || stack.isClean()) return false;
+    stack.undo();
+    if (!stack.isClean() || value != 1) return false;
+    stack.clear();
+    stack.redo();
+    return !stack.canUndo() && !stack.canRedo() && stack.isClean() && value == 1;
+}
+
+bool pathAndIlluminantRegression(const QString& root) {
+    const QString source = root + QStringLiteral("/source");
+    const QString destination = root + QStringLiteral("/saved");
+    QDir().mkpath(source);
+    QDir().mkpath(destination);
+    for (const auto& leaf : {QStringLiteral("model.gltf"), QStringLiteral("custom.csv")}) {
+        QFile asset(source + QLatin1Char('/') + leaf);
+        if (!asset.open(QIODevice::WriteOnly)) return false;
+    }
+    SceneConfig authored;
+    authored.baseDir = source;
+    authored.gltfPath = QStringLiteral("model.gltf");
+    authored.solarLutPath = QStringLiteral("custom.csv");
+    authored.solarLutColumns = {4, 3};
+    authored.solarLutDiffuseIsGlobal = true;
+    authored.solarLutNormalise = QStringLiteral("unit_luminance");
+    ConfigManager manager;
+    const QString file = destination + QStringLiteral("/scene.toml");
+    if (!manager.exportConfig(file, authored)) return false;
+    SceneConfig loaded;
+    if (!manager.loadConfig(file, loaded)) return false;
+    const auto resolves = [&](const QString& path, const QString& original) {
+        return QFileInfo(path).isRelative() &&
+            QFileInfo(QDir(destination).filePath(path)).canonicalFilePath() ==
+            QFileInfo(source + QLatin1Char('/') + original).canonicalFilePath();
+    };
+    if (!resolves(loaded.gltfPath, QStringLiteral("model.gltf")) ||
+        !resolves(loaded.solarLutPath, QStringLiteral("custom.csv")) ||
+        loaded.solarLutColumns != authored.solarLutColumns ||
+        loaded.solarLutNormalise != authored.solarLutNormalise ||
+        !loaded.solarLutDiffuseIsGlobal) return false;
+    return manager.exportConfig(source + QStringLiteral("/same.toml"), authored) &&
+        manager.loadConfig(source + QStringLiteral("/same.toml"), loaded) &&
+        loaded.gltfPath == authored.gltfPath && loaded.solarLutPath == authored.solarLutPath;
+}
+}
+
 int main(int argc, char** argv) {
     QCoreApplication app(argc, argv);
     QTemporaryDir directory;
     if (!directory.isValid()) return 1;
+    if (!historyRegression()) return 7;
+    if (!pathAndIlluminantRegression(directory.path())) return 8;
 
     SceneConfig authored;
     authored.gltfPath = QStringLiteral("assets/models/cube.glb");

@@ -29,6 +29,7 @@ drop_stale_build_dir() {
     local dir="$1" cached
     [ -f "$dir/CMakeCache.txt" ] || return 0
     cached="$(sed -n 's/^CMAKE_HOME_DIRECTORY:INTERNAL=//p' "$dir/CMakeCache.txt" | head -n 1 || true)"
+    cached="${cached//$'\r'/}"
     cached="${cached//\\//}"
     cached="${cached%/}"
     [ -n "$cached" ] || return 0

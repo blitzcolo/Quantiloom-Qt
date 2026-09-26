@@ -6,6 +6,8 @@
 #include "ConfigManager.hpp"
 
 #include <QFile>
+#include <QDir>
+#include <QSaveFile>
 #include <QFileInfo>
 #include <QTextStream>
 #include <QDebug>
@@ -712,7 +714,28 @@ quantiloom::SpectralMode ConfigManager::parseSpectralMode(const std::string& mod
 }
 
 bool ConfigManager::exportConfig(const QString& filePath, const SceneConfig& config) {
-    QFile file(filePath);
+    SceneConfig output = config;
+    const QDir destination(QFileInfo(filePath).absolutePath());
+    const auto rebase = [&](QString& path) {
+        if (path.isEmpty() || path == QLatin1String("equal_energy")) return;
+        QString resolved = path;
+        if (QFileInfo(path).isRelative()) {
+            const QString besideConfig = QDir(config.baseDir).absoluteFilePath(path);
+            resolved = QFileInfo::exists(besideConfig) || !QFileInfo::exists(path)
+                ? besideConfig : QFileInfo(path).absoluteFilePath();
+        }
+        path = destination.relativeFilePath(QDir::cleanPath(resolved));
+    };
+    rebase(output.gltfPath);
+    rebase(output.usdPath);
+    rebase(output.solarLutPath);
+    rebase(output.environmentMap);
+    rebase(output.basisFile);
+    rebase(output.materialsJson);
+    rebase(output.thermalForcingFile);
+    for (auto& path : output.spectralCurves) rebase(path);
+    for (auto& path : output.refractiveIndexFiles) rebase(path);
+    QSaveFile file(filePath);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
         m_lastError = tr("Cannot open file for writing: %1").arg(filePath);
         return false;
@@ -720,9 +743,12 @@ bool ConfigManager::exportConfig(const QString& filePath, const SceneConfig& con
 
     QTextStream out(&file);
     out.setEncoding(QStringConverter::Utf8);
-    writeConfig(out, config);
-
-    file.close();
+    writeConfig(out, output);
+    out.flush();
+    if (out.status() != QTextStream::Ok || !file.commit()) {
+        m_lastError = file.errorString();
+        return false;
+    }
     return true;
 }
 

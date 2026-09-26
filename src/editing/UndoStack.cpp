@@ -29,7 +29,7 @@ void UndoStack::push(std::unique_ptr<Command> command) {
     }
 
     // Try to merge with previous command
-    if (!m_commands.empty() && m_undoIndex > 0) {
+    if (!m_commands.empty() && m_undoIndex > 0 && m_undoIndex != m_cleanIndex) {
         Command* lastCmd = m_commands.back().get();
         if (lastCmd->id() != -1 && lastCmd->id() == command->id()) {
             if (lastCmd->mergeWith(command.get())) {

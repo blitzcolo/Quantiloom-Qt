@@ -476,32 +476,27 @@ void QuantiloomVulkanRenderer::applyConfig(std::shared_ptr<const quantiloom::Con
         return;
     }
 
+    const auto previousConfig = m_currentConfig;
+    const auto previousBaseDir = m_currentConfigBaseDir;
+    const auto previousScenePath = m_currentScenePath;
+    const bool previouslyApplied = m_configAppliedToContext;
     m_currentConfig = std::move(config);
     m_currentConfigBaseDir = baseDir;
     m_configAppliedToContext = false;
-    // Curves loaded from panels describe the document that was open, not this
-    // one; carrying them over would replay them onto an unrelated scene.
-    m_runtimeRefractiveIndices.clear();
-    m_runtimeSpectralCurves.clear();
-    m_solarLut.reset();
-    m_solarLutSpec.reset();
-    m_solarLutBaseDir.clear();
-    // A config supersedes whatever bare model was open; the scene it names is
-    // loaded as part of applying it.
-    m_currentScenePath.clear();
-
-    if (!m_renderContext) {
-        // Same shape as a deferred scene load: replayed from
-        // initSwapChainResources() once there is a context to apply it to.
-        return;
+    if (!m_renderContext) return;
+    if (!applyConfigToContext(/*isFreshOpen=*/true)) {
+        // The SDK validates the replacement before adopting its scene. Keep
+        // the previous document's replay state and runtime bindings on failure.
+        m_currentConfig = previousConfig;
+        m_currentConfigBaseDir = previousBaseDir;
+        m_currentScenePath = previousScenePath;
+        m_configAppliedToContext = previouslyApplied;
     }
-
-    applyConfigToContext(/*isFreshOpen=*/true);
 }
 
-void QuantiloomVulkanRenderer::applyConfigToContext(bool isFreshOpen) {
+bool QuantiloomVulkanRenderer::applyConfigToContext(bool isFreshOpen) {
     if (!m_renderContext || !m_currentConfig) {
-        return;
+        return false;
     }
 
     const bool compilingShaders = isFirstRun();
@@ -540,7 +535,16 @@ void QuantiloomVulkanRenderer::applyConfigToContext(bool isFreshOpen) {
         qCritical() << "  ApplyConfig failed:" << message;
         emit m_window->sceneLoaded(false,
             QObject::tr("Failed to load configuration: %1").arg(message));
-        return;
+        return false;
+    }
+
+    if (isFreshOpen) {
+        m_currentScenePath.clear();
+        m_runtimeRefractiveIndices.clear();
+        m_runtimeSpectralCurves.clear();
+        m_solarLut.reset();
+        m_solarLutSpec.reset();
+        m_solarLutBaseDir.clear();
     }
 
     // Whose values win depends on which of the two callers this is, and the
@@ -648,6 +652,7 @@ void QuantiloomVulkanRenderer::applyConfigToContext(bool isFreshOpen) {
     m_configAppliedToContext = true;
     resetAccumulation();
     emit m_window->sceneLoaded(true, QObject::tr("Scene loaded successfully"));
+    return true;
 }
 
 void QuantiloomVulkanRenderer::setCameraProjection(bool orthographic, float orthoHeight) {
@@ -1649,6 +1654,7 @@ QuantiloomVulkanRenderer::thermalElementAt(const quantiloom::PickResult& pick) c
 void QuantiloomVulkanRenderer::setDebugParameter(const quantiloom::u32 value) {
     if (m_renderContext) {
         m_renderContext->SetDebugParameter(value);
+        resetAccumulation();
     }
 }
 
@@ -1657,7 +1663,9 @@ quantiloom::Result<void, quantiloom::String> QuantiloomVulkanRenderer::setTherma
     if (!m_renderContext) {
         return quantiloom::Result<void, quantiloom::String>::Err("no renderer");
     }
-    return m_renderContext->SetThermalWhatIf(parameter, step);
+    auto result = m_renderContext->SetThermalWhatIf(parameter, step);
+    if (result) resetAccumulation();
+    return result;
 }
 
 quantiloom::Result<quantiloom::ThermalElementTrajectory, quantiloom::String>

@@ -611,6 +611,8 @@ include(CTest)
 if(BUILD_TESTING)
     add_executable(camera_motion_config_test
         tests/test_camera_motion_config.cpp
+        src/editing/UndoStack.cpp
+        src/editing/UndoStack.hpp
         src/config/ConfigManager.cpp
         src/config/ConfigManager.hpp)
     # The app's post-build step deploys the SDK and Qt runtime beside both exes.
@@ -672,3 +674,13 @@ message(STATUS "  Qt6:          ${Qt6_VERSION}")
 message(STATUS "  Vulkan:       ${Vulkan_VERSION}")
 message(STATUS "  Quantiloom:   SDK (${QUANTILOOM_SDK_DIR})")
 message(STATUS "========================================")
+
+add_custom_target(QuantiloomQtAssets ALL
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${CMAKE_CURRENT_SOURCE_DIR}/assets/spectral" "$<TARGET_FILE_DIR:QuantiloomQt>/assets/spectral"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${CMAKE_CURRENT_SOURCE_DIR}/assets/luts" "$<TARGET_FILE_DIR:QuantiloomQt>/assets/luts"
+)
+install(DIRECTORY assets/spectral assets/luts DESTINATION assets)
+
+add_dependencies(QuantiloomQt QuantiloomQtAssets)

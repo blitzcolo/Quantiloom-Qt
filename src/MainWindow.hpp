@@ -59,6 +59,7 @@ QT_END_NAMESPACE
 
 namespace quantiloom {
 class ExternalRenderContext;
+class Config;
 struct LightingParams;
 struct Material;
 struct ComplexRefractiveIndex;
@@ -396,6 +397,8 @@ private:
     /// What the user asked to open, held until the load reports back: only a
     /// file that actually opened belongs in the recent list.
     QString m_pendingOpenPath;
+    std::unique_ptr<SceneConfig> m_pendingDocumentConfig;
+    std::shared_ptr<const quantiloom::Config> m_pendingRawConfig;
     void rebuildRecentMenu();
     [[nodiscard]] QStringList recentFiles() const;
 
@@ -502,6 +505,11 @@ private:
     int m_currentMaterialIndex = -1;
     /// The illuminant the document is using, for export and for the panel.
     LightingPanel::IlluminantChoice m_illuminant;
+    LightingPanel::IlluminantChoice m_loadedIlluminant;
+    std::unique_ptr<quantiloom::LightingParams> m_loadedLighting;
+    QString m_cleanDocument;
+    void refreshDocumentModified();
+    void syncSpectralModeUi(quantiloom::SpectralMode mode);
     DebugVisualizationPanel* m_debugVisualizationPanel = nullptr;
     AtmosphericPanel* m_atmosphericPanel = nullptr;
     SensorPanel* m_sensorPanel = nullptr;

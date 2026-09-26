@@ -136,7 +136,7 @@ void SpectralConfigPanel::setupUi() {
     m_settingsStack->addWidget(lwirPage);
 
     bindText([this] {
-        m_rgbPageLabel->setText(catalog::spectralModeDescription(quantiloom::SpectralMode::RGB));
+        m_rgbPageLabel->setText(catalog::spectralModeDescription(m_mode));
         m_mwirPageLabel->setText(
             catalog::spectralModeDescription(quantiloom::SpectralMode::MWIR_Fused));
         m_lwirPageLabel->setText(
@@ -217,6 +217,7 @@ void SpectralConfigPanel::retranslateUi() {
 }
 
 void SpectralConfigPanel::applyModePage(quantiloom::SpectralMode mode) {
+    m_rgbPageLabel->setText(catalog::spectralModeDescription(mode));
     switch (mode) {
         case quantiloom::SpectralMode::Single:     m_settingsStack->setCurrentIndex(1); break;
         case quantiloom::SpectralMode::MWIR_Fused: m_settingsStack->setCurrentIndex(2); break;
