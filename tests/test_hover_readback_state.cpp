@@ -40,6 +40,13 @@ int main() {
     if (!state.accepts(current)) return 4;
     state.markComplete();
     if (state.active()) return 5;
+    state.moveTo(12, 22);
+    if (state.active() || state.requestId() != latestId) return 6;
+
+    state.markFailed();
+    if (state.active()) return 7; // an empty/unready scene must stop the timer
+    state.moveTo(12, 22);
+    if (!state.needsSubmit() || state.requestId() != latestId + 1) return 8;
 
     // Leaving the viewport invalidates an in-flight completion even if its
     // coordinates happen to match the next place the cursor visits.
@@ -51,7 +58,7 @@ int main() {
     afterLeave.requestId = leavingId;
     afterLeave.x = 30;
     afterLeave.y = 40;
-    if (state.valid() || state.active() || state.accepts(afterLeave)) return 6;
+    if (state.valid() || state.active() || state.accepts(afterLeave)) return 9;
 
     // The async path receives raw radiance. Its IR presentation must use the
     // same band and thermography inversion as the preserved explicit read.
@@ -61,9 +68,9 @@ int main() {
         8000.0, 12000.0, expectedKelvin));
     const auto kelvin = vkview::apparentTemperatureK(
         quantiloom::SpectralMode::LWIR_Fused, raw, {});
-    if (!kelvin || std::abs(*kelvin - expectedKelvin) > 0.1) return 7;
+    if (!kelvin || std::abs(*kelvin - expectedKelvin) > 0.1) return 10;
     if (vkview::apparentTemperatureK(
-            quantiloom::SpectralMode::RGB, raw, {}).has_value()) return 8;
+            quantiloom::SpectralMode::RGB, raw, {}).has_value()) return 11;
 
     std::cout << "Hover readback coalescing PASS\n";
     return 0;

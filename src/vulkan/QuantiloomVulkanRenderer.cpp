@@ -1143,6 +1143,7 @@ void QuantiloomVulkanRenderer::resetAccumulation() {
     if (m_renderContext) {
         m_renderContext->ResetAccumulation();
     }
+    emit m_window->pixelReadbackInvalidated();
     // Kick the loop back if it had auto-stopped at the previous target.
     if (!m_paused) {
         m_window->requestUpdate();

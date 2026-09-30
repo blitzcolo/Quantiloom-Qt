@@ -898,7 +898,6 @@ void MainWindow::setupToolBar() {
 // ============================================================================
 
 void MainWindow::applyDebugMode(quantiloom::DebugVisualizationMode mode) {
-    resetHoverReadback();
     m_vulkanWindow->setDebugMode(mode);
 
     if (QAction* action = m_debugActions.value(static_cast<int>(mode), nullptr)) {
@@ -915,7 +914,6 @@ void MainWindow::applyDebugMode(quantiloom::DebugVisualizationMode mode) {
 }
 
 void MainWindow::applySpectralMode(quantiloom::SpectralMode mode) {
-    resetHoverReadback();
     // The illuminant notices are about this: a quantitative mode with no
     // spectrum renders black, ASTM G-173 must keep its absolute scale in one
     // and lose it in another, and a spectrum that stops at 4000 nm says nothing
@@ -983,7 +981,6 @@ void MainWindow::applyTargetSpp(uint32_t spp) {
 }
 
 void MainWindow::applyWavelength(float wavelength_nm) {
-    resetHoverReadback();
     m_vulkanWindow->setWavelength(wavelength_nm);
     m_spectralConfigPanel->setWavelength(wavelength_nm);
 
@@ -1137,6 +1134,7 @@ void MainWindow::applySensorEnabled(bool enabled) {
 }
 
 void MainWindow::applyCameraConfig(const quantiloom::camera::CameraConfig& config) {
+    resetHoverReadback();
     const bool wasAnimated = !m_vulkanWindow->cameraConfig().motion.keys.empty();
     const bool willAnimate = !config.motion.keys.empty();
     const auto applied = m_vulkanWindow->setCameraConfig(config);
@@ -1182,6 +1180,7 @@ void MainWindow::applyCameraConfig(const quantiloom::camera::CameraConfig& confi
 }
 
 void MainWindow::applyCameraDisplay(const quantiloom::camera::CameraConfig& config) {
+    resetHoverReadback();
     // Display-only tier: the SDK re-runs the display half of the ISP over the
     // last completed acquisition. No ray is retraced and the acquisition
     // history never advances.
@@ -1372,7 +1371,6 @@ void MainWindow::applyThermalWhatIf(
 }
 
 void MainWindow::applyThermalTime(double time_h) {
-    resetHoverReadback();
     m_thermalTimeH = time_h;
 
     // With a clock, the hour is not a thing to set directly: `thermal.time_h`
@@ -1396,7 +1394,6 @@ void MainWindow::applyThermalTime(double time_h) {
 }
 
 void MainWindow::applyTimelineTime(double time_s) {
-    resetHoverReadback();
     m_timelineTimeS = time_s;
     m_vulkanWindow->setTimelineTime(time_s);
     if (m_vulkanWindow->cameraHistoryStatus().historyReset)
@@ -2131,7 +2128,6 @@ void MainWindow::setupDockWidgets() {
                 // No dispatcher and no history entry: this selects which of a
                 // debug view's numbers to look at, which is a way of looking
                 // rather than a change to the document.
-                resetHoverReadback();
                 m_vulkanWindow->setDebugParameter(value);
             });
     connect(m_debugVisualizationPanel, &DebugVisualizationPanel::debugModeChanged,
@@ -2529,6 +2525,8 @@ void MainWindow::setupConnections() {
     connect(m_vulkanWindow, &QuantiloomVulkanWindow::mouseHovered,
             this, &MainWindow::onViewportHovered);
     connect(m_vulkanWindow, &QuantiloomVulkanWindow::mouseHoverLeft,
+            this, &MainWindow::resetHoverReadback);
+    connect(m_vulkanWindow, &QuantiloomVulkanWindow::pixelReadbackInvalidated,
             this, &MainWindow::resetHoverReadback);
 
     // Keep the camera panel in step with orbit, pan, zoom and fly.
@@ -3446,7 +3444,6 @@ void MainWindow::onExportImage() {
 }
 
 void MainWindow::onStartRender() {
-    resetHoverReadback();
     m_vulkanWindow->setRenderPaused(false);
     m_vulkanWindow->resetAccumulation();
     beginRenderTiming();
@@ -4153,7 +4150,6 @@ void MainWindow::onFrameRendered(float frameTimeMs, uint32_t sampleCount) {
         // Accumulation was reset. A window straddling the reset would read the
         // drop as an enormous gain, the counts being unsigned.
         m_sampleRateWindow.clear();
-        resetHoverReadback();
     }
     m_sampleRateWindow.push_back({QDateTime::currentMSecsSinceEpoch(), sampleCount});
     refreshSampleRateLabel();
@@ -4638,7 +4634,6 @@ void MainWindow::refreshSpectralLibraryTarget() {
 }
 
 void MainWindow::onCameraChanged() {
-    resetHoverReadback();
     glm::vec3 position;
     glm::vec3 target;
     glm::vec3 up;
@@ -4666,7 +4661,6 @@ void MainWindow::onDebugModeChanged(quantiloom::DebugVisualizationMode mode) {
 }
 
 void MainWindow::onResetAccumulation() {
-    resetHoverReadback();
     m_vulkanWindow->resetAccumulation();
     // A fresh run: the target has to be reached again to be announced again,
     // and the ETA's measurement restarts from zero samples.

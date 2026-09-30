@@ -639,6 +639,9 @@ signals:
      */
     void mouseHovered(int x, int y);
     void mouseHoverLeft();
+    /// Every accumulation generation change invalidates pending and displayed
+    /// async pixel readings, whichever setting caused it.
+    void pixelReadbackInvalidated();
 
 protected:
     void keyPressEvent(QKeyEvent* event) override;

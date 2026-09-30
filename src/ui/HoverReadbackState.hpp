@@ -13,13 +13,14 @@
 class HoverReadbackState {
 public:
     void moveTo(int x, int y) {
-        if (m_valid && x == m_x && y == m_y) return;
+        if (m_valid && x == m_x && y == m_y && !m_retrySameCoordinate) return;
         m_valid = true;
         m_x = x;
         m_y = y;
         ++m_requestId;
         m_needsSubmit = true;
         m_submitted = false;
+        m_retrySameCoordinate = false;
     }
 
     void reset() {
@@ -29,6 +30,7 @@ public:
         m_y = -1;
         m_needsSubmit = false;
         m_submitted = false;
+        m_retrySameCoordinate = false;
     }
 
     [[nodiscard]] bool accepts(const quantiloom::PixelReading& reading) const {
@@ -40,12 +42,17 @@ public:
     void markSubmitted() {
         m_needsSubmit = false;
         m_submitted = true;
+        m_retrySameCoordinate = false;
     }
 
-    void markComplete() { m_submitted = false; }
+    void markComplete() {
+        m_submitted = false;
+        m_retrySameCoordinate = false;
+    }
     void markFailed() {
         m_needsSubmit = false;
         m_submitted = false;
+        m_retrySameCoordinate = true;
     }
 
     [[nodiscard]] bool valid() const { return m_valid; }
@@ -59,6 +66,7 @@ private:
     bool m_valid = false;
     bool m_needsSubmit = false;
     bool m_submitted = false;
+    bool m_retrySameCoordinate = false;
     int m_x = -1;
     int m_y = -1;
     quantiloom::u64 m_requestId = 0;
