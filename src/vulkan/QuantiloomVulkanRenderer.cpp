@@ -6,6 +6,7 @@
  */
 
 #include "QuantiloomVulkanRenderer.hpp"
+#include "PixelReadbackConversion.hpp"
 #include "QuantiloomVulkanWindow.hpp"
 
 #include <renderer/ExternalRenderContext.hpp>
@@ -1301,6 +1302,25 @@ bool QuantiloomVulkanRenderer::readDebugPixel(int x, int y, glm::vec4& outValue)
     return false;
 }
 
+quantiloom::Result<bool, quantiloom::String>
+QuantiloomVulkanRenderer::requestPixelValue(quantiloom::u32 x, quantiloom::u32 y,
+                                            quantiloom::u64 requestId) {
+    if (!m_renderContext) {
+        return quantiloom::Result<bool, quantiloom::String>::Err("no render context");
+    }
+    return m_renderContext->RequestPixelValue(x, y, requestId);
+}
+
+quantiloom::Result<quantiloom::Optional<quantiloom::PixelReading>, quantiloom::String>
+QuantiloomVulkanRenderer::pollPixelValue() {
+    using Result = quantiloom::Result<quantiloom::Optional<quantiloom::PixelReading>,
+                                      quantiloom::String>;
+    if (!m_renderContext) {
+        return Result::Err("no render context");
+    }
+    return m_renderContext->PollPixelValue();
+}
+
 bool QuantiloomVulkanRenderer::readApparentTemperature(int x, int y, double& outKelvin) {
     if (!m_renderContext) {
         return false;
@@ -1319,11 +1339,15 @@ bool QuantiloomVulkanRenderer::readApparentTemperature(int x, int y, double& out
         return false;
     }
 
-    // The accumulation is per-nm average spectral radiance, which is the unit
-    // the SDK's band routines take. R is the whole of it in a thermal band.
-    outKelvin = quantiloom::InvertSurfaceTemperatureK(
-        static_cast<double>(result.value().r), static_cast<double>(band->lambdaMinNm),
-        static_cast<double>(band->lambdaMaxNm), m_thermography);
+    return apparentTemperatureFromPixel(result.value(), outKelvin);
+}
+
+bool QuantiloomVulkanRenderer::apparentTemperatureFromPixel(
+    const glm::vec4& pixel, double& outKelvin) const {
+    const auto temperature = vkview::apparentTemperatureK(
+        m_spectralMode, pixel, m_thermography);
+    if (!temperature) return false;
+    outKelvin = *temperature;
     return true;
 }
 

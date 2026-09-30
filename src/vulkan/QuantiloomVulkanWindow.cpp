@@ -438,6 +438,24 @@ bool QuantiloomVulkanWindow::readDebugPixel(int x, int y, glm::vec4& outValue) {
     return m_renderer ? m_renderer->readDebugPixel(x, y, outValue) : false;
 }
 
+quantiloom::Result<bool, quantiloom::String> QuantiloomVulkanWindow::requestPixelValue(
+    quantiloom::u32 x, quantiloom::u32 y, quantiloom::u64 requestId) {
+    if (!m_renderer) {
+        return quantiloom::Result<bool, quantiloom::String>::Err("no renderer");
+    }
+    return m_renderer->requestPixelValue(x, y, requestId);
+}
+
+quantiloom::Result<quantiloom::Optional<quantiloom::PixelReading>, quantiloom::String>
+QuantiloomVulkanWindow::pollPixelValue() {
+    using Result = quantiloom::Result<quantiloom::Optional<quantiloom::PixelReading>,
+                                      quantiloom::String>;
+    if (!m_renderer) {
+        return Result::Err("no renderer");
+    }
+    return m_renderer->pollPixelValue();
+}
+
 QString QuantiloomVulkanWindow::formatDebugValue(const glm::vec4& pixel) const {
     return m_renderer ? m_renderer->formatDebugValue(pixel) : QString("--");
 }
@@ -486,6 +504,11 @@ void QuantiloomVulkanWindow::setSensorEnabled(bool enabled) {
 
 bool QuantiloomVulkanWindow::readApparentTemperature(int x, int y, double& outKelvin) {
     return m_renderer ? m_renderer->readApparentTemperature(x, y, outKelvin) : false;
+}
+
+bool QuantiloomVulkanWindow::apparentTemperatureFromPixel(
+    const glm::vec4& pixel, double& outKelvin) const {
+    return m_renderer && m_renderer->apparentTemperatureFromPixel(pixel, outKelvin);
 }
 
 void QuantiloomVulkanWindow::setThermographyParams(
@@ -1201,6 +1224,12 @@ bool QuantiloomVulkanWindow::event(QEvent* event) {
             }
         }
         // Don't accept - let base class handle too
+    } else if (event->type() == QEvent::HoverLeave) {
+        emit mouseHoverLeft();
+        if (m_hoveredHandle != editing::GizmoHandle::None) {
+            m_hoveredHandle = editing::GizmoHandle::None;
+            requestOverlayRedraw();
+        }
     }
     return QVulkanWindow::event(event);
 }

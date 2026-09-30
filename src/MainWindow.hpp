@@ -8,6 +8,7 @@
 #pragma once
 
 #include "ui/UiStyle.hpp"
+#include "ui/HoverReadbackState.hpp"
 #include "editing/Commands.hpp"
 // For IlluminantChoice, held by value below.
 #include "panels/LightingPanel.hpp"
@@ -55,6 +56,7 @@ class QMenu;
 class QMenuBar;
 class QScrollArea;
 class QToolBar;
+class QTimer;
 QT_END_NAMESPACE
 
 namespace quantiloom {
@@ -222,6 +224,7 @@ private slots:
 
     // Debug hover slot
     void onViewportHovered(int x, int y);
+    void processHoverReadback();
 
 private:
     void setupUi();
@@ -374,6 +377,9 @@ private:
     /// Re-apply the shell's own theme-derived styling. The panels look after
     /// themselves through PanelBase; this is the window's share.
     void restyleUi();
+    /// Invalidate the cursor version and clear any value tied to the previous
+    /// scene, mode, time or pointer position.
+    void resetHoverReadback();
 
     void buildDebugMenu(QMenu* menu, QComboBox* combo);
     void buildSpectralMenu(QMenu* menu, QComboBox* combo);
@@ -638,6 +644,8 @@ private:
     QLabel* m_sampleCountLabel = nullptr;
     QLabel* m_editModeLabel = nullptr;    // Shows current transform mode
     QLabel* m_debugValueLabel = nullptr;  // Shows debug value at mouse position
+    QTimer* m_hoverReadTimer = nullptr;
+    HoverReadbackState m_hoverReadback;
     QProgressBar* m_renderProgress = nullptr;
     class QTimer* m_statusTimer = nullptr;
 

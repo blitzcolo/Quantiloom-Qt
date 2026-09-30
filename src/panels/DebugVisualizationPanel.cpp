@@ -181,3 +181,8 @@ void DebugVisualizationPanel::setPixelReadFailed(int x, int y) {
     m_pixelPosition->setText(tr("%1, %2 px").arg(x).arg(y));
     m_pixelValue->setText(tr("read failed"));
 }
+
+void DebugVisualizationPanel::clearPixelReading() {
+    m_pixelPosition->setText(QStringLiteral("--"));
+    m_pixelValue->setText(QStringLiteral("--"));
+}

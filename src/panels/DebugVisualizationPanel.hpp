@@ -38,6 +38,7 @@ public:
     /// Report the value read under the cursor, in device pixels.
     void setPixelReading(int x, int y, const QString& formatted);
     void setPixelReadFailed(int x, int y);
+    void clearPixelReading();
 
 signals:
     void debugModeChanged(quantiloom::DebugVisualizationMode mode);

@@ -283,6 +283,13 @@ public:
      */
     bool readDebugPixel(int x, int y, glm::vec4& outValue);
 
+    /// Queue/poll the non-blocking hover path. The synchronous methods above
+    /// remain for explicit reads whose caller needs completion before return.
+    [[nodiscard]] quantiloom::Result<bool, quantiloom::String> requestPixelValue(
+        quantiloom::u32 x, quantiloom::u32 y, quantiloom::u64 requestId);
+    [[nodiscard]] quantiloom::Result<quantiloom::Optional<quantiloom::PixelReading>,
+                                     quantiloom::String> pollPixelValue();
+
     /**
      * @brief The temperature a thermal camera would report for this pixel
      *
@@ -296,6 +303,8 @@ public:
      *         is every mode but the fused thermal ones
      */
     bool readApparentTemperature(int x, int y, double& outKelvin);
+    /// Convert an already-read raw accumulation value without another GPU read.
+    bool apparentTemperatureFromPixel(const glm::vec4& pixel, double& outKelvin) const;
 
     /**
      * @brief What the virtual camera is told about the surface it looks at

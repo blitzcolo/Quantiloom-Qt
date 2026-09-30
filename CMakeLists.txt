@@ -186,6 +186,7 @@ set(GUI_SOURCES
     src/ui/PanelBase.hpp
     src/ui/ModeCatalog.cpp
     src/ui/ModeCatalog.hpp
+    src/ui/HoverReadbackState.hpp
     src/ui/UiStyle.cpp
     src/ui/UiStyle.hpp
     src/ui/CollapsibleGroupBox.cpp
@@ -214,6 +215,7 @@ set(GUI_SOURCES
     src/vulkan/QuantiloomVulkanWindow.hpp
     src/vulkan/QuantiloomVulkanRenderer.cpp
     src/vulkan/QuantiloomVulkanRenderer.hpp
+    src/vulkan/PixelReadbackConversion.hpp
     src/vulkan/CameraMatrices.cpp
     src/vulkan/CameraMatrices.hpp
     src/vulkan/OverlayRenderer.cpp
@@ -663,6 +665,26 @@ if(BUILD_TESTING)
     endif()
     add_test(NAME camera_sequence_dialog_history COMMAND camera_sequence_dialog_test)
     set_tests_properties(camera_sequence_dialog_history PROPERTIES TIMEOUT 120)
+
+    add_executable(hover_readback_state_test
+        tests/test_hover_readback_state.cpp
+        src/ui/HoverReadbackState.hpp
+        src/vulkan/PixelReadbackConversion.hpp)
+    add_dependencies(hover_readback_state_test QuantiloomQt)
+    target_include_directories(hover_readback_state_test PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src)
+    target_link_libraries(hover_readback_state_test PRIVATE ${QUANTILOOM_LIBRARIES})
+    if(QUANTILOOM_PLATFORM_WINDOWS)
+        target_compile_definitions(hover_readback_state_test PRIVATE QUANTILOOM_PLATFORM_WINDOWS)
+    elseif(QUANTILOOM_PLATFORM_LINUX)
+        target_compile_definitions(hover_readback_state_test PRIVATE QUANTILOOM_PLATFORM_LINUX)
+    elseif(QUANTILOOM_PLATFORM_MACOS)
+        target_compile_definitions(hover_readback_state_test PRIVATE QUANTILOOM_PLATFORM_MACOS)
+    endif()
+    if(MSVC)
+        target_compile_options(hover_readback_state_test PRIVATE /utf-8 /W4)
+    endif()
+    add_test(NAME hover_readback_coalescing COMMAND hover_readback_state_test)
 endif()
 
 message(STATUS "========================================")

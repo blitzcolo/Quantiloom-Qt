@@ -20,6 +20,7 @@
 #include <core/Types.hpp>
 #include <postprocess/CameraPipeline.hpp>
 #include <renderer/Pick.hpp>
+#include <renderer/PixelReading.hpp>
 #include <renderer/DisplayControl.hpp>
 #include <renderer/ThermalControl.hpp>
 #include <renderer/TimelineControl.hpp>
@@ -301,10 +302,15 @@ public:
      * @return true if read succeeded
      */
     bool readDebugPixel(int x, int y, glm::vec4& outValue);
+    [[nodiscard]] quantiloom::Result<bool, quantiloom::String> requestPixelValue(
+        quantiloom::u32 x, quantiloom::u32 y, quantiloom::u64 requestId);
+    [[nodiscard]] quantiloom::Result<quantiloom::Optional<quantiloom::PixelReading>,
+                                     quantiloom::String> pollPixelValue();
 
     /// The temperature a thermal camera would report for this pixel, from the
     /// accumulated radiance. False in any mode with no band to invert.
     bool readApparentTemperature(int x, int y, double& outKelvin);
+    bool apparentTemperatureFromPixel(const glm::vec4& pixel, double& outKelvin) const;
 
     /**
      * @brief Format debug value based on current debug mode
@@ -632,6 +638,7 @@ signals:
      * further right and down it went on any scaled display.
      */
     void mouseHovered(int x, int y);
+    void mouseHoverLeft();
 
 protected:
     void keyPressEvent(QKeyEvent* event) override;

@@ -898,6 +898,7 @@ void MainWindow::setupToolBar() {
 // ============================================================================
 
 void MainWindow::applyDebugMode(quantiloom::DebugVisualizationMode mode) {
+    resetHoverReadback();
     m_vulkanWindow->setDebugMode(mode);
 
     if (QAction* action = m_debugActions.value(static_cast<int>(mode), nullptr)) {
@@ -914,6 +915,7 @@ void MainWindow::applyDebugMode(quantiloom::DebugVisualizationMode mode) {
 }
 
 void MainWindow::applySpectralMode(quantiloom::SpectralMode mode) {
+    resetHoverReadback();
     // The illuminant notices are about this: a quantitative mode with no
     // spectrum renders black, ASTM G-173 must keep its absolute scale in one
     // and lose it in another, and a spectrum that stops at 4000 nm says nothing
@@ -981,6 +983,7 @@ void MainWindow::applyTargetSpp(uint32_t spp) {
 }
 
 void MainWindow::applyWavelength(float wavelength_nm) {
+    resetHoverReadback();
     m_vulkanWindow->setWavelength(wavelength_nm);
     m_spectralConfigPanel->setWavelength(wavelength_nm);
 
@@ -1125,6 +1128,7 @@ void MainWindow::applyAtmosphere(const quantiloom::AtmosphereNNConfig& config) {
 }
 
 void MainWindow::applySensorEnabled(bool enabled) {
+    resetHoverReadback();
     m_vulkanWindow->setSensorEnabled(enabled);
     m_sensorPanel->setCameraEnabled(enabled);
     setSceneModified(true);
@@ -1195,6 +1199,7 @@ void MainWindow::applyCameraDisplay(const quantiloom::camera::CameraConfig& conf
 
 void MainWindow::applyThermographyParams(bool enabled,
                                          const quantiloom::ThermographyParams& params) {
+    resetHoverReadback();
     m_thermographyEnabled = enabled;
     m_thermographyParams = params;
     m_vulkanWindow->setThermographyParams(params);
@@ -1367,6 +1372,7 @@ void MainWindow::applyThermalWhatIf(
 }
 
 void MainWindow::applyThermalTime(double time_h) {
+    resetHoverReadback();
     m_thermalTimeH = time_h;
 
     // With a clock, the hour is not a thing to set directly: `thermal.time_h`
@@ -1390,6 +1396,7 @@ void MainWindow::applyThermalTime(double time_h) {
 }
 
 void MainWindow::applyTimelineTime(double time_s) {
+    resetHoverReadback();
     m_timelineTimeS = time_s;
     m_vulkanWindow->setTimelineTime(time_s);
     if (m_vulkanWindow->cameraHistoryStatus().historyReset)
@@ -2124,6 +2131,7 @@ void MainWindow::setupDockWidgets() {
                 // No dispatcher and no history entry: this selects which of a
                 // debug view's numbers to look at, which is a way of looking
                 // rather than a change to the document.
+                resetHoverReadback();
                 m_vulkanWindow->setDebugParameter(value);
             });
     connect(m_debugVisualizationPanel, &DebugVisualizationPanel::debugModeChanged,
@@ -2326,6 +2334,10 @@ void MainWindow::setupStatusBar() {
     m_debugValueLabel = new QLabel();
     m_debugValueLabel->setMinimumWidth(250);
     m_styling.bind([this] { uistyle::applyMonospaceStyle(m_debugValueLabel); });
+    m_hoverReadTimer = new QTimer(this);
+    m_hoverReadTimer->setInterval(50);
+    connect(m_hoverReadTimer, &QTimer::timeout,
+            this, &MainWindow::processHoverReadback);
     // Time left at the measured rate, next to the bar that says how far along
     // it is. Hidden unless there is a target to count down to.
     m_etaLabel = new QLabel();
@@ -2425,6 +2437,7 @@ void MainWindow::setupConnections() {
 
     connect(m_vulkanWindow, &QuantiloomVulkanWindow::sceneLoaded,
             this, [this](bool success, const QString& message) {
+                resetHoverReadback();
                 if (success) {
                     // The open is only now known to have worked, which is the
                     // first point at which the file is worth remembering.
@@ -2515,6 +2528,8 @@ void MainWindow::setupConnections() {
     // Connect viewport hover for debug value display
     connect(m_vulkanWindow, &QuantiloomVulkanWindow::mouseHovered,
             this, &MainWindow::onViewportHovered);
+    connect(m_vulkanWindow, &QuantiloomVulkanWindow::mouseHoverLeft,
+            this, &MainWindow::resetHoverReadback);
 
     // Keep the camera panel in step with orbit, pan, zoom and fly.
     connect(m_vulkanWindow, &QuantiloomVulkanWindow::cameraChanged,
@@ -3431,6 +3446,7 @@ void MainWindow::onExportImage() {
 }
 
 void MainWindow::onStartRender() {
+    resetHoverReadback();
     m_vulkanWindow->setRenderPaused(false);
     m_vulkanWindow->resetAccumulation();
     beginRenderTiming();
@@ -4137,6 +4153,7 @@ void MainWindow::onFrameRendered(float frameTimeMs, uint32_t sampleCount) {
         // Accumulation was reset. A window straddling the reset would read the
         // drop as an enormous gain, the counts being unsigned.
         m_sampleRateWindow.clear();
+        resetHoverReadback();
     }
     m_sampleRateWindow.push_back({QDateTime::currentMSecsSinceEpoch(), sampleCount});
     refreshSampleRateLabel();
@@ -4621,6 +4638,7 @@ void MainWindow::refreshSpectralLibraryTarget() {
 }
 
 void MainWindow::onCameraChanged() {
+    resetHoverReadback();
     glm::vec3 position;
     glm::vec3 target;
     glm::vec3 up;
@@ -4648,6 +4666,7 @@ void MainWindow::onDebugModeChanged(quantiloom::DebugVisualizationMode mode) {
 }
 
 void MainWindow::onResetAccumulation() {
+    resetHoverReadback();
     m_vulkanWindow->resetAccumulation();
     // A fresh run: the target has to be reached again to be announced again,
     // and the ETA's measurement restarts from zero samples.
@@ -5544,31 +5563,96 @@ void MainWindow::onUndoRedoChanged() {
 }
 
 void MainWindow::onViewportHovered(int x, int y) {
-    const auto debugMode = m_vulkanWindow->getDebugMode();
-    if (debugMode == quantiloom::DebugVisualizationMode::None) {
-        // A thermal band has something to say without a debug mode: what a
-        // camera would have displayed here. Same inversion the CLI writes into
-        // _tapp.exr, through the same SDK entry point.
-        double kelvin = 0.0;
-        if (m_vulkanWindow->readApparentTemperature(x, y, kelvin)) {
-            m_debugValueLabel->setText(tr("(%1,%2) %3 K").arg(x).arg(y).arg(kelvin, 0, 'f', 1));
-            return;
-        }
-        m_debugValueLabel->setText(tr("Select a debug mode to inspect pixels"));
+    if (x < 0 || y < 0) {
+        resetHoverReadback();
         return;
     }
 
-    glm::vec4 pixelValue;
-    if (m_vulkanWindow->readDebugPixel(x, y, pixelValue)) {
-        // The name comes from the catalogue and the numbers from the renderer,
-        // so the label is translated once and formatted once.
-        const QString formatted = tr("%1 %2")
-            .arg(catalog::debugModeName(debugMode),
-                 m_vulkanWindow->formatDebugValue(pixelValue));
-        m_debugValueLabel->setText(tr("(%1,%2) %3").arg(x).arg(y).arg(formatted));
-        m_debugVisualizationPanel->setPixelReading(x, y, formatted);
-    } else {
-        m_debugValueLabel->setText(tr("(%1,%2) read failed").arg(x).arg(y));
-        m_debugVisualizationPanel->setPixelReadFailed(x, y);
+    const quantiloom::u64 previous = m_hoverReadback.requestId();
+    m_hoverReadback.moveTo(x, y);
+    if (m_hoverReadback.requestId() != previous) {
+        // The previous label names its own coordinates, but it is no longer
+        // the pixel under the cursor. Clear it while the latest request is in
+        // flight rather than letting an old value look current.
+        m_debugValueLabel->setText(tr("Hover the viewport to inspect"));
+        m_debugVisualizationPanel->clearPixelReading();
+    }
+    if (m_hoverReadback.active() && !m_hoverReadTimer->isActive()) {
+        m_hoverReadTimer->start();
+    }
+}
+
+void MainWindow::processHoverReadback() {
+    if (!m_hoverReadback.valid()) {
+        m_hoverReadTimer->stop();
+        return;
+    }
+
+    const int x = m_hoverReadback.x();
+    const int y = m_hoverReadback.y();
+    auto failCurrent = [this, x, y] {
+        m_hoverReadback.markFailed();
+        if (m_vulkanWindow->getDebugMode() == quantiloom::DebugVisualizationMode::None) {
+            m_debugValueLabel->setText(tr("Select a debug mode to inspect pixels"));
+        } else {
+            m_debugValueLabel->setText(tr("(%1,%2) read failed").arg(x).arg(y));
+            m_debugVisualizationPanel->setPixelReadFailed(x, y);
+        }
+    };
+
+    auto polled = m_vulkanWindow->pollPixelValue();
+    if (!polled.has_value()) {
+        failCurrent();
+    } else if (polled.value().has_value()) {
+        const auto& reading = *polled.value();
+        if (m_hoverReadback.accepts(reading)) {
+            m_hoverReadback.markComplete();
+            const auto debugMode = m_vulkanWindow->getDebugMode();
+            if (debugMode == quantiloom::DebugVisualizationMode::None) {
+                double kelvin = 0.0;
+                if (m_vulkanWindow->apparentTemperatureFromPixel(reading.value, kelvin)) {
+                    m_debugValueLabel->setText(
+                        tr("(%1,%2) %3 K").arg(x).arg(y).arg(kelvin, 0, 'f', 1));
+                } else {
+                    m_debugValueLabel->setText(
+                        tr("Select a debug mode to inspect pixels"));
+                }
+            } else {
+                const QString formatted = tr("%1 %2")
+                    .arg(catalog::debugModeName(debugMode),
+                         m_vulkanWindow->formatDebugValue(reading.value));
+                m_debugValueLabel->setText(
+                    tr("(%1,%2) %3").arg(x).arg(y).arg(formatted));
+                m_debugVisualizationPanel->setPixelReading(x, y, formatted);
+            }
+        }
+    }
+
+    if (m_hoverReadback.needsSubmit()) {
+        auto requested = m_vulkanWindow->requestPixelValue(
+            static_cast<quantiloom::u32>(x), static_cast<quantiloom::u32>(y),
+            m_hoverReadback.requestId());
+        if (!requested.has_value()) {
+            failCurrent();
+        } else if (requested.value()) {
+            m_hoverReadback.markSubmitted();
+        }
+        // false means the three SDK slots are busy. Keep the latest request
+        // pending; the next tick polls completed slots before retrying it.
+    }
+
+    if (!m_hoverReadback.active()) {
+        m_hoverReadTimer->stop();
+    }
+}
+
+void MainWindow::resetHoverReadback() {
+    m_hoverReadback.reset();
+    if (m_hoverReadTimer) m_hoverReadTimer->stop();
+    if (m_debugValueLabel) {
+        m_debugValueLabel->setText(tr("Hover the viewport to inspect"));
+    }
+    if (m_debugVisualizationPanel) {
+        m_debugVisualizationPanel->clearPixelReading();
     }
 }
