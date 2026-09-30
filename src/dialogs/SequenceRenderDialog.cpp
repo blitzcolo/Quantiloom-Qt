@@ -173,12 +173,14 @@ void SequenceRenderDialog::setupUi() {
     auto* sweepLayout = new QFormLayout(sweepGroup);
 
     m_materialCombo = new QComboBox();
+    m_materialCombo->setObjectName(QStringLiteral("sequenceMaterial"));
     m_materialCombo->addItems(m_materialNames);
     connect(m_materialCombo, &QComboBox::currentTextChanged,
             this, &SequenceRenderDialog::onSweepChanged);
     sweepLayout->addRow(tr("Material:"), m_materialCombo);
 
     m_startTemp = new QDoubleSpinBox();
+    m_startTemp->setObjectName(QStringLiteral("sequenceStartTemperature"));
     m_startTemp->setRange(1.0, 2000.0);
     m_startTemp->setDecimals(1);
     m_startTemp->setSingleStep(5.0);
@@ -189,6 +191,7 @@ void SequenceRenderDialog::setupUi() {
     sweepLayout->addRow(tr("From:"), m_startTemp);
 
     m_endTemp = new QDoubleSpinBox();
+    m_endTemp->setObjectName(QStringLiteral("sequenceEndTemperature"));
     m_endTemp->setRange(1.0, 2000.0);
     m_endTemp->setDecimals(1);
     m_endTemp->setSingleStep(5.0);
@@ -199,6 +202,7 @@ void SequenceRenderDialog::setupUi() {
     sweepLayout->addRow(tr("To:"), m_endTemp);
 
     m_frameCount = new QSpinBox();
+    m_frameCount->setObjectName(QStringLiteral("sequenceFrameCount"));
     m_frameCount->setRange(1, 999);
     m_frameCount->setValue(5);
     connect(m_frameCount, QOverload<int>::of(&QSpinBox::valueChanged),
@@ -507,18 +511,19 @@ void SequenceRenderDialog::onBrowseOutputDir() {
     }
 }
 
-QString SequenceRenderDialog::frameToml(const QString& baseToml, const int index) const {
-    // The frame's own overrides, appended as TOML rather than merged here: the
-    // core parses the whole document once, and a later table wins over an
-    // earlier one for the same key. [material_overrides.<name>] rather than
-    // [[materials]] because that is what survives being layered -- the same
-    // reason the CLI's manifest uses it.
+QString SequenceRenderDialog::frameOverrideToml(const int index) const {
+    // Keep this as a standalone override document. Reopening [renderer] or an
+    // existing material table at the end of the base document is invalid TOML;
+    // Config::MergedWith applies this layer after each document parses on its own.
     const QString outputPath =
         QDir(m_outputDirEdit->text()).filePath(frameOutputName(index));
+    QString material = m_materialCombo->currentText();
+    material.replace(QLatin1Char('\\'), QLatin1String("\\\\"));
+    material.replace(QLatin1Char('"'), QLatin1String("\\\""));
 
-    QString toml = baseToml;
-    QTextStream out(&toml, QIODevice::Append);
-    out << "\n[material_overrides." << m_materialCombo->currentText() << "]\n"
+    QString toml;
+    QTextStream out(&toml);
+    out << "[material_overrides.\"" << material << "\"]\n"
         << "ir_temperature_k = " << QString::number(frameTemperature(index), 'f', 4) << "\n"
         << "\n[renderer]\n"
         << "output = \"" << QString(outputPath).replace(QLatin1Char('\\'), QLatin1String("/"))
@@ -649,13 +654,13 @@ void SequenceRenderDialog::onStartOrCancel() {
 }
 
 void SequenceRenderDialog::startSweepRun(const QString& baseToml) {
-    QStringList frames;
+    QStringList overrides;
     const int frameCount = m_frameCount->value();
-    frames.reserve(frameCount);
+    overrides.reserve(frameCount);
     QStringList paths;
     paths.reserve(frameCount);
     for (int i = 0; i < frameCount; ++i) {
-        frames << frameToml(baseToml, i);
+        overrides << frameOverrideToml(i);
         paths << frameOutputPath(i);
     }
 
@@ -669,9 +674,10 @@ void SequenceRenderDialog::startSweepRun(const QString& baseToml) {
 
     QPointer<SequenceRenderDialog> self(this);
     const QString baseDir = m_baseConfig.baseDir;
-    m_worker = QThread::create([this, self, frames, paths, frameCount, baseDir] {
+    m_worker = QThread::create([this, self, baseToml, overrides, paths, frameCount, baseDir] {
         QString error;
         int rendered = 0;
+        std::optional<quantiloom::Config> baseConfig;
 
         for (int i = 0; i < frameCount; ++i) {
             if (m_cancelled) break;
@@ -684,17 +690,26 @@ void SequenceRenderDialog::startSweepRun(const QString& baseToml) {
             }, Qt::QueuedConnection);
 
             try {
-                auto parsed = quantiloom::Config::Parse(frames.at(i).toStdString());
-                if (!parsed.has_value()) {
+                if (!baseConfig) {
+                    auto parsed = quantiloom::Config::Parse(baseToml.toStdString());
+                    if (!parsed.has_value()) {
+                        error = tr("Frame %1 is not valid TOML: %2")
+                                    .arg(i + 1)
+                                    .arg(QString::fromStdString(parsed.error()));
+                        break;
+                    }
+                    baseConfig.emplace(std::move(parsed.value()));
+                }
+                auto parsedOverride =
+                    quantiloom::Config::Parse(overrides.at(i).toStdString());
+                if (!parsedOverride.has_value()) {
                     error = tr("Frame %1 is not valid TOML: %2")
                                 .arg(i + 1)
-                                .arg(QString::fromStdString(parsed.error()));
+                                .arg(QString::fromStdString(parsedOverride.error()));
                     break;
                 }
-                // A device per frame, as the cube export does: OfflineRenderer
-                // owns its own, so nothing here touches the viewport's.
-                auto renderer = quantiloom::OfflineRenderer::Create(
-                    parsed.value(), offlineInit(baseDir));
+                auto config = baseConfig->MergedWith(parsedOverride.value());
+                auto renderer = quantiloom::OfflineRenderer::Create(config, offlineInit(baseDir));
                 if (!renderer.has_value()) {
                     error = tr("Frame %1: %2").arg(i + 1)
                                 .arg(QString::fromStdString(renderer.error()));

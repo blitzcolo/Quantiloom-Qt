@@ -6,6 +6,7 @@
 #include <QApplication>
 #include <QComboBox>
 #include <QDir>
+#include <QDoubleSpinBox>
 #include <QElapsedTimer>
 #include <QLabel>
 #include <QLineEdit>
@@ -20,6 +21,62 @@
 #include <iostream>
 
 namespace {
+
+bool runSweep(SceneConfig source, const QString& directory) {
+    SequenceRenderDialog dialog(source, {QStringLiteral("Material")}, {});
+    const auto widget = [&dialog]<class T>(const char* name) {
+        return dialog.findChild<T*>(QString::fromLatin1(name));
+    };
+    auto* material = widget.operator()<QComboBox>("sequenceMaterial");
+    auto* from = widget.operator()<QDoubleSpinBox>("sequenceStartTemperature");
+    auto* to = widget.operator()<QDoubleSpinBox>("sequenceEndTemperature");
+    auto* count = widget.operator()<QSpinBox>("sequenceFrameCount");
+    auto* spp = widget.operator()<QSpinBox>("sequenceSpp");
+    auto* output = widget.operator()<QLineEdit>("sequenceOutputDir");
+    auto* name = widget.operator()<QLineEdit>("sequenceNameTemplate");
+    auto* start = widget.operator()<QPushButton>("sequenceStart");
+    if (!material || !from || !to || !count || !spp || !output || !name || !start)
+        return false;
+    material->setCurrentText(QStringLiteral("Material"));
+    from->setValue(440.0);
+    to->setValue(460.0);
+    count->setValue(2);
+    spp->setValue(1);
+    output->setText(directory);
+    name->setText(QStringLiteral("frame_{index}.exr"));
+    QDir().mkpath(directory);
+
+    QString modalError;
+    QTimer dismissErrors;
+    QObject::connect(&dismissErrors, &QTimer::timeout, &dialog, [&] {
+        for (QWidget* window : QApplication::topLevelWidgets()) {
+            if (auto* box = qobject_cast<QMessageBox*>(window); box && box->isVisible()) {
+                modalError = box->text();
+                box->accept();
+            }
+        }
+    });
+    dismissErrors.start(50);
+    start->click();
+
+    QElapsedTimer elapsed;
+    elapsed.start();
+    while (elapsed.elapsed() < 90000 && modalError.isEmpty()) {
+        QApplication::processEvents(QEventLoop::AllEvents, 50);
+        if (start->text() == QStringLiteral("Render")) break;
+        QThread::msleep(10);
+    }
+    if (!modalError.isEmpty()) {
+        std::cerr << modalError.toStdString() << '\n';
+        return false;
+    }
+    if (start->text() != QStringLiteral("Render")) return false;
+    const auto first = quantiloom::ImageIO::ReadEXR(
+        QDir(directory).filePath(QStringLiteral("frame_1.exr")).toStdString());
+    const auto second = quantiloom::ImageIO::ReadEXR(
+        QDir(directory).filePath(QStringLiteral("frame_2.exr")).toStdString());
+    return first && second && !first->data.empty() && first->data != second->data;
+}
 
 bool runSequence(const SceneConfig& source,
                  const quantiloom::TimelineInfo& timeline,
@@ -113,8 +170,10 @@ int main(int argc, char** argv) {
     timeline.ticksPerSecond = 20.0;
     QTemporaryDir work;
     if (!work.isValid()) return 2;
+    const QString sweep = work.filePath(QStringLiteral("sweep"));
     const QString sparse = work.filePath(QStringLiteral("sparse"));
     const QString full = work.filePath(QStringLiteral("full"));
+    if (!runSweep(config, sweep)) return 3;
     if (!runSequence(config, timeline, sparse, 2) ||
         !runSequence(config, timeline, full, 1)) return 3;
 

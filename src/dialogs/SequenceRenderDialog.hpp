@@ -86,7 +86,7 @@ private:
     [[nodiscard]] QString frameOutputName(int index) const;
     /// The TOML that renders frame @p index: the document plus this frame's
     /// own [material_overrides] and renderer.output.
-    [[nodiscard]] QString frameToml(const QString& baseToml, int index) const;
+    [[nodiscard]] QString frameOverrideToml(int index) const;
 
     /// Which of the two things this dialog varies.
     enum class Mode { TemperatureSweep, Timeline };
