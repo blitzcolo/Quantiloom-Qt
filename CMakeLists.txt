@@ -216,6 +216,7 @@ set(GUI_SOURCES
     src/vulkan/QuantiloomVulkanRenderer.cpp
     src/vulkan/QuantiloomVulkanRenderer.hpp
     src/vulkan/PixelReadbackConversion.hpp
+    src/vulkan/ViewportSampleBatchScheduler.hpp
     src/vulkan/CameraMatrices.cpp
     src/vulkan/CameraMatrices.hpp
     src/vulkan/OverlayRenderer.cpp
@@ -685,6 +686,16 @@ if(BUILD_TESTING)
         target_compile_options(hover_readback_state_test PRIVATE /utf-8 /W4)
     endif()
     add_test(NAME hover_readback_coalescing COMMAND hover_readback_state_test)
+
+    add_executable(viewport_sample_batch_test
+        tests/test_viewport_sample_batch.cpp
+        src/vulkan/ViewportSampleBatchScheduler.hpp)
+    target_include_directories(viewport_sample_batch_test PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src)
+    if(MSVC)
+        target_compile_options(viewport_sample_batch_test PRIVATE /utf-8 /W4)
+    endif()
+    add_test(NAME viewport_sample_batch_scheduler COMMAND viewport_sample_batch_test)
 endif()
 
 message(STATUS "========================================")

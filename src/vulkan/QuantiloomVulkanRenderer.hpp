@@ -33,6 +33,7 @@
 #include <renderer/ExternalRenderContext.hpp>
 
 #include "OverlayRenderer.hpp"
+#include "ViewportSampleBatchScheduler.hpp"
 
 namespace quantiloom {
 struct ComplexRefractiveIndex;
@@ -547,6 +548,7 @@ private:
     /// change (sensor, CLAHE) shows without costing a sample. Set by
     /// requestDisplayReprocess(), consumed by startNextFrame().
     bool m_reprocessPending = false;
+    vkview::ViewportSampleBatchScheduler m_viewportSampleBatch;
 
     // Motion-adaptive resolution. m_motionActive is the window's gesture
     // state; m_motionScale is what was chosen on its rising edge and holds for

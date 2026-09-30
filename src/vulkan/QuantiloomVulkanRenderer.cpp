@@ -36,6 +36,7 @@ QuantiloomVulkanRenderer::QuantiloomVulkanRenderer(QuantiloomVulkanWindow* windo
     : m_window(window)
     , m_lastFrameTime(std::chrono::high_resolution_clock::now())
 {
+    m_viewportSampleBatch.reset(m_window->concurrentFrameCount());
 }
 
 QuantiloomVulkanRenderer::~QuantiloomVulkanRenderer() {
@@ -282,7 +283,15 @@ void QuantiloomVulkanRenderer::startNextFrame() {
     // Consumed on every path: when a real frame is traced instead, RenderFrame
     // re-runs the post-processing chains anyway.
     m_reprocessPending = false;
+    bool tracedFrame = false;
     if (!presentedWithoutTracing) {
+        // A paused fallback trace must still cost exactly one sample. Motion
+        // favours latency, and a physical camera's one trace is one acquisition
+        // with its own exposure/history/RNG semantics.
+        const std::uint32_t batch = m_viewportSampleBatch.chooseForFrame(
+            m_sampleCount, m_targetSPP, accumulating, m_motionActive,
+            m_cameraConfig.enabled);
+        m_renderContext->SetViewportSampleBatch(batch);
         // ExternalRenderContext handles layout transitions and blit to swapchain
         m_renderContext->RenderFrame(
             cmd,
@@ -290,6 +299,7 @@ void QuantiloomVulkanRenderer::startNextFrame() {
             VK_IMAGE_LAYOUT_UNDEFINED,
             width, height
         );
+        tracedFrame = true;
     }
 
     // Editor overlay (grid, gizmo) over the blitted frame, same command
@@ -319,6 +329,9 @@ void QuantiloomVulkanRenderer::startNextFrame() {
     // command recording. It is the one to read when asking whether the *scene*
     // is expensive, and it had no caller at all until now.
     m_lastGpuFrameTimeMs = m_renderContext->GetLastFrameTimeMs();
+    if (tracedFrame && accumulating && !m_motionActive && !m_cameraConfig.enabled) {
+        m_viewportSampleBatch.observe(m_lastGpuFrameTimeMs);
+    }
 
     // Emit frame rendered signal
     emit m_window->frameRendered(m_lastFrameTimeMs, m_sampleCount);
@@ -1140,6 +1153,7 @@ void QuantiloomVulkanRenderer::updateCamera(float deltaTime) {
 
 void QuantiloomVulkanRenderer::resetAccumulation() {
     m_sampleCount = 0;
+    m_viewportSampleBatch.reset(m_window->concurrentFrameCount());
     if (m_renderContext) {
         m_renderContext->ResetAccumulation();
     }
@@ -1191,11 +1205,16 @@ void QuantiloomVulkanRenderer::applyRenderScale(float scale) {
     if (!m_renderContext || scale == m_renderContext->GetRenderScale()) {
         return;
     }
+    const bool shouldRedraw = !m_paused || m_sampleCount > 0;
     m_renderContext->SetRenderScale(scale);
+    // The SDK resets its image for the new extent. Mirror that reset locally,
+    // including the timing warmup, so low-resolution gesture timings cannot
+    // size the first full-resolution batch.
+    resetAccumulation();
     // The extent changes on the next RenderFrame, and until it does the SDK
     // refuses to re-present -- so a loop stopped at its target has to be asked
     // for that frame, exactly like setGridVisible has to.
-    if (!m_paused || m_sampleCount > 0) {
+    if (shouldRedraw) {
         m_window->requestUpdate();
     }
 }
@@ -1205,6 +1224,7 @@ void QuantiloomVulkanRenderer::setViewportMotionActive(bool active) {
         return;
     }
     m_motionActive = active;
+    m_viewportSampleBatch.reset(m_window->concurrentFrameCount());
     if (!m_motionAdaptiveResolution) {
         return;
     }
