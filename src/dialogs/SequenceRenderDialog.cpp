@@ -35,6 +35,7 @@
 #include <io/ImageIO.hpp>
 #include <postprocess/CameraConfigIO.hpp>
 #include <renderer/OfflineRenderer.hpp>
+#include <renderer/RenderDevice.hpp>
 
 #include <algorithm>
 #include <exception>
@@ -678,6 +679,7 @@ void SequenceRenderDialog::startSweepRun(const QString& baseToml) {
         QString error;
         int rendered = 0;
         std::optional<quantiloom::Config> baseConfig;
+        std::unique_ptr<quantiloom::RenderDevice> device;
 
         for (int i = 0; i < frameCount; ++i) {
             if (m_cancelled) break;
@@ -709,7 +711,22 @@ void SequenceRenderDialog::startSweepRun(const QString& baseToml) {
                     break;
                 }
                 auto config = baseConfig->MergedWith(parsedOverride.value());
-                auto renderer = quantiloom::OfflineRenderer::Create(config, offlineInit(baseDir));
+                if (!device) {
+                    auto created = quantiloom::RenderDevice::Create();
+                    if (!created.has_value()) {
+                        error = tr("Frame %1: %2").arg(i + 1)
+                                    .arg(QString::fromStdString(created.error()));
+                        break;
+                    }
+                    device = std::move(created.value());
+                }
+                // Each frame has a distinct scene and renderer, but their
+                // scene-independent GPU resources are shared across this
+                // sequential worker. The device outlives every renderer here
+                // and remains separate from the viewport's device.
+                auto init = offlineInit(baseDir);
+                init.sharedDevice = device.get();
+                auto renderer = quantiloom::OfflineRenderer::Create(config, init);
                 if (!renderer.has_value()) {
                     error = tr("Frame %1: %2").arg(i + 1)
                                 .arg(QString::fromStdString(renderer.error()));
