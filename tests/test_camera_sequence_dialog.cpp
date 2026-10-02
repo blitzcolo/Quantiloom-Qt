@@ -1,7 +1,9 @@
 #include "config/ConfigManager.hpp"
 #include "dialogs/SequenceRenderDialog.hpp"
+#include "dialogs/HyperspectralExportDialog.hpp"
 
 #include <io/ImageIO.hpp>
+#include <dataset/ExportSession.hpp>
 
 #include <QApplication>
 #include <QComboBox>
@@ -21,6 +23,65 @@
 #include <iostream>
 
 namespace {
+
+bool verifyRecords(const QString& directory) {
+    const auto records = QDir(directory).entryList({QStringLiteral("*.metadata.json")}, QDir::Files);
+    if (records.isEmpty()) return false;
+    for (const auto& record : records) {
+        const auto checked = quantiloom::dataset::ExportSession::Verify(
+            QDir(directory).filePath(record).toStdString());
+        if (!checked.valid) {
+            std::cerr << checked.json << '\n';
+            return false;
+        }
+    }
+    return true;
+}
+
+bool runHyperspectral(const SceneConfig& source, const QString& directory) {
+    QDir().mkpath(directory);
+    const QString previousDirectory = QDir::currentPath();
+    struct RestoreDirectory {
+        QString path;
+        ~RestoreDirectory() { QDir::setCurrent(path); }
+    } restore{previousDirectory};
+    if (!QDir::setCurrent(directory)) return false;
+    HyperspectralExportDialog dialog(source);
+    auto* minimum = dialog.findChild<QDoubleSpinBox*>(QStringLiteral("cubeWavelengthMin"));
+    auto* maximum = dialog.findChild<QDoubleSpinBox*>(QStringLiteral("cubeWavelengthMax"));
+    auto* step = dialog.findChild<QDoubleSpinBox*>(QStringLiteral("cubeWavelengthStep"));
+    auto* spp = dialog.findChild<QSpinBox*>(QStringLiteral("cubeSpp"));
+    auto* format = dialog.findChild<QComboBox*>(QStringLiteral("cubeFormat"));
+    auto* output = dialog.findChild<QLineEdit*>(QStringLiteral("cubeOutput"));
+    auto* start = dialog.findChild<QPushButton*>(QStringLiteral("cubeStart"));
+    if (!minimum || !maximum || !step || !spp || !format || !output || !start) return false;
+    minimum->setValue(8000.0);
+    maximum->setValue(8200.0);
+    step->setValue(100.0);
+    spp->setValue(1);
+    format->setCurrentIndex(format->findData(QStringLiteral("exr_spectral")));
+    output->setText(QDir(directory).filePath(QStringLiteral("cube.exr")));
+    QString modalError;
+    QTimer dismissErrors;
+    QObject::connect(&dismissErrors, &QTimer::timeout, &dialog, [&] {
+        for (QWidget* window : QApplication::topLevelWidgets()) {
+            if (auto* box = qobject_cast<QMessageBox*>(window); box && box->isVisible()) {
+                modalError = box->text();
+                box->accept();
+            }
+        }
+    });
+    dismissErrors.start(50);
+    start->click();
+    QElapsedTimer elapsed;
+    elapsed.start();
+    while (elapsed.elapsed() < 60000 && modalError.isEmpty() && !start->isEnabled()) {
+        QApplication::processEvents(QEventLoop::AllEvents, 50);
+        QThread::msleep(10);
+    }
+    if (!modalError.isEmpty()) std::cerr << modalError.toStdString() << '\n';
+    return modalError.isEmpty() && start->isEnabled() && verifyRecords(directory);
+}
 
 bool runSweep(SceneConfig source, const QString& directory) {
     SequenceRenderDialog dialog(source, {QStringLiteral("Material")}, {});
@@ -75,7 +136,29 @@ bool runSweep(SceneConfig source, const QString& directory) {
         QDir(directory).filePath(QStringLiteral("frame_1.exr")).toStdString());
     const auto second = quantiloom::ImageIO::ReadEXR(
         QDir(directory).filePath(QStringLiteral("frame_2.exr")).toStdString());
-    return first && second && !first->data.empty() && first->data != second->data;
+    if (source.cameraConfig.enabled) {
+        for (const char* suffix : {"measurement", "rawdn", "corrected", "tapp", "display"}) {
+            for (int frame = 1; frame <= 2; ++frame) {
+                const auto cameraProduct = quantiloom::ImageIO::ReadEXR(
+                    QDir(directory).filePath(QStringLiteral("frame_%1_%2.exr")
+                        .arg(frame).arg(QString::fromLatin1(suffix))).toStdString());
+                if (!cameraProduct || cameraProduct->data.empty() ||
+                    cameraProduct->width != source.cameraConfig.optics.sensorWidthPx ||
+                    cameraProduct->height != source.cameraConfig.optics.sensorHeightPx)
+                    return false;
+                const auto acquisition = cameraProduct->metadata.find("camera_acquisition_index");
+                // Independent temperature samples must not inherit the
+                // previous sample's device history.
+                const auto warmupFrames = std::llround(source.cameraConfig.warmup.seconds /
+                    source.cameraConfig.readout.framePeriodSeconds);
+                if (acquisition == cameraProduct->metadata.end() ||
+                    acquisition->second != std::to_string(warmupFrames))
+                    return false;
+            }
+        }
+    }
+    return first && second && !first->data.empty() && first->data != second->data &&
+           verifyRecords(directory);
 }
 
 bool runSequence(const SceneConfig& source,
@@ -132,7 +215,7 @@ bool runSequence(const SceneConfig& source,
     const int expected = (8 / every) + 1;
     const auto frames = QDir(directory).entryList({QStringLiteral("frame_?????.exr")},
                                                   QDir::Files);
-    return frames.size() == expected;
+    return frames.size() == expected && verifyRecords(directory);
 }
 
 std::optional<quantiloom::Image> product(const QString& directory, int tick,
@@ -170,10 +253,14 @@ int main(int argc, char** argv) {
     timeline.ticksPerSecond = 20.0;
     QTemporaryDir work;
     if (!work.isValid()) return 2;
+    if (!runHyperspectral(config, work.filePath(QStringLiteral("different_cwd")))) return 7;
     const QString sweep = work.filePath(QStringLiteral("sweep"));
     const QString sparse = work.filePath(QStringLiteral("sparse"));
     const QString full = work.filePath(QStringLiteral("full"));
     if (!runSweep(config, sweep)) return 3;
+    SceneConfig warmedSweep = config;
+    warmedSweep.cameraConfig.warmup.seconds = 0.2;
+    if (!runSweep(warmedSweep, work.filePath(QStringLiteral("sweep_warmup")))) return 9;
     if (!runSequence(config, timeline, sparse, 2) ||
         !runSequence(config, timeline, full, 1)) return 3;
 
@@ -191,6 +278,10 @@ int main(int argc, char** argv) {
     const auto first = product(full, 0, "rawdn");
     const auto reused = product(full, 1, "rawdn");
     if (!first || !reused || first->data != reused->data) return 6;
+    const auto frozen = first->metadata.find("quantiloom_provenance");
+    const auto reusedFrozen = reused->metadata.find("quantiloom_provenance");
+    if (frozen == first->metadata.end() || reusedFrozen == reused->metadata.end() ||
+        frozen->second != reusedFrozen->second) return 8;
     std::cout << "Qt sequence dialog acquisition history PASS\n";
     return 0;
 }

@@ -465,6 +465,9 @@ struct SceneConfig {
     /// [hyperspectral] -- honoured by the offline renderer only.
     std::optional<HyperspectralConfig> hyperspectral;
 
+    /// SDK-owned offline export settings, preserved across document snapshots.
+    QString datasetToml;
+
     /// [timeline] -- the clock, when the document has one.
     TimelineConfig timeline;
 

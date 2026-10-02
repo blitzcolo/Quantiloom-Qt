@@ -89,7 +89,8 @@ list(APPEND CMAKE_PREFIX_PATH "${QUANTILOOM_SDK_DIR}")
 message(STATUS "Using Quantiloom SDK: ${QUANTILOOM_SDK_DIR}")
 
 # Find prebuilt Quantiloom (also finds Vulkan and glm as dependencies)
-find_package(Quantiloom REQUIRED)
+# Offline export transactions require the public SDK 0.5.0 interfaces.
+find_package(Quantiloom 0.5.0 REQUIRED)
 message(STATUS "Found Quantiloom: ${Quantiloom_VERSION}")
 
 # Use namespaced target from find_package
@@ -639,6 +640,8 @@ if(BUILD_TESTING)
 
     add_executable(camera_sequence_dialog_test
         tests/test_camera_sequence_dialog.cpp
+        src/dialogs/HyperspectralExportDialog.cpp
+        src/dialogs/HyperspectralExportDialog.hpp
         src/dialogs/SequenceRenderDialog.cpp
         src/dialogs/SequenceRenderDialog.hpp
         src/config/ConfigManager.cpp

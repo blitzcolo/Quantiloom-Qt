@@ -103,7 +103,9 @@ private:
     /// the caller's job in the CLI too. Doing it here is what makes "N frames
     /// written" true.
     static bool writeFrame(const quantiloom::OfflineRenderOutput& output,
-                           const QString& exrPath, QString* error);
+                           const QString& exrPath, QString* error,
+                           const quantiloom::Config& config,
+                           const quantiloom::camera::CameraOutput* products = nullptr);
 
     /// Start the timeline run: one renderer, the clock moved between frames.
     void startTimelineRun();

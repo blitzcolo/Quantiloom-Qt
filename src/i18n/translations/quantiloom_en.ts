@@ -3754,6 +3754,10 @@ Rebuild with:
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>The renderer did not return export metadata.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>could not write %1</source>
         <translation type="unfinished"></translation>
     </message>

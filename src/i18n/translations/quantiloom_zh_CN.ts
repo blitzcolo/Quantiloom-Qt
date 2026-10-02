@@ -3820,6 +3820,10 @@ Rebuild with:
         <translation>渲染器返回了空帧</translation>
     </message>
     <message>
+        <source>The renderer did not return export metadata.</source>
+        <translation>渲染器未返回导出元数据。</translation>
+    </message>
+    <message>
         <source>could not write %1</source>
         <translation>无法写入 %1</translation>
     </message>

@@ -96,6 +96,7 @@ int main(int argc, char** argv) {
 
     SceneConfig authored;
     authored.gltfPath = QStringLiteral("assets/models/cube.glb");
+    authored.datasetToml = QStringLiteral("[dataset]\nmetadata = false\n");
     authored.cameraPosition[0] = 3.0f;
     authored.cameraPosition[1] = 4.0f;
     authored.cameraPosition[2] = 5.0f;
@@ -130,6 +131,9 @@ int main(int argc, char** argv) {
         std::cerr << reader.lastError().toStdString() << '\n';
         return 4;
     }
+    const auto dataset = quantiloom::Config::Parse(loaded.datasetToml.toStdString());
+    if (!dataset || !dataset.value().Has("dataset.metadata") ||
+        dataset.value().GetBool("dataset.metadata", true)) return 9;
     if (loaded.cameraConfig.motion.keys != authored.cameraConfig.motion.keys ||
         !loaded.timeline.present || !loaded.timeline.timeS ||
         std::abs(*loaded.timeline.timeS - 1.25) > 1e-12) return 5;

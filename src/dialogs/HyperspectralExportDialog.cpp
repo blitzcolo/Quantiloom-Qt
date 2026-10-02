@@ -89,6 +89,7 @@ void HyperspectralExportDialog::setupUi() {
     const auto seed = m_baseConfig.hyperspectral.value_or(HyperspectralConfig{});
 
     m_lambdaMin = new QDoubleSpinBox();
+    m_lambdaMin->setObjectName(QStringLiteral("cubeWavelengthMin"));
     m_lambdaMin->setRange(100.0, 20000.0);
     m_lambdaMin->setSuffix(tr(" nm"));
     m_lambdaMin->setValue(seed.wavelengthMin_nm);
@@ -97,6 +98,7 @@ void HyperspectralExportDialog::setupUi() {
     rangeLayout->addRow(tr("From:"), m_lambdaMin);
 
     m_lambdaMax = new QDoubleSpinBox();
+    m_lambdaMax->setObjectName(QStringLiteral("cubeWavelengthMax"));
     m_lambdaMax->setRange(100.0, 20000.0);
     m_lambdaMax->setSuffix(tr(" nm"));
     m_lambdaMax->setValue(seed.wavelengthMax_nm);
@@ -105,6 +107,7 @@ void HyperspectralExportDialog::setupUi() {
     rangeLayout->addRow(tr("To:"), m_lambdaMax);
 
     m_lambdaStep = new QDoubleSpinBox();
+    m_lambdaStep->setObjectName(QStringLiteral("cubeWavelengthStep"));
     m_lambdaStep->setRange(0.1, 500.0);
     m_lambdaStep->setSuffix(tr(" nm"));
     m_lambdaStep->setValue(seed.wavelengthStep_nm);
@@ -122,6 +125,7 @@ void HyperspectralExportDialog::setupUi() {
     auto* outputLayout = new QFormLayout(outputGroup);
 
     m_spp = new QSpinBox();
+    m_spp->setObjectName(QStringLiteral("cubeSpp"));
     m_spp->setRange(1, 65536);
     m_spp->setValue(static_cast<int>(m_baseConfig.spp > 0 ? m_baseConfig.spp : 16));
     m_spp->setToolTip(tr("Samples per pixel, per band. Every band is traced to this "
@@ -129,6 +133,7 @@ void HyperspectralExportDialog::setupUi() {
     outputLayout->addRow(tr("Samples per band:"), m_spp);
 
     m_format = new QComboBox();
+    m_format->setObjectName(QStringLiteral("cubeFormat"));
     for (const FormatOption& format : kFormats) {
         m_format->addItem(tr(format.label), QString::fromLatin1(format.id));
     }
@@ -139,6 +144,7 @@ void HyperspectralExportDialog::setupUi() {
 
     auto* pathRow = new QHBoxLayout();
     m_outputEdit = new QLineEdit();
+    m_outputEdit->setObjectName(QStringLiteral("cubeOutput"));
     // Beside the document, named after it: an export should not have to be
     // told where to go when there is an obvious answer.
     m_outputEdit->setText(m_baseConfig.outputPath.isEmpty()
@@ -176,6 +182,7 @@ void HyperspectralExportDialog::setupUi() {
     auto* buttons = new QHBoxLayout();
     buttons->addStretch();
     m_startButton = new QPushButton(tr("Render"));
+    m_startButton->setObjectName(QStringLiteral("cubeStart"));
     m_startButton->setDefault(true);
     connect(m_startButton, &QPushButton::clicked,
             this, &HyperspectralExportDialog::onStartOrCancel);
@@ -271,6 +278,7 @@ void HyperspectralExportDialog::onStartOrCancel() {
                             .arg(QString::fromStdString(parsed.error()));
             } else {
                 quantiloom::OfflineRenderer::InitParams params;
+                params.baseDir = baseDir.toStdString();
                 params.onProgress = [self](const quantiloom::OfflineProgress& progress) {
                     // Queued onto the GUI thread: this runs between bands on
                     // the worker.

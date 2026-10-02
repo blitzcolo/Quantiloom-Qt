@@ -35,6 +35,7 @@
 #include <io/ImageIO.hpp>
 #include <postprocess/CameraConfigIO.hpp>
 #include <renderer/OfflineRenderer.hpp>
+#include <dataset/ExportSession.hpp>
 #include <renderer/RenderDevice.hpp>
 
 #include <algorithm>
@@ -61,7 +62,8 @@ quantiloom::OfflineRenderer::InitParams offlineInit(const QString& baseDir) {
 }
 
 bool writeCameraProducts(const quantiloom::camera::CameraOutput& output,
-                         const QString& exrPath, QString* error) {
+                         const QString& exrPath, QString* error,
+                         quantiloom::dataset::ExportSession* session) {
     const QFileInfo file(exrPath);
     const QString base = file.absolutePath() + QLatin1Char('/') + file.completeBaseName();
     QStringList metadata;
@@ -75,7 +77,11 @@ bool writeCameraProducts(const quantiloom::camera::CameraOutput& output,
              std::pair{&output.tracedRadiance, "_spectral"}}) {
         if (!*product) continue;
         const QString path = base + QString::fromLatin1(suffix) + QStringLiteral(".exr");
-        if (!quantiloom::ImageIO::WriteEXR(path.toStdString(), (*product)->image)) {
+        const std::string name = QFileInfo(path).fileName().toStdString();
+        const bool written = session
+            ? session->WriteImage(name, name, (*product)->image, "{}").has_value()
+            : quantiloom::ImageIO::WriteEXR(path.toStdString(), (*product)->image);
+        if (!written) {
             if (error) *error = QObject::tr("could not write %1").arg(path);
             return false;
         }
@@ -92,7 +98,17 @@ bool writeCameraProducts(const quantiloom::camera::CameraOutput& output,
                         .arg(signal.exposureStartSeconds, 0, 'g', 9)
                         .arg(signal.exposureEndSeconds, 0, 'g', 9);
     }
-    QFile sidecar(base + QStringLiteral("_products.txt"));
+    QString summaryPath = base + QStringLiteral("_products.txt");
+    const std::string summaryName = QFileInfo(summaryPath).fileName().toStdString();
+    if (session) {
+        const auto staged = session->StagingPath(summaryName);
+        if (!staged) {
+            if (error) *error = QString::fromStdString(staged.error());
+            return false;
+        }
+        summaryPath = QString::fromStdString(staged.value());
+    }
+    QFile sidecar(summaryPath);
     if (!sidecar.open(QIODevice::WriteOnly | QIODevice::Text)) {
         if (error) *error = QObject::tr("could not write %1").arg(sidecar.fileName());
         return false;
@@ -100,9 +116,19 @@ bool writeCameraProducts(const quantiloom::camera::CameraOutput& output,
     QTextStream out(&sidecar);
     out << "Quantiloom camera products\n";
     for (const auto& line : std::as_const(metadata)) out << line << '\n';
-    if (output.display)
-        quantiloom::ImageIO::WritePNG((base + QStringLiteral(".png")).toStdString(),
-                                      output.display->image);
+    out.flush();
+    if (out.status() != QTextStream::Ok || !sidecar.flush()) {
+        if (error) *error = QObject::tr("could not write %1").arg(summaryPath);
+        return false;
+    }
+    sidecar.close();
+    if (session) {
+        const auto registered = session->RegisterFile(summaryName, summaryName, "{}");
+        if (!registered) {
+            if (error) *error = QString::fromStdString(registered.error());
+            return false;
+        }
+    }
     return true;
 }
 } // namespace
@@ -400,7 +426,9 @@ QString SequenceRenderDialog::frameOutputPath(const int index) const {
 }
 
 bool SequenceRenderDialog::writeFrame(const quantiloom::OfflineRenderOutput& output,
-                                      const QString& exrPath, QString* error) {
+                                      const QString& exrPath, QString* error,
+                                      const quantiloom::Config& config,
+                                      const quantiloom::camera::CameraOutput* products) {
     // The hyperspectral path streams itself to disk band by band; there is no
     // frame here to write.
     if (output.wroteItsOwnOutput) {
@@ -412,7 +440,32 @@ bool SequenceRenderDialog::writeFrame(const quantiloom::OfflineRenderOutput& out
     }
 
     QDir().mkpath(QFileInfo(exrPath).absolutePath());
-    if (!quantiloom::ImageIO::WriteEXR(exrPath.toStdString(), output.radiance)) {
+    std::unique_ptr<quantiloom::dataset::ExportSession> session;
+    if (config.GetBool("dataset.metadata", true)) {
+        const auto found = output.radiance.metadata.find("quantiloom_provenance");
+        if (found == output.radiance.metadata.end()) {
+            if (error) *error = tr("The renderer did not return export metadata.");
+            return false;
+        }
+        auto created = quantiloom::dataset::ExportSession::Create(
+            exrPath.toStdString(), config, {found->second});
+        if (!created) {
+            if (error) *error = QString::fromStdString(created.error());
+            return false;
+        }
+        session = std::move(created.value());
+    }
+    const auto write = [&](const QString& path, const quantiloom::Image& image, bool png) {
+        if (session) {
+            const auto name = QFileInfo(path).fileName().toStdString();
+            const auto result = session->WriteImage(name, name, image, "{}");
+            if (!result && error) *error = QString::fromStdString(result.error());
+            return result.has_value();
+        }
+        return png ? quantiloom::ImageIO::WritePNG(path.toStdString(), image)
+                   : quantiloom::ImageIO::WriteEXR(path.toStdString(), image);
+    };
+    if (!write(exrPath, output.radiance, false)) {
         if (error != nullptr) *error = tr("could not write %1").arg(exrPath);
         return false;
     }
@@ -422,7 +475,21 @@ bool SequenceRenderDialog::writeFrame(const quantiloom::OfflineRenderOutput& out
     const QString pngPath =
         QFileInfo(exrPath).absolutePath() + QLatin1Char('/') + QFileInfo(exrPath).completeBaseName() +
         QStringLiteral(".png");
-    quantiloom::ImageIO::WritePNG(pngPath.toStdString(), output.radiance);
+    const auto& preview = products && products->display
+        ? products->display->image : output.radiance;
+    if (!write(pngPath, preview, true)) {
+        if (error) *error = tr("could not write %1").arg(pngPath);
+        return false;
+    }
+    if (products && !writeCameraProducts(*products, exrPath, error, session.get()))
+        return false;
+    if (session) {
+        const auto committed = session->Commit();
+        if (!committed) {
+            if (error) *error = QString::fromStdString(committed.error());
+            return false;
+        }
+    }
     return true;
 }
 
@@ -738,11 +805,39 @@ void SequenceRenderDialog::startSweepRun(const QString& baseToml) {
                                 .arg(QString::fromStdString(output.error));
                     break;
                 }
+                // A temperature sweep contains independent scenes, so each
+                // sample starts its own detector history and configured warmup.
+                // Publish its camera products in the same session as radiance.
+                std::optional<quantiloom::camera::CameraOutput> products;
+                const auto& cameraConfig = renderer.value()->GetCameraConfig();
+                if (cameraConfig.enabled) {
+                    quantiloom::camera::CaptureState cameraState;
+                    const double time = renderer.value()->GetTimelineInfo().current_s;
+                    cameraState.frameTimeSeconds = time;
+                    if (cameraConfig.warmup.seconds > 0.0) {
+                        const auto warmed = renderer.value()->WarmUpCamera(
+                            cameraState, cameraConfig.warmup.seconds,
+                            cameraConfig.readout.framePeriodSeconds);
+                        if (!warmed) {
+                            error = tr("Frame %1: %2").arg(i + 1)
+                                        .arg(QString::fromStdString(warmed.error()));
+                            break;
+                        }
+                    }
+                    auto captured = renderer.value()->CaptureCamera(cameraState, time);
+                    if (!captured) {
+                        error = tr("Frame %1: %2").arg(i + 1)
+                                    .arg(QString::fromStdString(captured.error()));
+                        break;
+                    }
+                    products = std::move(captured.value());
+                }
                 // The renderer hands back an image and writes nothing; the
                 // caller does, in the CLI too. Without this the dialog rendered
                 // every frame and threw it away while reporting them written.
                 QString writeError;
-                if (!writeFrame(output, paths.at(i), &writeError)) {
+                if (!writeFrame(output, paths.at(i), &writeError, config,
+                                products ? &*products : nullptr)) {
                     error = tr("Frame %1: %2").arg(i + 1).arg(writeError);
                     break;
                 }
@@ -919,16 +1014,10 @@ void SequenceRenderDialog::startTimelineRun() {
                             nextDeviceSlot = targetDeviceSlot + 1;
                         }
                         QString writeError;
-                        if (!writeFrame(output, paths.at(i), &writeError)) {
+                        if (!writeFrame(output, paths.at(i), &writeError, parsed.value(),
+                                        products ? &*products : nullptr)) {
                             error = tr("Frame %1: %2").arg(i + 1).arg(writeError);
                             break;
-                        }
-                        if (products) {
-                            QString productError;
-                            if (!writeCameraProducts(*products, paths.at(i), &productError)) {
-                                error = tr("Frame %1: %2").arg(i + 1).arg(productError);
-                                break;
-                            }
                         }
                         ++rendered;
                         ++i;

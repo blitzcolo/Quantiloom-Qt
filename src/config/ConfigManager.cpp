@@ -683,6 +683,8 @@ void ConfigManager::extractQuantitativeSpectral(const quantiloom::Config& config
         out.logMaterialSources = config.Get<bool>("quality.log_material_sources", false);
     }
 
+    out.datasetToml = QString::fromStdString(config.ToToml("dataset"));
+
     // [hyperspectral]: carried whole, honoured by the offline renderer only.
     out.hyperspectral.reset();
     if (config.HasSection("hyperspectral")) {
@@ -1289,6 +1291,8 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
         }
         out << "\n";
     }
+
+    if (!config.datasetToml.isEmpty()) out << config.datasetToml << "\n";
 
     // [hyperspectral] - the offline cube. The viewport honours none of it.
     if (config.hyperspectral) {
