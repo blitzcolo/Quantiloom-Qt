@@ -143,6 +143,7 @@ private slots:
     void onExportImage();
     /// Offline cube render, in a dialog of its own.
     void onExportHyperspectralCube();
+    void onExportFusionDataset();
     void onRenderSequence();
     void onDumpThermalElements();
     /// Commit one explicit device acquisition and write every enabled camera
@@ -684,6 +685,7 @@ private:
     QAction* m_stopRenderAction = nullptr;
     QAction* m_resumeRenderAction = nullptr;
     QAction* m_exportCubeAction = nullptr;
+    QAction* m_exportFusionAction = nullptr;
     QAction* m_renderSequenceAction = nullptr;
     QAction* m_dumpThermalElementsAction = nullptr;
     QAction* m_exportCameraProductsAction = nullptr;

@@ -32,6 +32,7 @@
 #include "dialogs/PreferencesDialog.hpp"
 #include "dialogs/HyperspectralExportDialog.hpp"
 #include "dialogs/SequenceRenderDialog.hpp"
+#include "dialogs/FusionExportDialog.hpp"
 #include "dialogs/HelpDialog.hpp"
 #include "i18n/LanguageManager.hpp"
 #include "ui/ModeCatalog.hpp"
@@ -386,6 +387,7 @@ void MainWindow::setupMenus() {
     m_exportImageAction = m_fileMenu->addAction(QString(), this, &MainWindow::onExportImage);
     // The cube the viewport cannot show. An offline render on a device of its
     // own, so it is a File action rather than anything under Render.
+    m_exportFusionAction = m_fileMenu->addAction(QString(), this, &MainWindow::onExportFusionDataset);
     m_exportCubeAction = m_fileMenu->addAction(QString(), this,
                                                &MainWindow::onExportHyperspectralCube);
     // A sequence is many offline renders rather than one, and for the same
@@ -2674,6 +2676,7 @@ void MainWindow::retranslateUi() {
     m_saveAction->setText(tr("&Save"));
     m_saveAsAction->setText(tr("Save &As..."));
     m_exportImageAction->setText(tr("Export &Image (raw render)..."));
+    m_exportFusionAction->setText(tr("Export Fusion Dataset..."));
     m_exportCubeAction->setText(tr("Render Hyperspectral &Cube..."));
     m_exportCubeAction->setToolTip(
         tr("Trace every band to completion and stream the cube to disk"));
@@ -3182,6 +3185,26 @@ bool MainWindow::writeConfig(const QString& filePath) {
     setCurrentDocument(filePath);
     showStatusMessage(tr("Saved %1").arg(QFileInfo(filePath).fileName()));
     return true;
+}
+
+void MainWindow::onExportFusionDataset() {
+    if(!m_vulkanWindow->getScene()){QMessageBox::information(this,tr("No Scene"),tr("Open a scene before exporting a fusion dataset."));return;}
+    SceneConfig config;collectCurrentConfig(config);
+    auto snapshot=quantiloom::Config::Parse(m_configManager->exportConfigToString(config).toStdString());
+    if(!snapshot){QMessageBox::warning(this,tr("Fusion Export"),QString::fromStdString(snapshot.error()));return;}
+    FusionExportDialog dialog(*snapshot,config.baseDir,this);
+    dialog.preview=[this](const quantiloom::Config& view,const quantiloom::camera::CameraConfig& sensor){
+        const auto camera=quantiloom::Camera::FromConfig(view,1.0f);
+        if(!camera)return;
+        const auto applied=m_vulkanWindow->setCameraConfig(sensor);
+        if(!applied){QMessageBox::warning(this,tr("Camera"),QString::fromStdString(applied.error()));return;}
+        m_vulkanWindow->setCamera(camera.value().GetPosition(),camera.value().GetLookAt(),camera.value().GetUpReference(),camera.value().GetFovY());
+    };
+    dialog.exec();
+    m_vulkanWindow->setCameraConfig(config.cameraConfig);
+    m_vulkanWindow->setCamera({config.cameraPosition[0],config.cameraPosition[1],config.cameraPosition[2]},
+        {config.cameraLookAt[0],config.cameraLookAt[1],config.cameraLookAt[2]},
+        {config.cameraUp[0],config.cameraUp[1],config.cameraUp[2]},config.cameraFovY);
 }
 
 void MainWindow::onExportHyperspectralCube() {

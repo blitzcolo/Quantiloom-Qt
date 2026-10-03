@@ -181,6 +181,13 @@ private:
     QDoubleSpinBox* m_fNumber = nullptr;
     QDoubleSpinBox* m_pixelPitch = nullptr;
     QDoubleSpinBox* m_psfSigma = nullptr;
+    QComboBox* m_projectionModel = nullptr;
+    QCheckBox* m_explicitIntrinsics = nullptr;
+    QDoubleSpinBox* m_intrinsics[4]{};
+    QDoubleSpinBox* m_distortion[5]{};
+    QDoubleSpinBox* m_maxTheta = nullptr;
+    QSpinBox* m_nativeWidth = nullptr;
+    QSpinBox* m_nativeHeight = nullptr;
 
     // Readout group
     QGroupBox* m_readoutGroup = nullptr;

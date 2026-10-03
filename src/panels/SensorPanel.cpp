@@ -292,6 +292,24 @@ void SensorPanel::setupUi() {
     addRow(opticsLayout, QT_TR_NOOP("PSF Width:"), m_psfSigma,
            QT_TR_NOOP("Gaussian blur width of the point spread function, in pixels. Auto derives it from the aperture and wavelength; setting it here holds the blur fixed while the aperture varies, and 0 disables it."));
 
+    m_nativeWidth=new QSpinBox();m_nativeWidth->setRange(1,16384);m_nativeWidth->setValue(320);
+    m_nativeHeight=new QSpinBox();m_nativeHeight->setRange(1,16384);m_nativeHeight->setValue(240);
+    addRow(opticsLayout,QT_TR_NOOP("Native Width:"),m_nativeWidth,QT_TR_NOOP("Physical sensor columns; independent of viewport resolution."));
+    addRow(opticsLayout,QT_TR_NOOP("Native Height:"),m_nativeHeight,QT_TR_NOOP("Physical sensor rows; independent of viewport resolution."));
+    connect(m_nativeWidth,QOverload<int>::of(&QSpinBox::valueChanged),this,&SensorPanel::onParamChanged);
+    connect(m_nativeHeight,QOverload<int>::of(&QSpinBox::valueChanged),this,&SensorPanel::onParamChanged);
+    m_projectionModel=new QComboBox();
+    m_projectionModel->addItems({tr("Pinhole"),tr("Radial / tangential"),tr("Fisheye")});
+    addRow(opticsLayout,QT_TR_NOOP("Lens Model:"),m_projectionModel,QT_TR_NOOP("Projection used to generate native sensor rays."));
+    m_explicitIntrinsics=new QCheckBox(tr("Use calibrated intrinsics"));opticsLayout->addRow(m_explicitIntrinsics);
+    const char* intrinsicLabels[]={"fx (pixels):","fy (pixels):","Principal x:","Principal y:"};
+    for(int i=0;i<4;++i){m_intrinsics[i]=makeSpin(i<2 ? .0001 : -100000,100000,.1,6,i<2 ? 1000 : 0," px");addRow(opticsLayout,intrinsicLabels[i],m_intrinsics[i],QT_TR_NOOP("Top-left image coordinates; pixel centres use a half-pixel offset."));connect(m_intrinsics[i],QOverload<double>::of(&QDoubleSpinBox::valueChanged),this,&SensorPanel::onParamChanged);}
+    const char* coefficientLabels[]={"k1:","k2:","p1 / fisheye k3:","p2 / fisheye k4:","k3 (radial):"};
+    for(int i=0;i<5;++i){m_distortion[i]=makeSpin(-100,100,.0001,8,0,nullptr);addRow(opticsLayout,coefficientLabels[i],m_distortion[i],QT_TR_NOOP("Dimensionless coefficient in the selected lens model."));connect(m_distortion[i],QOverload<double>::of(&QDoubleSpinBox::valueChanged),this,&SensorPanel::onParamChanged);}
+    m_maxTheta=makeSpin(.1,89.99,.1,3,89," deg");addRow(opticsLayout,QT_TR_NOOP("Fisheye Half Angle:"),m_maxTheta,QT_TR_NOOP("Maximum valid angle from the forward axis."));
+    connect(m_maxTheta,QOverload<double>::of(&QDoubleSpinBox::valueChanged),this,&SensorPanel::onParamChanged);
+    connect(m_projectionModel,QOverload<int>::of(&QComboBox::currentIndexChanged),this,&SensorPanel::onParamChanged);
+    connect(m_explicitIntrinsics,&QCheckBox::toggled,this,&SensorPanel::onParamChanged);
     mainLayout->addWidget(m_opticsGroup);
 
     // ========================================================================
@@ -820,6 +838,18 @@ void SensorPanel::onParamChanged() {
     m_camera.optics.fNumber = m_fNumber->value();
     m_camera.optics.pixelPitchUm = m_pixelPitch->value();
     m_camera.optics.psfSigmaPixelsOverride = m_psfSigma->value();
+    m_camera.optics.sensorWidthPx=static_cast<quantiloom::u32>(m_nativeWidth->value());
+    m_camera.optics.sensorHeightPx=static_cast<quantiloom::u32>(m_nativeHeight->value());
+    auto& projection=m_camera.optics.projection;
+    projection.model=static_cast<quantiloom::camera::ProjectionModel>(m_projectionModel->currentIndex());
+    projection.explicitIntrinsics=m_explicitIntrinsics->isChecked();
+    projection.fx=m_intrinsics[0]->value();projection.fy=m_intrinsics[1]->value();
+    projection.cx=m_intrinsics[2]->value();projection.cy=m_intrinsics[3]->value();
+    for(int i=0;i<5;++i) projection.coefficients[i]=projection.model==quantiloom::camera::ProjectionModel::Pinhole || (projection.model==quantiloom::camera::ProjectionModel::Fisheye && i==4) ? 0 : m_distortion[i]->value();
+    projection.maxThetaRadians=m_maxTheta->value()*0.017453292519943295;
+    for(auto* box:m_intrinsics)box->setEnabled(projection.explicitIntrinsics);
+    for(int i=0;i<5;++i)m_distortion[i]->setEnabled(projection.model!=quantiloom::camera::ProjectionModel::Pinhole && (projection.model!=quantiloom::camera::ProjectionModel::Fisheye || i<4));
+    m_maxTheta->setEnabled(projection.model==quantiloom::camera::ProjectionModel::Fisheye);
 
     // Readout
     m_camera.readout.shutter = m_shutterCombo->currentIndex() == 1
@@ -1017,6 +1047,15 @@ void SensorPanel::updateUiFromConfig(const quantiloom::camera::CameraConfig& con
     m_fNumber->setValue(config.optics.fNumber);
     m_pixelPitch->setValue(config.optics.pixelPitchUm);
     m_psfSigma->setValue(config.optics.psfSigmaPixelsOverride);
+    m_nativeWidth->setValue(static_cast<int>(config.optics.sensorWidthPx));
+    m_nativeHeight->setValue(static_cast<int>(config.optics.sensorHeightPx));
+    const auto& projection=config.optics.projection;
+    m_projectionModel->setCurrentIndex(static_cast<int>(projection.model));
+    m_explicitIntrinsics->setChecked(projection.explicitIntrinsics);
+    const double intrinsicValues[]={projection.fx,projection.fy,projection.cx,projection.cy};
+    for(int i=0;i<4;++i){m_intrinsics[i]->setValue(intrinsicValues[i]);m_intrinsics[i]->setEnabled(projection.explicitIntrinsics);}
+    for(int i=0;i<5;++i){m_distortion[i]->setValue(projection.coefficients[i]);m_distortion[i]->setEnabled(projection.model!=quantiloom::camera::ProjectionModel::Pinhole && (projection.model!=quantiloom::camera::ProjectionModel::Fisheye || i<4));}
+    m_maxTheta->setValue(projection.maxThetaRadians/0.017453292519943295);m_maxTheta->setEnabled(projection.model==quantiloom::camera::ProjectionModel::Fisheye);
 
     // Readout
     m_shutterCombo->setCurrentIndex(config.readout.shutter ==
