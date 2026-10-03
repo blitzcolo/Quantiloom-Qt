@@ -587,14 +587,44 @@ class Builder:
             acc = src["accessors"][ai]
             if "min" in acc and "max" in acc:
                 return np.array(acc["min"], float), np.array(acc["max"], float)
-            bv = src["bufferViews"][acc["bufferView"]]
-            off = bv.get("byteOffset", 0) + acc.get("byteOffset", 0)
-            stride = bv.get("byteStride", 12)
-            data = np.frombuffer(sbin, np.uint8,
-                                 count=stride * acc["count"], offset=off)
-            pts = np.lib.stride_tricks.as_strided(
-                data.view(np.float32),
-                shape=(acc["count"], 3), strides=(stride, 4)).astype(float)
+
+            def uint(value, field):
+                if type(value) is not int or value < 0:
+                    raise ValueError(f"POSITION {field} must be a nonnegative integer")
+                return value
+
+            if acc.get("componentType") != FLOAT or acc.get("type") != "VEC3":
+                raise ValueError("POSITION decoding requires FLOAT/VEC3")
+            if "sparse" in acc:
+                raise ValueError("Sparse POSITION decoding requires min/max bounds")
+            count = uint(acc.get("count"), "count")
+            if count == 0:
+                raise ValueError("POSITION count must be positive")
+            vi = uint(acc.get("bufferView"), "bufferView")
+            if vi >= len(src.get("bufferViews", [])):
+                raise ValueError("POSITION bufferView is out of range")
+            bv = src["bufferViews"][vi]
+            bi = uint(bv.get("buffer"), "buffer")
+            if bi != 0 or not src.get("buffers") or "uri" in src["buffers"][0]:
+                raise ValueError("POSITION decoding requires the GLB BIN buffer")
+            buffer_length = uint(src["buffers"][0].get("byteLength"), "buffer byteLength")
+            view_offset = uint(bv.get("byteOffset", 0), "bufferView byteOffset")
+            view_length = uint(bv.get("byteLength"), "bufferView byteLength")
+            acc_offset = uint(acc.get("byteOffset", 0), "byteOffset")
+            stride = uint(bv.get("byteStride", 12), "byteStride")
+            if stride < 12 or stride > 252 or stride % 4:
+                raise ValueError("POSITION byteStride must be a multiple of 4 in [12, 252]")
+            if view_offset % 4 or acc_offset % 4:
+                raise ValueError("POSITION offsets must be aligned to 4 bytes")
+            # The final vertex needs its three floats, not a full trailing stride.
+            end = acc_offset + (count - 1) * stride + 12
+            view_end = view_offset + view_length
+            if end > view_length or view_end > buffer_length or view_end > len(sbin):
+                raise ValueError("POSITION data exceeds bufferView or GLB BIN bounds")
+            # ndarray checks its shape/strides against this bounded buffer too.
+            data = memoryview(sbin)[view_offset:view_end]
+            pts = np.ndarray((count, 3), dtype="<f4", buffer=data,
+                             offset=acc_offset, strides=(stride, 4)).astype(float)
             return pts.min(axis=0), pts.max(axis=0)
 
         def walk(ni, mtx):
