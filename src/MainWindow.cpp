@@ -5264,6 +5264,9 @@ void MainWindow::collectCurrentConfig(SceneConfig& config) {
             : *config.materialConfigs.insert(config.materialConfigs.end(), MaterialConfig{});
 
         matConfig.name = name;
+        const auto optical=quantiloom::Config::Parse(
+            "ior = "+std::to_string(material.ior)+"\ndispersion = "+std::to_string(material.dispersion)+"\n");
+        if(optical)matConfig.preserved=matConfig.preserved.MergedWith(*optical);
         matConfig.hasPbr = true;
         matConfig.baseColor = glm::vec3(material.baseColorFactor);
         matConfig.metallic = material.metallicFactor;

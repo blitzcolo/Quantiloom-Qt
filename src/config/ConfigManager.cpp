@@ -1,3 +1,5 @@
+#include <algorithm>
+#include <stdexcept>
 /**
  * @file ConfigManager.cpp
  * @brief TOML configuration import/export implementation
@@ -429,7 +431,23 @@ void ConfigManager::extractSceneConfig(const quantiloom::Config& config, SceneCo
     // ir_transmittance = 0.0
     // ir_temperature_k = 350.0
     out.materialConfigs.clear();
-    auto materialTables = config.GetTableArray("materials");
+    quantiloom::Vector<quantiloom::Config> materialTables;
+    for(const auto& table:config.GetTableArray("materials")) {
+        const auto name=table.GetString("name");
+        auto previous=std::find_if(materialTables.begin(),materialTables.end(),[&](const auto& t){return t.GetString("name")==name;});
+        if(previous==materialTables.end())materialTables.push_back(table);
+        else *previous=previous->MergedWith(table);
+    }
+    // Canonicalise both syntaxes before extracting widget state. Named overrides win.
+    const auto overrides=config.GetTable("material_overrides");
+    for(const auto& name:config.GetSubtableNames("material_overrides")) {
+        auto value=overrides.value().GetNamedTable(name);if(!value)continue;
+        auto current=std::find_if(materialTables.begin(),materialTables.end(),[&](const auto& t){return t.GetString("name")==name;});
+        const auto named=quantiloom::Config::Parse("name = "+tomlQuoted(QString::fromStdString(name)).toStdString()+"\n");
+        if(!named)continue;
+        if(current!=materialTables.end())*current=current->MergedWith(*value).MergedWith(*named);
+        else materialTables.push_back(value.value().MergedWith(*named));
+    }
     for (const auto& matTable : materialTables) {
         std::string name = matTable.GetString("name", "");
         if (name.empty()) {
@@ -438,6 +456,7 @@ void ConfigManager::extractSceneConfig(const quantiloom::Config& config, SceneCo
 
         MaterialConfig matConfig;
         matConfig.name = QString::fromStdString(name);
+        matConfig.preserved=matTable;
         matConfig.irEmissivity = matTable.GetFloat("ir_emissivity", 0.0f);
         matConfig.irTransmittance = matTable.GetFloat("ir_transmittance", 0.0f);
         matConfig.irTemperature_K = matTable.GetFloat("ir_temperature_k", 0.0f);
@@ -1012,69 +1031,69 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
             !matConfig.temperatureTexture.isEmpty() ||
             matConfig.temperatureScale != 500.0f || matConfig.temperatureOffset != 200.0f;
 
-        if (matConfig.hasPbr || matConfig.hasSpectral() || matConfig.irEmissivity > 0.0f ||
+        if (!matConfig.preserved.ToToml().empty() || matConfig.hasPbr || matConfig.hasSpectral() || matConfig.irEmissivity > 0.0f ||
             matConfig.irTransmittance > 0.0f || matConfig.irTemperature_K > 0.0f ||
             hasTemperatureMap || matConfig.hasThermal() || matConfig.hasEmissiveCurve()) {
-            out << "[[materials]]\n";
-            out << "name = " << tomlQuoted(matConfig.name) << "\n";
+            QString materialText;QTextStream materialOut(&materialText);
+            materialOut << "name = " << tomlQuoted(matConfig.name) << "\n";
             if (matConfig.hasPbr) {
-                out << "base_color = [" << matConfig.baseColor.r << ", "
+                materialOut << "base_color = [" << matConfig.baseColor.r << ", "
                     << matConfig.baseColor.g << ", " << matConfig.baseColor.b << "]\n";
-                out << "metallic = " << matConfig.metallic << "\n";
-                out << "roughness = " << matConfig.roughness << "\n";
-                out << "emissive = [" << matConfig.emissive.r << ", "
+                materialOut << "metallic = " << matConfig.metallic << "\n";
+                materialOut << "roughness = " << matConfig.roughness << "\n";
+                materialOut << "emissive = [" << matConfig.emissive.r << ", "
                     << matConfig.emissive.g << ", " << matConfig.emissive.b << "]\n";
             }
-            if (matConfig.irEmissivity > 0.0f) {
-                out << "ir_emissivity = " << matConfig.irEmissivity << "\n";
+            if (matConfig.irEmissivity > 0.0f || matConfig.preserved.Has("ir_emissivity")) {
+                materialOut << "ir_emissivity = " << matConfig.irEmissivity << "\n";
             }
-            if (matConfig.irTransmittance > 0.0f) {
-                out << "ir_transmittance = " << matConfig.irTransmittance << "\n";
+            if (matConfig.irTransmittance > 0.0f || matConfig.preserved.Has("ir_transmittance")) {
+                materialOut << "ir_transmittance = " << matConfig.irTransmittance << "\n";
             }
-            if (matConfig.irTemperature_K > 0.0f) {
-                out << "ir_temperature_k = " << matConfig.irTemperature_K << "\n";
+            if (matConfig.irTemperature_K > 0.0f || matConfig.preserved.Has("ir_temperature_k")) {
+                materialOut << "ir_temperature_k = " << matConfig.irTemperature_K << "\n";
             }
             if (matConfig.hasThermal()) {
-                out << "thermal_conductivity_w_mk = " << matConfig.thermal.conductivity << "\n";
-                out << "density_kg_m3 = " << matConfig.thermal.density << "\n";
-                out << "specific_heat_j_kgk = " << matConfig.thermal.specificHeat << "\n";
-                out << "thickness_m = " << matConfig.thermal.thickness << "\n";
-                out << "convection_h_w_m2k = " << matConfig.thermal.convection << "\n";
-                out << "shortwave_absorptivity = " << matConfig.thermal.shortwaveAbsorptivity
+                materialOut << "thermal_conductivity_w_mk = " << matConfig.thermal.conductivity << "\n";
+                materialOut << "density_kg_m3 = " << matConfig.thermal.density << "\n";
+                materialOut << "specific_heat_j_kgk = " << matConfig.thermal.specificHeat << "\n";
+                materialOut << "thickness_m = " << matConfig.thermal.thickness << "\n";
+                materialOut << "convection_h_w_m2k = " << matConfig.thermal.convection << "\n";
+                materialOut << "shortwave_absorptivity = " << matConfig.thermal.shortwaveAbsorptivity
                     << "\n";
-                out << "wetness_factor = " << matConfig.thermal.wetness << "\n";
-                out << "internal_heat_w_m2 = " << matConfig.thermal.internalHeat << "\n";
+                materialOut << "wetness_factor = " << matConfig.thermal.wetness << "\n";
+                materialOut << "internal_heat_w_m2 = " << matConfig.thermal.internalHeat << "\n";
                 if (matConfig.thermal.isShell) {
                     // Only when true: a shell is a claim about the object, and
                     // "shell = false" in every material would read as one that
                     // had been considered and rejected.
-                    out << "shell = true\n";
+                    materialOut << "shell = true\n";
                 }
-                out << "interior_bc = " << tomlQuoted(matConfig.thermal.interiorBoundary)
+                materialOut << "interior_bc = " << tomlQuoted(matConfig.thermal.interiorBoundary)
                     << "\n";
-                out << "interior_temperature_k = " << matConfig.thermal.interiorTemperature
+                materialOut << "interior_temperature_k = " << matConfig.thermal.interiorTemperature
                     << "\n";
                 // Read only under interior_bc = "ambient", written always, for
                 // the same reason the thermal block above is: a number the user
                 // tuned and then switched away from should still be there when
                 // they switch back.
-                out << "interior_convection_h_w_m2k = "
+                materialOut << "interior_convection_h_w_m2k = "
                     << matConfig.thermal.interiorConvection << "\n";
             }
             if (hasTemperatureMap) {
                 if (!matConfig.temperatureTexture.isEmpty()) {
-                    out << "temperature_texture = "
+                    materialOut << "temperature_texture = "
                         << tomlQuoted(matConfig.temperatureTexture) << "\n";
                 }
                 // Both, or neither: reading half a mapping out of a file and
                 // taking the other half from a default is the kind of thing
                 // that only shows up as a render being wrong by an offset.
-                out << "temperature_scale = " << matConfig.temperatureScale << "\n";
-                out << "temperature_offset = " << matConfig.temperatureOffset << "\n";
+                materialOut << "temperature_scale = " << matConfig.temperatureScale << "\n";
+                materialOut << "temperature_offset = " << matConfig.temperatureOffset << "\n";
             }
             if (matConfig.hasSpectral()) {
                 if (!matConfig.spectralMaterialType.isEmpty()) {
-                    out << "spectral_material_type = "
+                    materialOut << "spectral_material_type = "
                         << tomlQuoted(matConfig.spectralMaterialType) << "\n";
                 }
                 // Singular for one, plural for a mixture. The core treats them
@@ -1082,21 +1101,21 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
                 // one-element array would rewrite nearly every existing config
                 // for no change in meaning.
                 if (matConfig.spectralMaterialRefs.size() == 1) {
-                    out << "spectral_material_ref = "
+                    materialOut << "spectral_material_ref = "
                         << tomlQuoted(matConfig.spectralMaterialRefs.first()) << "\n";
                 } else {
-                    out << "spectral_material_refs = [";
+                    materialOut << "spectral_material_refs = [";
                     for (int i = 0; i < matConfig.spectralMaterialRefs.size(); ++i) {
-                        if (i > 0) out << ", ";
-                        out << tomlQuoted(matConfig.spectralMaterialRefs.at(i));
+                        if (i > 0) materialOut << ", ";
+                        materialOut << tomlQuoted(matConfig.spectralMaterialRefs.at(i));
                     }
-                    out << "]\n";
+                    materialOut << "]\n";
                 }
                 if (!matConfig.spectralUnmix.isEmpty()) {
-                    out << "spectral_unmix = " << tomlQuoted(matConfig.spectralUnmix) << "\n";
+                    materialOut << "spectral_unmix = " << tomlQuoted(matConfig.spectralUnmix) << "\n";
                 }
                 if (!matConfig.spectralWeightTexture.isEmpty()) {
-                    out << "spectral_weight_texture = "
+                    materialOut << "spectral_weight_texture = "
                         << tomlQuoted(matConfig.spectralWeightTexture) << "\n";
                 }
             }
@@ -1104,30 +1123,48 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
             // with a measured spectrum need not also have a measured
             // reflectance, and gating one on the other would drop it.
             if (matConfig.hasEmissiveCurve()) {
-                out << "emissive_curve = " << tomlQuoted(matConfig.emissiveCurve) << "\n";
+                materialOut << "emissive_curve = " << tomlQuoted(matConfig.emissiveCurve) << "\n";
                 if (matConfig.emissiveCurveColumn > 0) {
-                    out << "emissive_curve_column = " << matConfig.emissiveCurveColumn << "\n";
+                    materialOut << "emissive_curve_column = " << matConfig.emissiveCurveColumn << "\n";
                 }
                 if (!matConfig.emissiveScale.isEmpty()) {
-                    out << "emissive_scale = " << tomlQuoted(matConfig.emissiveScale) << "\n";
+                    materialOut << "emissive_scale = " << tomlQuoted(matConfig.emissiveScale) << "\n";
                 }
             }
             if (matConfig.hasFluorescence()) {
-                out << "fluorescence_excitation_curve = "
+                materialOut << "fluorescence_excitation_curve = "
                     << tomlQuoted(matConfig.fluorescenceExcitationCurve) << "\n";
                 if (matConfig.fluorescenceExcitationColumn > 0) {
-                    out << "fluorescence_excitation_curve_column = "
+                    materialOut << "fluorescence_excitation_curve_column = "
                         << matConfig.fluorescenceExcitationColumn << "\n";
                 }
-                out << "fluorescence_emission_curve = "
+                materialOut << "fluorescence_emission_curve = "
                     << tomlQuoted(matConfig.fluorescenceEmissionCurve) << "\n";
                 if (matConfig.fluorescenceEmissionColumn > 0) {
-                    out << "fluorescence_emission_curve_column = "
+                    materialOut << "fluorescence_emission_curve_column = "
                         << matConfig.fluorescenceEmissionColumn << "\n";
                 }
-                out << "fluorescence_yield = " << matConfig.fluorescenceYield << "\n";
+                materialOut << "fluorescence_yield = " << matConfig.fluorescenceYield << "\n";
             }
-            out << "\n";
+            materialOut.flush();
+            const auto edited=quantiloom::Config::Parse(materialText.toStdString());
+            if(!edited)throw std::runtime_error(edited.error());
+            // Replace widget-owned bindings as a group, including absent/cleared
+            // values and mutually exclusive singular/plural aliases.
+            const auto carried=matConfig.preserved.WithoutKeys({
+                "spectral_material_type", "spectral_material_ref", "spectral_material_refs",
+                "spectral_unmix", "spectral_weight_texture", "emissive_curve",
+                "emissive_curve_column", "emissive_scale", "fluorescence_excitation_curve",
+                "fluorescence_excitation_curve_column", "fluorescence_emission_curve",
+                "fluorescence_emission_curve_column", "fluorescence_yield", "temperature_texture"});
+            const QString merged=QString::fromStdString(carried.MergedWith(*edited).ToToml());
+            out << "[[materials]]\n";
+            for(const auto& line:merged.split('\n')) {
+                if(line.startsWith('[')) {
+                    const int prefix=line.startsWith("[[") ? 2 : 1;
+                    out << line.left(prefix) << "materials." << line.mid(prefix) << "\n";
+                } else out << line << "\n";
+            }
         }
     }
 

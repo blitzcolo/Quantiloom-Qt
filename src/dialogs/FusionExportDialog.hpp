@@ -23,16 +23,23 @@ public:
     std::function<void(const quantiloom::Config&,const quantiloom::camera::CameraConfig&)> preview;
 protected:
     void reject() override;
+    void changeEvent(QEvent* event) override;
+    void showEvent(QShowEvent* event) override;
 private:
     void selectCamera(int index);
     void saveCamera();
     void refreshList();
+    bool collectPairs();
     void start();
+    void updatePreview();
+    void retranslate();
     quantiloom::Config m_scene;
     QString m_baseDirectory;
     quantiloom::dataset::RigConfig m_rig;
     QListWidget* m_cameras=nullptr;
     QComboBox* m_reference=nullptr;
+    QComboBox* m_pairMode=nullptr;
+    QLineEdit* m_pairs=nullptr;
     QLineEdit* m_id=nullptr;
     QLineEdit* m_output=nullptr;
     QLineEdit* m_sample=nullptr;
@@ -44,6 +51,7 @@ private:
     SensorPanel* m_sensor=nullptr;
     QPointer<QThread> m_thread;
     std::atomic_bool m_cancelled=false;
+    std::atomic_bool m_publishing=false;
     bool m_loading=false;
     int m_selected=-1;
 };

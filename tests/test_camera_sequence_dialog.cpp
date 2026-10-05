@@ -84,6 +84,9 @@ bool runHyperspectral(const SceneConfig& source, const QString& directory) {
 }
 
 bool runSweep(SceneConfig source, const QString& directory) {
+    // At t=0 the moving block is outside this narrow physical-camera field.
+    // Compare temperatures when the block occupies the view, not two ground-only frames.
+    source.timeline.timeS = 0.5;
     SequenceRenderDialog dialog(source, {QStringLiteral("Material")}, {});
     const auto widget = [&dialog]<class T>(const char* name) {
         return dialog.findChild<T*>(QString::fromLatin1(name));

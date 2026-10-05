@@ -141,6 +141,13 @@ void SensorPanel::retranslateUi() {
     m_thermographyGroup->setTitle(tr("Thermography"));
 
     m_enabledCheck->setText(tr("Enable Camera Simulation"));
+    m_explicitIntrinsics->setText(tr("Use calibrated intrinsics"));
+    {
+        const QSignalBlocker blocker(m_projectionModel);
+        m_projectionModel->setItemText(0,tr("Pinhole"));
+        m_projectionModel->setItemText(1,tr("Radial / tangential"));
+        m_projectionModel->setItemText(2,tr("Fisheye"));
+    }
 
     // Not captions, so the loop below does not reach them: the PSF sentinel's
     // label is the spin box's own special-value text.
@@ -302,9 +309,9 @@ void SensorPanel::setupUi() {
     m_projectionModel->addItems({tr("Pinhole"),tr("Radial / tangential"),tr("Fisheye")});
     addRow(opticsLayout,QT_TR_NOOP("Lens Model:"),m_projectionModel,QT_TR_NOOP("Projection used to generate native sensor rays."));
     m_explicitIntrinsics=new QCheckBox(tr("Use calibrated intrinsics"));opticsLayout->addRow(m_explicitIntrinsics);
-    const char* intrinsicLabels[]={"fx (pixels):","fy (pixels):","Principal x:","Principal y:"};
+    const char* intrinsicLabels[]={QT_TR_NOOP("fx (pixels):"),QT_TR_NOOP("fy (pixels):"),QT_TR_NOOP("Principal x:"),QT_TR_NOOP("Principal y:")};
     for(int i=0;i<4;++i){m_intrinsics[i]=makeSpin(i<2 ? .0001 : -100000,100000,.1,6,i<2 ? 1000 : 0," px");addRow(opticsLayout,intrinsicLabels[i],m_intrinsics[i],QT_TR_NOOP("Top-left image coordinates; pixel centres use a half-pixel offset."));connect(m_intrinsics[i],QOverload<double>::of(&QDoubleSpinBox::valueChanged),this,&SensorPanel::onParamChanged);}
-    const char* coefficientLabels[]={"k1:","k2:","p1 / fisheye k3:","p2 / fisheye k4:","k3 (radial):"};
+    const char* coefficientLabels[]={QT_TR_NOOP("k1:"),QT_TR_NOOP("k2:"),QT_TR_NOOP("p1 / fisheye k3:"),QT_TR_NOOP("p2 / fisheye k4:"),QT_TR_NOOP("k3 (radial):")};
     for(int i=0;i<5;++i){m_distortion[i]=makeSpin(-100,100,.0001,8,0,nullptr);addRow(opticsLayout,coefficientLabels[i],m_distortion[i],QT_TR_NOOP("Dimensionless coefficient in the selected lens model."));connect(m_distortion[i],QOverload<double>::of(&QDoubleSpinBox::valueChanged),this,&SensorPanel::onParamChanged);}
     m_maxTheta=makeSpin(.1,89.99,.1,3,89," deg");addRow(opticsLayout,QT_TR_NOOP("Fisheye Half Angle:"),m_maxTheta,QT_TR_NOOP("Maximum valid angle from the forward axis."));
     connect(m_maxTheta,QOverload<double>::of(&QDoubleSpinBox::valueChanged),this,&SensorPanel::onParamChanged);

@@ -64,6 +64,7 @@ struct MaterialThermalProps {
  * @brief Material overrides from TOML config, matched to the scene by name
  */
 struct MaterialConfig {
+    quantiloom::Config preserved; // Resolved material fields not owned by widgets.
     QString name;                // Material name to match
     float irEmissivity = 0.0f;   // IR emissivity [0,1]
     float irTransmittance = 0.0f; // IR transmittance [0,1]
