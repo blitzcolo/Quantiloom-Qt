@@ -5,7 +5,7 @@
 cmake_minimum_required(VERSION 3.21)
 
 project(QuantiloomQt
-    VERSION 0.6.0
+    VERSION 0.7.0
     DESCRIPTION "Qt6 GUI for libQuantiloom"
     LANGUAGES CXX
 )
@@ -722,6 +722,53 @@ add_custom_target(QuantiloomQtAssets ALL
 install(DIRECTORY assets/spectral assets/luts DESTINATION assets)
 
 add_dependencies(QuantiloomQt QuantiloomQtAssets)
+
+
+include(CTest)
+if(BUILD_TESTING)
+    add_executable(quantiloomqt_fusion_tests
+        tests/test_fusion_document.cpp src/config/ConfigManager.cpp src/config/ConfigManager.hpp)
+    add_dependencies(quantiloomqt_fusion_tests QuantiloomQt)
+    if(QUANTILOOM_PLATFORM_WINDOWS)
+        target_compile_definitions(quantiloomqt_fusion_tests PRIVATE QUANTILOOM_PLATFORM_WINDOWS)
+    elseif(QUANTILOOM_PLATFORM_LINUX)
+        target_compile_definitions(quantiloomqt_fusion_tests PRIVATE QUANTILOOM_PLATFORM_LINUX)
+    elseif(QUANTILOOM_PLATFORM_MACOS)
+        target_compile_definitions(quantiloomqt_fusion_tests PRIVATE QUANTILOOM_PLATFORM_MACOS)
+    endif()
+    target_include_directories(quantiloomqt_fusion_tests PRIVATE src)
+    target_link_libraries(quantiloomqt_fusion_tests PRIVATE Qt6::Core Qt6::Gui Quantiloom::libQuantiloom)
+    if(MSVC)
+        target_compile_options(quantiloomqt_fusion_tests PRIVATE /utf-8)
+    endif()
+    add_test(NAME FusionDocumentRegression COMMAND quantiloomqt_fusion_tests
+        "${CMAKE_CURRENT_SOURCE_DIR}/../Quantiloom-dev/docs/dataset/fusion")
+endif()
+
+if(BUILD_TESTING)
+    add_executable(fusion_editor_test tests/test_fusion_editor.cpp
+        src/config/ConfigManager.cpp src/config/ConfigManager.hpp
+        src/dialogs/FusionExportDialog.cpp src/dialogs/FusionExportDialog.hpp
+        src/panels/SensorPanel.cpp src/panels/SensorPanel.hpp
+        src/ui/PanelBase.cpp src/ui/PanelBase.hpp
+        src/ui/CollapsibleGroupBox.cpp src/ui/CollapsibleGroupBox.hpp
+        src/ui/UiStyle.cpp src/ui/UiStyle.hpp
+        src/ui/theme/ThemeManager.cpp src/ui/theme/ThemeManager.hpp)
+    add_dependencies(fusion_editor_test QuantiloomQt)
+    target_include_directories(fusion_editor_test PRIVATE src)
+    target_link_libraries(fusion_editor_test PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets ${QUANTILOOM_LIBRARIES})
+    if(QUANTILOOM_PLATFORM_WINDOWS)
+        target_compile_definitions(fusion_editor_test PRIVATE QUANTILOOM_PLATFORM_WINDOWS)
+    elseif(QUANTILOOM_PLATFORM_LINUX)
+        target_compile_definitions(fusion_editor_test PRIVATE QUANTILOOM_PLATFORM_LINUX)
+    elseif(QUANTILOOM_PLATFORM_MACOS)
+        target_compile_definitions(fusion_editor_test PRIVATE QUANTILOOM_PLATFORM_MACOS)
+    endif()
+    if(MSVC)
+        target_compile_options(fusion_editor_test PRIVATE /utf-8 /W4)
+    endif()
+    add_test(NAME fusion_editor_regression COMMAND fusion_editor_test)
+endif()
 
 if(BUILD_TESTING)
     add_executable(fusion_reference_test tests/test_fusion_reference.cpp
