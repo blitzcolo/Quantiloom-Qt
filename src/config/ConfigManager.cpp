@@ -1,5 +1,4 @@
 #include <algorithm>
-#include <stdexcept>
 /**
  * @file ConfigManager.cpp
  * @brief TOML configuration import/export implementation
@@ -1148,16 +1147,30 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
             }
             materialOut.flush();
             const auto edited=quantiloom::Config::Parse(materialText.toStdString());
-            if(!edited)throw std::runtime_error(edited.error());
-            // Replace widget-owned bindings as a group, including absent/cleared
-            // values and mutually exclusive singular/plural aliases.
-            const auto carried=matConfig.preserved.WithoutKeys({
-                "spectral_material_type", "spectral_material_ref", "spectral_material_refs",
-                "spectral_unmix", "spectral_weight_texture", "emissive_curve",
-                "emissive_curve_column", "emissive_scale", "fluorescence_excitation_curve",
-                "fluorescence_excitation_curve_column", "fluorescence_emission_curve",
-                "fluorescence_emission_curve_column", "fluorescence_yield", "temperature_texture"});
-            const QString merged=QString::fromStdString(carried.MergedWith(*edited).ToToml());
+            QString merged;
+            if(!edited) {
+                // The serializer wrote this text itself, so a parse failure is
+                // a defect here rather than in the document -- and this runs
+                // through Qt slots (Save, refreshDocumentModified), where a
+                // throw terminates the app. Warn and write the widget-owned
+                // keys as they are; the carried keys for this one material
+                // are lost.
+                qWarning() << "[ConfigManager] material" << matConfig.name
+                           << "serialised a block TOML rejects:"
+                           << QString::fromStdString(edited.error())
+                           << "-- carried keys for it are lost";
+                merged=materialText;
+            } else {
+                // Replace widget-owned bindings as a group, including absent/cleared
+                // values and mutually exclusive singular/plural aliases.
+                const auto carried=matConfig.preserved.WithoutKeys({
+                    "spectral_material_type", "spectral_material_ref", "spectral_material_refs",
+                    "spectral_unmix", "spectral_weight_texture", "emissive_curve",
+                    "emissive_curve_column", "emissive_scale", "fluorescence_excitation_curve",
+                    "fluorescence_excitation_curve_column", "fluorescence_emission_curve",
+                    "fluorescence_emission_curve_column", "fluorescence_yield", "temperature_texture"});
+                merged=QString::fromStdString(carried.MergedWith(*edited).ToToml());
+            }
             out << "[[materials]]\n";
             for(const auto& line:merged.split('\n')) {
                 if(line.startsWith('[')) {

@@ -18,7 +18,7 @@ class SensorPanel;
 class FusionExportDialog : public QDialog {
     Q_OBJECT
 public:
-    FusionExportDialog(const quantiloom::Config& scene,const QString& baseDirectory,QWidget* parent=nullptr);
+    FusionExportDialog(const quantiloom::Config& scene,const QString& baseDirectory,quantiloom::SpectralMode spectralMode,QWidget* parent=nullptr);
     ~FusionExportDialog() override;
     std::function<void(const quantiloom::Config&,const quantiloom::camera::CameraConfig&)> preview;
 protected:

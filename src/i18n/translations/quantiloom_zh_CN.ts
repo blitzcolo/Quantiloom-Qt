@@ -627,6 +627,153 @@ May cause colour shifts.</source>
     </message>
 </context>
 <context>
+    <name>FusionExportDialog</name>
+    <message>
+        <source>Default reference pairs</source>
+        <translation>默认参考相机配对</translation>
+    </message>
+    <message>
+        <source>Explicit pairs</source>
+        <translation>显式配对</translation>
+    </message>
+    <message>
+        <source>source &gt; target; source &gt; target</source>
+        <translation>源相机 &gt; 目标相机；源相机 &gt; 目标相机</translation>
+    </message>
+    <message>
+        <source>TOML (*.toml)</source>
+        <translation>TOML 文件 (*.toml)</translation>
+    </message>
+    <message>
+        <source>Use source &gt; target for each pair.</source>
+        <translation>请以“源相机 &gt; 目标相机”填写每组配对。</translation>
+    </message>
+    <message>
+        <source>Removed camera and its pairs.</source>
+        <translation>已移除相机及其关联配对。</translation>
+    </message>
+    <message>
+        <source>Completing publication...</source>
+        <translation type="vanished">正在完成发布…</translation>
+    </message>
+    <message>
+        <source>Sample ID:</source>
+        <translation>样本 ID：</translation>
+    </message>
+    <message>
+        <source>Output:</source>
+        <translation>输出：</translation>
+    </message>
+    <message>
+        <source>Browse...</source>
+        <translation>浏览…</translation>
+    </message>
+    <message>
+        <source>Add camera</source>
+        <translation>添加相机</translation>
+    </message>
+    <message>
+        <source>Remove</source>
+        <translation>移除</translation>
+    </message>
+    <message>
+        <source>Reference camera:</source>
+        <translation>参考相机：</translation>
+    </message>
+    <message>
+        <source>Load rig...</source>
+        <translation>加载相机组…</translation>
+    </message>
+    <message>
+        <source>Save rig...</source>
+        <translation>保存相机组…</translation>
+    </message>
+    <message>
+        <source>Camera ID:</source>
+        <translation>相机 ID：</translation>
+    </message>
+    <message>
+        <source>X (world units):</source>
+        <translation>X（世界单位）：</translation>
+    </message>
+    <message>
+        <source>Y (world units):</source>
+        <translation>Y（世界单位）：</translation>
+    </message>
+    <message>
+        <source>Z (world units):</source>
+        <translation>Z（世界单位）：</translation>
+    </message>
+    <message>
+        <source>Pitch (degrees):</source>
+        <translation>俯仰（度）：</translation>
+    </message>
+    <message>
+        <source>Yaw (degrees):</source>
+        <translation>偏航（度）：</translation>
+    </message>
+    <message>
+        <source>Roll (degrees):</source>
+        <translation>滚转（度）：</translation>
+    </message>
+    <message>
+        <source>Preview selected camera</source>
+        <translation>预览选中的相机</translation>
+    </message>
+    <message>
+        <source>Export</source>
+        <translation>导出</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation>关闭</translation>
+    </message>
+    <message>
+        <source>Rig</source>
+        <translation>相机组</translation>
+    </message>
+    <message>
+        <source>Camera</source>
+        <translation type="vanished">相机</translation>
+    </message>
+    <message>
+        <source>Could not write the rig.</source>
+        <translation>无法写入相机组。</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <source>Stopping before publication...</source>
+        <translation>正在停止，尚未发布…</translation>
+    </message>
+    <message>
+        <source>Fusion Dataset Export</source>
+        <translation>融合数据集导出</translation>
+    </message>
+    <message>
+        <source>Also export undistorted images and coordinate maps</source>
+        <translation>同时导出去畸变图像和坐标映射</translation>
+    </message>
+    <message>
+        <source>Saved %1</source>
+        <translation type="vanished">已保存 %1</translation>
+    </message>
+    <message>
+        <source>Output directory</source>
+        <translation>输出目录</translation>
+    </message>
+    <message>
+        <source>Load rig</source>
+        <translation>加载相机组</translation>
+    </message>
+    <message>
+        <source>Save rig</source>
+        <translation>保存相机组</translation>
+    </message>
+</context>
+<context>
     <name>HelpDialog</name>
     <message>
         <source>Quantiloom Help</source>
@@ -1408,6 +1555,10 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation>导出图像（原始渲染结果）(&amp;I)...</translation>
     </message>
     <message>
+        <source>Export Fusion Dataset...</source>
+        <translation>导出融合数据集...</translation>
+    </message>
+    <message>
         <source>Render Hyperspectral &amp;Cube...</source>
         <translation>渲染高光谱立方体(&amp;C)……</translation>
     </message>
@@ -1767,7 +1918,7 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
     </message>
     <message>
         <source>Loaded configuration: %1</source>
-        <translation>已加载配置：%1</translation>
+        <translation type="vanished">已加载配置：%1</translation>
     </message>
     <message>
         <source>Loading %1...</source>
@@ -1852,12 +2003,32 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
 %1</translation>
     </message>
     <message>
+        <source>Open a scene before exporting a fusion dataset.</source>
+        <translation>请先打开场景，再导出融合数据集。</translation>
+    </message>
+    <message>
+        <source>Fusion Export</source>
+        <translation>融合导出</translation>
+    </message>
+    <message>
+        <source>Camera</source>
+        <translation>相机</translation>
+    </message>
+    <message>
+        <source>Could not restore the viewport camera: %1</source>
+        <translation>无法恢复视口相机：%1</translation>
+    </message>
+    <message>
         <source>Open a scene before exporting camera products.</source>
         <translation>请先打开场景，再导出相机产品。</translation>
     </message>
     <message>
         <source>EXR Image (*.exr);;All Files (*)</source>
         <translation>EXR 图像 (*.exr);;所有文件 (*)</translation>
+    </message>
+    <message>
+        <source>Could not restore the camera product request: %1</source>
+        <translation>无法恢复相机产品请求：%1</translation>
     </message>
     <message>
         <source>Rendering (infinite)</source>
@@ -3696,29 +3867,98 @@ Rebuild with:
         <source>Noise the readout adds per pixel, in digital numbers RMS. Independent of scene power.</source>
         <translation>读出电路为每个像素引入的噪声，单位为数字值均方根。与场景功率无关。</translation>
     </message>
-<message><source>Native Width:</source><translation>原生宽度：</translation></message>
-<message><source>Native Height:</source><translation>原生高度：</translation></message>
-<message><source>Lens Model:</source><translation>镜头模型：</translation></message>
-<message><source>Use calibrated intrinsics</source><translation>使用标定内参</translation></message>
-<message><source>Pinhole</source><translation>理想透视</translation></message>
-<message><source>Radial / tangential</source><translation>径向／切向畸变</translation></message>
-<message><source>Fisheye</source><translation>鱼眼</translation></message>
-<message><source>fx (pixels):</source><translation>fx（像素）：</translation></message>
-<message><source>fy (pixels):</source><translation>fy（像素）：</translation></message>
-<message><source>Principal x:</source><translation>主点 x：</translation></message>
-<message><source>Principal y:</source><translation>主点 y：</translation></message>
-<message><source>k1:</source><translation>k1：</translation></message>
-<message><source>k2:</source><translation>k2：</translation></message>
-<message><source>p1 / fisheye k3:</source><translation>p1／鱼眼 k3：</translation></message>
-<message><source>p2 / fisheye k4:</source><translation>p2／鱼眼 k4：</translation></message>
-<message><source>k3 (radial):</source><translation>k3（径向）：</translation></message>
-<message><source>Fisheye Half Angle:</source><translation>鱼眼半视场角：</translation></message>
-<message><source>Physical sensor columns; independent of viewport resolution.</source><translation>传感器原生列数，与视口分辨率独立。</translation></message>
-<message><source>Physical sensor rows; independent of viewport resolution.</source><translation>传感器原生行数，与视口分辨率独立。</translation></message>
-<message><source>Projection used to generate native sensor rays.</source><translation>生成原生传感器射线使用的投影模型。</translation></message>
-<message><source>Top-left image coordinates; pixel centres use a half-pixel offset.</source><translation>图像左上角坐标；像素中心带半像素偏移。</translation></message>
-<message><source>Dimensionless coefficient in the selected lens model.</source><translation>所选镜头模型的无量纲系数。</translation></message>
-<message><source>Maximum valid angle from the forward axis.</source><translation>相对前向轴的最大有效角度。</translation></message>
+    <message>
+        <source>Native Width:</source>
+        <translation>原生宽度：</translation>
+    </message>
+    <message>
+        <source>Native Height:</source>
+        <translation>原生高度：</translation>
+    </message>
+    <message>
+        <source>Lens Model:</source>
+        <translation>镜头模型：</translation>
+    </message>
+    <message>
+        <source>Use calibrated intrinsics</source>
+        <translation>使用标定内参</translation>
+    </message>
+    <message>
+        <source>Pinhole</source>
+        <translation>理想透视</translation>
+    </message>
+    <message>
+        <source>Radial / tangential</source>
+        <translation>径向／切向畸变</translation>
+    </message>
+    <message>
+        <source>Fisheye</source>
+        <translation>鱼眼</translation>
+    </message>
+    <message>
+        <source>fx (pixels):</source>
+        <translation>fx（像素）：</translation>
+    </message>
+    <message>
+        <source>fy (pixels):</source>
+        <translation>fy（像素）：</translation>
+    </message>
+    <message>
+        <source>Principal x:</source>
+        <translation>主点 x：</translation>
+    </message>
+    <message>
+        <source>Principal y:</source>
+        <translation>主点 y：</translation>
+    </message>
+    <message>
+        <source>k1:</source>
+        <translation>k1：</translation>
+    </message>
+    <message>
+        <source>k2:</source>
+        <translation>k2：</translation>
+    </message>
+    <message>
+        <source>p1 / fisheye k3:</source>
+        <translation>p1／鱼眼 k3：</translation>
+    </message>
+    <message>
+        <source>p2 / fisheye k4:</source>
+        <translation>p2／鱼眼 k4：</translation>
+    </message>
+    <message>
+        <source>k3 (radial):</source>
+        <translation>k3（径向）：</translation>
+    </message>
+    <message>
+        <source>Fisheye Half Angle:</source>
+        <translation>鱼眼半视场角：</translation>
+    </message>
+    <message>
+        <source>Physical sensor columns; independent of viewport resolution.</source>
+        <translation>传感器原生列数，与视口分辨率独立。</translation>
+    </message>
+    <message>
+        <source>Physical sensor rows; independent of viewport resolution.</source>
+        <translation>传感器原生行数，与视口分辨率独立。</translation>
+    </message>
+    <message>
+        <source>Projection used to generate native sensor rays.</source>
+        <translation>生成原生传感器射线使用的投影模型。</translation>
+    </message>
+    <message>
+        <source>Top-left image coordinates; pixel centres use a half-pixel offset.</source>
+        <translation>图像左上角坐标；像素中心带半像素偏移。</translation>
+    </message>
+    <message>
+        <source>Dimensionless coefficient in the selected lens model.</source>
+        <translation>所选镜头模型的无量纲系数。</translation>
+    </message>
+    <message>
+        <source>Maximum valid angle from the forward axis.</source>
+        <translation>相对前向轴的最大有效角度。</translation>
+    </message>
 </context>
 <context>
     <name>SequenceRenderDialog</name>
@@ -5349,43 +5589,5 @@ Right-drag orbits the camera, middle-drag pans, the wheel zooms; G/R/T switch tr
         <source>No flux breakdown: this solve ran on a stepper that does not decompose its own energy balance.</source>
         <translation>无热流分解：本次求解所用的步进器不分解自身的能量平衡。</translation>
     </message>
-</context>
-<context>
-<name>FusionExportDialog</name>
-<message><source>Default reference pairs</source><translation>默认参考相机配对</translation></message>
-<message><source>Explicit pairs</source><translation>显式配对</translation></message>
-<message><source>source &gt; target; source &gt; target</source><translation>源相机 &gt; 目标相机；源相机 &gt; 目标相机</translation></message>
-<message><source>Use source &gt; target for each pair.</source><translation>请以“源相机 &gt; 目标相机”填写每组配对。</translation></message>
-<message><source>Removed camera and its pairs.</source><translation>已移除相机及其关联配对。</translation></message>
-<message><source>Completing publication...</source><translation>正在完成发布…</translation></message>
-<message><source>Sample ID:</source><translation>样本 ID：</translation></message>
-<message><source>Output:</source><translation>输出：</translation></message>
-<message><source>Browse...</source><translation>浏览…</translation></message>
-<message><source>Add camera</source><translation>添加相机</translation></message>
-<message><source>Remove</source><translation>移除</translation></message>
-<message><source>Reference camera:</source><translation>参考相机：</translation></message>
-<message><source>Load rig...</source><translation>加载相机组…</translation></message>
-<message><source>Save rig...</source><translation>保存相机组…</translation></message>
-<message><source>Camera ID:</source><translation>相机 ID：</translation></message>
-<message><source>X (world units):</source><translation>X（世界单位）：</translation></message>
-<message><source>Y (world units):</source><translation>Y（世界单位）：</translation></message>
-<message><source>Z (world units):</source><translation>Z（世界单位）：</translation></message>
-<message><source>Pitch (degrees):</source><translation>俯仰（度）：</translation></message>
-<message><source>Yaw (degrees):</source><translation>偏航（度）：</translation></message>
-<message><source>Roll (degrees):</source><translation>滚转（度）：</translation></message>
-<message><source>Preview selected camera</source><translation>预览选中的相机</translation></message>
-<message><source>Export</source><translation>导出</translation></message>
-<message><source>Close</source><translation>关闭</translation></message>
-<message><source>Rig</source><translation>相机组</translation></message>
-<message><source>Camera</source><translation>相机</translation></message>
-<message><source>Could not write the rig.</source><translation>无法写入相机组。</translation></message>
-<message><source>Cancel</source><translation>取消</translation></message>
-<message><source>Stopping before publication...</source><translation>正在停止，尚未发布…</translation></message>
-<message><source>Fusion Dataset Export</source><translation>融合数据集导出</translation></message>
-<message><source>Also export undistorted images and coordinate maps</source><translation>同时导出去畸变图像和坐标映射</translation></message>
-<message><source>Saved %1</source><translation>已保存 %1</translation></message>
-<message><source>Output directory</source><translation>输出目录</translation></message>
-<message><source>Load rig</source><translation>加载相机组</translation></message>
-<message><source>Save rig</source><translation>保存相机组</translation></message>
 </context>
 </TS>

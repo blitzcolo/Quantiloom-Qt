@@ -3142,6 +3142,9 @@ bool MainWindow::openPath(const QString& filePath) {
     m_pendingDocumentConfig = std::move(pending);
     m_pendingRawConfig = raw;
     m_viewportFrame->setSceneLoaded(true);
+    // The load is asynchronous and can take seconds on a large scene; the
+    // sceneLoaded handler replaces this with the outcome.
+    showStatusMessage(tr("Loading %1...").arg(QFileInfo(filePath).fileName()));
     const HistorySuppressor noHistory(m_suppressHistory);
     if (raw) m_vulkanWindow->applyConfig(raw, m_pendingDocumentConfig->baseDir);
     else m_vulkanWindow->loadScene(filePath);
@@ -3192,7 +3195,7 @@ void MainWindow::onExportFusionDataset() {
     SceneConfig config;collectCurrentConfig(config);
     auto snapshot=quantiloom::Config::Parse(m_configManager->exportConfigToString(config).toStdString());
     if(!snapshot){QMessageBox::warning(this,tr("Fusion Export"),QString::fromStdString(snapshot.error()));return;}
-    FusionExportDialog dialog(*snapshot,config.baseDir,this);
+    FusionExportDialog dialog(*snapshot,config.baseDir,config.spectralMode,this);
     dialog.preview=[this](const quantiloom::Config& view,const quantiloom::camera::CameraConfig& sensor){
         const auto camera=quantiloom::Camera::FromConfig(view,1.0f);
         if(!camera)return;
@@ -3201,7 +3204,14 @@ void MainWindow::onExportFusionDataset() {
         m_vulkanWindow->setCamera(camera.value().GetPosition(),camera.value().GetLookAt(),camera.value().GetUpReference(),camera.value().GetFovY());
     };
     dialog.exec();
-    m_vulkanWindow->setCameraConfig(config.cameraConfig);
+    // The dialog's previews moved the viewport camera; put the document's
+    // own back and say so if the renderer refuses, rather than leaving the
+    // viewport holding a rig camera the document never described.
+    if (const auto restored = m_vulkanWindow->setCameraConfig(config.cameraConfig);
+        !restored) {
+        showStatusMessage(tr("Could not restore the viewport camera: %1")
+                              .arg(QString::fromStdString(restored.error())));
+    }
     m_vulkanWindow->setCamera({config.cameraPosition[0],config.cameraPosition[1],config.cameraPosition[2]},
         {config.cameraLookAt[0],config.cameraLookAt[1],config.cameraLookAt[2]},
         {config.cameraUp[0],config.cameraUp[1],config.cameraUp[2]},config.cameraFovY);
@@ -3308,7 +3318,8 @@ void MainWindow::onExportCameraProducts() {
     // The product request is export intent, not document state: widen it on
     // the renderer for this capture only, so saving the scene afterwards does
     // not start claiming every product on every render.
-    quantiloom::camera::CameraConfig camera = m_vulkanWindow->cameraConfig();
+    const quantiloom::camera::CameraConfig original = m_vulkanWindow->cameraConfig();
+    quantiloom::camera::CameraConfig camera = original;
     camera.products.rawDn = true;
     camera.products.correctedDeviceSignal = true;
     camera.products.bandMeasurement = true;
@@ -3331,6 +3342,16 @@ void MainWindow::onExportCameraProducts() {
     const double timeSeconds = timeline.present ? timeline.current_s : 0.0;
 
     auto captured = m_vulkanWindow->captureCameraProducts(timeSeconds);
+
+    // The widened request belonged to the capture alone: put the document's
+    // own back whether it succeeded or not. Left in place it would make every
+    // later frame produce every product, and the next camera edit's undo
+    // snapshot -- taken from cameraConfig() -- would restore the widening.
+    if (const auto restored = m_vulkanWindow->setCameraConfig(original); !restored) {
+        showStatusMessage(tr("Could not restore the camera product request: %1")
+                              .arg(QString::fromStdString(restored.error())));
+    }
+
     if (!captured) {
         QMessageBox::warning(this, tr("Export Failed"),
             tr("Could not capture the camera products:\n%1")
@@ -5264,8 +5285,13 @@ void MainWindow::collectCurrentConfig(SceneConfig& config) {
             : *config.materialConfigs.insert(config.materialConfigs.end(), MaterialConfig{});
 
         matConfig.name = name;
+        // QString::number rather than std::to_string: 'g' keeps significant
+        // digits where six fixed decimals would not (dispersion is an Abbe
+        // reciprocal), and it never emits the locale's decimal separator,
+        // which TOML would reject.
         const auto optical=quantiloom::Config::Parse(
-            "ior = "+std::to_string(material.ior)+"\ndispersion = "+std::to_string(material.dispersion)+"\n");
+            ("ior = "+QString::number(material.ior,'g',9)
+            +"\ndispersion = "+QString::number(material.dispersion,'g',9)+"\n").toStdString());
         if(optical)matConfig.preserved=matConfig.preserved.MergedWith(*optical);
         matConfig.hasPbr = true;
         matConfig.baseColor = glm::vec3(material.baseColorFactor);

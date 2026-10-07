@@ -32,14 +32,14 @@
 
 using namespace quantiloom;
 using namespace quantiloom::dataset;
-FusionExportDialog::FusionExportDialog(const Config& scene,const QString& base,QWidget* parent)
+FusionExportDialog::FusionExportDialog(const Config& scene,const QString& base,SpectralMode spectralMode,QWidget* parent)
     :QDialog(parent),m_scene(scene),m_baseDirectory(base) {
     setWindowTitle(tr("Fusion Dataset Export"));resize(1050,800);
     m_rig.id="studio-rig";m_rig.referenceCamera="camera_0";
     RigCamera first;first.id="camera_0";
     auto preset=camera::MakePresetCameraConfig(camera::CameraPresetKind::GenericCmos);
     first.sensor=preset.value();
-    auto authored=ParseCameraConfig(scene,SpectralMode::Single,base.toStdString());
+    auto authored=ParseCameraConfig(scene,spectralMode,base.toStdString());
     if(authored && authored.value().enabled) first.sensor=authored.value();
     first.sensor.enabled=true;first.sensor.motion.keys.clear();
     auto c=Camera::FromConfig(scene,1.0f);
@@ -103,7 +103,7 @@ FusionExportDialog::FusionExportDialog(const Config& scene,const QString& base,Q
     for(auto* button:findChildren<QPushButton*>())if(!m_sensor->isAncestorOf(button))button->setProperty("fusionSourceText",button->text().toUtf8());
     retranslate();refreshList();m_cameras->setCurrentRow(0);
 }
-FusionExportDialog::~FusionExportDialog(){m_cancelled=true;if(m_thread)m_thread->wait();}
+FusionExportDialog::~FusionExportDialog(){m_cancelled=true;if(m_thread){m_thread->wait();delete m_thread.data();}}
 void FusionExportDialog::reject(){if(m_thread){if(m_publishing)return;m_cancelled=true;m_status->setText(tr("Stopping before publication..."));return;}QDialog::reject();}
 void FusionExportDialog::refreshList(){m_loading=true;m_cameras->clear();m_reference->clear();for(const auto& c:m_rig.cameras){m_cameras->addItem(QString::fromStdString(c.id));m_reference->addItem(QString::fromStdString(c.id));}m_reference->setCurrentText(QString::fromStdString(m_rig.referenceCamera));m_loading=false;}
 void FusionExportDialog::saveCamera(){if(m_loading||m_selected<0)return;auto& c=m_rig.cameras[m_selected];const auto previous=c.id;c.id=m_id->text().toStdString();

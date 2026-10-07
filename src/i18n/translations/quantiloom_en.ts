@@ -613,6 +613,141 @@ May cause colour shifts.</source>
     </message>
 </context>
 <context>
+    <name>FusionExportDialog</name>
+    <message>
+        <source>Default reference pairs</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Explicit pairs</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>source &gt; target; source &gt; target</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>TOML (*.toml)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Use source &gt; target for each pair.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Removed camera and its pairs.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sample ID:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Output:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Browse...</source>
+        <translation type="unfinished">Browse...</translation>
+    </message>
+    <message>
+        <source>Add camera</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Reference camera:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Load rig...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save rig...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Camera ID:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>X (world units):</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Y (world units):</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Z (world units):</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Pitch (degrees):</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Yaw (degrees):</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Roll (degrees):</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Preview selected camera</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Export</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Rig</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Could not write the rig.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Stopping before publication...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Fusion Dataset Export</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Also export undistorted images and coordinate maps</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Output directory</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Load rig</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save rig</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>HelpDialog</name>
     <message>
         <source>Quantiloom Help</source>
@@ -1347,6 +1482,10 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Export Fusion Dataset...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Render Hyperspectral &amp;Cube...</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1708,10 +1847,6 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Loaded configuration: %1</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Loading %1...</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1800,6 +1935,26 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
     <message>
         <source>Failed to save the image:
 %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open a scene before exporting a fusion dataset.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Fusion Export</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Camera</source>
+        <translation type="unfinished">Camera</translation>
+    </message>
+    <message>
+        <source>Could not restore the viewport camera: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Could not restore the camera product request: %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -3638,29 +3793,98 @@ Rebuild with:
         <source>Noise the readout adds per pixel, in digital numbers RMS. Independent of scene power.</source>
         <translation>Noise the readout adds per pixel, in digital numbers RMS. Independent of scene power.</translation>
     </message>
-<message><source>Native Width:</source><translation type="unfinished"></translation></message>
-<message><source>Native Height:</source><translation type="unfinished"></translation></message>
-<message><source>Lens Model:</source><translation type="unfinished"></translation></message>
-<message><source>Use calibrated intrinsics</source><translation type="unfinished"></translation></message>
-<message><source>Pinhole</source><translation type="unfinished"></translation></message>
-<message><source>Radial / tangential</source><translation type="unfinished"></translation></message>
-<message><source>Fisheye</source><translation type="unfinished"></translation></message>
-<message><source>fx (pixels):</source><translation type="unfinished"></translation></message>
-<message><source>fy (pixels):</source><translation type="unfinished"></translation></message>
-<message><source>Principal x:</source><translation type="unfinished"></translation></message>
-<message><source>Principal y:</source><translation type="unfinished"></translation></message>
-<message><source>k1:</source><translation type="unfinished"></translation></message>
-<message><source>k2:</source><translation type="unfinished"></translation></message>
-<message><source>p1 / fisheye k3:</source><translation type="unfinished"></translation></message>
-<message><source>p2 / fisheye k4:</source><translation type="unfinished"></translation></message>
-<message><source>k3 (radial):</source><translation type="unfinished"></translation></message>
-<message><source>Fisheye Half Angle:</source><translation type="unfinished"></translation></message>
-<message><source>Physical sensor columns; independent of viewport resolution.</source><translation type="unfinished"></translation></message>
-<message><source>Physical sensor rows; independent of viewport resolution.</source><translation type="unfinished"></translation></message>
-<message><source>Projection used to generate native sensor rays.</source><translation type="unfinished"></translation></message>
-<message><source>Top-left image coordinates; pixel centres use a half-pixel offset.</source><translation type="unfinished"></translation></message>
-<message><source>Dimensionless coefficient in the selected lens model.</source><translation type="unfinished"></translation></message>
-<message><source>Maximum valid angle from the forward axis.</source><translation type="unfinished"></translation></message>
+    <message>
+        <source>Native Width:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Native Height:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Lens Model:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Use calibrated intrinsics</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Pinhole</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Radial / tangential</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Fisheye</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>fx (pixels):</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>fy (pixels):</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Principal x:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Principal y:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>k1:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>k2:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>p1 / fisheye k3:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>p2 / fisheye k4:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>k3 (radial):</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Fisheye Half Angle:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Physical sensor columns; independent of viewport resolution.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Physical sensor rows; independent of viewport resolution.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Projection used to generate native sensor rays.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Top-left image coordinates; pixel centres use a half-pixel offset.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Dimensionless coefficient in the selected lens model.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Maximum valid angle from the forward axis.</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>SequenceRenderDialog</name>
@@ -5287,43 +5511,5 @@ Right-drag orbits the camera, middle-drag pans, the wheel zooms; G/R/T switch tr
         <source>No flux breakdown: this solve ran on a stepper that does not decompose its own energy balance.</source>
         <translation type="unfinished"></translation>
     </message>
-</context>
-<context>
-<name>FusionExportDialog</name>
-<message><source>Default reference pairs</source><translation type="unfinished"></translation></message>
-<message><source>Explicit pairs</source><translation type="unfinished"></translation></message>
-<message><source>source &gt; target; source &gt; target</source><translation type="unfinished"></translation></message>
-<message><source>Use source &gt; target for each pair.</source><translation type="unfinished"></translation></message>
-<message><source>Removed camera and its pairs.</source><translation type="unfinished"></translation></message>
-<message><source>Completing publication...</source><translation type="unfinished"></translation></message>
-<message><source>Sample ID:</source><translation type="unfinished"></translation></message>
-<message><source>Output:</source><translation type="unfinished"></translation></message>
-<message><source>Browse...</source><translation type="unfinished"></translation></message>
-<message><source>Add camera</source><translation type="unfinished"></translation></message>
-<message><source>Remove</source><translation type="unfinished"></translation></message>
-<message><source>Reference camera:</source><translation type="unfinished"></translation></message>
-<message><source>Load rig...</source><translation type="unfinished"></translation></message>
-<message><source>Save rig...</source><translation type="unfinished"></translation></message>
-<message><source>Camera ID:</source><translation type="unfinished"></translation></message>
-<message><source>X (world units):</source><translation type="unfinished"></translation></message>
-<message><source>Y (world units):</source><translation type="unfinished"></translation></message>
-<message><source>Z (world units):</source><translation type="unfinished"></translation></message>
-<message><source>Pitch (degrees):</source><translation type="unfinished"></translation></message>
-<message><source>Yaw (degrees):</source><translation type="unfinished"></translation></message>
-<message><source>Roll (degrees):</source><translation type="unfinished"></translation></message>
-<message><source>Preview selected camera</source><translation type="unfinished"></translation></message>
-<message><source>Export</source><translation type="unfinished"></translation></message>
-<message><source>Close</source><translation type="unfinished"></translation></message>
-<message><source>Rig</source><translation type="unfinished"></translation></message>
-<message><source>Camera</source><translation type="unfinished"></translation></message>
-<message><source>Could not write the rig.</source><translation type="unfinished"></translation></message>
-<message><source>Cancel</source><translation type="unfinished"></translation></message>
-<message><source>Stopping before publication...</source><translation type="unfinished"></translation></message>
-<message><source>Fusion Dataset Export</source><translation type="unfinished"></translation></message>
-<message><source>Also export undistorted images and coordinate maps</source><translation type="unfinished"></translation></message>
-<message><source>Saved %1</source><translation type="unfinished"></translation></message>
-<message><source>Output directory</source><translation type="unfinished"></translation></message>
-<message><source>Load rig</source><translation type="unfinished"></translation></message>
-<message><source>Save rig</source><translation type="unfinished"></translation></message>
 </context>
 </TS>
