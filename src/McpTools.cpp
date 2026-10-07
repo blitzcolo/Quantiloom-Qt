@@ -296,7 +296,7 @@ void MainWindow::registerMcpTools() {
             out["has_scene"] = m_vulkanWindow->getScene() != nullptr;
             out["scene_file"] = m_currentSceneFile;
             out["config_file"] = m_currentConfigFile;
-            out["unsaved_changes"] = m_sceneModified;
+            out["unsaved_changes"] = documentModified();
             out["accumulated_samples"] =
                 static_cast<qint64>(m_vulkanWindow->currentSampleCount());
             out["target_samples"] = static_cast<qint64>(m_vulkanWindow->targetSPP());
@@ -436,7 +436,7 @@ void MainWindow::registerMcpTools() {
             QJsonObject out;
             out["toml"] = m_configManager->exportConfigToString(config);
             out["config_file"] = m_currentConfigFile;
-            out["unsaved_changes"] = m_sceneModified;
+            out["unsaved_changes"] = documentModified();
             out["session_only"] = QJsonArray{
                 QStringLiteral("debug visualisation mode (ql_set_debug_mode)"),
                 QStringLiteral("display enhancement (ql_set_display_enhancement)"),

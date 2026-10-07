@@ -2471,11 +2471,7 @@ void MainWindow::setupConnections() {
                     if (openedDocument) {
                         m_loadedLighting = std::make_unique<quantiloom::LightingParams>(*m_lightingParams);
                         m_undoStack->clear();
-                        SceneConfig saved;
-                        collectCurrentConfig(saved);
-                        m_cleanDocument = m_configManager->exportConfigToString(saved);
-                        m_sceneModified = false;
-                        setWindowModified(false);
+                        markDocumentClean();
                     }
                     showStatusMessage(message);
                 } else {
@@ -2579,7 +2575,7 @@ void MainWindow::setupEditingSystem() {
     connect(m_undoStack, &UndoStack::canUndoChanged, this, &MainWindow::onUndoRedoChanged);
     connect(m_undoStack, &UndoStack::canRedoChanged, this, &MainWindow::onUndoRedoChanged);
     connect(m_undoStack, &UndoStack::cleanChanged, this,
-            [this](bool) { refreshDocumentModified(); });
+            [this](bool) { scheduleDocumentModifiedRefresh(); });
     // Fires after every push, undo and redo: undo/redo move node transforms
     // under the panels, which otherwise showed the pre-undo values until the
     // node was deselected and reselected.
@@ -2590,7 +2586,7 @@ void MainWindow::setupEditingSystem() {
                 // re-read the selection
                 refreshTopologyIfChanged();
                 refreshSelectionPanels();
-                refreshDocumentModified();
+                scheduleDocumentModifiedRefresh();
             });
 
     // Connect selection changes
@@ -2910,15 +2906,30 @@ void MainWindow::setCurrentDocument(const QString& filePath) {
 void MainWindow::setSceneModified(bool modified) {
     if (m_suppressHistory) return;
     if (!modified) {
-        SceneConfig config;
-        collectCurrentConfig(config);
-        m_cleanDocument = m_configManager->exportConfigToString(config);
-        m_undoStack->setClean();
+        markDocumentClean();
+        return;
     }
-    refreshDocumentModified();
+    scheduleDocumentModifiedRefresh();
+}
+
+void MainWindow::markDocumentClean() {
+    SceneConfig config;
+    collectCurrentConfig(config);
+    m_cleanDocument = m_configManager->exportConfigToString(config);
+    m_undoStack->setClean();
+    m_sceneModified = false;
+    setWindowModified(false);
+    m_modifiedRefreshPending = false;
+}
+
+void MainWindow::scheduleDocumentModifiedRefresh() {
+    if (m_suppressHistory || m_modifiedRefreshPending) return;
+    m_modifiedRefreshPending = true;
+    QTimer::singleShot(0, this, [this] { refreshDocumentModified(); });
 }
 
 void MainWindow::refreshDocumentModified() {
+    m_modifiedRefreshPending = false;
     if (m_suppressHistory) return;
     SceneConfig config;
     collectCurrentConfig(config);
@@ -2928,8 +2939,13 @@ void MainWindow::refreshDocumentModified() {
     setWindowModified(m_sceneModified);
 }
 
+bool MainWindow::documentModified() {
+    if (m_modifiedRefreshPending) refreshDocumentModified();
+    return m_sceneModified;
+}
+
 bool MainWindow::confirmDiscardChanges() {
-    if (!m_sceneModified) {
+    if (!documentModified()) {
         return true;
     }
     const auto reply = QMessageBox::question(

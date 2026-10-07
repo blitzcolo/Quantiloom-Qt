@@ -20,6 +20,7 @@
 #include <QFileDialog>
 #include <QMessageBox>
 #include <QThread>
+#include <QTimer>
 #include <QFile>
 #include <QFileInfo>
 #include <QDir>
@@ -86,8 +87,13 @@ FusionExportDialog::FusionExportDialog(const Config& scene,const QString& base,S
     connect(m_start,&QPushButton::clicked,this,&FusionExportDialog::start);
     connect(m_cameras,&QListWidget::currentRowChanged,this,&FusionExportDialog::selectCamera);
     connect(m_reference,&QComboBox::currentTextChanged,this,[this](const QString& id){if(!m_loading)m_rig.referenceCamera=id.toStdString();});
-    for(auto* field:m_pose)connect(field,&QDoubleSpinBox::valueChanged,this,[this]{updatePreview();});
-    connect(m_sensor,&SensorPanel::cameraConfigChanged,this,[this]{updatePreview();});
+    // A pose-field drag or a sensor edit would run the rig round-trip and a
+    // viewport camera apply once per valueChanged; the timer folds a burst
+    // into one preview after the gesture pauses.
+    m_previewTimer=new QTimer(this);m_previewTimer->setSingleShot(true);m_previewTimer->setInterval(150);
+    connect(m_previewTimer,&QTimer::timeout,this,&FusionExportDialog::updatePreview);
+    for(auto* field:m_pose)connect(field,&QDoubleSpinBox::valueChanged,this,[this]{m_previewTimer->start();});
+    connect(m_sensor,&SensorPanel::cameraConfigChanged,this,[this]{m_previewTimer->start();});
     connect(add,&QPushButton::clicked,this,[this]{if(m_thread)return;saveCamera();RigCamera c=m_rig.cameras[m_selected<0 ? 0 : m_selected];int i=static_cast<int>(m_rig.cameras.size());do{c.id="camera_"+std::to_string(i++);}while(std::any_of(m_rig.cameras.begin(),m_rig.cameras.end(),[&](const auto& v){return v.id==c.id;}));c.cameraToRig[3]+=.1;m_rig.cameras.push_back(c);refreshList();m_cameras->setCurrentRow(static_cast<int>(m_rig.cameras.size()-1));});
     connect(remove,&QPushButton::clicked,this,[this]{if(m_thread||m_selected<0||m_rig.cameras.size()<2)return;if(!collectPairs())return;const auto removed=m_rig.cameras[m_selected].id;
         std::erase_if(m_rig.pairs,[&](const auto& p){return p.sourceCamera==removed || p.targetCamera==removed;});

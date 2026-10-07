@@ -13,6 +13,7 @@ class QCheckBox;
 class QProgressBar;
 class QLabel;
 class QThread;
+class QTimer;
 class QPushButton;
 class SensorPanel;
 class FusionExportDialog : public QDialog {
@@ -50,6 +51,7 @@ private:
     QPushButton* m_start=nullptr;
     SensorPanel* m_sensor=nullptr;
     QPointer<QThread> m_thread;
+    QTimer* m_previewTimer=nullptr;
     std::atomic_bool m_cancelled=false;
     std::atomic_bool m_publishing=false;
     bool m_loading=false;

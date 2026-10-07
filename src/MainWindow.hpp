@@ -395,6 +395,19 @@ private:
     bool writeConfig(const QString& filePath);
     void setCurrentDocument(const QString& filePath);
     void setSceneModified(bool modified);
+    /// Record the current document as the saved state the modified flag is
+    /// measured against: serializes it once, marks the undo stack clean and
+    /// clears the flag.
+    void markDocumentClean();
+    /// The modified flag with any scheduled refresh flushed first, so a
+    /// caller deciding something (Save? unsaved_changes?) never reads it
+    /// mid-coalesce.
+    [[nodiscard]] bool documentModified();
+    /// The modified comparison serializes the whole document, and a drag
+    /// fires it per slider tick; this coalesces the work to once per
+    /// event-loop turn, which is enough because nothing reads the flag in
+    /// between except through documentModified().
+    void scheduleDocumentModifiedRefresh();
     /// Ask about unsaved work; false means the caller should abort.
     bool confirmDiscardChanges();
     void updateWindowTitle();
@@ -515,6 +528,9 @@ private:
     LightingPanel::IlluminantChoice m_loadedIlluminant;
     std::unique_ptr<quantiloom::LightingParams> m_loadedLighting;
     QString m_cleanDocument;
+    /// Set while a modified-refresh sits in the event queue; coalesces the
+    /// whole-document comparison to one per event-loop turn.
+    bool m_modifiedRefreshPending = false;
     void refreshDocumentModified();
     void syncSpectralModeUi(quantiloom::SpectralMode mode);
     DebugVisualizationPanel* m_debugVisualizationPanel = nullptr;

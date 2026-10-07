@@ -280,7 +280,7 @@ public:
     [[nodiscard]] bool sensorEnabled() const;
     [[nodiscard]] quantiloom::SensorParams sensorParams() const;
     /// The versioned physical camera currently in effect (M5-3).
-    [[nodiscard]] quantiloom::camera::CameraConfig cameraConfig() const;
+    [[nodiscard]] const quantiloom::camera::CameraConfig& cameraConfig() const;
     quantiloom::DebugVisualizationMode debugMode() const;
 
     /**

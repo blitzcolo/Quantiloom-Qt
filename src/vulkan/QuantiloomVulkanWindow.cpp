@@ -551,7 +551,7 @@ QuantiloomVulkanWindow::captureCameraProducts(double timeSeconds) {
     return m_renderer->captureCameraProducts(timeSeconds);
 }
 
-quantiloom::camera::CameraConfig QuantiloomVulkanWindow::cameraConfig() const {
+const quantiloom::camera::CameraConfig& QuantiloomVulkanWindow::cameraConfig() const {
     static const quantiloom::camera::CameraConfig kEmpty;
     return m_renderer ? m_renderer->cameraConfig() : kEmpty;
 }
