@@ -393,7 +393,7 @@ public:
     bool isSensorEnabled() const { return m_sensorEnabled; }
 
     // ========================================================================
-    // Physical camera (M5-3)
+    // Physical camera
     // ========================================================================
 
     /// Apply a versioned camera configuration. Readout-only edits re-record

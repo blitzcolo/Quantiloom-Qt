@@ -38,12 +38,26 @@ public:
     /// Show a pose that came from somewhere else (mouse, config, preset).
     /// Does not emit.
     void setCameraState(const glm::vec3& position, const glm::vec3& target, float fovYDegrees);
+    /// Show a motion that came from the document or the renderer. Restores
+    /// the selection to the key an edit last touched when one is pending
+    /// (m_selectAfterEdit), so a round trip through the renderer does not
+    /// appear to move the user's selection. Does not emit motionEdited.
     void setMotion(const quantiloom::camera::CameraMotionConfig& motion);
+    /// Where the transport stands. "Add key" creates its key at this time,
+    /// which is what makes capture/add land where the user is looking rather
+    /// than at whatever the time field last held.
     void setCurrentTime(double seconds);
+    /// Fill the key fields with a pose the host captured -- the viewport's
+    /// camera -- at the current time, then commit it: update the selected
+    /// key if there is one, add a new key otherwise.
     void capturePose(const glm::vec3& position, const glm::vec3& target);
 
 public slots:
+    /// Key the field pose at the transport's time. The time field belongs to
+    /// the selected key; reusing it here would duplicate an existing key.
     void addKeyframe();
+    /// Replace the selected key with the fields. Wired to editingFinished as
+    /// well as its button, so retuning a field is not lost to the list entry.
     void updateKeyframe();
     void deleteKeyframe();
 
@@ -53,8 +67,16 @@ signals:
     void resetRequested();
     /// One of the six standard directions, as a unit vector from the target.
     void viewDirectionRequested(const glm::vec3& direction);
+    /// The whole motion after each edit: the keys are the document's
+    /// camera.motion, and a partially edited trajectory has no meaning to
+    /// emit.
     void motionEdited(const quantiloom::camera::CameraMotionConfig& motion);
+    /// The Capture button asking for the viewport's pose -- the panel owns
+    /// widgets, not a camera, so the host answers this and calls
+    /// capturePose() with the result.
     void captureRequested();
+    /// Selecting a key asks the host to move the clock to it, so the
+    /// viewport shows the pose being edited.
     void previewTimeRequested(double seconds);
 
 private slots:

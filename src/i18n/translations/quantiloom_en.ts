@@ -639,6 +639,14 @@ May cause colour shifts.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Completing publication...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Saved %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Sample ID:</source>
         <translation type="unfinished"></translation>
     </message>

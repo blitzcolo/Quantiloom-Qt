@@ -225,6 +225,9 @@ private slots:
 
     // Debug hover slot
     void onViewportHovered(int x, int y);
+    /// The hover readback pump, driven by m_hoverReadTimer: submits the
+    /// pending pixel request, polls the SDK's completed reads and reports
+    /// what HoverReadbackState accepts as current.
     void processHoverReadback();
 
 private:
@@ -326,6 +329,10 @@ private:
     /// second, and `time_s` is where you are looking rather than something you
     /// changed. A save still records the tick the transport is on.
     void applyTimelineTime(double time_s);
+    /// Write the default [timeline] the TimelinePanel's create button
+    /// advertises into the document and re-parse it, so renderer and
+    /// ConfigManager hold one configuration rather than a hand-set one and a
+    /// serialized one.
     void createDefaultTimeline();
     /// Push the current TimelineInfo into the panel and the thermal readout.
     /// Called after anything that could have changed what the clock is.
@@ -417,7 +424,12 @@ private:
     /// What the user asked to open, held until the load reports back: only a
     /// file that actually opened belongs in the recent list.
     QString m_pendingOpenPath;
+    /// The parsed document beside m_pendingOpenPath, produced by a
+    /// ConfigManager of its own so that a file which fails to load never
+    /// reaches the open document, its panels or its undo history.
     std::unique_ptr<SceneConfig> m_pendingDocumentConfig;
+    /// The same file as the SDK parsed it, for applyConfig(); kept with the
+    /// SceneConfig so the two cannot disagree about which file they describe.
     std::shared_ptr<const quantiloom::Config> m_pendingRawConfig;
     void rebuildRecentMenu();
     [[nodiscard]] QStringList recentFiles() const;
@@ -525,13 +537,25 @@ private:
     int m_currentMaterialIndex = -1;
     /// The illuminant the document is using, for export and for the panel.
     LightingPanel::IlluminantChoice m_illuminant;
+    /// The choice as the document was loaded, so collectCurrentConfig() can
+    /// tell an untouched illuminant from a re-picked one and preserve the
+    /// document's own keys verbatim in the first case.
     LightingPanel::IlluminantChoice m_loadedIlluminant;
+    /// The lighting block as loaded, for the same purpose: an untouched one
+    /// is left out of the export rather than rewritten by the widgets.
     std::unique_ptr<quantiloom::LightingParams> m_loadedLighting;
+    /// The document as it was last saved, serialized; the modified flag is
+    /// the comparison of a fresh collectCurrentConfig() against this.
     QString m_cleanDocument;
     /// Set while a modified-refresh sits in the event queue; coalesces the
     /// whole-document comparison to one per event-loop turn.
     bool m_modifiedRefreshPending = false;
+    /// The one place the modified flag is recomputed: serializes the current
+    /// document and diffs it against m_cleanDocument.
     void refreshDocumentModified();
+    /// Push the mode into every control that can show it -- menu checks, the
+    /// toolbar combo, the panel and the viewport strip -- so a mode set by
+    /// config load or by any dispatcher reads the same everywhere.
     void syncSpectralModeUi(quantiloom::SpectralMode mode);
     DebugVisualizationPanel* m_debugVisualizationPanel = nullptr;
     AtmosphericPanel* m_atmosphericPanel = nullptr;
@@ -561,6 +585,10 @@ private:
     /// far as the undo stack is concerned, document state as far as a save is:
     /// `timeline.time_s` is written from here.
     double m_timelineTimeS = 0.0;
+    /// The last camera-history epoch the renderer reported. A new one means
+    /// the acquisition's temporal state (auto-exposure and the like) was
+    /// reset, which the status bar says aloud rather than leaving the frames
+    /// to change unexplained.
     quint64 m_lastCameraHistoryEpoch = 0;
     double m_thermalStartTimeH = 0.0;
     double m_thermalTimestepS = 60.0;
@@ -661,7 +689,12 @@ private:
     QLabel* m_sampleCountLabel = nullptr;
     QLabel* m_editModeLabel = nullptr;    // Shows current transform mode
     QLabel* m_debugValueLabel = nullptr;  // Shows debug value at mouse position
+    /// Ticks processHoverReadback() while a read is pending or in flight;
+    /// stopped when there is nothing to wait for, so an idle cursor costs no
+    /// polling.
     QTimer* m_hoverReadTimer = nullptr;
+    /// Latest-wins request state for the asynchronous hover readback --
+    /// see HoverReadbackState for why it is a class of its own.
     HoverReadbackState m_hoverReadback;
     QProgressBar* m_renderProgress = nullptr;
     class QTimer* m_statusTimer = nullptr;

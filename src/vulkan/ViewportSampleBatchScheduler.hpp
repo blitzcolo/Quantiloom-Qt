@@ -1,3 +1,8 @@
+/**
+ * @file ViewportSampleBatchScheduler.hpp
+ * @brief Per-frame sample-count control for the interactive viewport
+ */
+
 #pragma once
 
 #include <algorithm>
@@ -19,6 +24,9 @@ public:
     static constexpr float kBudgetMs = 8.0f;
     static constexpr std::uint32_t kMaxBatch = 16;
 
+    /// Start over after an accumulation reset. The warm-up counts
+    /// concurrentFrames + 1 callbacks because timings still in flight when
+    /// this runs describe the previous image, not the one being scheduled.
     void reset(int concurrentFrames) {
         m_batch = 1;
         m_smoothedMs = 0.0f;
@@ -51,12 +59,20 @@ public:
         }
     }
 
+    /// The batch for one frame: the learned size, clamped to what is still
+    /// owed toward the target -- or exactly one when forceOne says a batch
+    /// would be wrong rather than merely large.
     [[nodiscard]] std::uint32_t choose(std::uint32_t remaining,
                                        bool forceOne) const {
         if (forceOne) return 1;
         return std::max<std::uint32_t>(1, std::min(m_batch, remaining));
     }
 
+    /// choose() for a render loop's state. A paused fallback trace still
+    /// costs exactly one sample, motion favours latency over throughput, and
+    /// a physical camera's one trace is one acquisition with its own
+    /// exposure/history/RNG semantics -- all three force a batch of one
+    /// rather than let several samples share a frame they do not describe.
     [[nodiscard]] std::uint32_t chooseForFrame(
         std::uint32_t accumulated, std::uint32_t target, bool accumulating,
         bool motionActive, bool physicalCamera) const {

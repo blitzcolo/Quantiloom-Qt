@@ -64,7 +64,11 @@ struct MaterialThermalProps {
  * @brief Material overrides from TOML config, matched to the scene by name
  */
 struct MaterialConfig {
-    quantiloom::Config preserved; // Resolved material fields not owned by widgets.
+    /// The material's merged [[materials]]/[material_overrides] table as the
+    /// document had it. Keys no widget owns -- fusion_transport, ior and the
+    /// like -- come from here and are written back; writeConfig() replaces
+    /// the widget-owned keys in it as a group before merging.
+    quantiloom::Config preserved;
     QString name;                // Material name to match
     float irEmissivity = 0.0f;   // IR emissivity [0,1]
     float irTransmittance = 0.0f; // IR transmittance [0,1]
@@ -466,7 +470,9 @@ struct SceneConfig {
     /// [hyperspectral] -- honoured by the offline renderer only.
     std::optional<HyperspectralConfig> hyperspectral;
 
-    /// SDK-owned offline export settings, preserved across document snapshots.
+    /// The [dataset] section, carried as text the way [timeline] is, because
+    /// the SDK owns its meaning -- no widget here edits it, and interpreting
+    /// it would be a second reading of the same keys.
     QString datasetToml;
 
     /// [timeline] -- the clock, when the document has one.

@@ -28,7 +28,9 @@ void UndoStack::push(std::unique_ptr<Command> command) {
         }
     }
 
-    // Try to merge with previous command
+    // Try to merge with previous command. Not into the command the clean
+    // index points at, though: merging there would change what "saved" undoes
+    // to, so an edit made after a save always starts a new command.
     if (!m_commands.empty() && m_undoIndex > 0 && m_undoIndex != m_cleanIndex) {
         Command* lastCmd = m_commands.back().get();
         if (lastCmd->id() != -1 && lastCmd->id() == command->id()) {

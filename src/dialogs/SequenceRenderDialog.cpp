@@ -377,7 +377,11 @@ bool SequenceRenderDialog::writeFrame(const quantiloom::OfflineRenderOutput& out
                    : quantiloom::ImageIO::WriteEXR(path.toStdString(), image);
     };
     if (!write(exrPath, output.radiance, false)) {
-        if (error != nullptr) *error = tr("could not write %1").arg(exrPath);
+        // The write lambda already stored the session's own error when one
+        // exists; the generic message is only the fallback.
+        if (error != nullptr && error->isEmpty()) {
+            *error = tr("could not write %1").arg(exrPath);
+        }
         return false;
     }
 
@@ -389,12 +393,15 @@ bool SequenceRenderDialog::writeFrame(const quantiloom::OfflineRenderOutput& out
     const auto& preview = products && products->display
         ? products->display->image : output.radiance;
     if (!write(pngPath, preview, true)) {
-        if (error) *error = tr("could not write %1").arg(pngPath);
+        if (error && error->isEmpty()) {
+            *error = tr("could not write %1").arg(pngPath);
+        }
         return false;
     }
     if (products && !offlineexport::writeCameraProducts(*products, exrPath, error,
-                                                        session.get()))
+                                                        session.get())) {
         return false;
+    }
     if (session) {
         const auto committed = session->Commit();
         if (!committed) {

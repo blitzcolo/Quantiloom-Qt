@@ -286,9 +286,8 @@ void QuantiloomVulkanRenderer::startNextFrame() {
     m_reprocessPending = false;
     bool tracedFrame = false;
     if (!presentedWithoutTracing) {
-        // A paused fallback trace must still cost exactly one sample. Motion
-        // favours latency, and a physical camera's one trace is one acquisition
-        // with its own exposure/history/RNG semantics.
+        // Why paused, moving and physical-camera frames get exactly one
+        // sample is documented on chooseForFrame().
         const std::uint32_t batch = m_viewportSampleBatch.chooseForFrame(
             m_sampleCount, m_targetSPP, accumulating, m_motionActive,
             m_cameraConfig.enabled);
@@ -1706,7 +1705,7 @@ void QuantiloomVulkanRenderer::setSensorEnabled(bool enabled) {
 }
 
 // ============================================================================
-// Physical camera (M5-3)
+// Physical camera
 // ============================================================================
 
 quantiloom::Result<void, quantiloom::String> QuantiloomVulkanRenderer::setCameraConfig(

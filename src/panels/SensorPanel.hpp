@@ -1,6 +1,6 @@
 /**
  * @file SensorPanel.hpp
- * @brief Panel for the versioned physical camera (M5-3)
+ * @brief Panel for the versioned physical camera
  *
  * @author blitzcolo
  */

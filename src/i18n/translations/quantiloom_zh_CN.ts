@@ -654,7 +654,7 @@ May cause colour shifts.</source>
     </message>
     <message>
         <source>Completing publication...</source>
-        <translation type="vanished">正在完成发布…</translation>
+        <translation>正在完成发布…</translation>
     </message>
     <message>
         <source>Sample ID:</source>
@@ -758,7 +758,7 @@ May cause colour shifts.</source>
     </message>
     <message>
         <source>Saved %1</source>
-        <translation type="vanished">已保存 %1</translation>
+        <translation>已保存 %1</translation>
     </message>
     <message>
         <source>Output directory</source>

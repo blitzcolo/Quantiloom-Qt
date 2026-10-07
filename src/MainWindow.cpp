@@ -59,7 +59,6 @@
 #include <QComboBox>
 #include <QKeyEvent>
 #include <QToolBar>
-#include <QWidgetAction>
 #include <QStyle>
 #include <QDockWidget>
 #include <QScreen>
@@ -840,6 +839,21 @@ void MainWindow::setupToolBar() {
     m_resetAccumulationAction->setIcon(s->standardIcon(QStyle::SP_BrowserReload));
     m_screenshotAction->setIcon(s->standardIcon(QStyle::SP_DialogSaveAllButton));
 
+    m_spectralComboLabel = new QLabel(this);
+    m_spectralCombo = new QComboBox(this);
+    m_spectralCombo->setMinimumContentsLength(10);
+    m_spectralCombo->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
+    m_mainToolBar->addWidget(m_spectralComboLabel);
+    m_mainToolBar->addWidget(m_spectralCombo);
+
+    m_debugComboLabel = new QLabel(this);
+    m_debugCombo = new QComboBox(this);
+    m_debugCombo->setMinimumContentsLength(12);
+    m_debugCombo->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
+    m_mainToolBar->addWidget(m_debugComboLabel);
+    m_mainToolBar->addWidget(m_debugCombo);
+
+    m_mainToolBar->addSeparator();
     m_mainToolBar->addAction(m_openAction);
     m_mainToolBar->addAction(m_saveAction);
     m_mainToolBar->addSeparator();
@@ -855,35 +869,6 @@ void MainWindow::setupToolBar() {
     m_mainToolBar->addAction(m_resumeRenderAction);
     m_mainToolBar->addAction(m_stopRenderAction);
     m_mainToolBar->addAction(m_resetAccumulationAction);
-    m_mainToolBar->addSeparator();
-
-    m_spectralComboLabel = new QLabel(this);
-    m_spectralCombo = new QComboBox(this);
-    m_spectralCombo->setMinimumContentsLength(10);
-    m_spectralCombo->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
-    m_mainToolBar->addWidget(m_spectralComboLabel);
-    m_mainToolBar->addWidget(m_spectralCombo);
-
-    m_debugComboLabel = new QLabel(this);
-    m_debugCombo = new QComboBox(this);
-    m_debugCombo->setMinimumContentsLength(12);
-    m_debugCombo->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
-    m_mainToolBar->addWidget(m_debugComboLabel);
-    m_mainToolBar->addWidget(m_debugCombo);
-
-    const auto firstAction = m_mainToolBar->actions().first();
-    for (auto* widget : {static_cast<QWidget*>(m_spectralComboLabel),
-                         static_cast<QWidget*>(m_spectralCombo),
-                         static_cast<QWidget*>(m_debugComboLabel),
-                         static_cast<QWidget*>(m_debugCombo)}) {
-        for (auto* action : m_mainToolBar->actions()) {
-            auto* widgetAction = qobject_cast<QWidgetAction*>(action);
-            if (widgetAction && widgetAction->defaultWidget() == widget) {
-                m_mainToolBar->insertAction(firstAction, action);
-                break;
-            }
-        }
-    }
     m_mainToolBar->addSeparator();
     m_mainToolBar->addAction(m_screenshotAction);
 
@@ -1417,6 +1402,10 @@ void MainWindow::applyTimelineTime(double time_s) {
 void MainWindow::createDefaultTimeline() {
     if (!m_vulkanWindow->getScene()) return;
     if (m_vulkanWindow->timelineInfo().present) return;
+    // The body is what the TimelinePanel button's label advertises: "0-10 s,
+    // 20 ticks/s". It is written into the document and parsed back through the
+    // same path a file takes, so the renderer and the ConfigManager end up
+    // holding one configuration rather than two readings of it.
     SceneConfig config;
     collectCurrentConfig(config);
     config.timeline.present = true;
@@ -2440,6 +2429,12 @@ void MainWindow::setupConnections() {
                             m_configManager->adoptRawConfig(
                                 std::make_shared<quantiloom::Config>(*m_pendingRawConfig));
                         } else {
+                            // A bare model has no configuration behind it, so
+                            // there is no document to save over -- Save asks
+                            // for a destination the first time -- and the
+                            // previous document's configuration must go: the
+                            // manager would otherwise keep offering the TOML
+                            // opened earlier as this model's raw config.
                             m_lastConfig.reset();
                             m_loadedLighting.reset();
                             m_currentConfigFile.clear();
@@ -3138,6 +3133,13 @@ bool MainWindow::openPath(const QString& filePath) {
                 tr("Failed to load configuration: %1").arg(loader.lastError()));
             return false;
         }
+        // Any syntactically valid TOML parses, so a successful load says
+        // nothing about whether this file is a *scene* configuration.
+        // Without a scene there is nothing to render -- which is how opening
+        // an unrelated .toml from some other project once reported success
+        // and showed an empty viewport. The core rejects the same input for
+        // the same reason, and accepts [[models]] as a third way of naming a
+        // scene.
         if (pending->gltfPath.isEmpty() && pending->usdPath.isEmpty() && pending->models.isEmpty()) {
             QMessageBox::warning(this, tr("Open Failed"),
                 tr("%1 is not a scene configuration: it names no scene.gltf, scene.usd "
@@ -3146,9 +3148,17 @@ bool MainWindow::openPath(const QString& filePath) {
         }
         raw = loader.sharedRawConfig();
     }
+    // The file was parsed by a ConfigManager of its own, and nothing of the
+    // open document is replaced until sceneLoaded reports success: a file
+    // that fails to load leaves the current document, its panels and its
+    // undo history as they were.
     m_pendingOpenPath = filePath;
     m_pendingDocumentConfig = std::move(pending);
     m_pendingRawConfig = raw;
+    // Show the render surface *before* asking for the load: the Vulkan window
+    // only creates its renderer once it is exposed, so keeping the guidance
+    // page up until the scene reports success would wait on a renderer that
+    // was itself waiting to be shown.
     m_viewportFrame->setSceneLoaded(true);
     // The load is asynchronous and can take seconds on a large scene; the
     // sceneLoaded handler replaces this with the outcome.
@@ -3199,17 +3209,42 @@ bool MainWindow::writeConfig(const QString& filePath) {
 }
 
 void MainWindow::onExportFusionDataset() {
-    if(!m_vulkanWindow->getScene()){QMessageBox::information(this,tr("No Scene"),tr("Open a scene before exporting a fusion dataset."));return;}
-    SceneConfig config;collectCurrentConfig(config);
-    auto snapshot=quantiloom::Config::Parse(m_configManager->exportConfigToString(config).toStdString());
-    if(!snapshot){QMessageBox::warning(this,tr("Fusion Export"),QString::fromStdString(snapshot.error()));return;}
-    FusionExportDialog dialog(*snapshot,config.baseDir,config.spectralMode,this);
-    dialog.preview=[this](const quantiloom::Config& view,const quantiloom::camera::CameraConfig& sensor){
-        const auto camera=quantiloom::Camera::FromConfig(view,1.0f);
-        if(!camera)return;
-        const auto applied=m_vulkanWindow->setCameraConfig(sensor);
-        if(!applied){QMessageBox::warning(this,tr("Camera"),QString::fromStdString(applied.error()));return;}
-        m_vulkanWindow->setCamera(camera.value().GetPosition(),camera.value().GetLookAt(),camera.value().GetUpReference(),camera.value().GetFovY());
+    if (!m_vulkanWindow->getScene()) {
+        QMessageBox::information(this, tr("No Scene"),
+            tr("Open a scene before exporting a fusion dataset."));
+        return;
+    }
+    SceneConfig config;
+    collectCurrentConfig(config);
+    // The dialog gets a parsed snapshot of the document as it stands, frozen
+    // against edits made while it is open.
+    auto snapshot = quantiloom::Config::Parse(
+        m_configManager->exportConfigToString(config).toStdString());
+    if (!snapshot) {
+        QMessageBox::warning(this, tr("Fusion Export"),
+                             QString::fromStdString(snapshot.error()));
+        return;
+    }
+    FusionExportDialog dialog(*snapshot, config.baseDir, config.spectralMode,
+                              this);
+    // A preview temporarily applies a rig camera to the viewport; the
+    // document's own camera is put back after exec() returns.
+    dialog.preview = [this](const quantiloom::Config& view,
+                            const quantiloom::camera::CameraConfig& sensor) {
+        const auto camera = quantiloom::Camera::FromConfig(view, 1.0f);
+        if (!camera) {
+            return;
+        }
+        const auto applied = m_vulkanWindow->setCameraConfig(sensor);
+        if (!applied) {
+            QMessageBox::warning(this, tr("Camera"),
+                                 QString::fromStdString(applied.error()));
+            return;
+        }
+        m_vulkanWindow->setCamera(camera.value().GetPosition(),
+                                  camera.value().GetLookAt(),
+                                  camera.value().GetUpReference(),
+                                  camera.value().GetFovY());
     };
     dialog.exec();
     // The dialog's previews moved the viewport camera; put the document's
@@ -3220,9 +3255,11 @@ void MainWindow::onExportFusionDataset() {
         showStatusMessage(tr("Could not restore the viewport camera: %1")
                               .arg(QString::fromStdString(restored.error())));
     }
-    m_vulkanWindow->setCamera({config.cameraPosition[0],config.cameraPosition[1],config.cameraPosition[2]},
-        {config.cameraLookAt[0],config.cameraLookAt[1],config.cameraLookAt[2]},
-        {config.cameraUp[0],config.cameraUp[1],config.cameraUp[2]},config.cameraFovY);
+    m_vulkanWindow->setCamera(
+        {config.cameraPosition[0], config.cameraPosition[1], config.cameraPosition[2]},
+        {config.cameraLookAt[0], config.cameraLookAt[1], config.cameraLookAt[2]},
+        {config.cameraUp[0], config.cameraUp[1], config.cameraUp[2]},
+        config.cameraFovY);
 }
 
 void MainWindow::onExportHyperspectralCube() {
@@ -4772,16 +4809,22 @@ void MainWindow::applyConfig(const SceneConfig& config) {
 
 
     // The illuminant the document names, mapped back onto the panel's choice.
-    // Only the deployed ASTM table is the built-in illuminant.
+    // Only the deployed ASTM table is the built-in illuminant: a document
+    // naming its own copy of the same data is a custom illuminant, because
+    // only the deployed file is known to be the ASTM one.
     {
         LightingPanel::IlluminantChoice choice;
+        const QString bundled = resolveBundledIlluminant();
+        const QString named = QFileInfo(
+            QDir(config.baseDir).absoluteFilePath(config.solarLutPath))
+                                  .canonicalFilePath();
         if (config.solarLutPath.isEmpty()) {
             choice.kind = QStringLiteral("none");
         } else if (config.solarLutPath == QLatin1String("equal_energy")) {
             choice.kind = QStringLiteral("equal_energy");
-        } else if (QFileInfo(QDir(config.baseDir).absoluteFilePath(config.solarLutPath)).canonicalFilePath() ==
-                       QFileInfo(resolveBundledIlluminant()).canonicalFilePath() &&
-                   !resolveBundledIlluminant().isEmpty() && config.solarLutDiffuseIsGlobal &&
+        } else if (!bundled.isEmpty() &&
+                   named == QFileInfo(bundled).canonicalFilePath() &&
+                   config.solarLutDiffuseIsGlobal &&
                    config.solarLutColumns.size() >= 2 &&
                    config.solarLutColumns[0] == 4 && config.solarLutColumns[1] == 3) {
             choice.kind = QStringLiteral("astm");
@@ -4976,36 +5019,38 @@ void MainWindow::collectCurrentConfig(SceneConfig& config) {
         m_illuminant.kind == m_loadedIlluminant.kind &&
         m_illuminant.path == m_loadedIlluminant.path &&
         m_illuminant.normaliseUnitLuminance == m_loadedIlluminant.normaliseUnitLuminance;
-    if (illuminantUnchanged) {
-        // Preserve the document's path, columns and normalization verbatim.
-    } else if (m_illuminant.kind == QLatin1String("none")) {
-        config.solarLutPath.clear();
-        config.solarLutColumns.clear();
-        config.solarLutNormalise.clear();
-        config.solarLutDiffuseIsGlobal = false;
-    } else if (m_illuminant.kind == QLatin1String("equal_energy")) {
-        config.solarLutPath = QStringLiteral("equal_energy");
-        config.solarLutColumns.clear();
-        config.solarLutDiffuseIsGlobal = false;
-        config.solarLutNormalise = m_illuminant.normaliseUnitLuminance
-            ? QStringLiteral("unit_luminance") : QString();
-    } else if (m_illuminant.kind == QLatin1String("astm")) {
-        config.solarLutPath = resolveBundledIlluminant();
-        config.solarLutColumns = {4, 3};
-        config.solarLutDiffuseIsGlobal = true;
-        config.solarLutNormalise = m_illuminant.normaliseUnitLuminance
-            ? QStringLiteral("unit_luminance") : QString();
-    } else if (!m_illuminant.path.isEmpty()) {
-        config.solarLutPath = m_illuminant.path;
-        // The core's libRadtran defaults; a file chosen by hand is assumed to
-        // be in that layout, which is the only thing this shell could assume
-        // without reading the file itself.
-        if (!m_lastConfig || m_illuminant.path != m_loadedIlluminant.path) {
+    // An unchanged illuminant preserves the document's path, columns and
+    // normalization verbatim; anything else is rewritten from the choice.
+    if (!illuminantUnchanged) {
+        if (m_illuminant.kind == QLatin1String("none")) {
+            config.solarLutPath.clear();
+            config.solarLutColumns.clear();
+            config.solarLutNormalise.clear();
+            config.solarLutDiffuseIsGlobal = false;
+        } else if (m_illuminant.kind == QLatin1String("equal_energy")) {
+            config.solarLutPath = QStringLiteral("equal_energy");
             config.solarLutColumns.clear();
             config.solarLutDiffuseIsGlobal = false;
+            config.solarLutNormalise = m_illuminant.normaliseUnitLuminance
+                ? QStringLiteral("unit_luminance") : QString();
+        } else if (m_illuminant.kind == QLatin1String("astm")) {
+            config.solarLutPath = resolveBundledIlluminant();
+            config.solarLutColumns = {4, 3};
+            config.solarLutDiffuseIsGlobal = true;
+            config.solarLutNormalise = m_illuminant.normaliseUnitLuminance
+                ? QStringLiteral("unit_luminance") : QString();
+        } else if (!m_illuminant.path.isEmpty()) {
+            config.solarLutPath = m_illuminant.path;
+            // The core's libRadtran defaults; a file chosen by hand is assumed
+            // to be in that layout, which is the only thing this shell could
+            // assume without reading the file itself.
+            if (!m_lastConfig || m_illuminant.path != m_loadedIlluminant.path) {
+                config.solarLutColumns.clear();
+                config.solarLutDiffuseIsGlobal = false;
+            }
+            config.solarLutNormalise = m_illuminant.normaliseUnitLuminance
+                ? QStringLiteral("unit_luminance") : QString();
         }
-        config.solarLutNormalise = m_illuminant.normaliseUnitLuminance
-            ? QStringLiteral("unit_luminance") : QString();
     }
 
     // Spectral. The panel used to be described as "tracking these internally",
@@ -5229,10 +5274,13 @@ void MainWindow::collectCurrentConfig(SceneConfig& config) {
         // digits where six fixed decimals would not (dispersion is an Abbe
         // reciprocal), and it never emits the locale's decimal separator,
         // which TOML would reject.
-        const auto optical=quantiloom::Config::Parse(
-            ("ior = "+QString::number(material.ior,'g',9)
-            +"\ndispersion = "+QString::number(material.dispersion,'g',9)+"\n").toStdString());
-        if(optical)matConfig.preserved=matConfig.preserved.MergedWith(*optical);
+        const auto optical = quantiloom::Config::Parse(
+            ("ior = " + QString::number(material.ior, 'g', 9) +
+             "\ndispersion = " + QString::number(material.dispersion, 'g', 9) +
+             "\n").toStdString());
+        if (optical) {
+            matConfig.preserved = matConfig.preserved.MergedWith(*optical);
+        }
         matConfig.hasPbr = true;
         matConfig.baseColor = glm::vec3(material.baseColorFactor);
         matConfig.metallic = material.metallicFactor;

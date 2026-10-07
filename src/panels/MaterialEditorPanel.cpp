@@ -897,16 +897,16 @@ void MaterialEditorPanel::setMaterial(int index, const quantiloom::Material* mat
     m_emissiveCurveSource = QString::fromStdString(material->emissiveCurveSource);
     {
         const QSignalBlocker c(m_emissiveCurve);
-        int index = m_emissiveCurve->findData(m_emissiveCurveSource);
-        if (index < 0 && !m_emissiveCurveSource.isEmpty()) {
+        int emissiveCurveIndex = m_emissiveCurve->findData(m_emissiveCurveSource);
+        if (emissiveCurveIndex < 0 && !m_emissiveCurveSource.isEmpty()) {
             // A path, or a token this build does not know. Offered back rather
             // than silently reset to "None": dropping it here would unbind a
             // lamp the config deliberately bound, and the user would find out
             // by saving.
             m_emissiveCurve->addItem(m_emissiveCurveSource, m_emissiveCurveSource);
-            index = m_emissiveCurve->count() - 1;
+            emissiveCurveIndex = m_emissiveCurve->count() - 1;
         }
-        m_emissiveCurve->setCurrentIndex(index < 0 ? 0 : index);
+        m_emissiveCurve->setCurrentIndex(emissiveCurveIndex < 0 ? 0 : emissiveCurveIndex);
     }
     updateEmissiveCurveNote();
 

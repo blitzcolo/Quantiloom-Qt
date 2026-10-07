@@ -1,4 +1,3 @@
-#include <algorithm>
 /**
  * @file ConfigManager.cpp
  * @brief TOML configuration import/export implementation
@@ -19,6 +18,8 @@
 #include <renderer/LightingParams.hpp>
 
 #include <glm/gtc/matrix_transform.hpp>
+
+#include <algorithm>
 
 // The camera's [sensor] tree is the SDK's serialization, in both directions:
 // reading goes through ParseCameraConfig (which also migrates legacy
@@ -467,7 +468,7 @@ void ConfigManager::extractSceneConfig(const quantiloom::Config& config, SceneCo
 
         MaterialConfig matConfig;
         matConfig.name = QString::fromStdString(name);
-        matConfig.preserved=matTable;
+        matConfig.preserved = matTable;
         matConfig.irEmissivity = matTable.GetFloat("ir_emissivity", 0.0f);
         matConfig.irTransmittance = matTable.GetFloat("ir_transmittance", 0.0f);
         matConfig.irTemperature_K = matTable.GetFloat("ir_temperature_k", 0.0f);
@@ -1042,10 +1043,16 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
             !matConfig.temperatureTexture.isEmpty() ||
             matConfig.temperatureScale != 500.0f || matConfig.temperatureOffset != 200.0f;
 
-        if (!matConfig.preserved.ToToml().empty() || matConfig.hasPbr || matConfig.hasSpectral() || matConfig.irEmissivity > 0.0f ||
+        // The material carries keys no widget owns back from the document --
+        // fusion_transport, ior and the like -- so an otherwise untouched
+        // [[materials]] entry is still worth writing.
+        const bool carriesKeys = !matConfig.preserved.ToToml().empty();
+        if (carriesKeys || matConfig.hasPbr || matConfig.hasSpectral() ||
+            matConfig.irEmissivity > 0.0f ||
             matConfig.irTransmittance > 0.0f || matConfig.irTemperature_K > 0.0f ||
             hasTemperatureMap || matConfig.hasThermal() || matConfig.hasEmissiveCurve()) {
-            QString materialText;QTextStream materialOut(&materialText);
+            QString materialText;
+            QTextStream materialOut(&materialText);
             materialOut << "name = " << tomlQuoted(matConfig.name) << "\n";
             if (matConfig.hasPbr) {
                 materialOut << "base_color = [" << matConfig.baseColor.r << ", "
@@ -1158,9 +1165,10 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
                 materialOut << "fluorescence_yield = " << matConfig.fluorescenceYield << "\n";
             }
             materialOut.flush();
-            const auto edited=quantiloom::Config::Parse(materialText.toStdString());
+            const auto edited =
+                quantiloom::Config::Parse(materialText.toStdString());
             QString merged;
-            if(!edited) {
+            if (!edited) {
                 // The serializer wrote this text itself, so a parse failure is
                 // a defect here rather than in the document -- and this runs
                 // through Qt slots (Save, refreshDocumentModified), where a
@@ -1171,24 +1179,30 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
                            << "serialised a block TOML rejects:"
                            << QString::fromStdString(edited.error())
                            << "-- carried keys for it are lost";
-                merged=materialText;
+                merged = materialText;
             } else {
                 // Replace widget-owned bindings as a group, including absent/cleared
                 // values and mutually exclusive singular/plural aliases.
-                const auto carried=matConfig.preserved.WithoutKeys({
+                const auto carried = matConfig.preserved.WithoutKeys({
                     "spectral_material_type", "spectral_material_ref", "spectral_material_refs",
                     "spectral_unmix", "spectral_weight_texture", "emissive_curve",
                     "emissive_curve_column", "emissive_scale", "fluorescence_excitation_curve",
                     "fluorescence_excitation_curve_column", "fluorescence_emission_curve",
                     "fluorescence_emission_curve_column", "fluorescence_yield", "temperature_texture"});
-                merged=QString::fromStdString(carried.MergedWith(*edited).ToToml());
+                merged = QString::fromStdString(carried.MergedWith(*edited).ToToml());
             }
             out << "[[materials]]\n";
-            for(const auto& line:merged.split('\n')) {
-                if(line.startsWith('[')) {
-                    const int prefix=line.startsWith("[[") ? 2 : 1;
+            // Config::ToToml() of a single material emits its subtables as
+            // [x] or [[x]]; inside a [[materials]] entry they must be
+            // [materials.x] or [[materials.x]], or the sections would attach
+            // to the document instead of to this material.
+            for (const auto& line : merged.split('\n')) {
+                if (line.startsWith('[')) {
+                    const int prefix = line.startsWith("[[") ? 2 : 1;
                     out << line.left(prefix) << "materials." << line.mid(prefix) << "\n";
-                } else out << line << "\n";
+                } else {
+                    out << line << "\n";
+                }
             }
         }
     }

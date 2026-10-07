@@ -80,6 +80,9 @@ public slots:
     void setLoop(bool loop);
 
 signals:
+    /// The empty state offers to author a default [timeline] into the
+    /// document; the shell does the writing, since the panel holds no
+    /// document of its own.
     void createTimelineRequested();
     /// Where the clock should stand now. The only thing this panel asks for.
     void timelineTimeChanged(double time_s);

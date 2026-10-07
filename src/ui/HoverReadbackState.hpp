@@ -12,6 +12,9 @@
  */
 class HoverReadbackState {
 public:
+    /// Start a new request for the pixel under the cursor. A cursor that did
+    /// not move starts nothing -- unless the last read of this same pixel
+    /// failed, in which case the move that never happened still owes a retry.
     void moveTo(int x, int y) {
         if (m_valid && x == m_x && y == m_y && !m_retrySameCoordinate) return;
         m_valid = true;
@@ -33,6 +36,9 @@ public:
         m_retrySameCoordinate = false;
     }
 
+    /// The SDK only rejects readings taken from an old image, not ones
+    /// answering an old request -- so both the request id and the
+    /// coordinates must match before a result may reach the label.
     [[nodiscard]] bool accepts(const quantiloom::PixelReading& reading) const {
         return m_valid && reading.requestId == m_requestId &&
                reading.x == static_cast<quantiloom::u32>(m_x) &&
@@ -49,6 +55,9 @@ public:
         m_submitted = false;
         m_retrySameCoordinate = false;
     }
+    /// A read that failed or could not be submitted arms one retry of the
+    /// same pixel: the next moveTo() re-requests it even if the cursor has
+    /// not moved.
     void markFailed() {
         m_needsSubmit = false;
         m_submitted = false;

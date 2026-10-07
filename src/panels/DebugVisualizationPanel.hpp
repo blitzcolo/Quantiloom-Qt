@@ -38,6 +38,9 @@ public:
     /// Report the value read under the cursor, in device pixels.
     void setPixelReading(int x, int y, const QString& formatted);
     void setPixelReadFailed(int x, int y);
+    /// Back to "--" while a new read is in flight or there is nothing to
+    /// read: a label still showing the previous pixel's value would look
+    /// current for a pixel it was never measured at.
     void clearPixelReading();
 
 signals:

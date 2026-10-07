@@ -277,7 +277,7 @@ public:
     /// The sensor state currently in effect, for callers that need the value
     /// a change is replacing (the undo history does).
     [[nodiscard]] bool sensorEnabled() const;
-    /// The versioned physical camera currently in effect (M5-3).
+    /// The versioned physical camera currently in effect.
     [[nodiscard]] const quantiloom::camera::CameraConfig& cameraConfig() const;
     quantiloom::DebugVisualizationMode debugMode() const;
 
@@ -373,7 +373,7 @@ public:
     void setSensorEnabled(bool enabled);
 
     // ========================================================================
-    // Physical camera (M5-3)
+    // Physical camera
     // ========================================================================
 
     /// Apply a whole versioned camera configuration (re-measurement tier).
