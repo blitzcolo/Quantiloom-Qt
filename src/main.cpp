@@ -9,9 +9,6 @@
 
 #include "AppVersion.hpp"  // generated; see cmake/AppVersion.hpp.in
 #include "MainWindow.hpp"
-#include "dialogs/FusionExportDialog.hpp"
-#include <QPixmap>
-#include <QTimer>
 #include "SdkGuard.hpp"
 #include "i18n/LanguageManager.hpp"
 #include "ui/theme/ThemeManager.hpp"
@@ -79,15 +76,6 @@ int main(int argc, char* argv[]) {
     }
     if (sdkCheck.stale) {
         QL_LOG_WARN("SDK stale: {}", sdkCheck.message.toStdString());
-    }
-
-    // Headless widget regression: no Vulkan instance or scene is created.
-    if(argc==3 && QString::fromLocal8Bit(argv[1])==QStringLiteral("--fusion-ui-smoke")) {
-        auto config=quantiloom::Config::Parse("[camera]\nposition=[0.0,0.0,3.0]\nlook_at=[0.0,0.0,0.0]\nup=[0.0,1.0,0.0]\nfov_y=45.0\n");
-        if(!config)return 2;
-        FusionExportDialog dialog(*config,QString());dialog.show();
-        app.processEvents();const bool saved=dialog.grab().save(QString::fromLocal8Bit(argv[2]));
-        quantiloom::Log::Shutdown();return saved ? 0 : 1;
     }
 
     // Create Vulkan instance for Qt

@@ -98,3 +98,17 @@ docs/html/
 .claude/settings.local.json
 .claude/SURVEY.md
 build-cdb/
+
+# ============================================================================
+# Render and review output written into the repository root
+# ============================================================================
+# A Studio or CLI run from the root leaves its pipeline cache, the default
+# spectral output pair, and (since SDK 0.5) a .metadata.json/.replay.toml
+# sidecar beside every export. The fusion dialog's default output directory is
+# fusion-output/ under the working directory.
+/pipeline_cache.bin
+/spectral_output.*
+/*.metadata.json
+/*.replay.toml
+/fusion-output/
+/report_perf.md
