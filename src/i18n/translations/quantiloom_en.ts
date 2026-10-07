@@ -2860,6 +2860,13 @@ Replace the curves?</source>
     </message>
 </context>
 <context>
+    <name>OfflineExport</name>
+    <message>
+        <source>could not write %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>PreferencesDialog</name>
     <message>
         <source>Preferences</source>
@@ -2986,10 +2993,6 @@ Pick a node or a material in the scene tree.</source>
     </message>
     <message>
         <source>The renderer is not ready yet.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>could not write %1</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

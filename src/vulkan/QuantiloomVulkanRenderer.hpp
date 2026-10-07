@@ -24,7 +24,6 @@
 #include <renderer/LightingParams.hpp>
 #include <atmos/AtmosphereNNConfig.hpp>
 #include <postprocess/CameraPipeline.hpp>
-#include <postprocess/SensorModel.hpp>
 #include <postprocess/Thermography.hpp>
 #include <renderer/ThermalControl.hpp>
 #include <renderer/TimelineControl.hpp>
@@ -294,17 +293,15 @@ public:
     /**
      * @brief The temperature a thermal camera would report for this pixel
      *
-     * Reads the accumulated radiance -- the sensor chain and CLAHE write
-     * elsewhere, so this is the scene rather than a detector's rendering of
-     * it -- and inverts it against Planck through the SDK, using whatever the
+     * Inverts an already-read raw accumulation value against Planck through
+     * the SDK -- the sensor chain and CLAHE write elsewhere, so this is the
+     * scene rather than a detector's rendering of it -- using whatever the
      * thermography settings say the camera has been told. Same arithmetic the
      * CLI writes into _tapp.exr.
      *
      * @return false in a mode that carries no band radiance to invert, which
      *         is every mode but the fused thermal ones
      */
-    bool readApparentTemperature(int x, int y, double& outKelvin);
-    /// Convert an already-read raw accumulation value without another GPU read.
     bool apparentTemperatureFromPixel(const glm::vec4& pixel, double& outKelvin) const;
 
     /**
@@ -391,20 +388,9 @@ public:
     void setSensorEnabled(bool enabled);
 
     /**
-     * @brief Set sensor parameters
-     * @param params Sensor parameters (optics, detector, noise, etc.)
-     */
-    void setSensorParams(const quantiloom::SensorParams& params);
-
-    /**
      * @brief Check if sensor simulation is enabled
      */
     bool isSensorEnabled() const { return m_sensorEnabled; }
-
-    /**
-     * @brief Get current sensor parameters
-     */
-    const quantiloom::SensorParams& getSensorParams() const { return m_sensorParams; }
 
     // ========================================================================
     // Physical camera (M5-3)
@@ -622,7 +608,6 @@ private:
     // Sensor simulation
     bool m_sensorEnabled = false;
     uint32_t m_samplingSeed = quantiloom::constants::DEFAULT_SAMPLING_SEED;
-    quantiloom::SensorParams m_sensorParams;
     /// The versioned physical camera last applied to (or read back from) the
     /// SDK. The undo stack snapshots this value; keeping our own copy is what
     /// lets the shell restore a camera configuration without re-reading the

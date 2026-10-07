@@ -23,6 +23,7 @@
 #include "panels/PropertiesPanel.hpp"
 #include "panels/CameraPanel.hpp"
 #include "ThermalNames.hpp"
+#include "AssetPaths.hpp"
 #include "panels/ComparisonPanel.hpp"
 #include "config/ConfigManager.hpp"
 #include "editing/SelectionManager.hpp"
@@ -34,6 +35,7 @@
 #include "dialogs/SequenceRenderDialog.hpp"
 #include "dialogs/FusionExportDialog.hpp"
 #include "dialogs/HelpDialog.hpp"
+#include "dialogs/OfflineExport.hpp"
 #include "i18n/LanguageManager.hpp"
 #include "ui/ModeCatalog.hpp"
 #include "ui/UiStyle.hpp"
@@ -73,7 +75,6 @@
 #include <QTimer>
 #include <QVBoxLayout>
 #include <QFileInfo>
-#include <QFile>
 #include <QSettings>
 #include <QDebug>
 #include <QDateTime>
@@ -1107,17 +1108,8 @@ void MainWindow::applyIlluminant(const LightingPanel::IlluminantChoice& choice) 
 }
 
 QString MainWindow::resolveBundledIlluminant() {
-    // Same candidate order as every other bundled asset.
-    const QStringList candidates{
-        QCoreApplication::applicationDirPath() + QStringLiteral("/assets/luts/astmg173.csv"),
-        QDir::currentPath() + QStringLiteral("/assets/luts/astmg173.csv"),
-    };
-    for (const QString& path : candidates) {
-        if (QFileInfo::exists(path)) {
-            return path;
-        }
-    }
-    return {};
+    // Beside the executable first, then the working directory: assetpaths::bundled.
+    return assetpaths::bundled(QStringLiteral("assets/luts/astmg173.csv"));
 }
 
 void MainWindow::applyAtmosphere(const quantiloom::AtmosphereNNConfig& config) {
@@ -3329,7 +3321,6 @@ void MainWindow::onExportCameraProducts() {
     if (!fileName.endsWith(QLatin1String(".exr"), Qt::CaseInsensitive)) {
         fileName += QStringLiteral(".exr");
     }
-    const QString base = fileName.left(fileName.size() - 4);
 
     // The product request is export intent, not document state: widen it on
     // the renderer for this capture only, so saving the scene afterwards does
@@ -3376,88 +3367,28 @@ void MainWindow::onExportCameraProducts() {
     }
     const quantiloom::camera::CameraOutput& products = captured.value();
 
-    // Every product the request enabled, with the file suffix and the kind
-    // label its SignalDescriptor carries. Traced radiance is not requested
-    // here: it is the renderer's own output, which Export Image already
-    // writes, and labelling it a camera product would blur that.
-    struct ProductSpec {
-        const quantiloom::camera::CameraProduct* product;
-        const char* suffix;
-        const char* kind;
-    };
-    const ProductSpec specs[] = {
-        {products.rawDn ? &*products.rawDn : nullptr, "raw_dn", "raw_dn"},
-        {products.correctedDeviceSignal ? &*products.correctedDeviceSignal : nullptr,
-         "corrected", "corrected_device_signal"},
-        {products.bandMeasurement ? &*products.bandMeasurement : nullptr,
-         "band_measurement", "band_measurement"},
-        {products.apparentTemperature ? &*products.apparentTemperature : nullptr,
-         "apparent_temperature", "apparent_temperature"},
-        {products.cieLinearSrgb ? &*products.cieLinearSrgb : nullptr,
-         "cie_linear_srgb", "cie_linear_srgb"},
-        {products.display ? &*products.display : nullptr, "display", "display"},
-    };
-
-    QStringList written;
-    QStringList metadata;
-    for (const ProductSpec& spec : specs) {
-        if (!spec.product) {
-            continue;
-        }
-        const QString path = base + QLatin1Char('_') + QLatin1String(spec.suffix) +
-                             QLatin1String(".exr");
-        if (!quantiloom::ImageIO::WriteEXR(path.toStdString(), spec.product->image)) {
-            QMessageBox::warning(this, tr("Export Failed"),
-                tr("Failed to save the image:\n%1").arg(path));
-            continue;
-        }
-        written << QFileInfo(path).fileName();
-
-        // The sidecar is ASCII on purpose: a Windows console on a CJK locale
-        // is not the only place these land, and the metadata is for diffing
-        // as much as for reading.
-        const auto& signal = spec.product->signal;
-        QString calibration;
-        switch (signal.calibration) {
-            case quantiloom::camera::CalibrationStatus::HardwareReference:
-                calibration = QStringLiteral("hardware_reference"); break;
-            case quantiloom::camera::CalibrationStatus::Calibrated:
-                calibration = QStringLiteral("calibrated"); break;
-            case quantiloom::camera::CalibrationStatus::GenericAssumption:
-            default:
-                calibration = QStringLiteral("generic_assumption"); break;
-        }
-        metadata << QStringLiteral("[%1] kind=%2 unit=%3 calibration=%4 "
-                                   "acquisition=%5 exposure=[%6, %7] s")
-                        .arg(QLatin1String(spec.suffix), QLatin1String(spec.kind),
-                             QString::fromStdString(signal.unit), calibration)
-                        .arg(signal.acquisitionIndex)
-                        .arg(signal.exposureStartSeconds, 0, 'g', 9)
-                        .arg(signal.exposureEndSeconds, 0, 'g', 9);
+    // Every product the request enabled, under the same <stem>_<suffix>.exr
+    // names and the same _products.txt sidecar the CLI and the sequence
+    // dialog emit. Traced radiance is not requested here: it is the
+    // renderer's own output, which Export Image already writes, and
+    // labelling it a camera product would blur that.
+    QString error;
+    int written = 0;
+    if (!offlineexport::writeCameraProducts(products, fileName, &error,
+                                            /*session=*/nullptr, &written)) {
+        QMessageBox::warning(this, tr("Export Failed"), error);
+        return;
     }
 
-    if (written.isEmpty()) {
+    if (written == 0) {
         QMessageBox::warning(this, tr("Export Failed"),
             tr("The acquisition completed but no product was enabled in the "
                "camera's product request."));
         return;
     }
 
-    // A sidecar next to the products, so the units and calibration status
-    // travel with the files instead of living in a dialog nobody can replay.
-    const QString sidecarPath = base + QLatin1String("_products.txt");
-    QFile sidecar(sidecarPath);
-    if (sidecar.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        QTextStream sidecarOut(&sidecar);
-        sidecarOut << "Quantiloom camera products\n";
-        sidecarOut << "acquisition_time_s = " << timeSeconds << "\n";
-        for (const QString& line : std::as_const(metadata)) {
-            sidecarOut << line << "\n";
-        }
-    }
-
     showStatusMessage(tr("Exported %1 camera product(s) to %2")
-                          .arg(written.size())
+                          .arg(written)
                           .arg(QFileInfo(fileName).dir().dirName()));
 }
 
@@ -4450,24 +4381,17 @@ void MainWindow::onMaterialWithCriChanged(int index, const quantiloom::Material&
 
 std::filesystem::path MainWindow::spectralDatabasePath(const QString& databaseId,
                                                        bool basisFile) {
-    // Same candidate order as the atmosphere model pack: working directory
-    // first, so a Studio launched from the repo root uses the checked-in
-    // databases, then beside the executable for an installed build.
+    // Beside the executable first, then the working directory: assetpaths::bundled.
     const QString leaf = basisFile
         ? QStringLiteral("quantiloom_basis_v3_%1.qlbin").arg(databaseId)
         : QStringLiteral("quantiloom_materials_%1.json").arg(databaseId);
-    const QStringList roots{
-        QCoreApplication::applicationDirPath() + QStringLiteral("/assets/spectral"),
-        QDir::currentPath() + QStringLiteral("/assets/spectral"),
-    };
-    for (const QString& root : roots) {
-        const QString candidate = QDir(root).filePath(leaf);
-        if (QFileInfo::exists(candidate)) {
-            return std::filesystem::path(
-                QDir::toNativeSeparators(candidate).toStdWString());
-        }
+    const QString candidate =
+        assetpaths::bundled(QStringLiteral("assets/spectral/") + leaf);
+    if (candidate.isEmpty()) {
+        return {};
     }
-    return {};
+    return std::filesystem::path(
+        QDir::toNativeSeparators(candidate).toStdWString());
 }
 
 void MainWindow::onSpectralPreviewRequested(const QString& databaseId,

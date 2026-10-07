@@ -5,6 +5,7 @@
 
 #include "SpectralLibraryPanel.hpp"
 
+#include "../AssetPaths.hpp"
 #include "../ui/SpectrumPlotWidget.hpp"
 #include "../ui/UiStyle.hpp"
 
@@ -181,21 +182,15 @@ public:
     [[nodiscard]] const QString& loadError() const { return m_loadError; }
 
 private:
-    /// Where the baked databases are, following the same candidate order as
-    /// the atmosphere model pack: the working directory first, so a Studio
-    /// launched from the repo root finds the checked-in copy, then beside the
-    /// executable for an installed build.
+    /// Where the baked databases are: the assetpaths::bundled lookup order,
+    /// and beside the executable again when it misses so the error message
+    /// names the place they should be.
     [[nodiscard]] static QDir assetsDir() {
-        const QStringList candidates{
-            QCoreApplication::applicationDirPath() + QStringLiteral("/assets/spectral"),
-            QDir::currentPath() + QStringLiteral("/assets/spectral"),
-        };
-        for (const QString& path : candidates) {
-            if (QDir(path).exists()) {
-                return QDir(path);
-            }
+        const QString dir = assetpaths::bundled(QStringLiteral("assets/spectral"));
+        if (!dir.isEmpty()) {
+            return QDir(dir);
         }
-        return QDir(candidates.first());
+        return QDir(QCoreApplication::applicationDirPath() + QStringLiteral("/assets/spectral"));
     }
 
     void load() {

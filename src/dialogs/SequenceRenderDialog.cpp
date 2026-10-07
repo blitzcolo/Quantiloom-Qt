@@ -5,6 +5,7 @@
 
 #include "SequenceRenderDialog.hpp"
 
+#include "OfflineExport.hpp"
 #include "../ui/UiStyle.hpp"
 
 #include <QVBoxLayout>
@@ -23,7 +24,6 @@
 #include <QFileInfo>
 #include <QFile>
 #include <QDir>
-#include <QCoreApplication>
 #include <QThread>
 #include <QPointer>
 #include <QMessageBox>
@@ -43,95 +43,6 @@
 #include <limits>
 #include <optional>
 #include <utility>
-
-namespace {
-quantiloom::OfflineRenderer::InitParams offlineInit(const QString& baseDir) {
-    quantiloom::OfflineRenderer::InitParams init;
-    init.baseDir = baseDir.toStdString();
-    for (const QString& candidate : {
-             qEnvironmentVariable("QUANTILOOM_ATMOS_MODELS"),
-             QDir::current().filePath(QStringLiteral("assets/atmos_models")),
-             QDir(QCoreApplication::applicationDirPath()).filePath(
-                 QStringLiteral("assets/atmos_models"))}) {
-        if (!candidate.isEmpty() && QDir(candidate).exists()) {
-            init.atmosphereModelPackFallback = candidate.toStdString();
-            break;
-        }
-    }
-    return init;
-}
-
-bool writeCameraProducts(const quantiloom::camera::CameraOutput& output,
-                         const QString& exrPath, QString* error,
-                         quantiloom::dataset::ExportSession* session) {
-    const QFileInfo file(exrPath);
-    const QString base = file.absolutePath() + QLatin1Char('/') + file.completeBaseName();
-    QStringList metadata;
-    for (const auto& [product, suffix] : {
-             std::pair{&output.bandMeasurement, "_measurement"},
-             std::pair{&output.rawDn, "_rawdn"},
-             std::pair{&output.correctedDeviceSignal, "_corrected"},
-             std::pair{&output.apparentTemperature, "_tapp"},
-             std::pair{&output.display, "_display"},
-             std::pair{&output.cieLinearSrgb, "_cie"},
-             std::pair{&output.tracedRadiance, "_spectral"}}) {
-        if (!*product) continue;
-        const QString path = base + QString::fromLatin1(suffix) + QStringLiteral(".exr");
-        const std::string name = QFileInfo(path).fileName().toStdString();
-        const bool written = session
-            ? session->WriteImage(name, name, (*product)->image, "{}").has_value()
-            : quantiloom::ImageIO::WriteEXR(path.toStdString(), (*product)->image);
-        if (!written) {
-            if (error) *error = QObject::tr("could not write %1").arg(path);
-            return false;
-        }
-        const auto& signal = (*product)->signal;
-        const char* calibration = "generic_assumption";
-        if (signal.calibration == quantiloom::camera::CalibrationStatus::HardwareReference)
-            calibration = "hardware_reference";
-        else if (signal.calibration == quantiloom::camera::CalibrationStatus::Calibrated)
-            calibration = "calibrated";
-        metadata << QStringLiteral("%1 unit=%2 calibration=%3 acquisition=%4 exposure=[%5, %6] s")
-                        .arg(QFileInfo(path).fileName(), QString::fromStdString(signal.unit),
-                             QString::fromLatin1(calibration))
-                        .arg(signal.acquisitionIndex)
-                        .arg(signal.exposureStartSeconds, 0, 'g', 9)
-                        .arg(signal.exposureEndSeconds, 0, 'g', 9);
-    }
-    QString summaryPath = base + QStringLiteral("_products.txt");
-    const std::string summaryName = QFileInfo(summaryPath).fileName().toStdString();
-    if (session) {
-        const auto staged = session->StagingPath(summaryName);
-        if (!staged) {
-            if (error) *error = QString::fromStdString(staged.error());
-            return false;
-        }
-        summaryPath = QString::fromStdString(staged.value());
-    }
-    QFile sidecar(summaryPath);
-    if (!sidecar.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        if (error) *error = QObject::tr("could not write %1").arg(sidecar.fileName());
-        return false;
-    }
-    QTextStream out(&sidecar);
-    out << "Quantiloom camera products\n";
-    for (const auto& line : std::as_const(metadata)) out << line << '\n';
-    out.flush();
-    if (out.status() != QTextStream::Ok || !sidecar.flush()) {
-        if (error) *error = QObject::tr("could not write %1").arg(summaryPath);
-        return false;
-    }
-    sidecar.close();
-    if (session) {
-        const auto registered = session->RegisterFile(summaryName, summaryName, "{}");
-        if (!registered) {
-            if (error) *error = QString::fromStdString(registered.error());
-            return false;
-        }
-    }
-    return true;
-}
-} // namespace
 
 SequenceRenderDialog::SequenceRenderDialog(const SceneConfig& config,
                                            QStringList materialNames,
@@ -481,7 +392,8 @@ bool SequenceRenderDialog::writeFrame(const quantiloom::OfflineRenderOutput& out
         if (error) *error = tr("could not write %1").arg(pngPath);
         return false;
     }
-    if (products && !writeCameraProducts(*products, exrPath, error, session.get()))
+    if (products && !offlineexport::writeCameraProducts(*products, exrPath, error,
+                                                        session.get()))
         return false;
     if (session) {
         const auto committed = session->Commit();
@@ -585,17 +497,15 @@ QString SequenceRenderDialog::frameOverrideToml(const int index) const {
     // Config::MergedWith applies this layer after each document parses on its own.
     const QString outputPath =
         QDir(m_outputDirEdit->text()).filePath(frameOutputName(index));
-    QString material = m_materialCombo->currentText();
-    material.replace(QLatin1Char('\\'), QLatin1String("\\\\"));
-    material.replace(QLatin1Char('"'), QLatin1String("\\\""));
 
     QString toml;
     QTextStream out(&toml);
-    out << "[material_overrides.\"" << material << "\"]\n"
+    out << "[material_overrides." << tomlQuoted(m_materialCombo->currentText()) << "]\n"
         << "ir_temperature_k = " << QString::number(frameTemperature(index), 'f', 4) << "\n"
         << "\n[renderer]\n"
-        << "output = \"" << QString(outputPath).replace(QLatin1Char('\\'), QLatin1String("/"))
-        << "\"\n"
+        << "output = " << tomlQuoted(
+               QString(outputPath).replace(QLatin1Char('\\'), QLatin1String("/")))
+        << "\n"
         << "spp = " << m_spp->value() << "\n";
     return toml;
 }
@@ -791,7 +701,7 @@ void SequenceRenderDialog::startSweepRun(const QString& baseToml) {
                 // scene-independent GPU resources are shared across this
                 // sequential worker. The device outlives every renderer here
                 // and remains separate from the viewport's device.
-                auto init = offlineInit(baseDir);
+                auto init = offlineexport::rendererInit(baseDir);
                 init.sharedDevice = device.get();
                 auto renderer = quantiloom::OfflineRenderer::Create(config, init);
                 if (!renderer.has_value()) {
@@ -919,7 +829,7 @@ void SequenceRenderDialog::startTimelineRun() {
                 // acceleration structure built once, the thermal geometry
                 // schedule measured once, and its trajectory stepped forward
                 // between frames rather than restarted from the beginning.
-                const auto init = offlineInit(baseDir);
+                const auto init = offlineexport::rendererInit(baseDir);
                 auto renderer = quantiloom::OfflineRenderer::Create(parsed.value(), init);
                 if (!renderer.has_value()) {
                     error = QString::fromStdString(renderer.error());

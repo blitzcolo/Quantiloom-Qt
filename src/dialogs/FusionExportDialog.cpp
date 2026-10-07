@@ -1,4 +1,5 @@
 #include "FusionExportDialog.hpp"
+#include "OfflineExport.hpp"
 #include "../panels/SensorPanel.hpp"
 #include <scene/Camera.hpp>
 #include <postprocess/CameraPresets.hpp>
@@ -126,8 +127,7 @@ void FusionExportDialog::start(){
     if(!collectPairs())return;
     auto doc=Config::Parse(RigConfigToToml(m_rig));auto rig=doc ? ParseRigConfig(*doc,m_baseDirectory.toStdString()) : Result<RigConfig,String>(Result<RigConfig,String>::Err(doc.error()));
     if(!rig){QMessageBox::warning(this,tr("Rig"),QString::fromStdString(rig.error()));return;}
-    FusionExportOptions options;options.outputDirectory=m_output->text().toStdString();options.sampleId=m_sample->text().toStdString();options.rectify=m_rectify->isChecked();options.renderer.baseDir=m_baseDirectory.toStdString();
-    const QString models=qEnvironmentVariable("QUANTILOOM_ATMOS_MODELS",QDir::current().filePath("assets/atmos_models"));if(QDir(models).exists())options.renderer.atmosphereModelPackFallback=models.toStdString();
+    FusionExportOptions options;options.outputDirectory=m_output->text().toStdString();options.sampleId=m_sample->text().toStdString();options.rectify=m_rectify->isChecked();options.renderer=offlineexport::rendererInit(m_baseDirectory);
     m_cancelled=false;m_publishing=false;options.cancelled=[this]{return m_cancelled.load();};
     QPointer<FusionExportDialog> self(this);options.onProgress=[self](const FusionExportProgress& p){if(!self)return;if(p.phase=="publish")self->m_publishing=true;QMetaObject::invokeMethod(self.data(),[self,p]{if(!self)return;self->m_progress->setRange(0,static_cast<int>(p.totalCameras));self->m_progress->setValue(static_cast<int>(p.completedCameras));if(p.phase=="publish"){self->m_start->setEnabled(false);self->m_status->setText(self->tr("Completing publication..."));}
         else self->m_status->setText(QString::fromStdString(p.cameraId+": "+p.phase));},Qt::QueuedConnection);};

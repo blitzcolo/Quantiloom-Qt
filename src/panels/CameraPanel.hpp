@@ -65,6 +65,11 @@ private:
     void setupUi();
     /// Refresh the derived readout without reporting an edit.
     void updateDistanceLabel();
+    /// The key the six key fields currently describe, at the given time.
+    [[nodiscard]] quantiloom::camera::CameraPoseKey keyFromFields(double timeSeconds) const;
+    /// Keys stay sorted by time; an edited key may belong anywhere in the list.
+    static void insertSorted(quantiloom::camera::CameraMotionConfig& motion,
+                             const quantiloom::camera::CameraPoseKey& key);
 
     QGroupBox* m_poseGroup = nullptr;
     QLabel* m_positionCaption = nullptr;

@@ -27,7 +27,6 @@
 
 #include <renderer/ExternalRenderContext.hpp>
 #include <renderer/LightingParams.hpp>
-#include <postprocess/SensorModel.hpp>
 #include <scene/Material.hpp>
 #include <scene/Scene.hpp>
 
@@ -268,10 +267,6 @@ bool QuantiloomVulkanWindow::sensorEnabled() const {
     return m_renderer && m_renderer->isSensorEnabled();
 }
 
-quantiloom::SensorParams QuantiloomVulkanWindow::sensorParams() const {
-    return m_renderer ? m_renderer->getSensorParams() : quantiloom::SensorParams{};
-}
-
 void QuantiloomVulkanWindow::setCameraProjection(bool orthographic, float orthoHeight) {
     if (m_renderer) {
         m_renderer->setCameraProjection(orthographic, orthoHeight);
@@ -502,10 +497,6 @@ void QuantiloomVulkanWindow::setSensorEnabled(bool enabled) {
     withRenderer([enabled](QuantiloomVulkanRenderer& r) { r.setSensorEnabled(enabled); });
 }
 
-bool QuantiloomVulkanWindow::readApparentTemperature(int x, int y, double& outKelvin) {
-    return m_renderer ? m_renderer->readApparentTemperature(x, y, outKelvin) : false;
-}
-
 bool QuantiloomVulkanWindow::apparentTemperatureFromPixel(
     const glm::vec4& pixel, double& outKelvin) const {
     return m_renderer && m_renderer->apparentTemperatureFromPixel(pixel, outKelvin);
@@ -514,10 +505,6 @@ bool QuantiloomVulkanWindow::apparentTemperatureFromPixel(
 void QuantiloomVulkanWindow::setThermographyParams(
     const quantiloom::ThermographyParams& params) {
     withRenderer([params](QuantiloomVulkanRenderer& r) { r.setThermographyParams(params); });
-}
-
-void QuantiloomVulkanWindow::setSensorParams(const quantiloom::SensorParams& params) {
-    withRenderer([params](QuantiloomVulkanRenderer& r) { r.setSensorParams(params); });
 }
 
 quantiloom::Result<void, quantiloom::String> QuantiloomVulkanWindow::setCameraConfig(

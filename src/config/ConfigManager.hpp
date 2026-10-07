@@ -489,6 +489,14 @@ struct SceneConfig {
     QString baseDir;
 };
 
+// TOML basic strings give the backslash to escape sequences, so streaming a
+// value into quotes raw writes a file the loader refuses to read back: a
+// Windows path like D:\Quantiloom-Qt fails the very next open with
+// "unknown escape sequence '\Q'". Every quoted string writeConfig() emits --
+// values and the quoted keys of [spectral_curves]/[refractive_index] alike --
+// goes through here, as does any other hand-written TOML in this repo.
+[[nodiscard]] QString tomlQuoted(const QString& s);
+
 /**
  * @class ConfigManager
  * @brief Manages TOML configuration import/export

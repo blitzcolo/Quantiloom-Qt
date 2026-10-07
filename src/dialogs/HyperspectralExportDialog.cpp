@@ -5,6 +5,7 @@
 
 #include "HyperspectralExportDialog.hpp"
 
+#include "OfflineExport.hpp"
 #include "../ui/UiStyle.hpp"
 
 #include <QVBoxLayout>
@@ -277,8 +278,7 @@ void HyperspectralExportDialog::onStartOrCancel() {
                 error = tr("The document is not valid TOML: %1")
                             .arg(QString::fromStdString(parsed.error()));
             } else {
-                quantiloom::OfflineRenderer::InitParams params;
-                params.baseDir = baseDir.toStdString();
+                auto params = offlineexport::rendererInit(baseDir);
                 params.onProgress = [self](const quantiloom::OfflineProgress& progress) {
                     // Queued onto the GUI thread: this runs between bands on
                     // the worker.

@@ -143,6 +143,10 @@ private:
     void updateUiFromConfig(const quantiloom::camera::CameraConfig& config);
     void blockSignalsForUpdate(bool block);
     void updateKindVisibility();
+    /// Intrinsics edit only while "calibrated intrinsics" is checked; a
+    /// distortion coefficient only when the selected model consumes it (all
+    /// but the radial k3 under fisheye); the half angle only under fisheye.
+    void updateLensFieldStates();
     void updateStatusArea();
 
     /// Form captions, kept with their untranslated source so that a language

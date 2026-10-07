@@ -8,6 +8,7 @@
 #include "QuantiloomVulkanRenderer.hpp"
 #include "PixelReadbackConversion.hpp"
 #include "QuantiloomVulkanWindow.hpp"
+#include "../AssetPaths.hpp"
 
 #include <renderer/ExternalRenderContext.hpp>
 #include <renderer/LightingParams.hpp>
@@ -608,8 +609,8 @@ bool QuantiloomVulkanRenderer::applyConfigToContext(bool isFreshOpen) {
         emit m_window->cameraChanged();
 
         // The SDK parsed and applied the versioned camera itself; read its
-        // resolution back so the shell's copy matches what is running (the
-        // legacy SensorParams facade alone would not carry it).
+        // resolution back so the shell's copy matches what is running -- the
+        // unversioned sensor settings it replaced could not carry it.
         m_cameraConfig = m_renderContext->GetCameraConfig();
         m_sensorEnabled = m_cameraConfig.enabled;
     } else {
@@ -1342,27 +1343,6 @@ QuantiloomVulkanRenderer::pollPixelValue() {
     return m_renderContext->PollPixelValue();
 }
 
-bool QuantiloomVulkanRenderer::readApparentTemperature(int x, int y, double& outKelvin) {
-    if (!m_renderContext) {
-        return false;
-    }
-    // Only the fused thermal bands carry a band radiance to invert. RGB and
-    // the visible band carry tristimulus, which is not a temperature of
-    // anything.
-    const auto band = quantiloom::GetFusedBandInfo(m_spectralMode);
-    if (!band.has_value() || !quantiloom::IsIRFusedMode(m_spectralMode)) {
-        return false;
-    }
-
-    auto result = m_renderContext->ReadPixelValue(static_cast<quantiloom::u32>(x),
-                                                  static_cast<quantiloom::u32>(y));
-    if (!result.has_value()) {
-        return false;
-    }
-
-    return apparentTemperatureFromPixel(result.value(), outKelvin);
-}
-
 bool QuantiloomVulkanRenderer::apparentTemperatureFromPixel(
     const glm::vec4& pixel, double& outKelvin) const {
     const auto temperature = vkview::apparentTemperatureK(
@@ -1509,28 +1489,9 @@ void QuantiloomVulkanRenderer::setAtmosphericConfig(const quantiloom::Atmosphere
 }
 
 std::string QuantiloomVulkanRenderer::resolveDefaultModelPackDir() {
-    QStringList candidates;
-    QString envDir = qEnvironmentVariable("QUANTILOOM_ATMOS_MODELS");
-    if (!envDir.isEmpty()) {
-        candidates << envDir;
-    }
-    // Same three candidates in the same order as the core CLI. The
-    // working-directory one was missing here, so a Studio launched from a repo
-    // root -- where the CLI finds the pack and renders an atmosphere -- silently
-    // disabled it instead.
-    candidates << QDir::currentPath() + "/assets/atmos_models";
-    // Copied next to the exe from the SDK by a POST_BUILD step
-    candidates << QCoreApplication::applicationDirPath() + "/assets/atmos_models";
-
-    for (const QString& dir : candidates) {
-        if (QDir(dir).exists()) {
-            // Qt-style forward slashes, which Windows accepts everywhere this
-            // goes. This string ends up in saved configs via GetAtmosphere(),
-            // and native backslashes made every reader deal with escaping.
-            return dir.toStdString();
-        }
-    }
-    return {};
+    // Same three candidates in the same order as the core CLI:
+    // assetpaths::atmosphereModelPackDir.
+    return assetpaths::atmosphereModelPackDir().toStdString();
 }
 
 void QuantiloomVulkanRenderer::applyAtmosphereToContext() {
@@ -1742,35 +1703,6 @@ void QuantiloomVulkanRenderer::setSensorEnabled(bool enabled) {
     }
 
     qDebug() << "[Sensor] GPU sensor simulation" << (enabled ? "ENABLED" : "DISABLED");
-}
-
-void QuantiloomVulkanRenderer::setSensorParams(const quantiloom::SensorParams& params) {
-    m_sensorParams = params;
-
-    // Update GPU sensor params in libQuantiloom
-    if (m_renderContext) {
-        m_renderContext->SetGPUSensorParams(params);
-        requestDisplayReprocess();
-    }
-
-    qDebug() << "[Sensor] GPU params updated:"
-             << "focal=" << params.focalLength_mm << "mm"
-             << ", f/" << params.fNumber
-             << ", pixel_pitch=" << params.pixelPitch_um << "um"
-             << ", QE=" << params.quantumEfficiency
-             << ", well=" << params.wellCapacity_e << "e-"
-             << ", bit_depth=" << params.bitDepth
-             << ", gain=" << params.gain << "e-/DN"
-             << ", t_int=" << params.integrationTime_s << "s";
-    qDebug() << "[Sensor]   Noise: poisson=" << params.enablePoissonNoise
-             << ", read_noise=" << params.enableReadNoise << "(" << params.readNoise_e_rms << "e-)"
-             << ", dark_current=" << params.enableDarkCurrent << "(" << params.darkCurrent_e_s << "e-/s)"
-             << ", fpn=" << params.enableFPN;
-    if (params.enableFPN) {
-        qDebug() << "[Sensor]   FPN: prnu_sigma=" << params.prnuSigma
-                 << ", dsnu_sigma=" << params.dsnuSigma_e << "e-"
-                 << ", nuc=" << params.enableNUC << "(eff=" << params.nucEfficiency << ")";
-    }
 }
 
 // ============================================================================

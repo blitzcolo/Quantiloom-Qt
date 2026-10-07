@@ -19,6 +19,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <functional>
 
 CameraPanel::CameraPanel(QWidget* parent)
     : PanelBase(parent)
@@ -41,30 +42,38 @@ void CameraPanel::setupUi() {
     auto* poseLayout = new QFormLayout(m_poseGroup);
     poseLayout->setRowWrapPolicy(QFormLayout::WrapAllRows);
 
-    auto makeTriple = [this](QDoubleSpinBox* (&fields)[3]) {
+    // Axis symbols, verbatim in every locale -- see PropertiesPanel.
+    static const char* const kAxisNames[3] = {"X", "Y", "Z"};
+    auto makeTriple = [this](QWidget* parent, QDoubleSpinBox* (&fields)[3],
+                             double range, int decimals,
+                             const std::function<void(QDoubleSpinBox*)>& wire) {
         auto* row = new QGridLayout();
-        // Axis symbols, verbatim in every locale -- see PropertiesPanel.
-        static const char* const kAxisNames[3] = {"X", "Y", "Z"};
         for (int axis = 0; axis < 3; ++axis) {
-            auto* spin = new QDoubleSpinBox();
-            spin->setRange(-1e6, 1e6);
-            spin->setDecimals(3);
-            spin->setSingleStep(0.1);
+            auto* spin = new QDoubleSpinBox(parent);
+            spin->setRange(-range, range);
+            spin->setDecimals(decimals);
             spin->setKeyboardTracking(false);
-            connect(spin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-                    this, &CameraPanel::onPoseFieldChanged);
+            if (wire) wire(spin);
             fields[axis] = spin;
-            row->addWidget(new QLabel(QString::fromLatin1(kAxisNames[axis])), axis, 0);
+            row->addWidget(new QLabel(QString::fromLatin1(kAxisNames[axis]), parent),
+                           axis, 0);
             row->addWidget(spin, axis, 1);
         }
         return row;
     };
+    auto wirePoseField = [this](QDoubleSpinBox* spin) {
+        spin->setSingleStep(0.1);
+        connect(spin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+                this, &CameraPanel::onPoseFieldChanged);
+    };
 
     m_positionCaption = new QLabel(m_poseGroup);
-    poseLayout->addRow(m_positionCaption, makeTriple(m_position));
+    poseLayout->addRow(m_positionCaption,
+                       makeTriple(m_poseGroup, m_position, 1e6, 3, wirePoseField));
 
     m_targetCaption = new QLabel(m_poseGroup);
-    poseLayout->addRow(m_targetCaption, makeTriple(m_target));
+    poseLayout->addRow(m_targetCaption,
+                       makeTriple(m_poseGroup, m_target, 1e6, 3, wirePoseField));
 
     m_distanceLabel = new QLabel(QStringLiteral("--"));
     m_distanceCaption = new QLabel(m_poseGroup);
@@ -140,27 +149,19 @@ void CameraPanel::setupUi() {
     motionLayout->addRow(m_keyList);
     m_keyTime = new QDoubleSpinBox(m_motionGroup);
     m_keyTime->setRange(-1e9, 1e9);
+    // Fifteen decimals is not precision theatre: QDoubleSpinBox rounds its
+    // value to its decimals, and the key fields are read back into the
+    // trajectory, so fewer would quantise authored key times and positions.
     m_keyTime->setDecimals(15);
     m_keyTime->setKeyboardTracking(false);
     m_keyTimeCaption = new QLabel(m_motionGroup);
     motionLayout->addRow(m_keyTimeCaption, m_keyTime);
-    auto makeKeyTriple = [this](QDoubleSpinBox* (&fields)[3]) {
-        auto* row = new QGridLayout();
-        for (int axis = 0; axis < 3; ++axis) {
-            auto* spin = new QDoubleSpinBox(m_motionGroup);
-            spin->setRange(-1e9, 1e9);
-            spin->setDecimals(15);
-            spin->setKeyboardTracking(false);
-            fields[axis] = spin;
-            row->addWidget(new QLabel(QString::fromLatin1("XYZ").mid(axis, 1), m_motionGroup), axis, 0);
-            row->addWidget(spin, axis, 1);
-        }
-        return row;
-    };
     m_keyPositionCaption = new QLabel(m_motionGroup);
     m_keyTargetCaption = new QLabel(m_motionGroup);
-    motionLayout->addRow(m_keyPositionCaption, makeKeyTriple(m_keyPosition));
-    motionLayout->addRow(m_keyTargetCaption, makeKeyTriple(m_keyTarget));
+    motionLayout->addRow(m_keyPositionCaption,
+                         makeTriple(m_motionGroup, m_keyPosition, 1e9, 15, {}));
+    motionLayout->addRow(m_keyTargetCaption,
+                         makeTriple(m_motionGroup, m_keyTarget, 1e9, 15, {}));
     auto* keyButtons = new QGridLayout();
     m_captureButton = new QPushButton(m_motionGroup);
     m_addButton = new QPushButton(m_motionGroup);
@@ -331,19 +332,30 @@ void CameraPanel::capturePose(const glm::vec3& position, const glm::vec3& target
     else updateKeyframe();
 }
 
-void CameraPanel::addKeyframe() {
-    quantiloom::camera::CameraMotionConfig next = m_motion;
+quantiloom::camera::CameraPoseKey CameraPanel::keyFromFields(double timeSeconds) const {
     quantiloom::camera::CameraPoseKey key;
-    // Adding follows the transport grid. The selected key's numeric time is
-    // for editing that key; reusing it here would create a duplicate.
-    key.timeSeconds = m_currentTime;
+    key.timeSeconds = timeSeconds;
     for (int axis = 0; axis < 3; ++axis) {
         key.position[axis] = m_keyPosition[axis]->value();
         key.lookAt[axis] = m_keyTarget[axis]->value();
     }
-    const auto at = std::lower_bound(next.keys.begin(), next.keys.end(), key.timeSeconds,
+    return key;
+}
+
+void CameraPanel::insertSorted(quantiloom::camera::CameraMotionConfig& motion,
+                               const quantiloom::camera::CameraPoseKey& key) {
+    const auto at = std::lower_bound(motion.keys.begin(), motion.keys.end(),
+        key.timeSeconds,
         [](const auto& entry, double time) { return entry.timeSeconds < time; });
-    next.keys.insert(at, key);
+    motion.keys.insert(at, key);
+}
+
+void CameraPanel::addKeyframe() {
+    quantiloom::camera::CameraMotionConfig next = m_motion;
+    // Adding follows the transport grid. The selected key's numeric time is
+    // for editing that key; reusing it here would create a duplicate.
+    const auto key = keyFromFields(m_currentTime);
+    insertSorted(next, key);
     m_selectAfterEdit = key.timeSeconds;
     emit motionEdited(next);
 }
@@ -354,15 +366,8 @@ void CameraPanel::updateKeyframe() {
     if (selected < 0 || selected >= static_cast<int>(m_motion.keys.size())) return;
     quantiloom::camera::CameraMotionConfig next = m_motion;
     next.keys.erase(next.keys.begin() + selected);
-    quantiloom::camera::CameraPoseKey key;
-    key.timeSeconds = m_keyTime->value();
-    for (int axis = 0; axis < 3; ++axis) {
-        key.position[axis] = m_keyPosition[axis]->value();
-        key.lookAt[axis] = m_keyTarget[axis]->value();
-    }
-    const auto at = std::lower_bound(next.keys.begin(), next.keys.end(), key.timeSeconds,
-        [](const auto& entry, double time) { return entry.timeSeconds < time; });
-    next.keys.insert(at, key);
+    const auto key = keyFromFields(m_keyTime->value());
+    insertSorted(next, key);
     m_selectAfterEdit = key.timeSeconds;
     emit motionEdited(next);
 }

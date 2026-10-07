@@ -27,13 +27,7 @@
 // way the hand-rolled writer once drifted from ParseSensorParams (noiseSeed
 // was parsed on load and dropped on save for a while).
 
-// TOML basic strings give the backslash to escape sequences, so streaming a
-// value into quotes raw writes a file the loader refuses to read back: a
-// Windows path like D:\Quantiloom-Qt fails the very next open with
-// "unknown escape sequence '\Q'". Every quoted string writeConfig() emits --
-// values and the quoted keys of [spectral_curves]/[refractive_index] alike --
-// goes through here.
-static QString tomlQuoted(const QString& s) {
+QString tomlQuoted(const QString& s) {
     QString quoted;
     quoted.reserve(s.size() + 2);
     quoted += QLatin1Char('"');
@@ -431,21 +425,39 @@ void ConfigManager::extractSceneConfig(const quantiloom::Config& config, SceneCo
     // ir_temperature_k = 350.0
     out.materialConfigs.clear();
     quantiloom::Vector<quantiloom::Config> materialTables;
-    for(const auto& table:config.GetTableArray("materials")) {
-        const auto name=table.GetString("name");
-        auto previous=std::find_if(materialTables.begin(),materialTables.end(),[&](const auto& t){return t.GetString("name")==name;});
-        if(previous==materialTables.end())materialTables.push_back(table);
-        else *previous=previous->MergedWith(table);
+    const auto findByName = [&materialTables](const std::string& name) {
+        return std::find_if(materialTables.begin(), materialTables.end(),
+                            [&name](const auto& t) {
+                                return t.GetString("name") == name;
+                            });
+    };
+    for (const auto& table : config.GetTableArray("materials")) {
+        const auto name = table.GetString("name");
+        auto previous = findByName(name);
+        if (previous == materialTables.end()) {
+            materialTables.push_back(table);
+        } else {
+            *previous = previous->MergedWith(table);
+        }
     }
     // Canonicalise both syntaxes before extracting widget state. Named overrides win.
-    const auto overrides=config.GetTable("material_overrides");
-    for(const auto& name:config.GetSubtableNames("material_overrides")) {
-        auto value=overrides.value().GetNamedTable(name);if(!value)continue;
-        auto current=std::find_if(materialTables.begin(),materialTables.end(),[&](const auto& t){return t.GetString("name")==name;});
-        const auto named=quantiloom::Config::Parse("name = "+tomlQuoted(QString::fromStdString(name)).toStdString()+"\n");
-        if(!named)continue;
-        if(current!=materialTables.end())*current=current->MergedWith(*value).MergedWith(*named);
-        else materialTables.push_back(value.value().MergedWith(*named));
+    const auto overrides = config.GetTable("material_overrides");
+    for (const auto& name : config.GetSubtableNames("material_overrides")) {
+        auto value = overrides.value().GetNamedTable(name);
+        if (!value) {
+            continue;
+        }
+        auto current = findByName(name);
+        const auto named = quantiloom::Config::Parse(
+            "name = " + tomlQuoted(QString::fromStdString(name)).toStdString() + "\n");
+        if (!named) {
+            continue;
+        }
+        if (current != materialTables.end()) {
+            *current = current->MergedWith(*value).MergedWith(*named);
+        } else {
+            materialTables.push_back(value.value().MergedWith(*named));
+        }
     }
     for (const auto& matTable : materialTables) {
         std::string name = matTable.GetString("name", "");

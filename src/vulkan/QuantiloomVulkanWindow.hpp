@@ -33,7 +33,6 @@ class Scene;
 struct Material;
 struct LightingParams;
 struct Image;
-struct SensorParams;
 struct CameraHistoryStatus;
 struct ThermographyParams;
 struct ComplexRefractiveIndex;
@@ -278,7 +277,6 @@ public:
     /// The sensor state currently in effect, for callers that need the value
     /// a change is replacing (the undo history does).
     [[nodiscard]] bool sensorEnabled() const;
-    [[nodiscard]] quantiloom::SensorParams sensorParams() const;
     /// The versioned physical camera currently in effect (M5-3).
     [[nodiscard]] const quantiloom::camera::CameraConfig& cameraConfig() const;
     quantiloom::DebugVisualizationMode debugMode() const;
@@ -309,7 +307,6 @@ public:
 
     /// The temperature a thermal camera would report for this pixel, from the
     /// accumulated radiance. False in any mode with no band to invert.
-    bool readApparentTemperature(int x, int y, double& outKelvin);
     bool apparentTemperatureFromPixel(const glm::vec4& pixel, double& outKelvin) const;
 
     /**
@@ -374,12 +371,6 @@ public:
      * @param enabled true to enable sensor post-processing
      */
     void setSensorEnabled(bool enabled);
-
-    /**
-     * @brief Set sensor parameters
-     * @param params Sensor parameters (optics, detector, noise, etc.)
-     */
-    void setSensorParams(const quantiloom::SensorParams& params);
 
     // ========================================================================
     // Physical camera (M5-3)

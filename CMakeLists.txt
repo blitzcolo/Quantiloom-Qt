@@ -179,6 +179,8 @@ set(GUI_SOURCES
     src/MainWindow.cpp
     src/MainWindow.hpp
     src/ThermalNames.hpp
+    src/AssetPaths.cpp
+    src/AssetPaths.hpp
     # MainWindow's MCP tool catalogue -- its own translation unit because it is
     # long, not because it is a separate class.
     src/McpTools.cpp
@@ -274,6 +276,10 @@ set(GUI_SOURCES
     src/dialogs/HyperspectralExportDialog.hpp
     src/dialogs/FusionExportDialog.cpp
     src/dialogs/FusionExportDialog.hpp
+    # What the three offline export paths share: OfflineRenderer init and the
+    # camera-product writer.
+    src/dialogs/OfflineExport.cpp
+    src/dialogs/OfflineExport.hpp
     src/dialogs/SequenceRenderDialog.cpp
     src/dialogs/SequenceRenderDialog.hpp
     src/dialogs/PreferencesDialog.cpp

@@ -2919,6 +2919,13 @@ Replace the curves?</source>
     </message>
 </context>
 <context>
+    <name>OfflineExport</name>
+    <message>
+        <source>could not write %1</source>
+        <translation>无法写入 %1</translation>
+    </message>
+</context>
+<context>
     <name>PreferencesDialog</name>
     <message>
         <source>Preferences</source>
@@ -3054,7 +3061,7 @@ Pick a node or a material in the scene tree.</source>
     </message>
     <message>
         <source>could not write %1</source>
-        <translation>无法写入 %1</translation>
+        <translation type="vanished">无法写入 %1</translation>
     </message>
 </context>
 <context>
