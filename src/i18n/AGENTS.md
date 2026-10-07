@@ -126,6 +126,6 @@ override `retranslateUi()`. Two traps:
 
 ## Commits
 
-**No Claude Code session link in a commit message.** No `Claude-Session:` trailer,
-no `https://claude.ai/code/...` URL, in the subject, the body or a trailer. Same for
+**No Codex session link in a commit message.** No `Codex-Session:` trailer,
+no `https://Codex.ai/code/...` URL, in the subject, the body or a trailer. Same for
 PR descriptions.

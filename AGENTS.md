@@ -2,7 +2,7 @@
 
 Qt6 desktop GUI for the Quantiloom spectral path tracer. Holds no physics of its own —
 it links a prebuilt SDK and drives it through `ExternalRenderContext`. C++20, one CMake
-target, ~35k lines across 94 source files.
+target, ~38k lines across 103 source files.
 
 ## Build: WSL2 shell, Windows toolchain
 
@@ -22,6 +22,10 @@ runs) — judge a run by its log, not by `$?`.
 
 **This repo has no tests, no lint, and no formatter.** No ctest, no test target; the
 suite lives in Quantiloom-dev. MSVC `/W4` at build time is the only static check.
+Nothing here would run a test, which is why 254a7d2 removed the self-checking
+executables 0.3.3–0.7.0 had added: behaviour that needs a regression test belongs in
+Quantiloom-dev's suite, and a GUI change is verified by building and running the
+window.
 
 clangd resolves symbols through `build-cdb/`, a configure-only Ninja tree that exists
 because the Visual Studio generator will not emit `compile_commands.json`. Regenerate
@@ -74,7 +78,7 @@ repo** — move its header into `include/quantiloom/`, add `QL_API`, and update
 `docs/abi/exports.golden` — none of which can be done from this side. So "the header
 is missing" or "unresolved external" is a signal to go widen the SDK's API on purpose,
 never to work around it here (SRS CON-03: the frontend reaches the core only through
-exported symbols). `src/libQuantiloom/CLAUDE.md` over there has the rule.
+exported symbols). `src/libQuantiloom/AGENTS.md` over there has the rule.
 
 ## Repo map
 
@@ -83,18 +87,19 @@ exported symbols). `src/libQuantiloom/CLAUDE.md` over there has the rule.
 | `src/panels/` | 16 dockable panels — most feature work lands here. `ComparisonPanel` holds a render against a reference EXR; `TimelinePanel` is the transport for a document with a `[timeline]`, and `TrajectoryPlotWidget` in `src/ui/` draws what a thermal probe returns |
 | `src/ui/` | Shell infrastructure: `PanelBase`, the debug/spectral `ModeCatalog`, workspaces, the viewport frame, shared styling |
 | `src/ui/theme/` | The ten themes as data (`Theme`) and the runtime switcher (`ThemeManager`). A theme is a style key, a palette, a few accent colours and an optional style sheet — adding one is a function returning a `Theme`, not code |
-| `src/dialogs/` | Preferences, the generated help pages, the hyperspectral cube export (three formats: ENVI, spectral EXR, TIFF) and the sequence render dialog, whose Timeline mode drives one `OfflineRenderer` across the clock |
+| `src/dialogs/` | Preferences, the generated help pages, the hyperspectral cube export (three formats: ENVI, spectral EXR, TIFF), the sequence render dialog, whose Timeline mode drives one `OfflineRenderer` across the clock, and the fusion dataset export (`FusionExportDialog` — a rig of cameras exported through the SDK's `dataset::FusionExportJob`). The three offline dialogs share `OfflineExport` — renderer init, and camera-product writing under the CLI's file names |
 | `src/vulkan/` | Qt↔SDK render bridge and orbit camera; the only `ExternalRenderContext` caller |
 | `src/config/` | TOML load/save (`ConfigManager`) |
 | `src/editing/` | Selection, undo stack, transform gizmo |
 | `src/i18n/` | Qt Linguist `.ts` (en + zh_CN) and the runtime `LanguageManager` |
 | `src/McpTools.cpp` | The 30 `ql_*` tools the embedded MCP server answers on `127.0.0.1:8600`; edits made through them enter the undo stack. `ql_set_thermal` takes every field of a solve, and `ql_get_thermal_status` reports them all |
 | `src/ThermalNames.hpp` | The four converters (to and from names) between two `[thermal]` vocabularies and the SDK enums: the convection model and the parameter-sensitivity list. A TOML key and a tool argument are the same string, so both boundaries read this one header |
+| `src/AssetPaths.cpp` | Where Studio looks for what it ships — beside the executable first, then the working directory — and for the NN atmosphere pack, in the CLI's order: env, working directory, executable |
 | `assets/configs/` | Hand-written TOML scene configs; also the core CLI's input format |
 | `assets/spectral/` | Baked copies from Quantiloom-dev. CMake warns at configure time when they drift; `scripts/sync_spectral_assets.sh --sync` re-copies and re-pins |
 
 `src/panels/`, `src/vulkan/`, `src/config/` and `src/i18n/` each have their own
-`CLAUDE.md` with the constraints that apply there.
+`AGENTS.md` with the constraints that apply there.
 
 ## What a thermal scene can be asked here
 
@@ -166,9 +171,9 @@ Four rules the shell keeps, and that new work should not break:
 ## Conventions
 
 - Commits: Conventional Commits — `feat:`, `fix:`, `docs:`, `chore:`.
-- **No Claude Code session link in a commit message.** No `Claude-Session:` trailer,
-  no `https://claude.ai/code/...` URL, in the subject, the body or a trailer. Same for
+- **No Codex session link in a commit message.** No `Codex-Session:` trailer,
+  no `https://Codex.ai/code/...` URL, in the subject, the body or a trailer. Same for
   PR descriptions.
 - Physics and algorithms belong in the SDK, not here (SRS CON-02).
 - User-visible strings: `tr()`, plus the Chinese in the same commit. The Chinese
-  translation carries no backlog; keep it that way (`src/i18n/CLAUDE.md`).
+  translation carries no backlog; keep it that way (`src/i18n/AGENTS.md`).

@@ -13,8 +13,8 @@ opened it: shadow rays defaulted off here and on there, an absent
 `spectral.wavelength_nm` meant 550 nm here and the band centre there,
 `lighting.solar_lut_normalise` was read there and ignored here (a factor of ten thousand
 on a D65 scene), and the NMF basis, `[refractive_index]` and
-`scene.default_temperature_k` were read there and not at all here. The audit is
-`render_path_divergence.md` at the repo root.
+`scene.default_temperature_k` were read there and not at all here. The audit that
+enumerated them was a one-off review and is not checked in.
 
 **So a new key is added in Quantiloom-dev**, in `ConfigResolve.cpp`, where both hosts
 get it. Adding one here would recreate exactly the divergence that was just removed.
@@ -43,10 +43,10 @@ Everything a panel owns is written back, and `MainWindow::collectCurrentConfig()
 it from the panel rather than from the config that was loaded. That includes the
 spectral mode and wavelength range, the camera (read from the renderer, so orbiting with
 the mouse is exported too), the merged lighting parameters, the atmosphere preset and
-its nine weather features, and the whole sensor block — including `psf_sigma_px`, whose
-negative default means "derive the blur from the aperture" and which therefore has to be
-written even when no one has touched it, or the next load cannot tell a derived width
-from an explicit one.
+its nine weather features, and the whole sensor block — whose `[sensor]` tree is now
+the SDK's serialization in both directions: `ParseCameraConfig` on load, which
+migrates a legacy unversioned `[sensor]` block, and `CameraConfigToToml` on save, so
+Studio writes exactly what the CLI writes.
 
 Node transforms and material edits round-trip too, and did not used to. Both are
 written only for what changed since the document was opened — `MainWindow` keeps
@@ -60,6 +60,21 @@ the model would invalidate.
 `[material] albedo` is written because the core requires it. It never was, so every
 configuration this exporter produced rendered here under `WarnAndDefault` and was
 refused by the CLI, which reads the same file under `Error`.
+
+**Materials carry their untouched keys.** Each `MaterialConfig` holds `preserved`, the
+material's merged `[[materials]]`/`[material_overrides."name"]` table as the document
+had it, so keys no widget owns (`fusion_transport`, `ior`, `dispersion`, ...) are
+written back. `writeConfig()` replaces the widget-owned keys as a group, so a cleared
+binding stays cleared and the singular/plural `spectral_material_ref(s)` aliases never
+both appear. On load, `[material_overrides]` entries are folded into `[[materials]]`,
+a named override winning over the material it names.
+
+**Save As rebases every relative path.** `exportConfig()` rewrites the scene, the
+solar LUT, the environment map, the basis and materials JSON, the thermal forcing
+file, the spectral curves and the refractive-index files from the document's base
+directory onto the destination's, so a Save As into another directory still resolves.
+Writes go through `QSaveFile`, so a failed save does not leave a truncated document
+behind.
 
 ### The clock and the models are carried, not read
 
@@ -85,6 +100,9 @@ from `nodeRestTransform()` rather than from the node's own transform. The transf
 where the node is at the current tick, which is not a thing a document can record,
 because it would be wrong at every other tick. For a node with no trajectory the two are
 the same matrix.
+
+`[dataset]` is carried as text the same way `[timeline]` is, because the SDK owns its
+meaning too.
 
 ### The quantitative spectral sections
 
@@ -128,13 +146,11 @@ Three things are deliberately **session state** and are not in the file:
 
 If you add a panel value, decide which of the two lists it belongs in and say so here.
 
-## Two guards, both deliberate
+## One guard, deliberate
 
-- `static_assert(sizeof(quantiloom::SensorParams) == 88)` at the top of
-  `ConfigManager.cpp`. When the SDK adds or removes a sensor field this fails to
-  compile, which is the point. Confirm `exportConfig()` writes the new key before
-  bumping the number. It has earned its keep once already: `sensor.psf_sigma_px`
-  took the struct from 84 to 88, and the build stopped until the writer had it.
+- The `[sensor]` writer is the SDK's now, so there is nothing left to guard — the
+  `static_assert(sizeof(quantiloom::SensorParams) == 88)` that policed it went with
+  the hand-written serializer it protected.
 - `MainWindow::collectCurrentConfig()` starts from the last loaded `SceneConfig` rather
   than a default-constructed one, so fields with no widget behind them survive an export.
   Keep it that way — starting empty is exactly what made export lossy before.
@@ -149,6 +165,6 @@ should describe what the GUI was holding; the atmosphere panel says which is whi
 
 ## Commits
 
-**No Claude Code session link in a commit message.** No `Claude-Session:` trailer,
-no `https://claude.ai/code/...` URL, in the subject, the body or a trailer. Same for
+**No Codex session link in a commit message.** No `Codex-Session:` trailer,
+no `https://Codex.ai/code/...` URL, in the subject, the body or a trailer. Same for
 PR descriptions.

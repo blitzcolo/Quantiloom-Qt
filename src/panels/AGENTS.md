@@ -40,7 +40,7 @@ before it existed are discarded rather than restored without it.
 
 If the panel's value belongs in an exported `.toml`, it also needs a field in
 `SceneConfig`, both halves of the round trip, and a read-back accessor so
-`collectCurrentConfig()` can reach it; see `src/config/CLAUDE.md`.
+`collectCurrentConfig()` can reach it; see `src/config/AGENTS.md`.
 
 ## Do not shadow QWidget
 
@@ -54,7 +54,7 @@ warns. Name new accessors for what they carry: `setSensorEnabled`, `renderWidth`
 ## Strings
 
 Every user-visible string goes through `tr()` — and through `bindText()` or
-`retranslateUi()` so it can be applied again. Read `src/i18n/CLAUDE.md` before
+`retranslateUi()` so it can be applied again. Read `src/i18n/AGENTS.md` before
 regenerating the `.ts` files; it also holds the glossary and the list of terms that stay
 in Latin script by decision (RGB, LWIR, n, k, R0, unit symbols).
 
@@ -63,6 +63,6 @@ Qualify every temperature. Five panels once labelled five different physical qua
 
 ## Commits
 
-**No Claude Code session link in a commit message.** No `Claude-Session:` trailer,
-no `https://claude.ai/code/...` URL, in the subject, the body or a trailer. Same for
+**No Codex session link in a commit message.** No `Codex-Session:` trailer,
+no `https://Codex.ai/code/...` URL, in the subject, the body or a trailer. Same for
 PR descriptions.
