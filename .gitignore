@@ -112,3 +112,4 @@ build-cdb/
 /*.replay.toml
 /fusion-output/
 /report_perf.md
+assets/models/
