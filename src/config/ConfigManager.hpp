@@ -405,6 +405,11 @@ struct SceneConfig {
     /// by name: any of h, epsilon, alpha, k, rhoc. Empty costs nothing.
     QStringList thermalParameterSensitivities;
 
+    /// [thermal] sky_temperature_k -- the sky the surfaces radiate against,
+    /// stated outright for a measured one. 0 leaves it to the SDK's
+    /// derivation from the atmosphere, which is what an absent key means.
+    double thermalSkyTemperatureK = 0.0;
+
     /// [material] albedo -- the fallback surface for scenes that bring no
     /// materials of their own. Required by the core's strict reading, so a
     /// document saved without it renders here and is rejected by the CLI.

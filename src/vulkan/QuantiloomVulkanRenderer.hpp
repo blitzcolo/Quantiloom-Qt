@@ -653,6 +653,8 @@ private:
     /// applied by the deferred queue, and would otherwise be applied again
     /// immediately afterwards by that replay.
     bool m_configAppliedToContext = false;
+    /// renderingStopped() has been emitted for the current failure.
+    bool m_renderingStoppedReported = false;
 
     // First run shader compilation tracking
     bool m_isFirstRun = false;

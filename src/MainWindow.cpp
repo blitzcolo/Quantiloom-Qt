@@ -1287,8 +1287,17 @@ QString MainWindow::resolveBundledIlluminant() {
 }
 
 void MainWindow::applyAtmosphere(const quantiloom::AtmosphereNNConfig& config) {
+    const double skyBefore = derivedSkyTemperatureK(m_thermalPanel->params().airTemperature_K);
     m_vulkanWindow->setAtmosphericConfig(config);
     m_atmosphericPanel->setAtmosphericConfig(config);
+    // A clear network sky is the sky the surfaces radiate against too, so a
+    // change to it is a change to the solve.
+    if (m_thermalEnabled) {
+        const quantiloom::ThermalSolveParams thermal = currentThermalParams();
+        if (thermal.skyTemperature_K != skyBefore) {
+            applyThermalParams(thermal);
+        }
+    }
     setSceneModified(true);
 }
 
@@ -1416,18 +1425,45 @@ quantiloom::ThermalSolveParams MainWindow::currentThermalParams() const {
     params.airTemperature_K = carried.airTemperature_K;
     params.relativeHumidity = carried.relativeHumidity;
 
-    // The sky they radiate against is not carried, because it is not an
-    // independent number: it is what the clear-sky emissivity implies for that
-    // air, the same derivation the SDK does when it reads a config. Carrying a
-    // default here instead would send 268 K over the top of it, and a surface
-    // under a sky six degrees too cold runs about two degrees too cool.
-    const float emissivity = m_lightingParams ? m_lightingParams->skyEmissivityClear : 0.0f;
-    params.skyTemperature_K =
-        emissivity > 0.0f
-            ? quantiloom::EffectiveSkyTemperatureK(params.airTemperature_K,
-                                                   static_cast<double>(emissivity))
-            : params.airTemperature_K;
+    params.skyTemperature_K = derivedSkyTemperatureK(params.airTemperature_K);
     return params;
+}
+
+double MainWindow::derivedSkyTemperatureK(double airTemperatureK) const {
+    // The sky they radiate against is not carried unless the document states
+    // it (thermal.sky_temperature_k), because otherwise it is not an
+    // independent number: it is what a clear-sky emissivity implies for that
+    // air, in the order ResolveRenderConfig takes them. Carrying a default
+    // here instead would send 268 K over the top of it, and a surface under a
+    // sky six degrees too cold runs about two degrees too cool.
+    if (m_thermalSkyTemperatureK > 0.0) {
+        return m_thermalSkyTemperatureK;
+    }
+    const quantiloom::AtmosphereNNConfig atmosphere = m_atmosphericPanel->getAtmosphericConfig();
+    const bool network = atmosphere.enabled && atmosphere.preset != "disabled";
+    // The GPU's copy of the clear-sky emissivity is zeroed while the network
+    // owns the render's sky, but the balance is broadband and still wants the
+    // clear-sky model's -- and for a clear network sky, one from its own
+    // ground temperature and humidity.
+    double emissivity =
+        m_lightingParams ? static_cast<double>(m_lightingParams->skyEmissivityClear) : 0.0;
+    if (emissivity <= 0.0 && m_skyClearModel) {
+        emissivity = quantiloom::ClearSkyEmissivity(quantiloom::DewPointC(
+            static_cast<double>(m_atmosphericPanel->atmosphereTemperatureK()) - 273.15,
+            static_cast<double>(m_skyRelativeHumidity)));
+    }
+    if (emissivity <= 0.0 && network && atmosphere.icld == 0.0) {
+        emissivity = quantiloom::ClearSkyEmissivity(
+            quantiloom::DewPointC(atmosphere.tGroundK - 273.15, atmosphere.rh * 100.0));
+    }
+    if (emissivity > 0.0) {
+        return quantiloom::EffectiveSkyTemperatureK(airTemperatureK, emissivity);
+    }
+    if (network) {
+        return atmosphere.tGroundK;
+    }
+    return m_lightingParams ? static_cast<double>(m_lightingParams->atmosphereTemperature_K)
+                            : airTemperatureK;
 }
 
 void MainWindow::updateEditModeLabel() {
@@ -2419,6 +2455,7 @@ void MainWindow::setupDockWidgets() {
                     quantiloom::ThermalSolveParams thermal = currentThermalParams();
                     thermal.airTemperature_K = static_cast<double>(airTemperatureK);
                     thermal.relativeHumidity = static_cast<double>(relativeHumidity);
+                    thermal.skyTemperature_K = derivedSkyTemperatureK(thermal.airTemperature_K);
                     applyThermalParams(thermal);
                 }
             });
@@ -2717,6 +2754,15 @@ void MainWindow::setupConnections() {
             this, [this](const QString& message) {
                 showStatusMessage(tr("The renderer failed to start"));
                 QMessageBox::critical(this, tr("Renderer Unavailable"), message);
+            }, Qt::QueuedConnection);
+    connect(m_vulkanWindow, &QuantiloomVulkanWindow::renderingStopped,
+            this, [this] {
+                showStatusMessage(tr("Rendering stopped"));
+                QMessageBox::warning(
+                    this, tr("Rendering Stopped"),
+                    tr("Recording a frame failed, so the viewport has stopped rendering "
+                       "this scene. The log has the reason. Reopen the scene to "
+                       "render it again."));
             }, Qt::QueuedConnection);
 
     connect(m_vulkanWindow, &QuantiloomVulkanWindow::sceneLoaded,
@@ -5316,6 +5362,7 @@ void MainWindow::applyConfig(const SceneConfig& config) {
     m_thermalConvectionStableDamping = config.thermalConvectionStableDamping;
     m_thermalLateralConduction = config.thermalLateralConduction;
     m_thermalSunMemoryLags = config.thermalSunMemoryLags;
+    m_thermalSkyTemperatureK = config.thermalSkyTemperatureK;
     m_thermalParameterSensitivities =
         thermalnames::sensitivitiesFromNames(config.thermalParameterSensitivities);
 
@@ -5610,6 +5657,7 @@ void MainWindow::collectCurrentConfig(SceneConfig& config) {
     config.thermalConvectionStableDamping = m_thermalConvectionStableDamping;
     config.thermalLateralConduction = m_thermalLateralConduction;
     config.thermalSunMemoryLags = m_thermalSunMemoryLags;
+    config.thermalSkyTemperatureK = m_thermalSkyTemperatureK;
     config.thermalParameterSensitivities = thermalnames::sensitivityNames(m_thermalParameterSensitivities);
 
     config.thermographyEnabled = m_sensorPanel->isThermographyEnabled();

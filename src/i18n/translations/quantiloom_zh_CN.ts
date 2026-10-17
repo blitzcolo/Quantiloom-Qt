@@ -1238,6 +1238,10 @@ May cause colour shifts.</source>
         <translation>归一化到单位亮度</translation>
     </message>
     <message>
+        <source>Sun and Sky Strength</source>
+        <translation>太阳与天空强度</translation>
+    </message>
+    <message>
         <source>ASTM G-173 is an absolute spectrum — 900 W/m² direct, 1000 W/m² global. Normalising divides both curves by the sun&apos;s luminance (%1) and discards the absolute scale this mode exists to report. The spectral path is already exposed for it; use display enhancement if the viewport reads dark.</source>
         <translation>ASTM G-173 是绝对光谱——直射 900 W/m²，总辐射 1000 W/m²。归一化会把两条曲线同时除以太阳亮度（%1），丢弃本模式本就要报告的绝对量级。光谱路径的曝光已经与之匹配；若视口偏暗，请改用显示增强。</translation>
     </message>
@@ -1255,7 +1259,7 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
     </message>
     <message>
         <source>Radiance</source>
-        <translation>辐射度</translation>
+        <translation type="vanished">辐射度</translation>
     </message>
     <message>
         <source>Sun:</source>
@@ -1266,8 +1270,20 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation>天空:</translation>
     </message>
     <message>
+        <source> W/m²</source>
+        <translation> W/m²</translation>
+    </message>
+    <message>
         <source> W/m²/sr</source>
         <translation> W/m²/sr</translation>
+    </message>
+    <message>
+        <source>Irradiance on a surface facing the sun, per RGB channel. The sun is a point light, so this is not the radiance of its disc, which would be about 15,000 times larger.</source>
+        <translation>正对太阳的表面所受的辐照度，按 RGB 通道计。太阳按点光源处理，所以这不是日盘的辐亮度——后者约大 15,000 倍。</translation>
+    </message>
+    <message>
+        <source>Radiance of the uniform sky, per RGB channel.</source>
+        <translation>均匀天空的辐亮度，按 RGB 通道计。</translation>
     </message>
     <message>
         <source>Environment Map (IBL)</source>
@@ -2269,6 +2285,18 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
     <message>
         <source>Open a scene before exporting a fusion dataset.</source>
         <translation>请先打开场景，再导出融合数据集。</translation>
+    </message>
+    <message>
+        <source>Rendering stopped</source>
+        <translation>渲染已停止</translation>
+    </message>
+    <message>
+        <source>Rendering Stopped</source>
+        <translation>渲染已停止</translation>
+    </message>
+    <message>
+        <source>Recording a frame failed, so the viewport has stopped rendering this scene. The log has the reason. Reopen the scene to render it again.</source>
+        <translation>录制一帧时失败，视口已停止渲染此场景，原因见日志。重新打开场景即可恢复渲染。</translation>
     </message>
     <message>
         <source>Display &amp;Enhancement</source>

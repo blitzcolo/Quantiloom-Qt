@@ -584,6 +584,10 @@ signals:
     /// was a qCritical line and a black viewport.
     void renderContextFailed(const QString& message);
 
+    /// Recording a frame failed and the SDK stopped rendering the scene; the
+    /// reason is in the log. It renders again once a scene is loaded.
+    void renderingStopped();
+
     /**
      * @brief Emitted when user clicks in viewport (for selection picking)
      * @param screenPos Screen position of click

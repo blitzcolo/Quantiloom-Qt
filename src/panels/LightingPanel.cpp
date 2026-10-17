@@ -528,12 +528,23 @@ void LightingPanel::retranslateUi() {
            "changes, and you can still override it."));
     updateIlluminantWidgets();
 
-    m_radianceGroup->setTitle(tr("Radiance"));
+    m_radianceGroup->setTitle(tr("Sun and Sky Strength"));
     m_sunCaption->setText(tr("Sun:"));
     m_skyCaption->setText(tr("Sky:"));
     // Suffixes are part of the value display, so they are reapplied here too.
-    m_sunIntensitySpin->setSuffix(tr(" W/m²/sr"));
+    // The sun is a delta light, so what it carries is an irradiance, not the
+    // disc's radiance -- the SDK's LightingParams documents the field so.
+    m_sunIntensitySpin->setSuffix(tr(" W/m²"));
     m_skyIntensitySpin->setSuffix(tr(" W/m²/sr"));
+    const QString sunTip =
+        tr("Irradiance on a surface facing the sun, per RGB channel. The sun is a "
+           "point light, so this is not the radiance of its disc, which would be "
+           "about 15,000 times larger.");
+    m_sunCaption->setToolTip(sunTip);
+    m_sunIntensitySpin->setToolTip(sunTip);
+    const QString skyTip = tr("Radiance of the uniform sky, per RGB channel.");
+    m_skyCaption->setToolTip(skyTip);
+    m_skyIntensitySpin->setToolTip(skyTip);
 
     m_envGroup->setTitle(tr("Environment Map (IBL)"));
     m_envEnabledCheck->setText(tr("Light the scene from the environment map"));

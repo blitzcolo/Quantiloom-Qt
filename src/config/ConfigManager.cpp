@@ -385,6 +385,7 @@ void ConfigManager::extractSceneConfig(const quantiloom::Config& config, SceneCo
     for (const auto& name : config.GetStringArray("thermal.parameter_sensitivities")) {
         out.thermalParameterSensitivities << QString::fromStdString(name);
     }
+    out.thermalSkyTemperatureK = config.Get<double>("thermal.sky_temperature_k", 0.0);
 
     // [sensor] -- the versioned physical camera. ParseCameraConfig migrates a
     // legacy unversioned [sensor] block, and reads a versioned one (optionally
@@ -1333,6 +1334,9 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
             out << tomlQuoted(config.thermalParameterSensitivities.at(i));
         }
         out << "]\n";
+    }
+    if (config.thermalSkyTemperatureK > 0.0) {
+        out << "sky_temperature_k = " << config.thermalSkyTemperatureK << "\n";
     }
     out << "\n";
 

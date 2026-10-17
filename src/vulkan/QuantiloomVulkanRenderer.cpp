@@ -225,7 +225,21 @@ void QuantiloomVulkanRenderer::startNextFrame() {
     // Update camera based on input
     updateCamera(deltaTime);
 
-    if (!m_renderContext || !m_renderContext->HasScene()) {
+    // A frame whose recording failed (an allocation failure, a lost device)
+    // leaves the context loaded but not ready, and every later RenderFrame
+    // returns without recording -- without the blit, and without leaving the
+    // swapchain image in the PRESENT_SRC the overlay pass expects. So a context
+    // in that state is drawn like no scene at all, and said so once.
+    const bool stopped = m_renderContext && m_renderContext->HasScene() &&
+                         !m_renderContext->IsReady();
+    if (stopped && !m_renderingStoppedReported) {
+        m_renderingStoppedReported = true;
+        emit m_window->renderingStopped();
+    } else if (!stopped) {
+        m_renderingStoppedReported = false;
+    }
+
+    if (!m_renderContext || !m_renderContext->HasScene() || stopped) {
         // No scene loaded yet, just present empty frame
         m_window->frameReady();
         // Idle rather than spin. With nothing to accumulate, re-requesting a
@@ -300,6 +314,13 @@ void QuantiloomVulkanRenderer::startNextFrame() {
             width, height
         );
         tracedFrame = true;
+        if (!m_renderContext->IsReady()) {
+            // This frame's recording is the one that failed. Nothing reliable
+            // is in the image to draw over; the next frame reports it.
+            m_window->frameReady();
+            m_window->requestUpdate();
+            return;
+        }
     }
 
     // Editor overlay (grid, gizmo) over the blitted frame, same command

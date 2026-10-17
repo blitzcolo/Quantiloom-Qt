@@ -106,7 +106,7 @@ why:
 - band acronyms: RGB, VIS, NIR, SWIR, MWIR, LWIR;
 - symbols: n, k, R0, ε, τ, ρ, λ, Δλ, N·L, N·V;
 - channel letters R:/G:/B:;
-- unit suffixes: K, nm, μm, km, mm/h, hPa, W/m²/sr, px, spp, °;
+- unit suffixes: K, nm, μm, km, mm/h, hPa, W/m², W/m²/sr, px, spp, °;
 - key names in the shortcut reference: Shift, Space, W/A/S/D, G, R, T, X/Y/Z;
 - API and format names: BRDF, IBL, TLAS, BLAS, GGX, Smith, CLAHE, MODTRAN, EXR, PNG,
   TOML, glTF, USD, safetensors.

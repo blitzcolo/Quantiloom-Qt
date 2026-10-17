@@ -1168,8 +1168,12 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Sun and Sky Strength</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Radiance</source>
-        <translation>Radiance</translation>
+        <translation type="vanished">Radiance</translation>
     </message>
     <message>
         <source>Sun:</source>
@@ -1180,7 +1184,19 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation>Sky:</translation>
     </message>
     <message>
+        <source> W/m²</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source> W/m²/sr</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Irradiance on a surface facing the sun, per RGB channel. The sun is a point light, so this is not the radiance of its disc, which would be about 15,000 times larger.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Radiance of the uniform sky, per RGB channel.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1649,6 +1665,18 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
     </message>
     <message>
         <source>Renderer Unavailable</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Rendering stopped</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Rendering Stopped</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Recording a frame failed, so the viewport has stopped rendering this scene. The log has the reason. Reopen the scene to render it again.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

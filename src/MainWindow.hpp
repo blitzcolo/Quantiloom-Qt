@@ -355,6 +355,9 @@ private:
     /// file that gets saved.
     void applyThermalMaterial(const QString& name, const MaterialThermalProps& props);
     [[nodiscard]] quantiloom::ThermalSolveParams currentThermalParams() const;
+    /// The sky the surfaces radiate against for air at @p airTemperatureK, in
+    /// the order ResolveRenderConfig decides it.
+    [[nodiscard]] double derivedSkyTemperatureK(double airTemperatureK) const;
     /// The tone operator and palette the viewport is displayed with. Session
     /// state rather than document state: it is a way of looking at the render,
     /// not a property of the scene, so it is never written to the config.
@@ -646,6 +649,8 @@ private:
     double m_thermalConvectionStableDamping = 10.0;
     bool m_thermalLateralConduction = false;
     int m_thermalSunMemoryLags = 0;
+    /// thermal.sky_temperature_k as the document states it; 0 derives it.
+    double m_thermalSkyTemperatureK = 0.0;
     quantiloom::Vector<quantiloom::ThermalSensitivityParameter> m_thermalParameterSensitivities;
 
     bool m_skyClearModel = false;
