@@ -29,6 +29,8 @@
 #include <QMessageBox>
 #include <QTextStream>
 #include <QStandardItemModel>
+#include <QDialogButtonBox>
+#include <QEvent>
 
 #include <core/Config.hpp>
 #include <core/Image.hpp>
@@ -66,18 +68,23 @@ SequenceRenderDialog::~SequenceRenderDialog() {
 }
 
 void SequenceRenderDialog::setupUi() {
-    setWindowTitle(tr("Render Sequence"));
     setMinimumWidth(560);
+    m_styling.attach(this);
+
+    // Every caption is created empty and filled by retranslateUi(), so a
+    // language switch while the dialog is open re-words all of it.
+    const auto caption = [this](const char* text) {
+        auto* label = new QLabel(this);
+        m_captions.push_back({label, text});
+        return label;
+    };
 
     auto* mainLayout = new QVBoxLayout(this);
 
-    auto* intro = new QLabel(
-        tr("One scene, one frame per step. Each frame overrides a material's "
-           "temperature and its own output file; everything else is the document "
-           "as it stands."), this);
-    intro->setWordWrap(true);
-    uistyle::applyHintStyle(intro);
-    mainLayout->addWidget(intro);
+    m_introLabel = new QLabel(this);
+    m_introLabel->setWordWrap(true);
+    m_styling.bind([this] { uistyle::applyHintStyle(m_introLabel); });
+    mainLayout->addWidget(m_introLabel);
 
     // ------------------------------------------------------------------
     // Which of the two things varies
@@ -85,8 +92,8 @@ void SequenceRenderDialog::setupUi() {
     auto* modeRow = new QFormLayout();
     m_modeCombo = new QComboBox(this);
     m_modeCombo->setObjectName(QStringLiteral("sequenceMode"));
-    m_modeCombo->addItem(tr("Material temperature sweep"));
-    m_modeCombo->addItem(tr("Timeline"));
+    m_modeCombo->addItem(QString());   // material temperature sweep
+    m_modeCombo->addItem(QString());   // timeline
     if (!m_timeline.present) {
         // Offered but not selectable: saying the mode exists and why it is
         // unavailable beats leaving a user to wonder where it went.
@@ -94,19 +101,16 @@ void SequenceRenderDialog::setupUi() {
         if (model != nullptr && model->item(1) != nullptr) {
             model->item(1)->setEnabled(false);
         }
-        m_modeCombo->setToolTip(
-            tr("This document declares no [timeline], so there are no ticks to "
-               "render."));
     }
     connect(m_modeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
             [this](int) { onModeChanged(); });
-    modeRow->addRow(tr("Vary:"), m_modeCombo);
+    modeRow->addRow(caption(QT_TR_NOOP("Vary:")), m_modeCombo);
     mainLayout->addLayout(modeRow);
 
     // ------------------------------------------------------------------
     // What varies
     // ------------------------------------------------------------------
-    auto* sweepGroup = new QGroupBox(tr("Sweep"), this);
+    auto* sweepGroup = new QGroupBox(this);
     m_sweepPage = sweepGroup;
     auto* sweepLayout = new QFormLayout(sweepGroup);
 
@@ -115,29 +119,29 @@ void SequenceRenderDialog::setupUi() {
     m_materialCombo->addItems(m_materialNames);
     connect(m_materialCombo, &QComboBox::currentTextChanged,
             this, &SequenceRenderDialog::onSweepChanged);
-    sweepLayout->addRow(tr("Material:"), m_materialCombo);
+    sweepLayout->addRow(caption(QT_TR_NOOP("Material:")), m_materialCombo);
 
     m_startTemp = new QDoubleSpinBox();
     m_startTemp->setObjectName(QStringLiteral("sequenceStartTemperature"));
     m_startTemp->setRange(1.0, 2000.0);
     m_startTemp->setDecimals(1);
     m_startTemp->setSingleStep(5.0);
-    m_startTemp->setSuffix(tr(" K"));
+    m_startTemp->setSuffix(QStringLiteral(" K"));
     m_startTemp->setValue(280.0);
     connect(m_startTemp, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &SequenceRenderDialog::onSweepChanged);
-    sweepLayout->addRow(tr("From:"), m_startTemp);
+    sweepLayout->addRow(caption(QT_TR_NOOP("From:")), m_startTemp);
 
     m_endTemp = new QDoubleSpinBox();
     m_endTemp->setObjectName(QStringLiteral("sequenceEndTemperature"));
     m_endTemp->setRange(1.0, 2000.0);
     m_endTemp->setDecimals(1);
     m_endTemp->setSingleStep(5.0);
-    m_endTemp->setSuffix(tr(" K"));
+    m_endTemp->setSuffix(QStringLiteral(" K"));
     m_endTemp->setValue(340.0);
     connect(m_endTemp, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &SequenceRenderDialog::onSweepChanged);
-    sweepLayout->addRow(tr("To:"), m_endTemp);
+    sweepLayout->addRow(caption(QT_TR_NOOP("To:")), m_endTemp);
 
     m_frameCount = new QSpinBox();
     m_frameCount->setObjectName(QStringLiteral("sequenceFrameCount"));
@@ -145,22 +149,14 @@ void SequenceRenderDialog::setupUi() {
     m_frameCount->setValue(5);
     connect(m_frameCount, QOverload<int>::of(&QSpinBox::valueChanged),
             this, &SequenceRenderDialog::onSweepChanged);
-    sweepLayout->addRow(tr("Frames:"), m_frameCount);
-
-    m_spp = new QSpinBox();
-    m_spp->setObjectName(QStringLiteral("sequenceSpp"));
-    m_spp->setRange(1, 100000);
-    m_spp->setValue(static_cast<int>(m_baseConfig.spp));
-    m_spp->setToolTip(tr("Samples per frame. Every frame is traced to completion, "
-                         "so this multiplies by the frame count."));
-    sweepLayout->addRow(tr("Samples per frame:"), m_spp);
+    sweepLayout->addRow(caption(QT_TR_NOOP("Frames:")), m_frameCount);
 
     mainLayout->addWidget(sweepGroup);
 
     // ------------------------------------------------------------------
     // ...or which ticks
     // ------------------------------------------------------------------
-    auto* timelineGroup = new QGroupBox(tr("Timeline"), this);
+    auto* timelineGroup = new QGroupBox(this);
     m_timelinePage = timelineGroup;
     auto* timelineLayout = new QFormLayout(timelineGroup);
 
@@ -174,7 +170,7 @@ void SequenceRenderDialog::setupUi() {
     m_fromTick->setValue(0);
     connect(m_fromTick, QOverload<int>::of(&QSpinBox::valueChanged),
             this, &SequenceRenderDialog::onSweepChanged);
-    timelineLayout->addRow(tr("From tick:"), m_fromTick);
+    timelineLayout->addRow(caption(QT_TR_NOOP("From tick:")), m_fromTick);
 
     m_toTick = new QSpinBox();
     m_toTick->setObjectName(QStringLiteral("sequenceToTick"));
@@ -182,46 +178,53 @@ void SequenceRenderDialog::setupUi() {
     m_toTick->setValue(lastTick);
     connect(m_toTick, QOverload<int>::of(&QSpinBox::valueChanged),
             this, &SequenceRenderDialog::onSweepChanged);
-    timelineLayout->addRow(tr("To tick:"), m_toTick);
+    timelineLayout->addRow(caption(QT_TR_NOOP("To tick:")), m_toTick);
 
     m_everyTick = new QSpinBox();
     m_everyTick->setObjectName(QStringLiteral("sequenceEveryTick"));
     m_everyTick->setRange(1, 10000);
     m_everyTick->setValue(1);
-    m_everyTick->setToolTip(
-        tr("Render every Nth scene tick. Thermal motion follows scene time; "
-           "camera acquisitions follow the device frame period independently."));
     connect(m_everyTick, QOverload<int>::of(&QSpinBox::valueChanged),
             this, &SequenceRenderDialog::onSweepChanged);
-    timelineLayout->addRow(tr("Every:"), m_everyTick);
+    timelineLayout->addRow(caption(QT_TR_NOOP("Every:")), m_everyTick);
 
     timelineGroup->setVisible(false);
     mainLayout->addWidget(timelineGroup);
 
     // ------------------------------------------------------------------
-    // Where it goes
+    // Where it goes, and at what quality
     // ------------------------------------------------------------------
-    auto* outputGroup = new QGroupBox(tr("Output"), this);
+    auto* outputGroup = new QGroupBox(this);
+    m_outputGroup = outputGroup;
     auto* outputLayout = new QFormLayout(outputGroup);
+
+    // Here rather than under Sweep: both modes trace every frame to this
+    // count, and the Sweep group is hidden in Timeline mode.
+    m_spp = new QSpinBox();
+    m_spp->setObjectName(QStringLiteral("sequenceSpp"));
+    m_spp->setRange(1, 100000);
+    // A document set to infinite accumulation (0) has no count to carry over,
+    // and every frame has to finish; 16 is the cube export's answer too.
+    m_spp->setValue(static_cast<int>(m_baseConfig.spp > 0 ? m_baseConfig.spp : 16));
+    connect(m_spp, QOverload<int>::of(&QSpinBox::valueChanged),
+            this, &SequenceRenderDialog::onSweepChanged);
+    outputLayout->addRow(caption(QT_TR_NOOP("Samples per frame:")), m_spp);
 
     auto* dirRow = new QHBoxLayout();
     m_outputDirEdit = new QLineEdit(m_baseConfig.baseDir);
     m_outputDirEdit->setObjectName(QStringLiteral("sequenceOutputDir"));
-    auto* browse = new QPushButton(tr("..."));
-    browse->setMaximumWidth(32);
-    connect(browse, &QPushButton::clicked, this, &SequenceRenderDialog::onBrowseOutputDir);
-    dirRow->addWidget(m_outputDirEdit);
-    dirRow->addWidget(browse);
-    outputLayout->addRow(tr("Directory:"), dirRow);
+    m_browseButton = new QPushButton();
+    connect(m_browseButton, &QPushButton::clicked,
+            this, &SequenceRenderDialog::onBrowseOutputDir);
+    dirRow->addWidget(m_outputDirEdit, 1);
+    dirRow->addWidget(m_browseButton);
+    outputLayout->addRow(caption(QT_TR_NOOP("Directory:")), dirRow);
 
     m_nameTemplateEdit = new QLineEdit(QStringLiteral("frame_{index}_{temperature}K.exr"));
     m_nameTemplateEdit->setObjectName(QStringLiteral("sequenceNameTemplate"));
-    m_nameTemplateEdit->setToolTip(
-        tr("{index} is the frame number, zero padded; {temperature} is its "
-           "temperature in kelvin, rounded."));
     connect(m_nameTemplateEdit, &QLineEdit::textChanged,
             this, &SequenceRenderDialog::onSweepChanged);
-    outputLayout->addRow(tr("Name:"), m_nameTemplateEdit);
+    outputLayout->addRow(caption(QT_TR_NOOP("Name:")), m_nameTemplateEdit);
 
     mainLayout->addWidget(outputGroup);
 
@@ -236,7 +239,8 @@ void SequenceRenderDialog::setupUi() {
     mainLayout->addWidget(m_previewEdit);
 
     m_statusLabel = new QLabel(this);
-    uistyle::applyHintStyle(m_statusLabel);
+    m_statusLabel->setWordWrap(true);
+    m_styling.bind([this] { uistyle::applyHintStyle(m_statusLabel); });
     mainLayout->addWidget(m_statusLabel);
 
     m_progress = new QProgressBar(this);
@@ -244,25 +248,105 @@ void SequenceRenderDialog::setupUi() {
     m_progress->setVisible(false);
     mainLayout->addWidget(m_progress);
 
-    auto* buttons = new QHBoxLayout();
-    m_manifestButton = new QPushButton(tr("Export Manifest..."));
-    m_manifestButton->setToolTip(
-        tr("Write this sequence as a batch manifest the command line renders, "
-           "for a run long enough to want a machine of its own."));
+    auto* buttons = new QDialogButtonBox(this);
+    m_manifestButton = buttons->addButton(QString(), QDialogButtonBox::ActionRole);
     connect(m_manifestButton, &QPushButton::clicked,
             this, &SequenceRenderDialog::onExportManifest);
-    m_startButton = new QPushButton(tr("Render"));
+    m_startButton = buttons->addButton(QString(), QDialogButtonBox::AcceptRole);
     m_startButton->setObjectName(QStringLiteral("sequenceStart"));
     m_startButton->setDefault(true);
+    // Not the box's accepted(): Render starts a run and leaves the dialog open.
     connect(m_startButton, &QPushButton::clicked, this, &SequenceRenderDialog::onStartOrCancel);
-    m_closeButton = new QPushButton(tr("Close"));
+    m_closeButton = buttons->addButton(QDialogButtonBox::Close);
     connect(m_closeButton, &QPushButton::clicked, this, &QDialog::reject);
+    mainLayout->addWidget(buttons);
 
-    buttons->addWidget(m_manifestButton);
-    buttons->addStretch();
-    buttons->addWidget(m_startButton);
-    buttons->addWidget(m_closeButton);
-    mainLayout->addLayout(buttons);
+    retranslateUi();
+}
+
+void SequenceRenderDialog::retranslateUi() {
+    setWindowTitle(tr("Render Sequence"));
+    for (const Caption& c : m_captions) {
+        c.label->setText(tr(c.text));
+    }
+    m_modeCombo->setItemText(0, tr("Material temperature sweep"));
+    m_modeCombo->setItemText(1, tr("Timeline"));
+    m_modeCombo->setToolTip(
+        m_timeline.present
+            ? QString()
+            : tr("This document declares no [timeline], so there are no ticks to "
+                 "render."));
+    m_sweepPage->setTitle(tr("Sweep"));
+    m_timelinePage->setTitle(tr("Timeline"));
+    m_outputGroup->setTitle(tr("Output"));
+    m_everyTick->setToolTip(
+        tr("Render every Nth scene tick. Thermal motion follows scene time; "
+           "camera acquisitions follow the device frame period independently."));
+    m_spp->setToolTip(tr("Samples per frame. Every frame is traced to completion, "
+                         "so this multiplies by the frame count."));
+    m_browseButton->setText(tr("Browse..."));
+    m_manifestButton->setText(tr("Export Manifest..."));
+    m_manifestButton->setToolTip(
+        tr("Write this sequence as a batch manifest the command line renders, "
+           "for a run long enough to want a machine of its own. The manifest "
+           "names a configuration file on disk, so edits not yet saved are not "
+           "in it."));
+    m_startButton->setText(m_running ? tr("Stop") : tr("Render"));
+    m_closeButton->setText(tr("Close"));
+    updateModeText();
+    updatePreview();
+}
+
+void SequenceRenderDialog::updateModeText() {
+    if (mode() == Mode::Timeline) {
+        m_introLabel->setText(
+            tr("One scene, one frame per tick. The clock moves between frames; "
+               "everything else is the document as it stands."));
+        m_nameTemplateEdit->setToolTip(
+            tr("{tick} is the scene tick, zero padded; {time_s} is its time in "
+               "seconds; {index} is the frame number."));
+    } else {
+        m_introLabel->setText(
+            tr("One scene, one frame per step. Each frame overrides a material's "
+               "temperature and its own output file; everything else is the "
+               "document as it stands."));
+        m_nameTemplateEdit->setToolTip(
+            tr("{index} is the frame number, zero padded; {temperature} is its "
+               "temperature in kelvin, rounded."));
+    }
+}
+
+void SequenceRenderDialog::changeEvent(QEvent* event) {
+    QDialog::changeEvent(event);
+    if (event->type() == QEvent::LanguageChange) {
+        retranslateUi();
+    }
+}
+
+void SequenceRenderDialog::reject() {
+    if (m_running) {
+        // Closing is a request to stop, honoured between frames like the Stop
+        // button; the dialog goes when the frame in flight is written. Closing
+        // outright would destroy it with the worker still tracing, and the
+        // destructor would block the window until that frame finished.
+        m_cancelled = true;
+        m_closeWhenStopped = true;
+        m_startButton->setEnabled(false);
+        m_statusLabel->setText(tr("Stopping after this frame, then closing..."));
+        return;
+    }
+    QDialog::reject();
+}
+
+void SequenceRenderDialog::setInputsEnabled(const bool enabled) {
+    // A run reads the inputs when it starts; editing them afterwards would
+    // rewrite the preview and the status line under a render that is not
+    // going to follow them.
+    m_modeCombo->setEnabled(enabled);
+    m_sweepPage->setEnabled(enabled);
+    m_timelinePage->setEnabled(enabled);
+    m_outputGroup->setEnabled(enabled);
+    m_manifestButton->setEnabled(enabled);
 }
 
 double SequenceRenderDialog::frameTemperature(const int index) const {
@@ -419,12 +503,16 @@ void SequenceRenderDialog::onModeChanged() {
     // The manifest is a list of configs with one override each, which is what
     // the sweep is. A timeline run is one config and a tick range, so the CLI
     // command for it goes in the preview instead.
-    m_manifestButton->setEnabled(true);
-    if (timeline && m_nameTemplateEdit->text().contains(QStringLiteral("{temperature}"))) {
-        m_nameTemplateEdit->setText(QStringLiteral("frame_{tick}.exr"));
-    } else if (!timeline && m_nameTemplateEdit->text().contains(QStringLiteral("{tick}"))) {
-        m_nameTemplateEdit->setText(QStringLiteral("frame_{index}_{temperature}K.exr"));
+    // Only the other mode's default is swapped out. A template the user wrote
+    // is theirs, and {index} works in both modes.
+    const QString sweepDefault = QStringLiteral("frame_{index}_{temperature}K.exr");
+    const QString timelineDefault = QStringLiteral("frame_{tick}.exr");
+    if (timeline && m_nameTemplateEdit->text() == sweepDefault) {
+        m_nameTemplateEdit->setText(timelineDefault);
+    } else if (!timeline && m_nameTemplateEdit->text() == timelineDefault) {
+        m_nameTemplateEdit->setText(sweepDefault);
     }
+    updateModeText();
     updatePreview();
     adjustSize();
 }
@@ -435,26 +523,30 @@ void SequenceRenderDialog::updatePreview() {
         QString text;
         QTextStream out(&text);
         const int shown = qMin(ticks.size(), 4);
+        const auto line = [this, &ticks](int i) {
+            return tr("%1 — tick %2, %3 s")
+                .arg(QFileInfo(frameOutputPath(i)).fileName())
+                .arg(ticks.at(i))
+                .arg(m_timeline.TimeOfTick(ticks.at(i)), 0, 'f', 3);
+        };
         for (int i = 0; i < shown; ++i) {
-            out << QFileInfo(frameOutputPath(i)).fileName() << "   tick " << ticks.at(i)
-                << "   " << QString::number(m_timeline.TimeOfTick(ticks.at(i)), 'f', 3)
-                << " s\n";
+            out << line(i) << "\n";
         }
-        if (ticks.size() > shown + 1) out << "...\n";
+        if (ticks.size() > shown + 1) out << "…\n";
         if (ticks.size() > shown) {
-            const int last = ticks.size() - 1;
-            out << QFileInfo(frameOutputPath(last)).fileName() << "   tick " << ticks.at(last)
-                << "   " << QString::number(m_timeline.TimeOfTick(ticks.at(last)), 'f', 3)
-                << " s\n";
+            out << line(ticks.size() - 1) << "\n";
         }
         m_previewEdit->setPlainText(text);
-        m_statusLabel->setText(
-            ticks.isEmpty()
-                ? tr("That tick range is empty.")
-                : tr("%1 frames at %2 samples each, on one device.")
-                      .arg(ticks.size()).arg(m_spp->value()));
-        m_startButton->setEnabled(!ticks.isEmpty());
-        m_manifestButton->setEnabled(!ticks.isEmpty());
+        if (!m_running) {
+            m_statusLabel->setText(
+                ticks.isEmpty()
+                    ? tr("That tick range is empty.")
+                    : tr("%n frame(s) at %1 samples each, on one device.", "",
+                         static_cast<int>(ticks.size()))
+                          .arg(m_spp->value()));
+            m_startButton->setEnabled(!ticks.isEmpty());
+            m_manifestButton->setEnabled(!ticks.isEmpty());
+        }
         return;
     }
 
@@ -463,26 +555,33 @@ void SequenceRenderDialog::updatePreview() {
     QTextStream out(&text);
 
     const int shown = qMin(frames, 4);
+    const auto line = [this](int i) {
+        return tr("%1 — %2 K").arg(frameOutputName(i)).arg(frameTemperature(i), 0, 'f', 1);
+    };
     for (int i = 0; i < shown; ++i) {
-        out << frameOutputName(i) << "   "
-            << QString::number(frameTemperature(i), 'f', 1) << " K\n";
+        out << line(i) << "\n";
     }
     if (frames > shown + 1) {
-        out << "...\n";
+        out << "…\n";
     }
     if (frames > shown) {
-        out << frameOutputName(frames - 1) << "   "
-            << QString::number(frameTemperature(frames - 1), 'f', 1) << " K\n";
+        out << line(frames - 1) << "\n";
     }
     m_previewEdit->setPlainText(text);
 
-    if (m_materialNames.isEmpty()) {
+    if (m_running) {
+        return;
+    }
+    // Both buttons are set either way: coming back from an empty tick range
+    // in Timeline mode left them disabled here.
+    const bool canRun = !m_materialNames.isEmpty();
+    m_startButton->setEnabled(canRun);
+    m_manifestButton->setEnabled(canRun);
+    if (!canRun) {
         m_statusLabel->setText(tr("The open scene has no materials to sweep."));
-        m_startButton->setEnabled(false);
-        m_manifestButton->setEnabled(false);
     } else {
         m_statusLabel->setText(
-            tr("%1 frames at %2 samples each.").arg(frames).arg(m_spp->value()));
+            tr("%n frame(s) at %1 samples each.", "", frames).arg(m_spp->value()));
     }
 }
 
@@ -600,8 +699,10 @@ void SequenceRenderDialog::onExportManifest() {
         const QString outputPath =
             manifestDir.relativeFilePath(QDir(m_outputDirEdit->text())
                                              .filePath(frameOutputName(i)));
+        // Quoted like the in-process override: a material named with a space
+        // or a dot is otherwise a different key, or not a key at all.
         out << relativeConfig << " | material_overrides."
-            << m_materialCombo->currentText() << ".ir_temperature_k="
+            << tomlQuoted(m_materialCombo->currentText()) << ".ir_temperature_k="
             << QString::number(frameTemperature(i), 'f', 4)
             << " renderer.output=\"" << QString(outputPath).replace(QLatin1Char('\\'),
                                                                     QLatin1String("/"))
@@ -621,6 +722,10 @@ void SequenceRenderDialog::onStartOrCancel() {
         return;
     }
 
+    if (documentProvider) {
+        // Modeless: the document may have changed since the dialog opened.
+        m_baseConfig = documentProvider();
+    }
     ConfigManager manager;
     const QString baseToml = manager.exportConfigToString(m_baseConfig);
     if (baseToml.isEmpty()) {
@@ -651,9 +756,9 @@ void SequenceRenderDialog::startSweepRun(const QString& baseToml) {
 
     m_running = true;
     m_cancelled = false;
+    m_closeWhenStopped = false;
     m_startButton->setText(tr("Stop"));
-    m_manifestButton->setEnabled(false);
-    m_closeButton->setEnabled(false);
+    setInputsEnabled(false);
     m_progress->setVisible(true);
     m_progress->setValue(0);
 
@@ -775,7 +880,7 @@ void SequenceRenderDialog::startSweepRun(const QString& baseToml) {
                 self->finish(true, tr("Stopped after %1 of %2 frames.")
                                        .arg(rendered).arg(frameCount));
             } else {
-                self->finish(true, tr("%1 frames written.").arg(rendered));
+                self->finish(true, tr("%n frame(s) written.", "", rendered));
             }
         }, Qt::QueuedConnection);
     });
@@ -806,9 +911,9 @@ void SequenceRenderDialog::startTimelineRun() {
 
     m_running = true;
     m_cancelled = false;
+    m_closeWhenStopped = false;
     m_startButton->setText(tr("Stop"));
-    m_manifestButton->setEnabled(false);
-    m_closeButton->setEnabled(false);
+    setInputsEnabled(false);
     m_progress->setVisible(true);
     m_progress->setValue(0);
 
@@ -954,7 +1059,7 @@ void SequenceRenderDialog::startTimelineRun() {
                 self->finish(true, tr("Stopped after %1 of %2 frames.")
                                        .arg(rendered).arg(frameCount));
             } else {
-                self->finish(true, tr("%1 frames written.").arg(rendered));
+                self->finish(true, tr("%n frame(s) written.", "", rendered));
             }
         }, Qt::QueuedConnection);
     });
@@ -967,12 +1072,17 @@ void SequenceRenderDialog::finish(const bool success, const QString& message) {
     m_worker = nullptr;   // deleteLater is already connected
     m_startButton->setText(tr("Render"));
     m_startButton->setEnabled(true);
-    m_manifestButton->setEnabled(true);
-    m_closeButton->setEnabled(true);
+    setInputsEnabled(true);
     m_progress->setValue(success ? 100 : 0);
     m_progress->setVisible(success);
     m_statusLabel->setText(message);
 
+    if (m_closeWhenStopped) {
+        // The user already asked to close; a failure box now would answer a
+        // question nobody is waiting on.
+        QDialog::reject();
+        return;
+    }
     if (!success) {
         QMessageBox::warning(this, tr("Sequence Failed"), message);
     }

@@ -22,6 +22,8 @@
 #include <QSpinBox>
 #include <QVBoxLayout>
 
+#include <initializer_list>
+
 ThermalPanel::ThermalPanel(QWidget* parent)
     : PanelBase(parent) {
     setupUi();
@@ -39,6 +41,8 @@ void ThermalPanel::setupUi() {
     // Enable checkbox
     m_enableCheck = new QCheckBox(this);
     connect(m_enableCheck, &QCheckBox::toggled, this, &ThermalPanel::onEnabledToggled);
+    connect(m_enableCheck, &QCheckBox::toggled, this,
+            [this](bool) { updateSolveDependentEnabled(); });
     mainLayout->addWidget(m_enableCheck);
 
     // Time of day
@@ -54,7 +58,11 @@ void ThermalPanel::setupUi() {
     connect(m_timeSlider, &QSlider::sliderReleased, this, &ThermalPanel::editGestureFinished);
 
     m_timeSpin = new QDoubleSpinBox();
-    m_timeSpin->setRange(0.0, 48.0);
+    // The same span as the slider until the first status narrows both to the
+    // solve's own; a spin box that went further than the slider would hold an
+    // hour the slider cannot show.
+    m_timeSpin->setRange(0.0, 24.0);
+    m_timeSpin->setKeyboardTracking(false);
     m_timeSpin->setSingleStep(0.5);
     m_timeSpin->setDecimals(2);
     m_timeSpin->setSuffix(QStringLiteral(" h"));
@@ -95,8 +103,13 @@ void ThermalPanel::setupUi() {
     paramsLayout->addRow(m_layersCaption, m_layersSpin);
 
     m_initialCombo = new QComboBox();
-    m_initialCombo->addItem(QStringLiteral("Steady"), 0);
-    m_initialCombo->addItem(QStringLiteral("Uniform"), 1);
+    // Text set in retranslateUi(); the data is the SDK enum, read back by value.
+    m_initialCombo->addItem(QString(),
+                            static_cast<int>(quantiloom::ThermalInitialCondition::Steady));
+    m_initialCombo->addItem(QString(),
+                            static_cast<int>(quantiloom::ThermalInitialCondition::Uniform));
+    connect(m_initialCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
+            [this](int) { updateInitialTemperatureEnabled(); });
     m_initialCaption = new QLabel(m_paramsGroup);
     paramsLayout->addRow(m_initialCaption, m_initialCombo);
 
@@ -148,7 +161,7 @@ void ThermalPanel::setupUi() {
     auto* forcingRow = new QHBoxLayout();
     m_forcingFileEdit = new QLineEdit();
     m_forcingFileEdit->setReadOnly(true);
-    m_forcingBrowse = new QPushButton(QStringLiteral("..."));
+    m_forcingBrowse = new QPushButton(QStringLiteral("…"));   // tooltip says what it does
     m_forcingBrowse->setFixedWidth(30);
     connect(m_forcingBrowse, &QPushButton::clicked, this, &ThermalPanel::onBrowseForcing);
     forcingRow->addWidget(m_forcingFileEdit, 1);
@@ -159,6 +172,16 @@ void ThermalPanel::setupUi() {
     m_sunCorrectionCheck = new QCheckBox(m_paramsGroup);
     m_sunCorrectionCheck->setChecked(true);
     paramsLayout->addRow(QString(), m_sunCorrectionCheck);
+
+    // Every one of these is a re-solve, so a value is applied when it is
+    // committed (Enter, focus out, an arrow) rather than once per keystroke:
+    // typing 600 into Timestep would otherwise solve at 6, 60 and 600.
+    for (QAbstractSpinBox* spin : std::initializer_list<QAbstractSpinBox*>{
+             m_startTimeSpin, m_timestepSpin, m_layersSpin, m_initialTempSpin,
+             m_sunIrradianceSpin, m_diffuseIrradianceSpin, m_exchangeRaysSpin,
+             m_exchangeTopKSpin, m_checkpointStrideSpin}) {
+        spin->setKeyboardTracking(false);
+    }
 
     // Connect param changes
     auto paramSlot = [this] { onParamChanged(); };
@@ -243,67 +266,125 @@ void ThermalPanel::setupUi() {
 
     mainLayout->addStretch();
 
+    updateInitialTemperatureEnabled();
+    updateSolveDependentEnabled();
     retranslateUi();
 }
 
 void ThermalPanel::retranslateUi() {
-    bindText([this] {
-        m_enableCheck->setText(tr("Enable thermal solve"));
-        if (!m_mappedHour) m_timeGroup->setTitle(tr("Time of Day"));
-        if (m_mappedHour) {
-            m_timeGroup->setTitle(tr("Time of Day — following the timeline (%1 h)")
-                                      .arg(*m_mappedHour, 0, 'f', 3));
-            m_timeCaption->setText(tr("Hour at timeline start"));
-            m_timeSpin->setToolTip(
-                tr("With a [timeline], this is the hour the clock starts at. Which "
-                   "hour is being rendered comes from the transport."));
-        } else {
-            m_timeCaption->setText(tr("Simulation time"));
-            m_timeSpin->setToolTip(QString());
-        }
-        m_paramsGroup->setTitle(tr("Solver Parameters"));
-        m_startTimeCaption->setText(tr("Start time"));
-        m_timestepCaption->setText(tr("Timestep"));
-        m_layersCaption->setText(tr("Layers"));
-        m_initialCaption->setText(tr("Initial condition"));
-        m_initialTempCaption->setText(tr("Initial temperature"));
-        m_sunIrradianceCaption->setText(tr("Solar irradiance"));
-        m_diffuseIrradianceCaption->setText(tr("Diffuse irradiance"));
-        m_diffuseIrradianceSpin->setToolTip(
-            tr("Sunlight arriving from the sky dome rather than from the disc. "
-               "Under overcast it is the whole of it."));
-        m_exchangeRaysCaption->setText(tr("Exchange rays"));
-        m_exchangeTopKCaption->setText(tr("Exchange top-K"));
-        m_checkpointStrideCaption->setText(tr("Checkpoint stride"));
-        m_forcingCaption->setText(tr("Forcing file"));
-        m_sunCorrectionCheck->setText(tr("Shadow-edge correction"));
-        m_sunCorrectionCheck->setToolTip(
-            tr("Carry dT/dv through the trajectory, so a shading pass resolves a "
-               "shadow edge inside a triangle rather than at its border. Off gives "
-               "one temperature per triangle, which is what the correction has to "
-               "be measured against."));
-        m_statusGroup->setTitle(tr("Status"));
-        m_whatIfGroup->setTitle(tr("What if"));
-        m_whatIfParameter->setItemText(0, tr("Convection h"));
-        m_whatIfParameter->setItemText(1, tr("Emissivity"));
-        m_whatIfParameter->setItemText(2, tr("Solar absorptivity"));
-        m_whatIfParameter->setItemText(3, tr("Conductivity"));
-        m_whatIfParameter->setItemText(4, tr("Heat capacity"));
-        updateWhatIfCaption();
-        m_probeGroup->setTitle(tr("Probe"));
-        m_probePlot->setPlaceholderText(tr("Click a surface in the viewport."));
-        m_probePlot->retranslate();
-        if (m_probeCaption->text().isEmpty() || m_probeElement < 0) {
-            m_probeCaption->setText(tr("Click a surface to see its day and what "
-                                       "heated it."));
-        }
-    });
+    // Set directly rather than through bindText(): setMappedHour() and the
+    // status refresh run every tick, and a bindText() reached from them would
+    // register one more setter each time.
+    m_enableCheck->setText(tr("Enable thermal solve"));
+    updateTimeGroupText();
+    m_paramsGroup->setTitle(tr("Solver Parameters"));
+    m_startTimeCaption->setText(tr("Start time:"));
+    m_startTimeSpin->setToolTip(
+        tr("The hour of the simulated day the run starts stepping from. Rendering "
+           "a later hour costs the stepping in between."));
+    m_timestepCaption->setText(tr("Timestep:"));
+    m_timestepSpin->setToolTip(tr("Simulated seconds per solver step."));
+    m_layersCaption->setText(tr("Layers:"));
+    m_layersSpin->setToolTip(
+        tr("Nodes through the depth of each surface's column. More resolves a "
+           "steeper gradient below the surface, at a proportional cost."));
+    m_initialCaption->setText(tr("Initial condition:"));
+    m_initialCombo->setItemText(0, tr("Steady"));
+    m_initialCombo->setItemText(1, tr("Uniform"));
+    m_initialCombo->setToolTip(
+        tr("Steady starts from the temperature each surface would settle at under "
+           "the starting forcing. Uniform starts every node at the initial "
+           "temperature below."));
+    m_initialTempCaption->setText(tr("Initial object temperature:"));
+    m_initialTempSpin->setToolTip(
+        tr("Where every node starts when the initial condition is Uniform. Steady "
+           "does not read it."));
+    m_sunIrradianceCaption->setText(tr("Solar irradiance:"));
+    m_sunIrradianceSpin->setToolTip(
+        tr("Direct normal irradiance, used when no forcing file is given. A clear "
+           "noon is around 900 W/m²."));
+    m_diffuseIrradianceCaption->setText(tr("Diffuse irradiance:"));
+    m_diffuseIrradianceSpin->setToolTip(
+        tr("Sunlight arriving from the sky dome rather than from the disc. "
+           "Under overcast it is the whole of it."));
+    m_exchangeRaysCaption->setText(tr("Exchange rays:"));
+    m_exchangeRaysSpin->setToolTip(
+        tr("Rays per element for the view-factor precompute: how surfaces see "
+           "and heat each other. More is less noise and a slower precompute."));
+    m_exchangeTopKCaption->setText(tr("Exchange top-K:"));
+    m_exchangeTopKSpin->setToolTip(
+        tr("How many of each element's strongest view-factor entries to keep. A "
+           "row past the top few is mostly noise."));
+    m_checkpointStrideCaption->setText(tr("Checkpoint stride:"));
+    m_checkpointStrideSpin->setToolTip(
+        tr("How often the trajectory stores a full state, in simulated hours. "
+           "Shorter is more memory and a cheaper scrub."));
+    m_forcingCaption->setText(tr("Forcing file:"));
+    m_forcingBrowse->setToolTip(tr("Choose a forcing CSV"));
+    m_forcingFileEdit->setToolTip(
+        tr("Time-varying air temperature, irradiance, sun position and sky "
+           "temperature, as CSV. Empty means the constant values above."));
+    m_sunCorrectionCheck->setText(tr("Shadow-edge correction"));
+    m_sunCorrectionCheck->setToolTip(
+        tr("Carry dT/dv through the trajectory, so a shading pass resolves a "
+           "shadow edge inside a triangle rather than at its border. Off gives "
+           "one temperature per triangle, which is what the correction has to "
+           "be measured against."));
+    m_statusGroup->setTitle(tr("Status"));
+    updateStatusText();
+    m_whatIfGroup->setTitle(tr("What if"));
+    m_whatIfParameter->setItemText(0, tr("Convection h"));
+    m_whatIfParameter->setItemText(1, tr("Emissivity"));
+    m_whatIfParameter->setItemText(2, tr("Solar absorptivity"));
+    m_whatIfParameter->setItemText(3, tr("Conductivity"));
+    m_whatIfParameter->setItemText(4, tr("Heat capacity"));
+    updateWhatIfCaption();
+    m_probeGroup->setTitle(tr("Probe"));
+    m_probePlot->setPlaceholderText(tr("Click a surface in the viewport."));
+    m_probePlot->retranslate();
+    updateProbeCaption();
+    PanelBase::retranslateUi();
+}
+
+void ThermalPanel::updateTimeGroupText() {
+    if (m_mappedHour) {
+        m_timeGroup->setTitle(tr("Time of Day — following the timeline (%1 h)")
+                                  .arg(*m_mappedHour, 0, 'f', 3));
+        m_timeCaption->setText(tr("Hour at timeline start:"));
+        m_timeSpin->setToolTip(
+            tr("With a [timeline], this is the hour the clock starts at. Which "
+               "hour is being rendered comes from the transport."));
+    } else {
+        m_timeGroup->setTitle(tr("Time of Day"));
+        m_timeCaption->setText(tr("Rendered hour:"));
+        m_timeSpin->setToolTip(
+            tr("The hour of the simulated day shown in the viewport. The solve "
+               "steps to it from the start time under Solver Parameters."));
+    }
+    m_timeSlider->setToolTip(m_timeSpin->toolTip());
+}
+
+void ThermalPanel::updateInitialTemperatureEnabled() {
+    m_initialTempSpin->setEnabled(
+        m_initialCombo->currentData().toInt() ==
+        static_cast<int>(quantiloom::ThermalInitialCondition::Uniform));
+}
+
+void ThermalPanel::updateSolveDependentEnabled() {
+    // The parameters stay editable so a solve can be set up before it is
+    // switched on. The hour, the what-if and the probe all act on a solved
+    // field, and with none they would move and do nothing.
+    const bool on = m_enableCheck->isChecked();
+    m_timeGroup->setEnabled(on);
+    m_whatIfGroup->setEnabled(on);
+    m_probeGroup->setEnabled(on);
 }
 
 void ThermalPanel::setSolveEnabled(bool enabled) {
     m_suppressSignals = true;
     m_enableCheck->setChecked(enabled);
     m_suppressSignals = false;
+    updateSolveDependentEnabled();
 }
 
 void ThermalPanel::setParams(const quantiloom::ThermalSolveParams& p) {
@@ -311,8 +392,9 @@ void ThermalPanel::setParams(const quantiloom::ThermalSolveParams& p) {
     m_startTimeSpin->setValue(p.startTime_h);
     m_timestepSpin->setValue(p.timestep_s);
     m_layersSpin->setValue(static_cast<int>(p.layerCount));
-    m_initialCombo->setCurrentIndex(
-        p.initial == quantiloom::ThermalInitialCondition::Steady ? 0 : 1);
+    const int initialIndex = m_initialCombo->findData(static_cast<int>(p.initial));
+    m_initialCombo->setCurrentIndex(initialIndex < 0 ? 0 : initialIndex);
+    updateInitialTemperatureEnabled();
     m_initialTempSpin->setValue(p.initialTemperature_K);
     m_sunIrradianceSpin->setValue(p.sunIrradiance_W_m2);
     m_diffuseIrradianceSpin->setValue(p.diffuseIrradiance_W_m2);
@@ -356,10 +438,35 @@ void ThermalPanel::setMappedHour(std::optional<double> hour) {
     // which is a real thing to edit. The slider set the hour being rendered,
     // which the transport now owns.
     m_timeSlider->setEnabled(!m_mappedHour.has_value());
-    retranslateUi();
+    updateTimeGroupText();
 }
 
 void ThermalPanel::updateStatus(const quantiloom::ThermalSolveStatus& s) {
+    m_lastStatus = s;
+    updateStatusText();
+
+    // Update slider range from status
+    const int startMin = static_cast<int>(s.sliderStartTime_h * 60.0);
+    const int endMin = static_cast<int>(s.sliderEndTime_h * 60.0);
+    if (endMin > startMin) {
+        m_suppressSignals = true;
+        m_timeSlider->setRange(startMin, endMin);
+        m_timeSpin->setRange(s.sliderStartTime_h, s.sliderEndTime_h);
+        m_suppressSignals = false;
+    }
+}
+
+void ThermalPanel::updateStatusText() {
+    if (!m_lastStatus) {
+        m_statusElementCount->setText(tr("Not solved yet."));
+        m_statusTemperatures->clear();
+        m_statusSteps->clear();
+        m_statusExchange->clear();
+        m_statusStepper->clear();
+        m_statusError->hide();
+        return;
+    }
+    const quantiloom::ThermalSolveStatus& s = *m_lastStatus;
     m_statusElementCount->setText(
         tr("Elements: %1 (%2 solved)").arg(s.elementCount).arg(s.participatingElements));
     if (s.solveValid && s.participatingElements > 0) {
@@ -382,18 +489,9 @@ void ThermalPanel::updateStatus(const quantiloom::ThermalSolveStatus& s) {
         m_statusError->clear();
         m_statusError->hide();
     } else {
-        m_statusError->setText(QString::fromStdString(s.error));
+        // The SDK's own words; it reports in English.
+        m_statusError->setText(tr("Solver error: %1").arg(QString::fromStdString(s.error)));
         m_statusError->show();
-    }
-
-    // Update slider range from status
-    const int startMin = static_cast<int>(s.sliderStartTime_h * 60.0);
-    const int endMin = static_cast<int>(s.sliderEndTime_h * 60.0);
-    if (endMin > startMin) {
-        m_suppressSignals = true;
-        m_timeSlider->setRange(startMin, endMin);
-        m_timeSpin->setRange(s.sliderStartTime_h, s.sliderEndTime_h);
-        m_suppressSignals = false;
     }
 }
 
@@ -406,9 +504,8 @@ quantiloom::ThermalSolveParams ThermalPanel::params() const {
     p.startTime_h = m_startTimeSpin->value();
     p.timestep_s = m_timestepSpin->value();
     p.layerCount = static_cast<quantiloom::u32>(m_layersSpin->value());
-    p.initial = m_initialCombo->currentIndex() == 0
-                    ? quantiloom::ThermalInitialCondition::Steady
-                    : quantiloom::ThermalInitialCondition::Uniform;
+    p.initial = static_cast<quantiloom::ThermalInitialCondition>(
+        m_initialCombo->currentData().toInt());
     p.initialTemperature_K = m_initialTempSpin->value();
     p.sunIrradiance_W_m2 = m_sunIrradianceSpin->value();
     p.diffuseIrradiance_W_m2 = m_diffuseIrradianceSpin->value();
@@ -453,35 +550,53 @@ void ThermalPanel::updateWhatIfCaption() {
                "before the solve is asked to do it."));
         return;
     }
+    // The sign is part of the number, not of the sentence.
+    const QString signedPercent =
+        percent > 0 ? QStringLiteral("+%1").arg(percent) : QString::number(percent);
     m_whatIfCaption->setText(
-        tr("%1%2% of the parameter, added as a first-order correction. Exact for a "
+        tr("%1% of the parameter, added as a first-order correction. Exact for a "
            "small step; a linearisation for a large one.")
-            .arg(percent > 0 ? QStringLiteral("+") : QString())
-            .arg(percent));
+            .arg(signedPercent));
 }
 
 void ThermalPanel::setProbe(const quantiloom::u32 element,
                             const quantiloom::ThermalElementTrajectory& trajectory) {
     m_probeElement = static_cast<int>(element);
     m_probePlot->setTrajectory(trajectory);
-    if (trajectory.surfaceTemperature_K.empty()) {
-        m_probeCaption->setText(tr("Element %1: nothing to show.").arg(element));
-        return;
+    m_probeReason.clear();
+    m_probeHasRange = !trajectory.surfaceTemperature_K.empty();
+    if (m_probeHasRange) {
+        const auto [lo, hi] = std::minmax_element(trajectory.surfaceTemperature_K.begin(),
+                                                  trajectory.surfaceTemperature_K.end());
+        m_probeLow_K = *lo;
+        m_probeHigh_K = *hi;
     }
-    const auto [lo, hi] = std::minmax_element(trajectory.surfaceTemperature_K.begin(),
-                                              trajectory.surfaceTemperature_K.end());
-    m_probeCaption->setText(tr("Element %1, %2 to %3 K over the day.")
-                                .arg(element)
-                                .arg(*lo, 0, 'f', 1)
-                                .arg(*hi, 0, 'f', 1));
+    updateProbeCaption();
 }
 
 void ThermalPanel::clearProbe(const QString& reason) {
     m_probeElement = -1;
+    m_probeHasRange = false;
+    m_probeReason = reason;
     m_probePlot->clear();
-    m_probeCaption->setText(reason.isEmpty()
-                                ? tr("Click a surface to see its day and what heated it.")
-                                : reason);
+    updateProbeCaption();
+}
+
+void ThermalPanel::updateProbeCaption() {
+    // Rebuilt from the values rather than kept as text, so a language switch
+    // re-words it. A reason from the shell was translated when it was given.
+    if (m_probeElement < 0) {
+        m_probeCaption->setText(m_probeReason.isEmpty()
+                                    ? tr("Click a surface to see its day and what heated it.")
+                                    : m_probeReason);
+    } else if (!m_probeHasRange) {
+        m_probeCaption->setText(tr("Element %1: nothing to show.").arg(m_probeElement));
+    } else {
+        m_probeCaption->setText(tr("Element %1, %2 to %3 K over the day.")
+                                    .arg(m_probeElement)
+                                    .arg(m_probeLow_K, 0, 'f', 1)
+                                    .arg(m_probeHigh_K, 0, 'f', 1));
+    }
 }
 
 double ThermalPanel::time() const {

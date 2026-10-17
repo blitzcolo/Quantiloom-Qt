@@ -71,13 +71,23 @@ void LightingPanel::setupUi() {
     m_azimuthSlider = new QSlider(Qt::Horizontal);
     m_azimuthSlider->setRange(0, 360);
     m_azimuthSlider->setValue(180);
-    m_azimuthLabel = new QLabel(QStringLiteral("180°"));
-    m_azimuthLabel->setMinimumWidth(45);
+    // The slider is for dragging, the spin box for typing an exact angle; a
+    // config can hold a fractional one, and the slider alone would truncate it.
+    m_azimuthSpin = new QDoubleSpinBox();
+    m_azimuthSpin->setRange(0.0, 360.0);
+    m_azimuthSpin->setDecimals(1);
+    m_azimuthSpin->setSingleStep(1.0);
+    m_azimuthSpin->setWrapping(true);
+    m_azimuthSpin->setSuffix(QStringLiteral("°"));   // unit symbol, not translated
+    m_azimuthSpin->setKeyboardTracking(false);
+    m_azimuthSpin->setValue(180.0);
     connect(m_azimuthSlider, &QSlider::valueChanged, this, &LightingPanel::onSunAzimuthChanged);
     connect(m_azimuthSlider, &QSlider::sliderPressed, this, &LightingPanel::editGestureStarted);
     connect(m_azimuthSlider, &QSlider::sliderReleased, this, &LightingPanel::editGestureFinished);
-    azimuthRow->addWidget(m_azimuthSlider);
-    azimuthRow->addWidget(m_azimuthLabel);
+    connect(m_azimuthSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &LightingPanel::onSunAzimuthSpinChanged);
+    azimuthRow->addWidget(m_azimuthSlider, 1);
+    azimuthRow->addWidget(m_azimuthSpin);
     m_azimuthCaption = new QLabel(m_sunDirGroup);
     sunDirLayout->addRow(m_azimuthCaption, azimuthRow);
 
@@ -85,13 +95,20 @@ void LightingPanel::setupUi() {
     m_elevationSlider = new QSlider(Qt::Horizontal);
     m_elevationSlider->setRange(0, 90);
     m_elevationSlider->setValue(45);
-    m_elevationLabel = new QLabel(QStringLiteral("45°"));
-    m_elevationLabel->setMinimumWidth(45);
+    m_elevationSpin = new QDoubleSpinBox();
+    m_elevationSpin->setRange(0.0, 90.0);
+    m_elevationSpin->setDecimals(1);
+    m_elevationSpin->setSingleStep(1.0);
+    m_elevationSpin->setSuffix(QStringLiteral("°"));
+    m_elevationSpin->setKeyboardTracking(false);
+    m_elevationSpin->setValue(45.0);
     connect(m_elevationSlider, &QSlider::valueChanged, this, &LightingPanel::onSunElevationChanged);
     connect(m_elevationSlider, &QSlider::sliderPressed, this, &LightingPanel::editGestureStarted);
     connect(m_elevationSlider, &QSlider::sliderReleased, this, &LightingPanel::editGestureFinished);
-    elevationRow->addWidget(m_elevationSlider);
-    elevationRow->addWidget(m_elevationLabel);
+    connect(m_elevationSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &LightingPanel::onSunElevationSpinChanged);
+    elevationRow->addWidget(m_elevationSlider, 1);
+    elevationRow->addWidget(m_elevationSpin);
     m_elevationCaption = new QLabel(m_sunDirGroup);
     sunDirLayout->addRow(m_elevationCaption, elevationRow);
 
@@ -105,6 +122,7 @@ void LightingPanel::setupUi() {
     m_sunIntensitySpin->setRange(0.0, 100.0);
     m_sunIntensitySpin->setSingleStep(0.1);
     m_sunIntensitySpin->setValue(1.0);
+    m_sunIntensitySpin->setKeyboardTracking(false);
     connect(m_sunIntensitySpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &LightingPanel::onSunIntensityChanged);
     m_sunCaption = new QLabel(m_radianceGroup);
@@ -114,6 +132,7 @@ void LightingPanel::setupUi() {
     m_skyIntensitySpin->setRange(0.0, 10.0);
     m_skyIntensitySpin->setSingleStep(0.01);
     m_skyIntensitySpin->setValue(0.1);
+    m_skyIntensitySpin->setKeyboardTracking(false);
     connect(m_skyIntensitySpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &LightingPanel::onSkyIntensityChanged);
     m_skyCaption = new QLabel(m_radianceGroup);
@@ -163,7 +182,8 @@ void LightingPanel::setupUi() {
     m_doubleCountNotice->setVisible(false);
     envLayout->addWidget(m_doubleCountNotice);
 
-    mainLayout->addWidget(m_envGroup);
+    // Added after the illuminant group, below: the illuminant is the sun's
+    // spectrum and belongs next to the sun's radiance, not after the map.
 
     // ------------------------------------------------------------------
     // Illuminant
@@ -214,6 +234,7 @@ void LightingPanel::setupUi() {
     illuminantLayout->addWidget(m_illuminantNotice);
 
     mainLayout->addWidget(m_illuminantGroup);
+    mainLayout->addWidget(m_envGroup);
     mainLayout->addStretch();
 }
 
@@ -400,6 +421,28 @@ void LightingPanel::updateIlluminantWidgets() {
     m_illuminantNotice->setText(notices.join(QStringLiteral("\n\n")));
 }
 
+void LightingPanel::requestEnvironmentEnabled(bool enabled) {
+    m_envEnabledCheck->setChecked(enabled);   // toggled() runs the handler
+}
+
+void LightingPanel::requestIlluminantKind(const QString& kind) {
+    const int index = m_illuminantCombo->findData(kind);
+    if (index < 0) {
+        return;
+    }
+    if (index == m_illuminantCombo->currentIndex()) {
+        // Picking the file entry again is a request for a different file.
+        if (kind == QLatin1String("file")) {
+            onBrowseIlluminant();
+        }
+        return;
+    }
+    m_illuminantCombo->setCurrentIndex(index);   // runs onIlluminantKindChanged()
+    if (kind == QLatin1String("file") && m_illuminant.path.isEmpty()) {
+        onBrowseIlluminant();
+    }
+}
+
 void LightingPanel::onIlluminantKindChanged() {
     m_illuminant.kind = m_illuminantCombo->currentData().toString();
 
@@ -451,6 +494,17 @@ void LightingPanel::retranslateUi() {
     m_sunDirGroup->setTitle(tr("Sun Direction"));
     m_azimuthCaption->setText(tr("Azimuth:"));
     m_elevationCaption->setText(tr("Elevation:"));
+    const QString azimuthTip =
+        tr("Compass bearing of the sun: 0° is north (+Z), 90° is east (+X), "
+           "180° south, 270° west.");
+    m_azimuthCaption->setToolTip(azimuthTip);
+    m_azimuthSlider->setToolTip(azimuthTip);
+    m_azimuthSpin->setToolTip(azimuthTip);
+    const QString elevationTip =
+        tr("Height of the sun above the horizon: 0° on the horizon, 90° overhead.");
+    m_elevationCaption->setToolTip(elevationTip);
+    m_elevationSlider->setToolTip(elevationTip);
+    m_elevationSpin->setToolTip(elevationTip);
 
     m_illuminantGroup->setTitle(tr("Illuminant"));
     m_illuminantCombo->setItemText(0, tr("None — RGB radiance only"));
@@ -490,8 +544,6 @@ void LightingPanel::retranslateUi() {
     m_envBrowseButton->setText(tr("Browse…"));
     m_envClearButton->setText(tr("Clear"));
 
-    m_azimuthLabel->setText(tr("%1°").arg(static_cast<int>(m_sunAzimuth)));
-    m_elevationLabel->setText(tr("%1°").arg(static_cast<int>(m_sunElevation)));
 
     updateEnvironmentDisplay();
 }
@@ -592,11 +644,22 @@ void LightingPanel::setLightingParams(const quantiloom::LightingParams& params) 
     m_sunAzimuth = std::atan2(dir.x, dir.z) * 180.0f / static_cast<float>(M_PI);
     if (m_sunAzimuth < 0) m_sunAzimuth += 360.0f;
 
+    // The spin box shows the mean of the RGB triple; the triple's shape is
+    // kept as a chroma normalised to mean 1, so editing the level scales the
+    // colour the config gave instead of replacing it with grey or a tint of
+    // this panel's own choosing. A zero triple carries no chroma, and keeps
+    // the one already held.
     m_sunRadiance = params.sunRadiance_rgb;
     m_sunIntensity = (m_sunRadiance.r + m_sunRadiance.g + m_sunRadiance.b) / 3.0f;
+    if (m_sunIntensity > 0.0f) {
+        m_sunChroma = m_sunRadiance / m_sunIntensity;
+    }
 
     m_skyRadiance = params.skyRadiance_rgb;
     m_skyIntensity = (m_skyRadiance.r + m_skyRadiance.g + m_skyRadiance.b) / 3.0f;
+    if (m_skyIntensity > 0.0f) {
+        m_skyChroma = m_skyRadiance / m_skyIntensity;
+    }
 
     m_chromaR_correction = params.chromaR_correction;
     m_chromaB_correction = params.chromaB_correction;
@@ -605,13 +668,10 @@ void LightingPanel::setLightingParams(const quantiloom::LightingParams& params) 
 
     // Update UI (block signals to avoid feedback loop)
     {
-        const QSignalBlocker azimuth(m_azimuthSlider);
-        m_azimuthSlider->setValue(static_cast<int>(m_sunAzimuth));
+        const QSignalBlocker envCheck(m_envEnabledCheck);
+        m_envEnabledCheck->setChecked(m_environmentEnabled);
     }
-    {
-        const QSignalBlocker elevation(m_elevationSlider);
-        m_elevationSlider->setValue(static_cast<int>(m_sunElevation));
-    }
+    syncAngleWidgets();
     {
         const QSignalBlocker sun(m_sunIntensitySpin);
         m_sunIntensitySpin->setValue(m_sunIntensity);
@@ -621,40 +681,78 @@ void LightingPanel::setLightingParams(const quantiloom::LightingParams& params) 
         m_skyIntensitySpin->setValue(m_skyIntensity);
     }
 
-    m_azimuthLabel->setText(tr("%1°").arg(static_cast<int>(m_sunAzimuth)));
-    m_elevationLabel->setText(tr("%1°").arg(static_cast<int>(m_sunElevation)));
 
     // Radiance and the enable flag both just changed, and the notice reads both.
     updateEnvironmentDisplay();
 }
 
+void LightingPanel::syncAngleWidgets() {
+    const QSignalBlocker azimuthSlider(m_azimuthSlider);
+    const QSignalBlocker azimuthSpin(m_azimuthSpin);
+    const QSignalBlocker elevationSlider(m_elevationSlider);
+    const QSignalBlocker elevationSpin(m_elevationSpin);
+    m_azimuthSlider->setValue(static_cast<int>(std::lround(m_sunAzimuth)));
+    m_azimuthSpin->setValue(static_cast<double>(m_sunAzimuth));
+    m_elevationSlider->setValue(static_cast<int>(std::lround(m_sunElevation)));
+    m_elevationSpin->setValue(static_cast<double>(m_sunElevation));
+}
+
+void LightingPanel::emitEdit() {
+    // A slider drag is bracketed by press and release, which the shell turns
+    // into one undo entry. Anything else -- a typed value, a spin arrow, a
+    // click on the groove, a key -- is a whole edit by itself, and gets the
+    // same bracket here so it is undoable too.
+    if (m_azimuthSlider->isSliderDown() || m_elevationSlider->isSliderDown()) {
+        emitChanges();
+        return;
+    }
+    emit editGestureStarted();
+    emitChanges();
+    emit editGestureFinished();
+}
+
 void LightingPanel::onSunAzimuthChanged(int value) {
     m_sunAzimuth = static_cast<float>(value);
-    m_azimuthLabel->setText(tr("%1°").arg(value));
-    emitChanges();
+    const QSignalBlocker block(m_azimuthSpin);
+    m_azimuthSpin->setValue(value);
+    emitEdit();
 }
 
 void LightingPanel::onSunElevationChanged(int value) {
     m_sunElevation = static_cast<float>(value);
-    m_elevationLabel->setText(tr("%1°").arg(value));
-    emitChanges();
+    const QSignalBlocker block(m_elevationSpin);
+    m_elevationSpin->setValue(value);
+    emitEdit();
+}
+
+void LightingPanel::onSunAzimuthSpinChanged(double value) {
+    m_sunAzimuth = static_cast<float>(value);
+    const QSignalBlocker block(m_azimuthSlider);
+    m_azimuthSlider->setValue(static_cast<int>(std::lround(value)));
+    emitEdit();
+}
+
+void LightingPanel::onSunElevationSpinChanged(double value) {
+    m_sunElevation = static_cast<float>(value);
+    const QSignalBlocker block(m_elevationSlider);
+    m_elevationSlider->setValue(static_cast<int>(std::lround(value)));
+    emitEdit();
 }
 
 void LightingPanel::onSunIntensityChanged(double value) {
     m_sunIntensity = static_cast<float>(value);
-    m_sunRadiance = glm::vec3(m_sunIntensity);
+    m_sunRadiance = m_sunChroma * m_sunIntensity;
     // The double-count notice depends on this being non-zero, so zeroing the
     // sun to light from the map alone has to make the notice go away.
     updateEnvironmentDisplay();
-    emitChanges();
+    emitEdit();
 }
 
 void LightingPanel::onSkyIntensityChanged(double value) {
     m_skyIntensity = static_cast<float>(value);
-    // Keep sky color tint (blue-ish)
-    m_skyRadiance = glm::vec3(m_skyIntensity * 1.0f, m_skyIntensity * 1.5f, m_skyIntensity * 2.0f);
+    m_skyRadiance = m_skyChroma * m_skyIntensity;
     updateEnvironmentDisplay();
-    emitChanges();
+    emitEdit();
 }
 
 void LightingPanel::emitChanges() {

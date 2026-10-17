@@ -87,6 +87,8 @@ signals:
     /// Where the clock should stand now. The only thing this panel asks for.
     void timelineTimeChanged(double time_s);
     void playbackStateChanged(bool playing);
+    /// The Loop box was toggled, by hand or through setLoop().
+    void loopChanged(bool loop);
 
 private slots:
     void onSliderMoved(int tick);
@@ -98,6 +100,8 @@ private slots:
 private:
     void setupUi();
     void updateReadout();
+    void updateHint();
+    void updatePlayButton();
     void restartTimer();
     /// Move to @p tick, clamping or wrapping by the loop setting, and tell
     /// whoever is listening. Every route into this panel ends here.

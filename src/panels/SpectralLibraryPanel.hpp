@@ -68,6 +68,19 @@ public:
     /// panel's own buttons rather than a second way of choosing.
     [[nodiscard]] QPair<QString, QString> highlightedEntry() const;
 
+    /// An endmember is selected in the list, so it can be removed.
+    [[nodiscard]] bool canRemoveEndmember() const;
+
+    /// A database id ("usgs") as its published name ("USGS").
+    [[nodiscard]] static QString databaseDisplayName(const QString& databaseId);
+
+public slots:
+    /// Remove the endmember selected in the list. The Render menu reaches it
+    /// too; the panel's button is a shortcut.
+    void removeSelectedEndmember();
+
+public:
+
     /// The curve the shell reconstructed for the highlighted row, for preview.
     /// Empty clears the plot back to its placeholder.
     void setPreviewCurve(const QVector<QPair<double, double>>& points,
@@ -93,6 +106,9 @@ signals:
     /// Drop endmember @p slot from the target. Slot 0 is the material's
     /// primary reference; removing it promotes the next one.
     void endmemberRemoveRequested(int slot);
+
+    /// Which of assign / add / remove is possible changed, for the menu.
+    void actionStateChanged();
 
 private slots:
     void onSelectionChanged();

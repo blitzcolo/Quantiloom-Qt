@@ -12,6 +12,7 @@
 #include <QGroupBox>
 #include <QLabel>
 #include <QCheckBox>
+#include <QAbstractSpinBox>
 #include <QDoubleSpinBox>
 #include <QComboBox>
 #include <QRadioButton>
@@ -26,6 +27,11 @@ DisplayEnhancementPanel::DisplayEnhancementPanel(QWidget* parent)
 {
     setObjectName(panelId());
     setupUi();
+    // Every value here is applied as it changes -- a material upload, or a
+    // display pass -- so it is applied when committed, not once per keystroke.
+    for (QAbstractSpinBox* spin : findChildren<QAbstractSpinBox*>()) {
+        spin->setKeyboardTracking(false);
+    }
 }
 
 QString DisplayEnhancementPanel::panelTitle() const {
@@ -109,13 +115,13 @@ void DisplayEnhancementPanel::setupUi() {
     m_percentileLowSpin = new QDoubleSpinBox();
     m_percentileLowSpin->setRange(0.0, 50.0);
     m_percentileLowSpin->setSingleStep(0.5);
-    m_percentileLowSpin->setDecimals(1);
+    m_percentileLowSpin->setDecimals(2);   // 0.25 % must survive a round trip
     m_percentileLowSpin->setSuffix(QStringLiteral(" %"));
     m_percentileLowSpin->setValue(1.0);
     m_percentileHighSpin = new QDoubleSpinBox();
     m_percentileHighSpin->setRange(50.0, 100.0);
     m_percentileHighSpin->setSingleStep(0.5);
-    m_percentileHighSpin->setDecimals(1);
+    m_percentileHighSpin->setDecimals(2);
     m_percentileHighSpin->setSuffix(QStringLiteral(" %"));
     m_percentileHighSpin->setValue(99.0);
     connect(m_percentileLowSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
@@ -128,8 +134,12 @@ void DisplayEnhancementPanel::setupUi() {
                 m_params.percentileHigh = static_cast<float>(v);
                 notify();
             });
-    windowRow->addWidget(m_percentileLowSpin);
-    windowRow->addWidget(m_percentileHighSpin);
+    // A word between the two ends, which used to be two bare numbers side by
+    // side with the meaning only in their tooltips.
+    m_windowToLabel = new QLabel(m_settingsGroup);
+    windowRow->addWidget(m_percentileLowSpin, 1);
+    windowRow->addWidget(m_windowToLabel);
+    windowRow->addWidget(m_percentileHighSpin, 1);
     m_windowCaption = new QLabel(m_settingsGroup);
     settingsLayout->addRow(m_windowCaption, windowRow);
 
@@ -208,6 +218,7 @@ void DisplayEnhancementPanel::setupUi() {
                "false colour means."));
 
         m_windowCaption->setText(tr("Range window:"));
+        m_windowToLabel->setText(tr("to"));
         m_percentileLowSpin->setToolTip(
             tr("Low percentile of the range to map from. Above zero, so a single cold "
                "pixel does not decide what the rest of the image looks like."));
@@ -219,14 +230,17 @@ void DisplayEnhancementPanel::setupUi() {
                                        "1.0 = no clipping (full equalization)\n"
                                        "2.0-4.0 = typical range for infrared"));
 
-        m_tileCaption->setText(tr("Tile size:"));
-        m_tileSizeCombo->setItemText(0, tr("4x4"));
-        m_tileSizeCombo->setItemText(1, tr("8x8 (default)"));
-        m_tileSizeCombo->setItemText(2, tr("16x16"));
-        m_tileSizeCombo->setItemText(3, tr("32x32"));
-        m_tileSizeCombo->setToolTip(tr("Number of contextual tiles.\n"
-                                       "Smaller tiles = more local contrast.\n"
-                                       "Larger tiles = more global contrast."));
+        // A count of tiles per axis (DisplayParams::tileSize), not a size in
+        // pixels: "Tile size" beside "smaller tiles = more local" read the
+        // wrong way round.
+        m_tileCaption->setText(tr("Tile grid:"));
+        m_tileSizeCombo->setItemText(0, tr("4 × 4 tiles"));
+        m_tileSizeCombo->setItemText(1, tr("8 × 8 tiles (default)"));
+        m_tileSizeCombo->setItemText(2, tr("16 × 16 tiles"));
+        m_tileSizeCombo->setItemText(3, tr("32 × 32 tiles"));
+        m_tileSizeCombo->setToolTip(tr("How many tiles CLAHE divides the image into, per axis.\n"
+                                       "More tiles = more local contrast.\n"
+                                       "Fewer tiles = more global contrast."));
 
         m_channelGroup->setTitle(tr("Processing mode"));
         m_luminanceOnlyRadio->setText(tr("Luminance only (recommended)"));

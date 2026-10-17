@@ -33,7 +33,7 @@
     </message>
     <message>
         <source>These live in the lighting parameters. The network model below supersedes them entirely — it measures this sky rather than correlating it.</source>
-        <translation>这些值存放在光照参数中。下方的神经网络模型会完全取代它们——它测量这片天空，而非用经验关系拟合。</translation>
+        <translation type="vanished">这些值存放在光照参数中。下方的神经网络模型会完全取代它们——它测量这片天空，而非用经验关系拟合。</translation>
     </message>
     <message>
         <source>Isotropic: the sky is one blackbody at the air temperature.</source>
@@ -99,7 +99,7 @@ Leave empty to auto-detect.</source>
     </message>
     <message>
         <source>...</source>
-        <translation>...</translation>
+        <translation type="vanished">...</translation>
     </message>
     <message>
         <source>Weather Parameters</source>
@@ -146,6 +146,10 @@ Leave empty to auto-detect.</source>
         <translation> K</translation>
     </message>
     <message>
+        <source>These live in the lighting parameters. With the network model below on and its model pack found, transmittance and path radiance come from it instead, and these remain the thermal-sky fallback.</source>
+        <translation>这些属于光照参数。下方的神经网络模型启用且找到模型包时，透过率与路径辐亮度改由它给出，这里的值仅作为热天空的后备。</translation>
+    </message>
+    <message>
         <source>Neural network model (MODTRAN surrogate)</source>
         <translation>神经网络模型（MODTRAN 代理）</translation>
     </message>
@@ -162,6 +166,14 @@ Leave empty to auto-detect.</source>
         <translation>模型包：</translation>
     </message>
     <message>
+        <source>Choose the model pack directory</source>
+        <translation>选择模型包目录</translation>
+    </message>
+    <message>
+        <source>A named weather. Choosing one sets every parameter below; editing a parameter afterwards keeps the preset as the starting point and marks it edited.</source>
+        <translation>命名的天气。选择后会设置下方所有参数；之后修改任一参数，预设仍作为起点，并标记为已修改。</translation>
+    </message>
+    <message>
         <source>Atmosphere model:</source>
         <translation>大气模式：</translation>
     </message>
@@ -176,6 +188,30 @@ Leave empty to auto-detect.</source>
     <message>
         <source>Cirrus (18)</source>
         <translation>卷云 (18)</translation>
+    </message>
+    <message>
+        <source>MODTRAN&apos;s standard atmosphere profile: the temperature, pressure and gas columns with height.</source>
+        <translation>MODTRAN 标准大气廓线：温度、气压与各气体柱随高度的分布。</translation>
+    </message>
+    <message>
+        <source>MODTRAN&apos;s boundary-layer aerosol model, which sets how particles scatter and absorb near the ground.</source>
+        <translation>MODTRAN 边界层气溶胶模型，决定近地面颗粒物如何散射与吸收。</translation>
+    </message>
+    <message>
+        <source>MODTRAN&apos;s cloud or rain model, if any.</source>
+        <translation>MODTRAN 的云或降雨模型（如有）。</translation>
+    </message>
+    <message>
+        <source>Meteorological range: how far a dark object stays distinguishable against the horizon sky. Lower is hazier.</source>
+        <translation>气象视距：暗目标在地平线天空背景下仍可分辨的最远距离。数值越小越浑浊。</translation>
+    </message>
+    <message>
+        <source>Multiplies the profile&apos;s water-vapour column. Above 1 is a wetter atmosphere than the standard profile, which mostly matters in the infrared.</source>
+        <translation>对廓线的水汽柱总量进行缩放。大于 1 表示比标准廓线更湿润，主要影响红外波段。</translation>
+    </message>
+    <message>
+        <source>Relative humidity at the ground, as the network was trained on it.</source>
+        <translation>地面相对湿度，与网络训练时的定义一致。</translation>
     </message>
     <message>
         <source> km</source>
@@ -200,6 +236,10 @@ Leave empty to auto-detect.</source>
     <message>
         <source>H₂O scale:</source>
         <translation>水汽缩放系数：</translation>
+    </message>
+    <message>
+        <source>%1 (edited)</source>
+        <translation>%1（已修改）</translation>
     </message>
     <message>
         <source>Select the atmosphere model pack directory</source>
@@ -281,16 +321,36 @@ Leave empty to auto-detect.</source>
         <translation>捕获姿态</translation>
     </message>
     <message>
+        <source>Key the viewport&apos;s current camera at the clock&apos;s time. With a key selected, that key is replaced -- and moved to the clock&apos;s time.</source>
+        <translation>在当前时钟时刻，以视口相机记录关键帧。若已选中关键帧，则替换它——并将其移到当前时钟时刻。</translation>
+    </message>
+    <message>
         <source>Add key</source>
         <translation>添加关键帧</translation>
+    </message>
+    <message>
+        <source>Add a key at the clock&apos;s time from the fields below.</source>
+        <translation>按下方字段，在当前时钟时刻添加关键帧。</translation>
     </message>
     <message>
         <source>Update key</source>
         <translation>更新关键帧</translation>
     </message>
     <message>
+        <source>Replace the selected key with the fields below.</source>
+        <translation>用下方字段替换选中的关键帧。</translation>
+    </message>
+    <message>
         <source>Delete key</source>
         <translation>删除关键帧</translation>
+    </message>
+    <message>
+        <source>No keys</source>
+        <translation>无关键帧</translation>
+    </message>
+    <message>
+        <source>The camera trajectory drives the pose. A pose typed here lasts until the clock moves; capture it to keep it.</source>
+        <translation>相机姿态由相机轨迹驱动。在此输入的姿态只保持到时钟移动为止；要保留它，请捕获姿态。</translation>
     </message>
     <message>
         <source>Front</source>
@@ -362,15 +422,25 @@ Leave empty to auto-detect.</source>
     </message>
     <message>
         <source>Load reference...</source>
-        <translation>载入参考...</translation>
+        <translation type="vanished">载入参考...</translation>
     </message>
     <message>
         <source>Compare with the current frame</source>
-        <translation>与当前帧比对</translation>
+        <translation type="vanished">与当前帧比对</translation>
     </message>
     <message>
         <source>No reference loaded. An EXR of a measurement, or of another render.</source>
         <translation>尚未载入参考。可以是一次实测的 EXR，也可以是另一次渲染的。</translation>
+    </message>
+    <message numerus="yes">
+        <source>%1: %2 × %3, %n channel(s).</source>
+        <translation>
+            <numerusform>%1：%2 × %3，%n 个通道。</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Load Reference Image</source>
+        <translation>载入参考图像</translation>
     </message>
     <message>
         <source>Load a reference, then compare.</source>
@@ -378,7 +448,7 @@ Leave empty to auto-detect.</source>
     </message>
     <message>
         <source>Load reference image</source>
-        <translation>载入参考图像</translation>
+        <translation type="vanished">载入参考图像</translation>
     </message>
     <message>
         <source>OpenEXR (*.exr);;All files (*)</source>
@@ -389,12 +459,78 @@ Leave empty to auto-detect.</source>
         <translation>无法读取 %1。</translation>
     </message>
     <message>
+        <source>Load Reference...</source>
+        <translation>载入参考……</translation>
+    </message>
+    <message>
+        <source>An EXR of a measurement, or of another render.</source>
+        <translation>实测数据或另一次渲染的 EXR。</translation>
+    </message>
+    <message>
+        <source>Channel:</source>
+        <translation>通道：</translation>
+    </message>
+    <message>
+        <source>Compare with Current Frame</source>
+        <translation>与当前帧比对</translation>
+    </message>
+    <message>
+        <source>Read the frame on screen now. A path-traced frame is still converging, so compare once it has the samples you want.</source>
+        <translation>读取屏幕上的当前帧。路径追踪的画面仍在收敛，请在达到所需采样数后再比对。</translation>
+    </message>
+    <message>
+        <source>Red: the render is brighter. Blue: it is darker. Black: they agree. Scaled to the 99th percentile of the difference.</source>
+        <translation>红：渲染更亮。蓝：渲染更暗。黑：两者一致。按差值的第 99 百分位缩放。</translation>
+    </message>
+    <message>
+        <source>Reference mean:</source>
+        <translation>参考均值：</translation>
+    </message>
+    <message>
+        <source>Bias:</source>
+        <translation>偏差：</translation>
+    </message>
+    <message>
+        <source>RMSE:</source>
+        <translation>RMSE：</translation>
+    </message>
+    <message>
+        <source>95th percentile:</source>
+        <translation>第 95 百分位：</translation>
+    </message>
+    <message>
+        <source>Worst pixel:</source>
+        <translation>最差像素：</translation>
+    </message>
+    <message>
+        <source>The render minus the reference, so positive means brighter.</source>
+        <translation>渲染值减参考值，正值表示更亮。</translation>
+    </message>
+    <message>
         <source>Channel %1</source>
         <translation>通道 %1</translation>
     </message>
     <message>
+        <source>The frame is %1 × %2 and the reference is %3 × %4. Match the render resolution to the reference rather than resampling either -- what a resampling does to a radiance belongs to whoever made the measurement.</source>
+        <translation>当前帧为 %1 × %2，参考图为 %3 × %4。请让渲染分辨率与参考图一致，而不要对任一方重采样——重采样会如何改变辐亮度，应由测量者决定。</translation>
+    </message>
+    <message numerus="yes">
+        <source>The frame has %n channel(s), so %1 has no counterpart in it.</source>
+        <translation>
+            <numerusform>当前帧只有 %n 个通道，%1 在其中没有对应通道。</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Against %1, channel %2:</source>
+        <translation>与 %1 比对，通道 %2：</translation>
+    </message>
+    <message>
+        <source>%1 (%2%)</source>
+        <translation>%1（%2%）</translation>
+    </message>
+    <message>
         <source>%1: %2 x %3, %4 channel(s).</source>
-        <translation>%1：%2 x %3，%4 个通道。</translation>
+        <translation type="vanished">%1：%2 x %3，%4 个通道。</translation>
     </message>
     <message>
         <source>Reference loaded. Compare to read the current frame.</source>
@@ -402,7 +538,7 @@ Leave empty to auto-detect.</source>
     </message>
     <message>
         <source>The frame is %1 x %2 and the reference is %3 x %4. Match the render resolution to the reference rather than resampling either -- what a resampling does to a radiance belongs to whoever made the measurement.</source>
-        <translation>当前帧为 %1 x %2，参考为 %3 x %4。请把渲染分辨率调整为与参考一致，而不要对任何一方重采样——重采样对辐亮度做了什么，应由做测量的人来决定。</translation>
+        <translation type="vanished">当前帧为 %1 x %2，参考为 %3 x %4。请把渲染分辨率调整为与参考一致，而不要对任何一方重采样——重采样对辐亮度做了什么，应由做测量的人来决定。</translation>
     </message>
     <message>
         <source>That channel is not in both images.</source>
@@ -416,7 +552,7 @@ Leave empty to auto-detect.</source>
   95th percentile %7
   worst pixel     %8
 Bias is the render minus the reference, so positive means brighter.</source>
-        <translation>对照 %1，通道 %2：
+        <translation type="vanished">对照 %1，通道 %2：
   参考均值    %3
   偏差        %4  (%5%)
   RMSE        %6
@@ -465,6 +601,14 @@ Help ▸ Reading Debug Output explains the colour encodings.</source>
         <translation>太阳列：0 表示全天，更大的数字对应带阴影记忆的求解所记住的各个时刻。</translation>
     </message>
     <message>
+        <source>Whole day</source>
+        <translation>全天</translation>
+    </message>
+    <message>
+        <source>Hour </source>
+        <translation>小时 </translation>
+    </message>
+    <message>
         <source>%1, %2 px</source>
         <translation>%1, %2 px</translation>
     </message>
@@ -481,7 +625,7 @@ Help ▸ Reading Debug Output explains the colour encodings.</source>
     <name>DisplayEnhancementPanel</name>
     <message>
         <source>4x4</source>
-        <translation>4×4</translation>
+        <translation type="vanished">4×4</translation>
     </message>
     <message>
         <source>Display Enhancement</source>
@@ -558,6 +702,10 @@ Anything but greyscale replaces the image&apos;s own colour, which is what false
         <translation>范围窗口：</translation>
     </message>
     <message>
+        <source>to</source>
+        <translation>至</translation>
+    </message>
+    <message>
         <source>Low percentile of the range to map from. Above zero, so a single cold pixel does not decide what the rest of the image looks like.</source>
         <translation>映射范围下端所取的百分位。取大于零的值，免得单个冷像素决定其余画面的样子。</translation>
     </message>
@@ -578,26 +726,54 @@ Anything but greyscale replaces the image&apos;s own colour, which is what false
 2.0-4.0 = 红外常用范围</translation>
     </message>
     <message>
+        <source>Tile grid:</source>
+        <translation>分块网格：</translation>
+    </message>
+    <message>
+        <source>4 × 4 tiles</source>
+        <translation>4 × 4 块</translation>
+    </message>
+    <message>
+        <source>8 × 8 tiles (default)</source>
+        <translation>8 × 8 块（默认）</translation>
+    </message>
+    <message>
+        <source>16 × 16 tiles</source>
+        <translation>16 × 16 块</translation>
+    </message>
+    <message>
+        <source>32 × 32 tiles</source>
+        <translation>32 × 32 块</translation>
+    </message>
+    <message>
+        <source>How many tiles CLAHE divides the image into, per axis.
+More tiles = more local contrast.
+Fewer tiles = more global contrast.</source>
+        <translation>CLAHE 在每个方向上将图像分成多少块。
+块越多 = 局部对比度越强。
+块越少 = 越接近全局对比度。</translation>
+    </message>
+    <message>
         <source>Tile size:</source>
-        <translation>分块大小：</translation>
+        <translation type="vanished">分块大小：</translation>
     </message>
     <message>
         <source>8x8 (default)</source>
-        <translation>8×8（默认）</translation>
+        <translation type="vanished">8×8（默认）</translation>
     </message>
     <message>
         <source>16x16</source>
-        <translation>16×16</translation>
+        <translation type="vanished">16×16</translation>
     </message>
     <message>
         <source>32x32</source>
-        <translation>32×32</translation>
+        <translation type="vanished">32×32</translation>
     </message>
     <message>
         <source>Number of contextual tiles.
 Smaller tiles = more local contrast.
 Larger tiles = more global contrast.</source>
-        <translation>上下文分块的数量。
+        <translation type="vanished">上下文分块的数量。
 分块越小，局部对比度越强。
 分块越大，整体对比度越强。</translation>
     </message>
@@ -653,8 +829,32 @@ May cause colour shifts.</source>
         <translation>已移除相机及其关联配对。</translation>
     </message>
     <message>
+        <source>Remove Camera</source>
+        <translation>移除相机</translation>
+    </message>
+    <message>
+        <source>Remove camera &apos;%1&apos; and every pair that uses it?</source>
+        <translation>移除相机“%1”及所有使用它的配对？</translation>
+    </message>
+    <message>
         <source>Completing publication...</source>
         <translation>正在完成发布…</translation>
+    </message>
+    <message>
+        <source>Capturing %1 (%2 of %3)...</source>
+        <translation>正在采集 %1（第 %2 / %3 台）……</translation>
+    </message>
+    <message>
+        <source>Computing correspondences from %1...</source>
+        <translation>正在计算 %1 的对应关系……</translation>
+    </message>
+    <message>
+        <source>Ready to publish...</source>
+        <translation>准备发布……</translation>
+    </message>
+    <message>
+        <source>%1: %2</source>
+        <translation>%1：%2</translation>
     </message>
     <message>
         <source>Sample ID:</source>
@@ -679,6 +879,14 @@ May cause colour shifts.</source>
     <message>
         <source>Reference camera:</source>
         <translation>参考相机：</translation>
+    </message>
+    <message>
+        <source>Pairs:</source>
+        <translation>配对：</translation>
+    </message>
+    <message>
+        <source>Which cameras get correspondences: each camera against the reference, or the pairs listed below.</source>
+        <translation>哪些相机之间计算对应关系：每台相机与参考相机，或下方列出的配对。</translation>
     </message>
     <message>
         <source>Load rig...</source>
@@ -890,10 +1098,20 @@ May cause colour shifts.</source>
         <source>Close</source>
         <translation>关闭</translation>
     </message>
+    <message>
+        <source>A cube render cannot be interrupted. This window can be closed once it has finished.</source>
+        <translation>立方体渲染无法中断。渲染完成后才能关闭此窗口。</translation>
+    </message>
     <message numerus="yes">
         <source>%n band(s) — each traced to completion</source>
         <translation>
             <numerusform>%n 个波段 — 每个都渲染到收敛</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>%n band(s) — a cube needs at least two; widen the range or shorten the step.</source>
+        <translation>
+            <numerusform>%n 个波段 — 立方体至少需要两个波段；请扩大范围或减小步长。</numerusform>
         </translation>
     </message>
     <message>
@@ -917,8 +1135,12 @@ May cause colour shifts.</source>
         <translation>文档不是有效的 TOML：%1</translation>
     </message>
     <message>
+        <source>Band %1 of %2 — about %3 remaining</source>
+        <translation>第 %1 / %2 波段 — 约剩余 %3</translation>
+    </message>
+    <message>
         <source>Band %1 of %2 — about %3 s remaining</source>
-        <translation>第 %1 / %2 波段 — 约剩余 %3 秒</translation>
+        <translation type="vanished">第 %1 / %2 波段 — 约剩余 %3 秒</translation>
     </message>
     <message>
         <source>The render failed: %1</source>
@@ -974,6 +1196,14 @@ May cause colour shifts.</source>
     <message>
         <source>Elevation:</source>
         <translation>仰角:</translation>
+    </message>
+    <message>
+        <source>Compass bearing of the sun: 0° is north (+Z), 90° is east (+X), 180° south, 270° west.</source>
+        <translation>太阳的罗盘方位：0° 为北（+Z），90° 为东（+X），180° 为南，270° 为西。</translation>
+    </message>
+    <message>
+        <source>Height of the sun above the horizon: 0° on the horizon, 90° overhead.</source>
+        <translation>太阳在地平线以上的高度角：0° 在地平线上，90° 在头顶。</translation>
     </message>
     <message>
         <source>Illuminant</source>
@@ -1061,7 +1291,7 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
     </message>
     <message>
         <source>%1°</source>
-        <translation>%1°</translation>
+        <translation type="vanished">%1°</translation>
     </message>
     <message>
         <source>No map — lighting from the built-in sky</source>
@@ -1169,6 +1399,10 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation>渲染完成 — %1 采样，用时 %2</translation>
     </message>
     <message>
+        <source>Material %1 does not exist in this scene</source>
+        <translation>此场景中不存在材质 %1</translation>
+    </message>
+    <message>
         <source>Select a material in the scene first</source>
         <translation>请先在场景中选择一个材质</translation>
     </message>
@@ -1216,6 +1450,12 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <source>&apos;%1&apos; selected</source>
         <translation>已选中“%1”</translation>
     </message>
+    <message numerus="yes">
+        <source>%n object(s) selected</source>
+        <translation>
+            <numerusform>已选中 %n 个对象</numerusform>
+        </translation>
+    </message>
     <message>
         <source>&amp;Undo</source>
         <translation>撤销(&amp;U)</translation>
@@ -1242,7 +1482,7 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
     </message>
     <message>
         <source>S&amp;top Render</source>
-        <translation>停止渲染(&amp;T)</translation>
+        <translation type="vanished">停止渲染(&amp;T)</translation>
     </message>
     <message>
         <source>&amp;Tools</source>
@@ -1511,6 +1751,30 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation>热求解时间</translation>
     </message>
     <message>
+        <source>Target samples</source>
+        <translation>目标采样数</translation>
+    </message>
+    <message>
+        <source>Will export an EXR when the target is reached</source>
+        <translation>达到目标采样数时将导出 EXR</translation>
+    </message>
+    <message>
+        <source>Automatic export off</source>
+        <translation>已关闭自动导出</translation>
+    </message>
+    <message>
+        <source>Field of view</source>
+        <translation>视场角</translation>
+    </message>
+    <message>
+        <source>Hyperspectral cube range</source>
+        <translation>高光谱立方体范围</translation>
+    </message>
+    <message>
+        <source>Thermal parameters</source>
+        <translation>热求解参数</translation>
+    </message>
+    <message>
         <source>Workspace: %1</source>
         <translation>工作区：%1</translation>
     </message>
@@ -1716,7 +1980,7 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
     </message>
     <message>
         <source>Display &amp;Enhancement (CLAHE)</source>
-        <translation>显示增强（CLAHE）(&amp;E)</translation>
+        <translation type="vanished">显示增强（CLAHE）(&amp;E)</translation>
     </message>
     <message>
         <source>Affects the viewport and screenshots only; exported images keep their raw values.</source>
@@ -1764,7 +2028,7 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
     </message>
     <message>
         <source>&amp;Timeline</source>
-        <translation>时间轴(&amp;T)</translation>
+        <translation type="vanished">时间轴(&amp;T)</translation>
     </message>
     <message>
         <source>Create Default Timeline</source>
@@ -1820,11 +2084,11 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
     </message>
     <message>
         <source> Spectral: </source>
-        <translation> 光谱：</translation>
+        <translation type="vanished"> 光谱：</translation>
     </message>
     <message>
         <source> Debug: </source>
-        <translation> 调试：</translation>
+        <translation type="vanished"> 调试：</translation>
     </message>
     <message>
         <source>&amp;Assign Measured Spectrum</source>
@@ -1885,7 +2149,7 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
     <message>
         <source>This file no longer exists:
 %1</source>
-        <translation>该文件已不存在：
+        <translation type="vanished">该文件已不存在：
 %1</translation>
     </message>
     <message>
@@ -2007,6 +2271,140 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation>请先打开场景，再导出融合数据集。</translation>
     </message>
     <message>
+        <source>Display &amp;Enhancement</source>
+        <translation>显示增强(&amp;E)</translation>
+    </message>
+    <message>
+        <source>&amp;Pause Render</source>
+        <translation>暂停渲染(&amp;P)</translation>
+    </message>
+    <message>
+        <source>Stop tracing, keeping the samples so far</source>
+        <translation>停止追踪，保留已累积的采样</translation>
+    </message>
+    <message>
+        <source>Ti&amp;meline</source>
+        <translation>时间轴(&amp;M)</translation>
+    </message>
+    <message>
+        <source>Key the viewport&apos;s camera at the clock&apos;s time; with a key selected, replace it</source>
+        <translation>在当前时钟时刻以视口相机记录关键帧；若已选中关键帧则替换它</translation>
+    </message>
+    <message>
+        <source>Spectral:</source>
+        <translation>光谱：</translation>
+    </message>
+    <message>
+        <source>Debug:</source>
+        <translation>调试：</translation>
+    </message>
+    <message>
+        <source>Other mode</source>
+        <translation>其他模式</translation>
+    </message>
+    <message>
+        <source>&amp;Remove Spectral Endmember</source>
+        <translation>移除光谱端元(&amp;R)</translation>
+    </message>
+    <message>
+        <source>Drop the endmember selected in the Spectral Library&apos;s list</source>
+        <translation>移除光谱库列表中选中的端元</translation>
+    </message>
+    <message>
+        <source>&amp;Lighting</source>
+        <translation>光照(&amp;L)</translation>
+    </message>
+    <message>
+        <source>Choose &amp;Environment Map...</source>
+        <translation>选择环境贴图(&amp;E)……</translation>
+    </message>
+    <message>
+        <source>&amp;Light from Environment Map</source>
+        <translation>使用环境贴图照明(&amp;L)</translation>
+    </message>
+    <message>
+        <source>&amp;Clear Environment Map</source>
+        <translation>清除环境贴图(&amp;C)</translation>
+    </message>
+    <message>
+        <source>&amp;Illuminant</source>
+        <translation>光源(&amp;I)</translation>
+    </message>
+    <message>
+        <source>None — RGB radiance only</source>
+        <translation>无 — 仅用 RGB 辐亮度</translation>
+    </message>
+    <message>
+        <source>Equal energy (CIE E)</source>
+        <translation>等能光源（CIE E）</translation>
+    </message>
+    <message>
+        <source>ASTM G-173 (bundled)</source>
+        <translation>ASTM G-173（内置）</translation>
+    </message>
+    <message>
+        <source>From file...</source>
+        <translation>从文件选择……</translation>
+    </message>
+    <message>
+        <source>&amp;Camera Simulation</source>
+        <translation>相机模拟(&amp;C)</translation>
+    </message>
+    <message>
+        <source>Render through the physical camera on the Camera panel</source>
+        <translation>通过相机面板上的物理相机进行渲染</translation>
+    </message>
+    <message>
+        <source>&amp;Thermal Solve</source>
+        <translation>热求解(&amp;T)</translation>
+    </message>
+    <message>
+        <source>Solve surface temperatures over the simulated day</source>
+        <translation>求解模拟日内的地表温度</translation>
+    </message>
+    <message>
+        <source>E&amp;xport EXR When Target Is Reached</source>
+        <translation>达到目标时导出 EXR(&amp;X)</translation>
+    </message>
+    <message>
+        <source>Writes beside the open configuration, named after it and the sample count. Has no effect in Infinite mode, which has no target to reach.</source>
+        <translation>写入到已打开配置的同目录，以配置名和采样数命名。无限模式没有目标采样数，此项不生效。</translation>
+    </message>
+    <message>
+        <source>Load Comparison &amp;Reference...</source>
+        <translation>载入比对参考图(&amp;R)……</translation>
+    </message>
+    <message>
+        <source>&amp;Compare with Current Frame</source>
+        <translation>与当前帧比对(&amp;C)</translation>
+    </message>
+    <message>
+        <source>Bias, RMSE, 95th percentile and worst pixel of the frame on screen against the reference, in the Comparison panel</source>
+        <translation>在比对面板中给出屏幕当前帧相对参考图的偏差、RMSE、第 95 百分位与最差像素</translation>
+    </message>
+    <message>
+        <source>This file no longer exists:
+%1
+
+Remove it from the recent files?</source>
+        <translation>该文件已不存在：
+%1
+
+要从最近文件中移除吗？</translation>
+    </message>
+    <message>
+        <source>Render in Progress</source>
+        <translation>渲染进行中</translation>
+    </message>
+    <message>
+        <source>An offline render is still running. Stop it, or wait for it to finish, before closing Quantiloom Studio.</source>
+        <translation>离线渲染仍在运行。请先停止它或等待完成，再关闭 Quantiloom Studio。</translation>
+    </message>
+    <message>
+        <source>Still opening %1 — try again when it has loaded</source>
+        <translation>仍在打开 %1 — 请在加载完成后再试</translation>
+    </message>
+    <message>
         <source>Fusion Export</source>
         <translation>融合导出</translation>
     </message>
@@ -2029,6 +2427,16 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
     <message>
         <source>Could not restore the camera product request: %1</source>
         <translation>无法恢复相机产品请求：%1</translation>
+    </message>
+    <message numerus="yes">
+        <source>Exported %n camera product(s) to %1</source>
+        <translation>
+            <numerusform>已将 %n 个相机产品导出到 %1</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Open a scene before exporting an image.</source>
+        <translation>请先打开场景再导出图像。</translation>
     </message>
     <message>
         <source>Rendering (infinite)</source>
@@ -2188,11 +2596,11 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
     </message>
     <message>
         <source>X / Y / Z</source>
-        <translation>X / Y / Z</translation>
+        <translation type="vanished">X / Y / Z</translation>
     </message>
     <message>
         <source>Constrain the transform to an axis</source>
-        <translation>把变换约束到某一坐标轴</translation>
+        <translation type="vanished">把变换约束到某一坐标轴</translation>
     </message>
     <message>
         <source>Space</source>
@@ -2284,7 +2692,7 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
     </message>
     <message>
         <source>%1 objects selected</source>
-        <translation>已选中 %1 个对象</translation>
+        <translation type="vanished">已选中 %1 个对象</translation>
     </message>
     <message>
         <source>[G] Translate</source>
@@ -2396,14 +2804,14 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
     </message>
     <message>
         <source>Exported %1 camera product(s) to %2</source>
-        <translation>已将 %1 个相机产品导出到 %2</translation>
+        <translation type="vanished">已将 %1 个相机产品导出到 %2</translation>
     </message>
 </context>
 <context>
     <name>MaterialEditorPanel</name>
     <message>
         <source> W/mK</source>
-        <translation> W/(m·K)</translation>
+        <translation type="vanished"> W/(m·K)</translation>
     </message>
     <message>
         <source>Not solved</source>
@@ -2411,11 +2819,11 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
     </message>
     <message>
         <source> kg/m3</source>
-        <translation> kg/m³</translation>
+        <translation type="vanished"> kg/m³</translation>
     </message>
     <message>
         <source> J/kgK</source>
-        <translation> J/(kg·K)</translation>
+        <translation type="vanished"> J/(kg·K)</translation>
     </message>
     <message>
         <source> m</source>
@@ -2423,7 +2831,7 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
     </message>
     <message>
         <source> W/m2K</source>
-        <translation> W/(m²·K)</translation>
+        <translation type="vanished"> W/(m²·K)</translation>
     </message>
     <message>
         <source>Conductivity:</source>
@@ -2487,7 +2895,7 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
     </message>
     <message>
         <source>Behind it:</source>
-        <translation>背后温度：</translation>
+        <translation type="vanished">背后温度：</translation>
     </message>
     <message>
         <source>Not solved: this surface keeps the temperature it is given.</source>
@@ -2503,7 +2911,7 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
     </message>
     <message>
         <source>...</source>
-        <translation>...</translation>
+        <translation type="vanished">...</translation>
     </message>
     <message>
         <source>Image whose red channel carries the temperature field, normalised to [0, 1] and mapped to kelvin by the scale and offset below. Leave empty to use the single object temperature.</source>
@@ -2551,7 +2959,7 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
     </message>
     <message>
         <source>Base Color</source>
-        <translation>基础颜色</translation>
+        <translation type="vanished">基础颜色</translation>
     </message>
     <message>
         <source>PBR Properties</source>
@@ -2642,6 +3050,22 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation>表面背后之物的温度，通常是房间。在背面恒温于此或与之对流时读取。</translation>
     </message>
     <message>
+        <source>Base Colour</source>
+        <translation>基础颜色</translation>
+    </message>
+    <message>
+        <source>Scene ambient</source>
+        <translation>场景环境温度</translation>
+    </message>
+    <message>
+        <source>Choose a temperature map image</source>
+        <translation>选择温度贴图</translation>
+    </message>
+    <message>
+        <source>Temperature behind:</source>
+        <translation>背后温度：</translation>
+    </message>
+    <message>
         <source>Back-face convection:</source>
         <translation>背面对流:</translation>
     </message>
@@ -2656,6 +3080,26 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
     <message>
         <source>A flux entering from behind: an engine, a battery, a compartment. The only way a shaded surface can be the warmest thing in an infrared scene. Absorbed without trace by a back face that is held at a temperature.</source>
         <translation>自背面进入的热流：发动机、电池、舱室。这是阴影中的表面能成为红外场景中最热之物的唯一途径。若背面被恒温固定，该热流会被无痕吸收。</translation>
+    </message>
+    <message>
+        <source> W/(m·K)</source>
+        <translation> W/(m·K)</translation>
+    </message>
+    <message>
+        <source> kg/m³</source>
+        <translation> kg/m³</translation>
+    </message>
+    <message>
+        <source> J/(kg·K)</source>
+        <translation> J/(kg·K)</translation>
+    </message>
+    <message>
+        <source> W/(m²·K)</source>
+        <translation> W/(m²·K)</translation>
+    </message>
+    <message>
+        <source> W/m²</source>
+        <translation> W/m²</translation>
     </message>
     <message>
         <source>Transmission and Volume</source>
@@ -2850,6 +3294,10 @@ Replace the curves?</source>
 是否替换这些曲线？</translation>
     </message>
     <message>
+        <source>Select Base Colour</source>
+        <translation>选择基础色</translation>
+    </message>
+    <message>
         <source>No spectrum: the RGB above is expanded as sigmoid(rgb) × D65, which is a convention rather than a measurement and is defined only over 380–780 nm. The SWIR, NIR, MWIR and LWIR bands read no emissive RGB, so this light does not exist for them.</source>
         <translation>没有光谱：上方的 RGB 按 sigmoid(rgb) × D65 展开，那是一种约定而非测量，并且只在 380–780 nm 上有定义。SWIR、NIR、MWIR 和 LWIR 波段不读取自发光 RGB，因此这盏灯对它们并不存在。</translation>
     </message>
@@ -2899,7 +3347,7 @@ Replace the curves?</source>
     </message>
     <message>
         <source>Select Base Color</source>
-        <translation>选择基础色</translation>
+        <translation type="vanished">选择基础色</translation>
     </message>
     <message>
         <source>Set IR properties for thermal rendering</source>
@@ -3154,6 +3602,14 @@ Pick a node or a material in the scene tree.</source>
         <translation>写入到已打开配置的同目录，以配置名和采样数命名。无限模式没有目标采样数，此项不生效。</translation>
     </message>
     <message>
+        <source>%1 / %2</source>
+        <translation>%1 / %2</translation>
+    </message>
+    <message>
+        <source>%1 / ∞</source>
+        <translation>%1 / ∞</translation>
+    </message>
+    <message>
         <source>%1 x %2</source>
         <translation>%1 × %2</translation>
     </message>
@@ -3279,6 +3735,38 @@ Rebuild with:
         <translation>相机</translation>
     </message>
     <message>
+        <source>Generic CMOS (visible, Bayer, global)</source>
+        <translation>通用 CMOS（可见光，Bayer，全局快门）</translation>
+    </message>
+    <message>
+        <source>Generic InGaAs (SWIR, mono)</source>
+        <translation>通用 InGaAs（SWIR，单色）</translation>
+    </message>
+    <message>
+        <source>Generic cooled photon IR (MWIR, mono)</source>
+        <translation>通用制冷光子型红外（MWIR，单色）</translation>
+    </message>
+    <message>
+        <source>Generic uncooled thermal IR (LWIR, mono)</source>
+        <translation>通用非制冷热型红外（LWIR，单色）</translation>
+    </message>
+    <message>
+        <source>Allied Vision Alvium 1800 U-507 (mono)</source>
+        <translation>Allied Vision Alvium 1800 U-507（单色）</translation>
+    </message>
+    <message>
+        <source>Allied Vision Alvium 1800 U-507 (colour)</source>
+        <translation>Allied Vision Alvium 1800 U-507（彩色）</translation>
+    </message>
+    <message>
+        <source>Hamamatsu C12741-11 (−60 °C)</source>
+        <translation>Hamamatsu C12741-11（−60 °C）</translation>
+    </message>
+    <message>
+        <source>Hamamatsu C12741-11 (−70 °C)</source>
+        <translation>Hamamatsu C12741-11（−70 °C）</translation>
+    </message>
+    <message>
         <source>Detector</source>
         <translation>探测器</translation>
     </message>
@@ -3313,6 +3801,14 @@ Rebuild with:
     <message>
         <source>Thermography</source>
         <translation>热成像反演</translation>
+    </message>
+    <message>
+        <source>Display Grading</source>
+        <translation>显示调色</translation>
+    </message>
+    <message>
+        <source>Display Noise</source>
+        <translation>显示噪声</translation>
     </message>
     <message>
         <source>Enable Camera Simulation</source>
@@ -3431,6 +3927,22 @@ Rebuild with:
         <translation>Viridis</translation>
     </message>
     <message>
+        <source>Preset:</source>
+        <translation>预设：</translation>
+    </message>
+    <message>
+        <source>A device to start from. Editing any value afterwards makes the camera Custom.</source>
+        <translation>作为起点的设备。之后修改任何数值，相机即变为自定义。</translation>
+    </message>
+    <message>
+        <source>Detector Type:</source>
+        <translation>探测器类型：</translation>
+    </message>
+    <message>
+        <source>Photon detectors count electrons; thermal detectors (bolometers) respond to absorbed power with a time constant.</source>
+        <translation>光子探测器计数电子；热探测器（测辐射热计）以一定时间常数响应吸收的功率。</translation>
+    </message>
+    <message>
         <source>Colour Filter Array:</source>
         <translation>彩色滤波阵列：</translation>
     </message>
@@ -3469,6 +3981,10 @@ Rebuild with:
     <message>
         <source>Gaussian blur width of the point spread function, in pixels. Auto derives it from the aperture and wavelength; setting it here holds the blur fixed while the aperture varies, and 0 disables it.</source>
         <translation>点扩散函数的高斯模糊宽度，以像素计。「自动」由光圈与波长推导；在此指定可在光圈变化时保持模糊宽度不变，填 0 则不做模糊。</translation>
+    </message>
+    <message>
+        <source>Focal length in pixels, as a calibration reports it.</source>
+        <translation>以像素表示的焦距，即标定结果给出的值。</translation>
     </message>
     <message>
         <source>Shutter:</source>
@@ -3832,6 +4348,7 @@ Rebuild with:
     </message>
     <message>
         <source>%1 %2</source>
+        <extracomment>%1 is a count, %2 the provenance grade it counts (&quot;3 manufacturer&quot;)</extracomment>
         <translation>%1 %2</translation>
     </message>
     <message>
@@ -4031,7 +4548,7 @@ Rebuild with:
     </message>
     <message>
         <source>Write this sequence as a batch manifest the command line renders, for a run long enough to want a machine of its own.</source>
-        <translation>把该序列写成命令行可渲染的批处理清单，适合长到需要单独一台机器去跑的任务。</translation>
+        <translation type="vanished">把该序列写成命令行可渲染的批处理清单，适合长到需要单独一台机器去跑的任务。</translation>
     </message>
     <message>
         <source>Render</source>
@@ -4047,11 +4564,11 @@ Rebuild with:
     </message>
     <message>
         <source>...</source>
-        <translation>...</translation>
+        <translation type="vanished">...</translation>
     </message>
     <message>
         <source> K</source>
-        <translation> K</translation>
+        <translation type="vanished"> K</translation>
     </message>
     <message>
         <source>Material temperature sweep</source>
@@ -4086,6 +4603,26 @@ Rebuild with:
         <translation>每隔：</translation>
     </message>
     <message>
+        <source>Browse...</source>
+        <translation>浏览……</translation>
+    </message>
+    <message>
+        <source>Write this sequence as a batch manifest the command line renders, for a run long enough to want a machine of its own. The manifest names a configuration file on disk, so edits not yet saved are not in it.</source>
+        <translation>将此序列写成命令行可渲染的批处理清单，适合需要单独一台机器来跑的长任务。清单引用的是磁盘上的配置文件，因此尚未保存的修改不会包含在内。</translation>
+    </message>
+    <message>
+        <source>One scene, one frame per tick. The clock moves between frames; everything else is the document as it stands.</source>
+        <translation>同一场景，每个时间刻一帧。帧与帧之间时钟前进；其余内容均为文档当前状态。</translation>
+    </message>
+    <message>
+        <source>{tick} is the scene tick, zero padded; {time_s} is its time in seconds; {index} is the frame number.</source>
+        <translation>{tick} 为场景时间刻（补零）；{time_s} 为其时间（秒）；{index} 为帧序号。</translation>
+    </message>
+    <message>
+        <source>Stopping after this frame, then closing...</source>
+        <translation>将在本帧完成后停止并关闭……</translation>
+    </message>
+    <message>
         <source>the renderer returned an empty frame</source>
         <translation>渲染器返回了空帧</translation>
     </message>
@@ -4098,12 +4635,16 @@ Rebuild with:
         <translation>无法写入 %1</translation>
     </message>
     <message>
+        <source>%1 — tick %2, %3 s</source>
+        <translation>%1 — 时间刻 %2，%3 s</translation>
+    </message>
+    <message>
         <source>That tick range is empty.</source>
         <translation>该时间刻区间为空。</translation>
     </message>
     <message>
         <source>%1 frames at %2 samples each, on one device.</source>
-        <translation>%1 帧，每帧 %2 采样，在同一台设备上完成。</translation>
+        <translation type="vanished">%1 帧，每帧 %2 采样，在同一台设备上完成。</translation>
     </message>
     <message>
         <source>The open scene has no materials to sweep.</source>
@@ -4111,7 +4652,23 @@ Rebuild with:
     </message>
     <message>
         <source>%1 frames at %2 samples each.</source>
-        <translation>%1 帧，每帧 %2 个采样。</translation>
+        <translation type="vanished">%1 帧，每帧 %2 个采样。</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n frame(s) at %1 samples each, on one device.</source>
+        <translation>
+            <numerusform>%n 帧，每帧 %1 个采样，在同一设备上渲染。</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>%1 — %2 K</source>
+        <translation>%1 — %2 K</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n frame(s) at %1 samples each.</source>
+        <translation>
+            <numerusform>%n 帧，每帧 %1 个采样。</numerusform>
+        </translation>
     </message>
     <message>
         <source>Sequence Output Directory</source>
@@ -4177,9 +4734,15 @@ Rebuild with:
         <source>Stopped after %1 of %2 frames.</source>
         <translation>已在 %2 帧中完成 %1 帧后停止。</translation>
     </message>
+    <message numerus="yes">
+        <source>%n frame(s) written.</source>
+        <translation>
+            <numerusform>已写出 %n 帧。</numerusform>
+        </translation>
+    </message>
     <message>
         <source>%1 frames written.</source>
-        <translation>已写出 %1 帧。</translation>
+        <translation type="vanished">已写出 %1 帧。</translation>
     </message>
     <message>
         <source>The document is not valid TOML: %1</source>
@@ -4214,7 +4777,15 @@ Rebuild with:
     </message>
     <message>
         <source>Hyperspectral Range</source>
-        <translation>高光谱范围</translation>
+        <translation type="vanished">高光谱范围</translation>
+    </message>
+    <message>
+        <source>Hyperspectral Cube Range</source>
+        <translation>高光谱立方体范围</translation>
+    </message>
+    <message>
+        <source>The band grid File ▸ Render Hyperspectral Cube starts from, saved with the document. The viewport does not use it.</source>
+        <translation>“文件 ▸ 渲染高光谱立方体”默认使用的波段网格，随文档保存。视口不使用它。</translation>
     </message>
     <message>
         <source>Min λ:</source>
@@ -4381,6 +4952,10 @@ Coverage — %3</source>
         <translation>光谱材质生成器</translation>
     </message>
     <message>
+        <source>Material %1</source>
+        <translation>材质 %1</translation>
+    </message>
+    <message>
         <source>Auto IR Generation (SpectraForge)</source>
         <translation>自动红外生成（SpectraForge）</translation>
     </message>
@@ -4442,7 +5017,7 @@ Coverage — %3</source>
     </message>
     <message>
         <source>Start must be below End, and Output Steps at least 2, for a curve to be generated.</source>
-        <translation>起始波长须小于终止波长，且输出步数不少于 2，才能生成曲线。</translation>
+        <translation type="vanished">起始波长须小于终止波长，且输出步数不少于 2，才能生成曲线。</translation>
     </message>
     <message>
         <source>Anchor Points</source>
@@ -4458,11 +5033,11 @@ Coverage — %3</source>
     </message>
     <message>
         <source>Load CSV</source>
-        <translation>加载 CSV</translation>
+        <translation type="vanished">加载 CSV</translation>
     </message>
     <message>
         <source>Load YAML</source>
-        <translation>加载 YAML</translation>
+        <translation type="vanished">加载 YAML</translation>
     </message>
     <message>
         <source>Interpolation:</source>
@@ -4471,6 +5046,18 @@ Coverage — %3</source>
     <message>
         <source>Linear</source>
         <translation>线性</translation>
+    </message>
+    <message>
+        <source>Apply</source>
+        <translation>应用</translation>
+    </message>
+    <message>
+        <source>Target material:</source>
+        <translation>目标材质：</translation>
+    </message>
+    <message>
+        <source>Give the target the curves above, with this roughness and metallic. Everything else about the material is kept.</source>
+        <translation>将上方曲线及此处的粗糙度、金属度赋给目标材质，材质的其他属性保持不变。</translation>
     </message>
     <message>
         <source>Preview</source>
@@ -4505,12 +5092,20 @@ Coverage — %3</source>
         <translation>已处理：%1/%2，已跳过：%3</translation>
     </message>
     <message>
+        <source>Replace Anchor Points?</source>
+        <translation>替换锚点？</translation>
+    </message>
+    <message>
+        <source>Choosing a material type replaces the anchor points with its preset. Replace the points in the table?</source>
+        <translation>选择材质类型会用其预设替换锚点。要替换表格中的锚点吗？</translation>
+    </message>
+    <message>
         <source>Wavelength (nm)</source>
         <translation>波长 (nm)</translation>
     </message>
     <message>
         <source>Actions</source>
-        <translation>操作</translation>
+        <translation type="vanished">操作</translation>
     </message>
     <message>
         <source> K</source>
@@ -4526,11 +5121,11 @@ Coverage — %3</source>
     </message>
     <message>
         <source>Save CSV</source>
-        <translation>保存 CSV</translation>
+        <translation type="vanished">保存 CSV</translation>
     </message>
     <message>
         <source>Target Material Index:</source>
-        <translation>目标材质索引:</translation>
+        <translation type="vanished">目标材质索引:</translation>
     </message>
     <message>
         <source>Apply to Material</source>
@@ -4575,6 +5170,22 @@ Coverage — %3</source>
     <message>
         <source>Cluster temperature:</source>
         <translation>聚类温度：</translation>
+    </message>
+    <message>
+        <source>Start must be below End for a curve to be generated.</source>
+        <translation>起始波长须小于终止波长，才能生成曲线。</translation>
+    </message>
+    <message>
+        <source>Load CSV...</source>
+        <translation>加载 CSV……</translation>
+    </message>
+    <message>
+        <source>Load YAML...</source>
+        <translation>加载 YAML……</translation>
+    </message>
+    <message>
+        <source>Save CSV...</source>
+        <translation>保存 CSV……</translation>
     </message>
     <message>
         <source>Info</source>
@@ -4660,7 +5271,7 @@ Coverage — %3</source>
     </message>
     <message>
         <source>Hour at timeline start</source>
-        <translation>时间轴起点的时刻</translation>
+        <translation type="vanished">时间轴起点的时刻</translation>
     </message>
     <message>
         <source>With a [timeline], this is the hour the clock starts at. Which hour is being rendered comes from the transport.</source>
@@ -4668,7 +5279,7 @@ Coverage — %3</source>
     </message>
     <message>
         <source>Simulation time</source>
-        <translation>模拟时间</translation>
+        <translation type="vanished">模拟时间</translation>
     </message>
     <message>
         <source>Solver Parameters</source>
@@ -4676,31 +5287,31 @@ Coverage — %3</source>
     </message>
     <message>
         <source>Start time</source>
-        <translation>起始时间</translation>
+        <translation type="vanished">起始时间</translation>
     </message>
     <message>
         <source>Timestep</source>
-        <translation>时间步长</translation>
+        <translation type="vanished">时间步长</translation>
     </message>
     <message>
         <source>Layers</source>
-        <translation>层数</translation>
+        <translation type="vanished">层数</translation>
     </message>
     <message>
         <source>Initial condition</source>
-        <translation>初始条件</translation>
+        <translation type="vanished">初始条件</translation>
     </message>
     <message>
         <source>Initial temperature</source>
-        <translation>初始温度</translation>
+        <translation type="vanished">初始温度</translation>
     </message>
     <message>
         <source>Solar irradiance</source>
-        <translation>太阳辐照度</translation>
+        <translation type="vanished">太阳辐照度</translation>
     </message>
     <message>
         <source>Diffuse irradiance</source>
-        <translation>漫射辐照度</translation>
+        <translation type="vanished">漫射辐照度</translation>
     </message>
     <message>
         <source>Sunlight arriving from the sky dome rather than from the disc. Under overcast it is the whole of it.</source>
@@ -4708,19 +5319,19 @@ Coverage — %3</source>
     </message>
     <message>
         <source>Exchange rays</source>
-        <translation>交换光线数</translation>
+        <translation type="vanished">交换光线数</translation>
     </message>
     <message>
         <source>Exchange top-K</source>
-        <translation>交换 top-K</translation>
+        <translation type="vanished">交换 top-K</translation>
     </message>
     <message>
         <source>Checkpoint stride</source>
-        <translation>检查点间距</translation>
+        <translation type="vanished">检查点间距</translation>
     </message>
     <message>
         <source>Forcing file</source>
-        <translation>强迫文件</translation>
+        <translation type="vanished">强迫文件</translation>
     </message>
     <message>
         <source>Shadow-edge correction</source>
@@ -4767,12 +5378,128 @@ Coverage — %3</source>
         <translation>在视口中点选一个表面。</translation>
     </message>
     <message>
+        <source>%1% of the parameter, added as a first-order correction. Exact for a small step; a linearisation for a large one.</source>
+        <translation>该参数的 %1%，以一阶修正的形式叠加。步长小则精确，步长大则只是线性化。</translation>
+    </message>
+    <message>
         <source>Click a surface to see its day and what heated it.</source>
         <translation>点选一个表面，查看它一天的温度以及是什么加热了它。</translation>
     </message>
     <message>
         <source>Elements: %1 (%2 solved)</source>
         <translation>单元: %1（%2 已求解）</translation>
+    </message>
+    <message>
+        <source>Start time:</source>
+        <translation>起始时间：</translation>
+    </message>
+    <message>
+        <source>The hour of the simulated day the run starts stepping from. Rendering a later hour costs the stepping in between.</source>
+        <translation>模拟日中开始步进的时刻。渲染更晚的时刻需要付出中间步进的代价。</translation>
+    </message>
+    <message>
+        <source>Timestep:</source>
+        <translation>时间步长：</translation>
+    </message>
+    <message>
+        <source>Simulated seconds per solver step.</source>
+        <translation>每个求解步对应的模拟秒数。</translation>
+    </message>
+    <message>
+        <source>Layers:</source>
+        <translation>层数：</translation>
+    </message>
+    <message>
+        <source>Nodes through the depth of each surface&apos;s column. More resolves a steeper gradient below the surface, at a proportional cost.</source>
+        <translation>每个表面柱沿深度方向的节点数。越多越能分辨表面以下陡峭的温度梯度，代价成比例增加。</translation>
+    </message>
+    <message>
+        <source>Initial condition:</source>
+        <translation>初始条件：</translation>
+    </message>
+    <message>
+        <source>Steady</source>
+        <translation>稳态</translation>
+    </message>
+    <message>
+        <source>Uniform</source>
+        <translation>均匀</translation>
+    </message>
+    <message>
+        <source>Steady starts from the temperature each surface would settle at under the starting forcing. Uniform starts every node at the initial temperature below.</source>
+        <translation>稳态：从每个表面在初始强迫下会达到的平衡温度开始。均匀：所有节点从下方的初始温度开始。</translation>
+    </message>
+    <message>
+        <source>Initial object temperature:</source>
+        <translation>初始物体温度：</translation>
+    </message>
+    <message>
+        <source>Where every node starts when the initial condition is Uniform. Steady does not read it.</source>
+        <translation>初始条件为“均匀”时所有节点的起始温度。“稳态”不读取此值。</translation>
+    </message>
+    <message>
+        <source>Solar irradiance:</source>
+        <translation>太阳辐照度：</translation>
+    </message>
+    <message>
+        <source>Direct normal irradiance, used when no forcing file is given. A clear noon is around 900 W/m².</source>
+        <translation>法向直射辐照度，未指定强迫文件时使用。晴天正午约为 900 W/m²。</translation>
+    </message>
+    <message>
+        <source>Diffuse irradiance:</source>
+        <translation>漫射辐照度：</translation>
+    </message>
+    <message>
+        <source>Exchange rays:</source>
+        <translation>交换光线数：</translation>
+    </message>
+    <message>
+        <source>Rays per element for the view-factor precompute: how surfaces see and heat each other. More is less noise and a slower precompute.</source>
+        <translation>视角因子预计算中每个单元发射的光线数，决定表面之间如何相互可见与加热。越多噪声越小，预计算越慢。</translation>
+    </message>
+    <message>
+        <source>Exchange top-K:</source>
+        <translation>交换 top-K：</translation>
+    </message>
+    <message>
+        <source>How many of each element&apos;s strongest view-factor entries to keep. A row past the top few is mostly noise.</source>
+        <translation>每个单元保留多少个最强的视角因子项。排在前几项之后的大多是噪声。</translation>
+    </message>
+    <message>
+        <source>Checkpoint stride:</source>
+        <translation>检查点间距：</translation>
+    </message>
+    <message>
+        <source>How often the trajectory stores a full state, in simulated hours. Shorter is more memory and a cheaper scrub.</source>
+        <translation>轨迹多久保存一次完整状态（以模拟小时计）。间距越短，内存占用越多，拖动时间越快。</translation>
+    </message>
+    <message>
+        <source>Forcing file:</source>
+        <translation>强迫文件：</translation>
+    </message>
+    <message>
+        <source>Choose a forcing CSV</source>
+        <translation>选择强迫数据 CSV</translation>
+    </message>
+    <message>
+        <source>Time-varying air temperature, irradiance, sun position and sky temperature, as CSV. Empty means the constant values above.</source>
+        <translation>随时间变化的大气温度、辐照度、太阳位置与天空温度（CSV 格式）。留空则使用上方的常数值。</translation>
+    </message>
+    <message>
+        <source>Hour at timeline start:</source>
+        <translation>时间轴起点的时刻：</translation>
+    </message>
+    <message>
+        <source>Rendered hour:</source>
+        <translation>渲染时刻：</translation>
+    </message>
+    <message>
+        <source>The hour of the simulated day shown in the viewport. The solve steps to it from the start time under Solver Parameters.</source>
+        <translation>视口中显示的模拟日时刻。求解从“求解器参数”中的起始时间步进到该时刻。</translation>
+    </message>
+    <message>
+        <source>Not solved yet.</source>
+        <translation>尚未求解。</translation>
     </message>
     <message>
         <source>Surface temperature: %1 – %2 K (mean %3 K)</source>
@@ -4795,12 +5522,16 @@ Coverage — %3</source>
         <translation>步进器: %1</translation>
     </message>
     <message>
+        <source>Solver error: %1</source>
+        <translation>求解器错误：%1</translation>
+    </message>
+    <message>
         <source>Off. Move the slider to see what changing this parameter would do, before the solve is asked to do it.</source>
         <translation>已关闭。拖动滑块，可在求解器给出结果之前先看到改动该参数会带来什么。</translation>
     </message>
     <message>
         <source>%1%2% of the parameter, added as a first-order correction. Exact for a small step; a linearisation for a large one.</source>
-        <translation>该参数的 %1%2%，以一阶修正的形式叠加。步长小则精确，步长大则只是线性化。</translation>
+        <translation type="vanished">该参数的 %1%2%，以一阶修正的形式叠加。步长小则精确，步长大则只是线性化。</translation>
     </message>
     <message>
         <source>Element %1: nothing to show.</source>
@@ -4839,19 +5570,19 @@ Coverage — %3</source>
     </message>
     <message>
         <source>Tick</source>
-        <translation>时间刻</translation>
+        <translation type="vanished">时间刻</translation>
     </message>
     <message>
         <source>Time</source>
-        <translation>时间</translation>
+        <translation type="vanished">时间</translation>
     </message>
     <message>
         <source>Mode</source>
-        <translation>模式</translation>
+        <translation type="vanished">模式</translation>
     </message>
     <message>
         <source>Speed</source>
-        <translation>速度</translation>
+        <translation type="vanished">速度</translation>
     </message>
     <message>
         <source>Loop</source>
@@ -4867,11 +5598,27 @@ Coverage — %3</source>
     </message>
     <message>
         <source>Pause (Ctrl+Space)</source>
-        <translation>暂停（Ctrl+Space）</translation>
+        <translation type="vanished">暂停（Ctrl+Space）</translation>
     </message>
     <message>
         <source>Play (Ctrl+Space)</source>
-        <translation>播放（Ctrl+Space）</translation>
+        <translation type="vanished">播放（Ctrl+Space）</translation>
+    </message>
+    <message>
+        <source>Tick:</source>
+        <translation>时间刻：</translation>
+    </message>
+    <message>
+        <source>Time:</source>
+        <translation>时间：</translation>
+    </message>
+    <message>
+        <source>Mode:</source>
+        <translation>模式：</translation>
+    </message>
+    <message>
+        <source>Speed:</source>
+        <translation>速度：</translation>
     </message>
     <message>
         <source>Next tick (Alt+Right)</source>
@@ -4894,8 +5641,40 @@ Coverage — %3</source>
         <translation>「实时」按定时器推进。「收敛后步进」会等每一帧达到目标采样数再前进——这是观看路径追踪序列时唯一不会只看到噪声的方式。</translation>
     </message>
     <message>
+        <source>×%1</source>
+        <translation>×%1</translation>
+    </message>
+    <message>
+        <source>Multiplies the tick rate during playback. A timeline that spans a month is not watchable at one tick per twentieth of a second. Each tick still has to be rendered, so a high multiplier runs as fast as the frames allow, not faster.</source>
+        <translation>播放时对时间刻速率的倍乘。跨度一个月的时间轴若每 1/20 秒一个时间刻是看不完的。每个时间刻仍需渲染，因此倍率很高时只会以画面允许的最快速度运行，不会更快。</translation>
+    </message>
+    <message>
+        <source>Tick %1 / %2 · %3</source>
+        <translation>时间刻 %1 / %2 · %3</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n animated node(s)</source>
+        <translation>
+            <numerusform>%n 个运动节点</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>, </source>
+        <translation>，</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n model(s)</source>
+        <translation>
+            <numerusform>%n 个模型</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Thermal hour %1 h · geometry epoch %2 / %3 · %4 simulated s per clock s</source>
+        <translation>热学时刻 %1 h · 热学几何分段 %2 / %3 · 每时钟秒 %4 模拟秒</translation>
+    </message>
+    <message>
         <source>Multiplies the tick rate during playback. A timeline that spans a month is not watchable at one tick per twentieth of a second.</source>
-        <translation>播放时对时间刻率的倍率。跨度一个月的时间轴，按每二十分之一秒一个时间刻是看不完的。</translation>
+        <translation type="vanished">播放时对时间刻率的倍率。跨度一个月的时间轴，按每二十分之一秒一个时间刻是看不完的。</translation>
     </message>
     <message>
         <source>Moving the clock is not an edit: it does not enter the undo stack and does not mark the document modified. Saving records where it stands.</source>
@@ -4906,16 +5685,24 @@ Coverage — %3</source>
         <translation>本场景没有声明 [timeline]。加上一个，并让 [[models]] 带上运动轨迹，就有时钟了。</translation>
     </message>
     <message>
+        <source>Pause (Alt+P)</source>
+        <translation>暂停（Alt+P）</translation>
+    </message>
+    <message>
+        <source>Play (Alt+P)</source>
+        <translation>播放（Alt+P）</translation>
+    </message>
+    <message>
         <source>No timeline</source>
         <translation>无时间轴</translation>
     </message>
     <message>
         <source>Tick %1 / %2   %3   %4 animated node(s) over %5 model(s)</source>
-        <translation>时间刻 %1 / %2   %3   %5 个模型中有 %4 个运动节点</translation>
+        <translation type="vanished">时间刻 %1 / %2   %3   %5 个模型中有 %4 个运动节点</translation>
     </message>
     <message>
         <source>Thermal hour %1 h   geometry epoch %2 / %3   %4 simulated s per clock s</source>
-        <translation>热学时刻 %1 h   几何分段 %2 / %3   每时钟秒 %4 模拟秒</translation>
+        <translation type="vanished">热学时刻 %1 h   几何分段 %2 / %3   每时钟秒 %4 模拟秒</translation>
     </message>
     <message>
         <source>%1 s</source>
@@ -5585,12 +6372,20 @@ Right-drag orbits the camera, middle-drag pans, the wheel zooms; G/R/T switch tr
         <translation>时刻</translation>
     </message>
     <message>
+        <source>Surface temperature (K)</source>
+        <translation>表面温度 (K)</translation>
+    </message>
+    <message>
+        <source>Flux into the surface (W/m²)</source>
+        <translation>流入表面的热流 (W/m²)</translation>
+    </message>
+    <message>
         <source>Temperature (K)</source>
-        <translation>温度 (K)</translation>
+        <translation type="vanished">温度 (K)</translation>
     </message>
     <message>
         <source>Flux (W/m2), into the surface</source>
-        <translation>热流 (W/m2)，以流入表面为正</translation>
+        <translation type="vanished">热流 (W/m2)，以流入表面为正</translation>
     </message>
     <message>
         <source>No flux breakdown: this solve ran on a stepper that does not decompose its own energy balance.</source>

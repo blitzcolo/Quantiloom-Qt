@@ -88,6 +88,7 @@
 #include <renderer/ExternalRenderContext.hpp>
 #include <core/Log.hpp>
 #include <scene/Material.hpp>
+#include <core/SpectralData.hpp>
 #include <postprocess/CameraConfigIO.hpp>
 #include <scene/Scene.hpp>
 #include <renderer/LightingParams.hpp>
@@ -162,6 +163,12 @@ MainWindow::MainWindow(QVulkanInstance* vulkanInstance, QWidget* parent)
     m_startRenderAction->setEnabled(false);
 
     retranslateUi();
+    // A menu hides its entries' tooltips unless told otherwise, which left
+    // every description written for them -- the forty-five debug modes
+    // included -- unread. Set after every menu exists, submenus too.
+    for (QMenu* menu : findChildren<QMenu*>()) {
+        menu->setToolTipsVisible(true);
+    }
     restoreWindowState();
     m_workspaces->activateInitial();
     updateWindowTitle();
@@ -221,6 +228,65 @@ MainWindow::MainWindow(QVulkanInstance* vulkanInstance, QWidget* parent)
 }
 
 MainWindow::~MainWindow() = default;
+
+bool settingsEqual(const quantiloom::AtmosphereNNConfig& a,
+                   const quantiloom::AtmosphereNNConfig& b) {
+    return a.enabled == b.enabled && a.modelPackDir == b.modelPackDir &&
+           a.preset == b.preset && a.atmosModel == b.atmosModel && a.ihaze == b.ihaze &&
+           a.icld == b.icld && a.visKm == b.visKm && a.rainrtMmH == b.rainrtMmH &&
+           a.tGroundK == b.tGroundK && a.rh == b.rh && a.pHPa == b.pHPa &&
+           a.h2oScale == b.h2oScale && a.sunFromLighting == b.sunFromLighting &&
+           a.sunZenithDeg == b.sunZenithDeg && a.sunAzimuthDeg == b.sunAzimuthDeg &&
+           a.h1FromCamera == b.h1FromCamera && a.h1Km == b.h1Km &&
+           a.solarScatterScale == b.solarScatterScale && a.lutASamples == b.lutASamples &&
+           a.lutAzSamples == b.lutAzSamples;
+}
+
+/// Written out because ThermalSolveParams has none, and the byte-wise
+/// fallback pushSettingCommand would use instead compares the innards of a
+/// std::string. Also what decides whether a tool call has to rebuild the
+/// trajectory: applying identical parameters would throw away every
+/// checkpoint and re-solve from the start of the day.
+bool settingsEqual(const quantiloom::ThermalSolveParams& a,
+                   const quantiloom::ThermalSolveParams& b) {
+    return a.startTime_h == b.startTime_h && a.timestep_s == b.timestep_s &&
+           a.layerCount == b.layerCount && a.initial == b.initial &&
+           a.initialTemperature_K == b.initialTemperature_K &&
+           a.exchangeRays == b.exchangeRays && a.exchangeTopK == b.exchangeTopK &&
+           a.airTemperature_K == b.airTemperature_K &&
+           a.sunIrradiance_W_m2 == b.sunIrradiance_W_m2 &&
+           a.diffuseIrradiance_W_m2 == b.diffuseIrradiance_W_m2 &&
+           a.skyTemperature_K == b.skyTemperature_K &&
+           a.relativeHumidity == b.relativeHumidity &&
+           a.forcingFile == b.forcingFile &&
+           a.checkpointStride_h == b.checkpointStride_h &&
+           a.convectionModel == b.convectionModel &&
+           a.convectionWindA_W_m2K == b.convectionWindA_W_m2K &&
+           a.convectionWindB_W_s_m3K == b.convectionWindB_W_s_m3K &&
+           a.convectionFreeC == b.convectionFreeC &&
+           a.convectionReferenceHeight_m == b.convectionReferenceHeight_m &&
+           a.convectionStableDamping == b.convectionStableDamping &&
+           // The three that size the state rather than being read later. A
+           // change to any of them rebuilds the timeline, so a comparison that
+           // missed one would report "already applied" and leave the viewport
+           // showing a field solved under the old ones.
+           a.lateralConduction == b.lateralConduction &&
+           a.sunMemoryLags == b.sunMemoryLags &&
+           a.sunCorrection == b.sunCorrection &&
+           a.parameterSensitivities == b.parameterSensitivities &&
+           // Not a solver input at all -- it records where a dump would go --
+           // but a set that differs only here is still a different set, and
+           // reporting it as identical would silently drop the path.
+           a.dumpElementsFile == b.dumpElementsFile;
+}
+
+bool settingsEqual(const quantiloom::camera::CameraConfig& a,
+                   const quantiloom::camera::CameraConfig& b) {
+    // The SDK's own serialisation covers every field, motion keys included,
+    // and grows with the struct; a field list here would not.
+    return a.motion == b.motion &&
+           quantiloom::CameraConfigToToml(a) == quantiloom::CameraConfigToToml(b);
+}
 
 void MainWindow::applyScreenAwareGeometry() {
     // 1280x720 as a hard minimum is a logical size, and on a small laptop at
@@ -285,11 +351,7 @@ void MainWindow::setupUi() {
     connect(m_viewportFrame, &ViewportFrame::openSceneRequested,
             this, &MainWindow::onOpenScene);
     connect(m_viewportFrame, &ViewportFrame::openRecentRequested,
-            this, [this](const QString& path) {
-                if (confirmDiscardChanges()) {
-                    openPath(path);
-                }
-            });
+            this, &MainWindow::openRecentFile);
 
     setCentralWidget(m_viewportFrame);
 }
@@ -380,7 +442,9 @@ void MainWindow::setupMenus() {
     m_saveAction->setShortcut(QKeySequence::Save);
 
     m_saveAsAction = m_fileMenu->addAction(QString(), this, [this]() { onSaveSceneAs(); });
-    m_saveAsAction->setShortcut(QKeySequence::SaveAs);
+    // Spelled out: QKeySequence::SaveAs, Quit and Preferences are empty on
+    // Windows, so all three had no shortcut on the platform this ships for.
+    m_saveAsAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_S));
 
     m_fileMenu->addSeparator();
 
@@ -410,12 +474,13 @@ void MainWindow::setupMenus() {
     m_exportImageAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_E));
 
     m_screenshotAction = m_fileMenu->addAction(QString(), this, &MainWindow::onTakeScreenshot);
-    m_screenshotAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_S));
+    // Not Ctrl+Shift+S, which is Save As everywhere else.
+    m_screenshotAction->setShortcut(QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_S));
 
     m_fileMenu->addSeparator();
 
     m_exitAction = m_fileMenu->addAction(QString(), this, &QWidget::close);
-    m_exitAction->setShortcut(QKeySequence::Quit);
+    m_exitAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_Q));
 
     // --- Edit -----------------------------------------------------------
     m_editMenu = m_menuBar->addMenu(QString());
@@ -471,7 +536,7 @@ void MainWindow::setupMenus() {
     m_editMenu->addSeparator();
 
     m_preferencesAction = m_editMenu->addAction(QString(), this, &MainWindow::onPreferences);
-    m_preferencesAction->setShortcut(QKeySequence::Preferences);
+    m_preferencesAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_Comma));
     m_preferencesAction->setMenuRole(QAction::PreferencesRole);
 
     // --- View -----------------------------------------------------------
@@ -581,6 +646,75 @@ void MainWindow::setupMenus() {
     m_addEndmemberAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_E));
     m_addEndmemberAction->setEnabled(false);
 
+    m_removeEndmemberAction = m_renderMenu->addAction(QString(), this, [this]() {
+        m_spectralLibraryPanel->removeSelectedEndmember();
+    });
+    m_removeEndmemberAction->setEnabled(false);
+
+    // Lighting. The panel's environment-map and illuminant buttons used to be
+    // the only route to either; they are shortcuts to these now.
+    m_renderMenu->addSeparator();
+    m_lightingMenu = m_renderMenu->addMenu(QString());
+    m_envBrowseAction = m_lightingMenu->addAction(QString(), this, [this]() {
+        m_lightingPanel->onBrowseEnvironmentMap();
+    });
+    m_envEnabledAction = m_lightingMenu->addAction(QString());
+    m_envEnabledAction->setCheckable(true);
+    connect(m_envEnabledAction, &QAction::triggered, this,
+            [this](bool enabled) { m_lightingPanel->requestEnvironmentEnabled(enabled); });
+    m_envClearAction = m_lightingMenu->addAction(QString(), this, [this]() {
+        m_lightingPanel->onClearEnvironmentMap();
+    });
+    m_lightingMenu->addSeparator();
+    m_illuminantMenu = m_lightingMenu->addMenu(QString());
+    m_illuminantGroup = new QActionGroup(this);
+    m_illuminantGroup->setExclusive(true);
+    for (const char* kind : {"none", "equal_energy", "astm", "file"}) {
+        QAction* action = m_illuminantMenu->addAction(QString());
+        action->setCheckable(true);
+        action->setData(QString::fromLatin1(kind));
+        m_illuminantGroup->addAction(action);
+        const QString id = QString::fromLatin1(kind);
+        connect(action, &QAction::triggered, this,
+                [this, id]() { m_lightingPanel->requestIlluminantKind(id); });
+    }
+    // The ticks are read from the panel when the menu opens rather than
+    // pushed from every path that can change them.
+    connect(m_lightingMenu, &QMenu::aboutToShow, this, [this]() {
+        m_envEnabledAction->setChecked(m_lightingPanel->environmentEnabled());
+        m_envEnabledAction->setEnabled(m_lightingPanel->hasEnvironmentMap());
+        m_envClearAction->setEnabled(m_lightingPanel->hasEnvironmentMap());
+        const QString kind = m_lightingPanel->illuminantKind();
+        for (QAction* action : m_illuminantGroup->actions()) {
+            action->setChecked(action->data().toString() == kind);
+        }
+    });
+
+    // Switches that live on panels, catalogued here.
+    m_renderMenu->addSeparator();
+    m_cameraSimulationAction = m_renderMenu->addAction(QString());
+    m_cameraSimulationAction->setCheckable(true);
+    connect(m_cameraSimulationAction, &QAction::triggered, this, [this](bool enabled) {
+        pushSettingCommand(CommandId::ModifySensor, tr("Camera simulation"),
+                           m_vulkanWindow->sensorEnabled(), enabled,
+                           [this](const bool& v) { applySensorEnabled(v); });
+    });
+    m_thermalSolveAction = m_renderMenu->addAction(QString());
+    m_thermalSolveAction->setCheckable(true);
+    connect(m_thermalSolveAction, &QAction::triggered, this,
+            [this](bool enabled) { requestThermalEnabled(enabled); });
+    m_autoExportAction = m_renderMenu->addAction(QString());
+    m_autoExportAction->setCheckable(true);
+    connect(m_autoExportAction, &QAction::triggered, this,
+            [this](bool enabled) { applyAutoExport(enabled); });
+    connect(m_renderMenu, &QMenu::aboutToShow, this, [this]() {
+        m_cameraSimulationAction->setChecked(m_vulkanWindow->sensorEnabled());
+        m_thermalSolveAction->setChecked(m_thermalEnabled);
+        m_autoExportAction->setChecked(m_renderSettingsPanel->autoExportOnComplete());
+        m_removeEndmemberAction->setEnabled(m_currentMaterialIndex >= 0 &&
+                                            m_spectralLibraryPanel->canRemoveEndmember());
+    });
+
     // --- Timeline -------------------------------------------------------
     // The menu bar is the complete catalogue: everything the transport panel
     // does has an entry here with its shortcut, and both routes end at the
@@ -590,11 +724,12 @@ void MainWindow::setupMenus() {
         QString(), this, &MainWindow::createDefaultTimeline);
     m_timelineMenu->addSeparator();
 
-    // Ctrl+Space rather than Space: the bare key already toggles the gizmo
-    // between local and world space, and a transport that stole it would break
-    // a gesture people use constantly.
+    // Not Space: the bare key already toggles the gizmo between local and
+    // world space. Not Ctrl+Space either, which is the input-method switch on
+    // a Chinese Windows desktop -- the shortcut never reached the window.
+    // Alt+P sits with the other Alt transport keys.
     m_timelinePlayAction = m_timelineMenu->addAction(QString());
-    m_timelinePlayAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_Space));
+    m_timelinePlayAction->setShortcut(QKeySequence(Qt::ALT | Qt::Key_P));
 
     m_timelineMenu->addSeparator();
 
@@ -613,9 +748,16 @@ void MainWindow::setupMenus() {
     m_timelineLoopAction->setCheckable(true);
     m_timelineMenu->addSeparator();
     m_cameraCaptureKeyAction = m_timelineMenu->addAction(QString());
+    m_cameraCaptureKeyAction->setShortcut(QKeySequence(Qt::ALT | Qt::Key_K));
     m_cameraAddKeyAction = m_timelineMenu->addAction(QString());
     m_cameraUpdateKeyAction = m_timelineMenu->addAction(QString());
+    // Apart from the three that add or change a key: the one that destroys
+    // one should not be a slip of the pointer away from Update.
+    m_timelineMenu->addSeparator();
     m_cameraDeleteKeyAction = m_timelineMenu->addAction(QString());
+    // Until a key is selected there is nothing to update or delete.
+    m_cameraUpdateKeyAction->setEnabled(false);
+    m_cameraDeleteKeyAction->setEnabled(false);
 
     // Nothing to drive until a document with a clock is open.
     for (QAction* action : {m_timelinePlayAction, m_timelinePrevAction, m_timelineNextAction,
@@ -636,6 +778,23 @@ void MainWindow::setupMenus() {
         if (dock->isFloating()) {
             dock->activateWindow();
         }
+    });
+
+    // The comparison panel's two buttons, here so they are in the catalogue.
+    // Each shows the panel too: the result is read there.
+    const auto showComparison = [this]() {
+        if (QDockWidget* dock = m_docks.value(QStringLiteral("comparison"), nullptr)) {
+            dock->show();
+            dock->raise();
+        }
+    };
+    m_compareLoadAction = m_toolsMenu->addAction(QString(), this, [this, showComparison]() {
+        showComparison();
+        m_comparisonPanel->loadReference();
+    });
+    m_compareAction = m_toolsMenu->addAction(QString(), this, [this, showComparison]() {
+        showComparison();
+        m_comparisonPanel->compare();
     });
 
     m_toolsMenu->addSeparator();
@@ -747,7 +906,7 @@ void MainWindow::buildQualityMenu(QMenu* menu) {
         action->setData(preset.spp);
         m_qualityGroup->addAction(action);
         const uint32_t spp = preset.spp;
-        connect(action, &QAction::triggered, this, [this, spp]() { applyTargetSpp(spp); });
+        connect(action, &QAction::triggered, this, [this, spp]() { requestTargetSpp(spp); });
     }
 }
 
@@ -761,14 +920,18 @@ void MainWindow::buildSpectralMenu(QMenu* menu, QComboBox* combo) {
         action->setData(static_cast<int>(mode));
         m_spectralGroup->addAction(action);
         m_spectralActions.insert(static_cast<int>(mode), action);
-        connect(action, &QAction::triggered, this, [this, mode]() { applySpectralMode(mode); });
+        connect(action, &QAction::triggered, this, [this, mode]() { requestSpectralMode(mode); });
 
         combo->addItem(QString(), static_cast<int>(mode));
     }
+    // A document can be in a mode the list leaves out (multispectral, which
+    // the viewport cannot show). Then nothing is ticked and the combo says so,
+    // rather than both claiming the previous mode.
+    m_spectralGroup->setExclusionPolicy(QActionGroup::ExclusionPolicy::ExclusiveOptional);
 
     connect(combo, &QComboBox::currentIndexChanged, this, [this, combo](int index) {
         if (index < 0) return;
-        applySpectralMode(static_cast<quantiloom::SpectralMode>(combo->itemData(index).toInt()));
+        requestSpectralMode(static_cast<quantiloom::SpectralMode>(combo->itemData(index).toInt()));
     });
 
     m_spectralActions.value(static_cast<int>(quantiloom::SpectralMode::RGB))->setChecked(true);
@@ -828,18 +991,26 @@ void MainWindow::setupToolBar() {
     // instead of being one fixed bitmap set.
     m_mainToolBar->setToolButtonStyle(Qt::ToolButtonIconOnly);
 
-    QStyle* s = style();
-    m_openAction->setIcon(s->standardIcon(QStyle::SP_DialogOpenButton));
-    m_saveAction->setIcon(s->standardIcon(QStyle::SP_DialogSaveButton));
-    m_undoAction->setIcon(s->standardIcon(QStyle::SP_ArrowBack));
-    m_redoAction->setIcon(s->standardIcon(QStyle::SP_ArrowForward));
-    m_startRenderAction->setIcon(s->standardIcon(QStyle::SP_MediaPlay));
-    m_stopRenderAction->setIcon(s->standardIcon(QStyle::SP_MediaStop));
-    m_resumeRenderAction->setIcon(s->standardIcon(QStyle::SP_MediaSeekForward));
-    m_resetAccumulationAction->setIcon(s->standardIcon(QStyle::SP_BrowserReload));
-    m_screenshotAction->setIcon(s->standardIcon(QStyle::SP_DialogSaveAllButton));
+    // Bound rather than set: the themes switch between styles, and an icon
+    // taken from the style at startup stayed the old style's after a switch.
+    m_styling.bind([this] {
+        QStyle* s = style();
+        m_openAction->setIcon(s->standardIcon(QStyle::SP_DialogOpenButton));
+        m_saveAction->setIcon(s->standardIcon(QStyle::SP_DialogSaveButton));
+        m_undoAction->setIcon(s->standardIcon(QStyle::SP_ArrowBack));
+        m_redoAction->setIcon(s->standardIcon(QStyle::SP_ArrowForward));
+        m_startRenderAction->setIcon(s->standardIcon(QStyle::SP_MediaPlay));
+        // Pause, not stop: the samples are kept and Resume carries on.
+        m_stopRenderAction->setIcon(s->standardIcon(QStyle::SP_MediaPause));
+        m_resumeRenderAction->setIcon(s->standardIcon(QStyle::SP_MediaSeekForward));
+        m_resetAccumulationAction->setIcon(s->standardIcon(QStyle::SP_BrowserReload));
+        m_screenshotAction->setIcon(s->standardIcon(QStyle::SP_DialogSaveAllButton));
+    });
 
+    // The gap around each caption is layout, not text: it used to be spaces
+    // inside the translatable string, which a translator had to preserve.
     m_spectralComboLabel = new QLabel(this);
+    m_spectralComboLabel->setContentsMargins(6, 0, 4, 0);
     m_spectralCombo = new QComboBox(this);
     m_spectralCombo->setMinimumContentsLength(10);
     m_spectralCombo->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
@@ -847,6 +1018,7 @@ void MainWindow::setupToolBar() {
     m_mainToolBar->addWidget(m_spectralCombo);
 
     m_debugComboLabel = new QLabel(this);
+    m_debugComboLabel->setContentsMargins(6, 0, 4, 0);
     m_debugCombo = new QComboBox(this);
     m_debugCombo->setMinimumContentsLength(12);
     m_debugCombo->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
@@ -926,9 +1098,26 @@ void MainWindow::applySpectralMode(quantiloom::SpectralMode mode) {
     showStatusMessage(tr("Spectral mode: %1").arg(catalog::spectralModeName(mode)));
 }
 
+void MainWindow::requestSpectralMode(quantiloom::SpectralMode mode) {
+    // The menu, the toolbar combo and the panel all come through here, so a
+    // mode change is undoable whichever of them made it. It used to be from
+    // the panel only.
+    pushSettingCommand(CommandId::ModifySpectralMode, tr("Spectral mode"),
+                       m_vulkanWindow->spectralMode(), mode,
+                       [this](const quantiloom::SpectralMode& v) { applySpectralMode(v); });
+}
+
+void MainWindow::requestTargetSpp(uint32_t spp) {
+    pushSettingCommand(CommandId::ModifyTargetSamples, tr("Target samples"),
+                       m_vulkanWindow->targetSPP(), spp,
+                       [this](const uint32_t& v) { applyTargetSpp(v); });
+}
+
 void MainWindow::syncSpectralModeUi(quantiloom::SpectralMode mode) {
     if (QAction* action = m_spectralActions.value(static_cast<int>(mode), nullptr)) {
         action->setChecked(true);
+    } else if (m_spectralGroup && m_spectralGroup->checkedAction()) {
+        m_spectralGroup->checkedAction()->setChecked(false);
     }
     if (m_spectralCombo) {
         const QSignalBlocker blocker(m_spectralCombo);
@@ -973,7 +1162,7 @@ void MainWindow::applyWavelength(float wavelength_nm) {
     m_spectralConfigPanel->setWavelength(wavelength_nm);
 
     setSceneModified(true);
-    showStatusMessage(tr("Wavelength: %1 nm").arg(wavelength_nm, 0, 'f', 0));
+    showStatusMessage(tr("Wavelength: %1 nm").arg(wavelength_nm, 0, 'g', 6));
 }
 
 void MainWindow::applyLightingParams(const quantiloom::LightingParams& params) {
@@ -1239,6 +1428,38 @@ quantiloom::ThermalSolveParams MainWindow::currentThermalParams() const {
                                                    static_cast<double>(emissivity))
             : params.airTemperature_K;
     return params;
+}
+
+void MainWindow::updateEditModeLabel() {
+    if (!m_editModeLabel) {
+        return;
+    }
+    const TransformGizmo::Mode mode =
+        m_transformGizmo ? m_transformGizmo->mode() : TransformGizmo::Mode::Translate;
+    switch (mode) {
+        case TransformGizmo::Mode::Translate: m_editModeLabel->setText(tr("[G] Translate")); break;
+        case TransformGizmo::Mode::Rotate:    m_editModeLabel->setText(tr("[R] Rotate")); break;
+        case TransformGizmo::Mode::Scale:     m_editModeLabel->setText(tr("[T] Scale")); break;
+    }
+}
+
+void MainWindow::applyAutoExport(bool enabled) {
+    // A preference, not document state: it is about this machine's habit of
+    // writing files, so it is remembered here rather than saved in the scene.
+    m_renderSettingsPanel->setAutoExportOnComplete(enabled);
+    {
+        const QSignalBlocker blocker(m_autoExportAction);
+        m_autoExportAction->setChecked(enabled);
+    }
+    QSettings settings;
+    settings.setValue(QStringLiteral("render/auto_export"), enabled);
+    showStatusMessage(enabled ? tr("Will export an EXR when the target is reached")
+                              : tr("Automatic export off"));
+}
+
+void MainWindow::requestThermalEnabled(bool enabled) {
+    pushSettingCommand(CommandId::ModifyThermalSolve, tr("Thermal solve"), m_thermalEnabled,
+                       enabled, [this](const bool& v) { applyThermalEnabled(v); });
 }
 
 void MainWindow::applyThermalEnabled(bool enabled) {
@@ -1538,6 +1759,13 @@ void MainWindow::applyCameraPose(const glm::vec3& position, const glm::vec3& tar
 
 void MainWindow::applyCameraFov(float fovYDegrees) {
     m_vulkanWindow->setCameraFovY(fovYDegrees);
+    // An undo arrives here too, and the panel has to show what it set.
+    glm::vec3 position;
+    glm::vec3 target;
+    glm::vec3 up;
+    float fovY = fovYDegrees;
+    m_vulkanWindow->getCameraState(position, target, up, fovY);
+    m_cameraPanel->setCameraState(position, target, fovYDegrees);
     setSceneModified(true);
 }
 
@@ -1955,18 +2183,17 @@ void MainWindow::setupDockWidgets() {
     generatorDock->hide();
 
     // Connect panel signals
-    connect(m_sceneTreePanel, &SceneTreePanel::nodeSelected,
-            this, [this](int nodeIndex) {
-                // Sync with selection manager
-                bool addToSelection = QGuiApplication::keyboardModifiers() & Qt::ControlModifier;
-                m_selectionManager->select(nodeIndex, addToSelection);
-            });
     connect(m_sceneTreePanel, &SceneTreePanel::nodesSelected,
             this, [this](const QSet<int>& nodes) {
                 // A multi-selection made in the tree replaces the current one
                 // wholesale; the tree's own Ctrl/Shift handling has already
-                // decided what it should be.
-                m_selectionManager->selectMultiple(nodes);
+                // decided what it should be. Empty means the last node was
+                // Ctrl-clicked off.
+                if (nodes.isEmpty()) {
+                    m_selectionManager->clearSelection();
+                } else {
+                    m_selectionManager->selectMultiple(nodes);
+                }
             });
     connect(m_sceneTreePanel, &SceneTreePanel::contextMenuRequested,
             this, [this](const QPoint& globalPos) {
@@ -1998,6 +2225,8 @@ void MainWindow::setupDockWidgets() {
             this, [this](const QString&, const QString&, const QString&) {
                 updateSpectralMenuState();
             });
+    connect(m_spectralLibraryPanel, &SpectralLibraryPanel::actionStateChanged,
+            this, &MainWindow::updateSpectralMenuState);
 
     connect(m_materialEditorPanel, &MaterialEditorPanel::materialChanged,
             this, &MainWindow::onMaterialChanged);
@@ -2011,7 +2240,15 @@ void MainWindow::setupDockWidgets() {
 
     connect(m_cameraPanel, &CameraPanel::cameraEdited,
             this, &MainWindow::applyCameraPose);
-    connect(m_cameraPanel, &CameraPanel::fovEdited, this, &MainWindow::applyCameraFov);
+    connect(m_cameraPanel, &CameraPanel::fovEdited, this, [this](float fovYDegrees) {
+        glm::vec3 position;
+        glm::vec3 target;
+        glm::vec3 up;
+        float current = fovYDegrees;
+        m_vulkanWindow->getCameraState(position, target, up, current);
+        pushSettingCommand(CommandId::ModifyCameraFov, tr("Field of view"), current,
+                           fovYDegrees, [this](const float& v) { applyCameraFov(v); });
+    });
     connect(m_cameraPanel, &CameraPanel::resetRequested, this, &MainWindow::onResetCamera);
     connect(m_cameraPanel, &CameraPanel::viewDirectionRequested,
             this, [this](const glm::vec3& direction) {
@@ -2092,18 +2329,46 @@ void MainWindow::setupDockWidgets() {
     // that the change is now recorded, so Ctrl+Z no longer skips silently past
     // a spectral mode or a sensor setting to whatever transform came before it.
     connect(m_spectralConfigPanel, &SpectralConfigPanel::spectralModeChanged,
-            this, [this](quantiloom::SpectralMode mode) {
-                pushSettingCommand(CommandId::ModifySpectralMode, tr("Spectral mode"),
-                                   m_vulkanWindow->spectralMode(), mode,
-                                   [this](const quantiloom::SpectralMode& v) {
-                                       applySpectralMode(v);
-                                   });
-            });
+            this, &MainWindow::requestSpectralMode);
     connect(m_spectralConfigPanel, &SpectralConfigPanel::wavelengthChanged,
             this, [this](float wavelength_nm) {
+                // Mid-drag the value applies live and the history waits for
+                // the release; one drag used to be dozens of undo steps.
+                if (m_wavelengthBeforeGesture) {
+                    applyWavelength(wavelength_nm);
+                    return;
+                }
                 pushSettingCommand(CommandId::ModifyWavelength, tr("Wavelength"),
                                    m_vulkanWindow->wavelength(), wavelength_nm,
                                    [this](const float& v) { applyWavelength(v); });
+            });
+    connect(m_spectralConfigPanel, &SpectralConfigPanel::wavelengthGestureStarted,
+            this, [this] { m_wavelengthBeforeGesture = m_vulkanWindow->wavelength(); });
+    connect(m_spectralConfigPanel, &SpectralConfigPanel::wavelengthGestureFinished,
+            this, [this] {
+                if (!m_wavelengthBeforeGesture) {
+                    return;
+                }
+                const float before = *m_wavelengthBeforeGesture;
+                m_wavelengthBeforeGesture.reset();
+                pushSettingCommand(CommandId::ModifyWavelength, tr("Wavelength"), before,
+                                   m_vulkanWindow->wavelength(),
+                                   [this](const float& v) { applyWavelength(v); });
+            });
+
+    connect(m_spectralConfigPanel, &SpectralConfigPanel::wavelengthRangeChanged,
+            this, [this](const SpectralConfigPanel::WavelengthRange& before,
+                         const SpectralConfigPanel::WavelengthRange& after) {
+                // Nothing in the viewport reads the cube range; it is document
+                // state the export starts from, so the edit is a modification
+                // and an undo step but not a re-render.
+                pushSettingCommand(CommandId::ModifyWavelengthRange,
+                                   tr("Hyperspectral cube range"), before, after,
+                                   [this](const SpectralConfigPanel::WavelengthRange& v) {
+                                       m_spectralConfigPanel->setWavelengthRange(v[0], v[1],
+                                                                                 v[2]);
+                                       setSceneModified(true);
+                                   });
             });
 
     connect(m_debugVisualizationPanel, &DebugVisualizationPanel::debugParameterChanged,
@@ -2119,7 +2384,8 @@ void MainWindow::setupDockWidgets() {
     // Atmospheric panel signals
     connect(m_atmosphericPanel, &AtmosphericPanel::presetChanged,
             this, [this](const QString& preset) {
-                showStatusMessage(tr("Atmospheric preset: %1").arg(preset));
+                showStatusMessage(tr("Atmospheric preset: %1")
+                                      .arg(AtmosphericPanel::presetDisplayName(preset)));
             });
     connect(m_atmosphericPanel, &AtmosphericPanel::configChanged,
             this, [this](const quantiloom::AtmosphereNNConfig& config) {
@@ -2205,12 +2471,30 @@ void MainWindow::setupDockWidgets() {
             });
 
     // Thermal solve panel signals
+    // Through the history like the sensor and lighting settings beside them;
+    // these used to mark the document modified and leave Ctrl+Z to skip them.
     connect(m_thermalPanel, &ThermalPanel::thermalEnabledChanged,
-            this, &MainWindow::applyThermalEnabled);
+            this, &MainWindow::requestThermalEnabled);
     connect(m_thermalPanel, &ThermalPanel::thermalParamsChanged,
-            this, &MainWindow::applyThermalParams);
+            this, [this](const quantiloom::ThermalSolveParams& params) {
+                pushSettingCommand(CommandId::ModifyThermalSolve, tr("Thermal parameters"),
+                                   currentThermalParams(), params,
+                                   [this](const quantiloom::ThermalSolveParams& v) {
+                                       applyThermalParams(v);
+                                   });
+            });
     connect(m_thermalPanel, &ThermalPanel::thermalTimeChanged,
-            this, &MainWindow::applyThermalTime);
+            this, [this](double time_h) {
+                // A slider drag applies live and is recorded once, on release
+                // (editGestureFinished below). A typed hour is an edit by itself.
+                if (m_thermalTimeBeforeGesture) {
+                    applyThermalTime(time_h);
+                    return;
+                }
+                pushSettingCommand(CommandId::ModifyThermal, tr("Thermal time"),
+                                   m_thermalTimeH, time_h,
+                                   [this](const double& v) { applyThermalTime(v); });
+            });
     connect(m_thermalPanel, &ThermalPanel::whatIfChanged,
             this, &MainWindow::applyThermalWhatIf);
 
@@ -2295,7 +2579,7 @@ void MainWindow::setupWorkspaces() {
                 }
                 applyWorkspaceEditingScope(id);
                 showStatusMessage(tr("Workspace: %1")
-                                      .arg(WorkspaceManager::workspaceTitle(id)));
+                                      .arg(WorkspaceManager::workspaceDisplayName(id)));
             });
 }
 
@@ -2399,6 +2683,27 @@ void MainWindow::setupConnections() {
             &CameraPanel::updateKeyframe);
     connect(m_cameraDeleteKeyAction, &QAction::triggered, m_cameraPanel,
             &CameraPanel::deleteKeyframe);
+    // Both ways: the panel's own Loop box used to leave the menu's tick
+    // saying the opposite.
+    connect(m_timelinePanel, &TimelinePanel::loopChanged, this, [this](bool loop) {
+        const QSignalBlocker blocker(m_timelineLoopAction);
+        m_timelineLoopAction->setChecked(loop);
+    });
+    connect(m_cameraPanel, &CameraPanel::keySelectionChanged, this, [this](bool has) {
+        m_cameraUpdateKeyAction->setEnabled(has);
+        m_cameraDeleteKeyAction->setEnabled(has);
+    });
+    m_cameraUpdateKeyAction->setEnabled(m_cameraPanel->hasSelectedKey());
+    m_cameraDeleteKeyAction->setEnabled(m_cameraPanel->hasSelectedKey());
+
+    connect(m_renderSettingsPanel, &RenderSettingsPanel::autoExportToggled,
+            this, &MainWindow::applyAutoExport);
+    {
+        QSettings settings;
+        const bool autoExport = settings.value(QStringLiteral("render/auto_export"), false).toBool();
+        m_renderSettingsPanel->setAutoExportOnComplete(autoExport);
+        m_autoExportAction->setChecked(autoExport);
+    }
 
     // Connect Vulkan window signals
     connect(m_vulkanWindow, &QuantiloomVulkanWindow::frameRendered,
@@ -2422,7 +2727,15 @@ void MainWindow::setupConnections() {
                     // first point at which the file is worth remembering.
                     const bool openedDocument = !m_pendingOpenPath.isEmpty();
                     const HistorySuppressor noHistory(m_suppressHistory);
+                    // A reloaded scene starts with a fresh CRI buffer, so a slot
+                    // remembered from the previous one would point at nothing.
+                    m_lastCriIndex = -1;
+                    m_lastCri.reset();
                     if (openedDocument) {
+                        // A material index picked in the previous document names
+                        // some other material in this one; Assign Spectrum must
+                        // not land on it.
+                        m_currentMaterialIndex = -1;
                         if (m_pendingDocumentConfig) {
                             applyConfig(*m_pendingDocumentConfig);
                             m_currentConfigFile = m_pendingOpenPath;
@@ -2594,22 +2907,12 @@ void MainWindow::setupEditingSystem() {
     // buttons showing the gizmo's actual state, whichever of them changed it.
     connect(m_transformGizmo, &TransformGizmo::modeChanged,
             this, [this](TransformGizmo::Mode mode) {
-                QString modeText;
                 switch (mode) {
-                    case TransformGizmo::Mode::Translate:
-                        modeText = tr("[G] Translate");
-                        m_translateAction->setChecked(true);
-                        break;
-                    case TransformGizmo::Mode::Rotate:
-                        modeText = tr("[R] Rotate");
-                        m_rotateAction->setChecked(true);
-                        break;
-                    case TransformGizmo::Mode::Scale:
-                        modeText = tr("[T] Scale");
-                        m_scaleAction->setChecked(true);
-                        break;
+                    case TransformGizmo::Mode::Translate: m_translateAction->setChecked(true); break;
+                    case TransformGizmo::Mode::Rotate:    m_rotateAction->setChecked(true); break;
+                    case TransformGizmo::Mode::Scale:     m_scaleAction->setChecked(true); break;
                 }
-                m_editModeLabel->setText(modeText);
+                updateEditModeLabel();
             });
 
     connect(m_transformGizmo, &TransformGizmo::spaceChanged,
@@ -2752,7 +3055,9 @@ void MainWindow::retranslateUi() {
         it.value()->setText(catalog::debugModeName(mode));
         it.value()->setToolTip(catalog::debugModeDescription(mode));
     }
-    m_displayEnhancementAction->setText(tr("Display &Enhancement (CLAHE)"));
+    // Not "(CLAHE)": that is one of the panel's three tone operators, and not
+    // the one it recommends.
+    m_displayEnhancementAction->setText(tr("Display &Enhancement"));
     m_displayEnhancementAction->setToolTip(
         tr("Affects the viewport and screenshots only; exported images keep their raw values."));
     m_showGridAction->setText(tr("Show &Grid"));
@@ -2767,7 +3072,9 @@ void MainWindow::retranslateUi() {
     m_renderMenu->setTitle(tr("&Render"));
     m_startRenderAction->setText(tr("&Start Render"));
     m_startRenderAction->setToolTip(tr("Discard the accumulated samples and render from scratch"));
-    m_stopRenderAction->setText(tr("S&top Render"));
+    // What it does: the samples are kept and Resume carries on from them.
+    m_stopRenderAction->setText(tr("&Pause Render"));
+    m_stopRenderAction->setToolTip(tr("Stop tracing, keeping the samples so far"));
     m_resumeRenderAction->setText(tr("&Resume Render"));
     m_resumeRenderAction->setToolTip(tr("Carry on from the samples already accumulated"));
     m_resetAccumulationAction->setText(tr("Reset &Accumulation"));
@@ -2780,12 +3087,16 @@ void MainWindow::retranslateUi() {
         }
     }
     m_spectralMenu->setTitle(tr("&Spectral Mode"));
-    m_timelineMenu->setTitle(tr("&Timeline"));
+    // M, not T: Tools has T.
+    m_timelineMenu->setTitle(tr("Ti&meline"));
     m_timelineCreateAction->setText(tr("Create Default Timeline"));
     m_cameraCaptureKeyAction->setText(tr("Capture Camera Keyframe"));
     m_cameraAddKeyAction->setText(tr("Add Camera Keyframe"));
     m_cameraUpdateKeyAction->setText(tr("Update Camera Keyframe"));
     m_cameraDeleteKeyAction->setText(tr("Delete Camera Keyframe"));
+    m_cameraCaptureKeyAction->setToolTip(
+        tr("Key the viewport's camera at the clock's time; with a key selected, "
+           "replace it"));
     m_timelinePlayAction->setText(tr("&Play / Pause"));
     m_timelinePlayAction->setToolTip(
         tr("Run the clock. Which of the two playback modes it uses is the panel's "
@@ -2805,17 +3116,21 @@ void MainWindow::retranslateUi() {
     // current selection survives the language change instead of being reset
     // to whatever now sits at the old index.
     m_mainToolBar->setWindowTitle(tr("Main Toolbar"));
-    m_spectralComboLabel->setText(tr(" Spectral: "));
-    m_debugComboLabel->setText(tr(" Debug: "));
+    m_spectralComboLabel->setText(tr("Spectral:"));
+    m_debugComboLabel->setText(tr("Debug:"));
+    // A mode the list leaves out (multispectral) shows as this, not as blank.
+    m_spectralCombo->setPlaceholderText(tr("Other mode"));
     for (int i = 0; i < m_spectralCombo->count(); ++i) {
         const auto mode = static_cast<quantiloom::SpectralMode>(m_spectralCombo->itemData(i).toInt());
         m_spectralCombo->setItemText(i, catalog::spectralModeLabel(mode));
+        m_spectralCombo->setItemData(i, catalog::spectralModeDescription(mode), Qt::ToolTipRole);
     }
     for (int i = 0; i < m_debugCombo->count(); ++i) {
         const QVariant itemData = m_debugCombo->itemData(i);
         if (!itemData.isValid()) continue;   // separator
         const auto mode = static_cast<quantiloom::DebugVisualizationMode>(itemData.toInt());
         m_debugCombo->setItemText(i, catalog::debugModeName(mode));
+        m_debugCombo->setItemData(i, catalog::debugModeDescription(mode), Qt::ToolTipRole);
     }
 
     m_assignSpectrumAction->setText(tr("&Assign Measured Spectrum"));
@@ -2826,9 +3141,40 @@ void MainWindow::retranslateUi() {
     m_addEndmemberAction->setToolTip(
         tr("Add the highlighted spectrum alongside the ones already bound, so "
            "the surface renders as a mixture of measured materials"));
+    m_removeEndmemberAction->setText(tr("&Remove Spectral Endmember"));
+    m_removeEndmemberAction->setToolTip(
+        tr("Drop the endmember selected in the Spectral Library's list"));
+
+    m_lightingMenu->setTitle(tr("&Lighting"));
+    m_envBrowseAction->setText(tr("Choose &Environment Map..."));
+    m_envEnabledAction->setText(tr("&Light from Environment Map"));
+    m_envClearAction->setText(tr("&Clear Environment Map"));
+    m_illuminantMenu->setTitle(tr("&Illuminant"));
+    for (QAction* action : m_illuminantGroup->actions()) {
+        const QString kind = action->data().toString();
+        if (kind == QLatin1String("none"))              action->setText(tr("None — RGB radiance only"));
+        else if (kind == QLatin1String("equal_energy")) action->setText(tr("Equal energy (CIE E)"));
+        else if (kind == QLatin1String("astm"))         action->setText(tr("ASTM G-173 (bundled)"));
+        else                                            action->setText(tr("From file..."));
+    }
+    m_cameraSimulationAction->setText(tr("&Camera Simulation"));
+    m_cameraSimulationAction->setToolTip(
+        tr("Render through the physical camera on the Camera panel"));
+    m_thermalSolveAction->setText(tr("&Thermal Solve"));
+    m_thermalSolveAction->setToolTip(
+        tr("Solve surface temperatures over the simulated day"));
+    m_autoExportAction->setText(tr("E&xport EXR When Target Is Reached"));
+    m_autoExportAction->setToolTip(
+        tr("Writes beside the open configuration, named after it and the sample count. "
+           "Has no effect in Infinite mode, which has no target to reach."));
 
     m_toolsMenu->setTitle(tr("&Tools"));
     m_spectralGenAction->setText(tr("Spectral Material &Generator"));
+    m_compareLoadAction->setText(tr("Load Comparison &Reference..."));
+    m_compareAction->setText(tr("&Compare with Current Frame"));
+    m_compareAction->setToolTip(
+        tr("Bias, RMSE, 95th percentile and worst pixel of the frame on screen "
+           "against the reference, in the Comparison panel"));
     m_mcpAction->setText(tr("&MCP Server"));
     m_mcpAction->setToolTip(tr("Let an agent drive Studio over a local connection"));
     updateMcpStatusLabel();
@@ -2853,9 +3199,9 @@ void MainWindow::retranslateUi() {
     m_sampleCountLabel->setText(tr("Samples: %1").arg(
         m_vulkanWindow ? m_vulkanWindow->currentSampleCount() : 0));
     m_debugValueLabel->setText(tr("Hover the viewport to inspect"));
-    if (m_editModeLabel->text().isEmpty()) {
-        m_editModeLabel->setText(tr("[G] Translate"));
-    }
+    // From the gizmo's mode, not "if empty": a language switch otherwise left
+    // the chip in the old language until the next mode change.
+    updateEditModeLabel();
 
     onUndoRedoChanged();
     rebuildRecentMenu();
@@ -2969,8 +3315,28 @@ void MainWindow::rememberRecentFile(const QString& filePath) {
     }
     settings.setValue(kRecentFilesKey, files);
     rebuildRecentMenu();
-    if (m_viewportFrame) {
-        m_viewportFrame->setRecentFiles(recentFiles());
+}
+
+void MainWindow::openRecentFile(const QString& path) {
+    // One route for the menu and the empty-state page, so both check the file
+    // is still there and both offer to drop it when it is not.
+    if (!QFileInfo::exists(path)) {
+        const auto reply = QMessageBox::question(
+            this, tr("Open Failed"),
+            tr("This file no longer exists:\n%1\n\nRemove it from the recent files?")
+                .arg(path),
+            QMessageBox::Yes | QMessageBox::No, QMessageBox::Yes);
+        if (reply == QMessageBox::Yes) {
+            QSettings settings;
+            QStringList files = settings.value(kRecentFilesKey).toStringList();
+            files.removeAll(path);
+            settings.setValue(kRecentFilesKey, files);
+            rebuildRecentMenu();
+        }
+        return;
+    }
+    if (confirmDiscardChanges()) {
+        openPath(path);
     }
 }
 
@@ -2984,16 +3350,7 @@ void MainWindow::rebuildRecentMenu() {
     for (const QString& path : files) {
         QAction* action = m_recentMenu->addAction(QFileInfo(path).fileName());
         action->setToolTip(path);
-        connect(action, &QAction::triggered, this, [this, path]() {
-            if (!QFileInfo::exists(path)) {
-                QMessageBox::warning(this, tr("Open Failed"),
-                                     tr("This file no longer exists:\n%1").arg(path));
-                return;
-            }
-            if (confirmDiscardChanges()) {
-                openPath(path);
-            }
-        });
+        connect(action, &QAction::triggered, this, [this, path]() { openRecentFile(path); });
     }
 
     m_recentMenu->setEnabled(!files.isEmpty());
@@ -3006,6 +3363,11 @@ void MainWindow::rebuildRecentMenu() {
             settings.remove(kRecentFilesKey);
             rebuildRecentMenu();
         });
+    }
+    // The empty-state page lists the same files; clearing the list or
+    // dropping a missing entry has to reach it too.
+    if (m_viewportFrame) {
+        m_viewportFrame->setRecentFiles(files);
     }
 }
 
@@ -3039,6 +3401,23 @@ void MainWindow::restoreWindowState() {
 }
 
 void MainWindow::closeEvent(QCloseEvent* event) {
+    // An offline render in flight would hold the exit until its worker
+    // returned -- a cube cannot be interrupted at all -- with no window left
+    // to say why.
+    if ((m_cubeDialog && m_cubeDialog->isRunning()) ||
+        (m_sequenceDialog && m_sequenceDialog->isRunning())) {
+        QMessageBox::information(
+            this, tr("Render in Progress"),
+            tr("An offline render is still running. Stop it, or wait for it to "
+               "finish, before closing Quantiloom Studio."));
+        if (m_sequenceDialog && m_sequenceDialog->isRunning()) {
+            m_sequenceDialog->raise();
+        } else if (m_cubeDialog) {
+            m_cubeDialog->raise();
+        }
+        event->ignore();
+        return;
+    }
     if (!confirmDiscardChanges()) {
         event->ignore();
         return;
@@ -3122,7 +3501,13 @@ void MainWindow::openFromCommandLine(const QString& filePath) {
 }
 
 bool MainWindow::openPath(const QString& filePath) {
-    if (!m_pendingOpenPath.isEmpty()) return false;
+    if (!m_pendingOpenPath.isEmpty()) {
+        // Said rather than ignored: a second open while the first is loading
+        // used to do nothing at all.
+        showStatusMessage(tr("Still opening %1 — try again when it has loaded")
+                              .arg(QFileInfo(m_pendingOpenPath).fileName()));
+        return false;
+    }
     std::unique_ptr<SceneConfig> pending;
     std::shared_ptr<const quantiloom::Config> raw;
     if (filePath.endsWith(QLatin1String(".toml"), Qt::CaseInsensitive)) {
@@ -3270,13 +3655,33 @@ void MainWindow::onExportHyperspectralCube() {
     }
     // The document as it stands, panels included -- the cube is of what is on
     // screen, not of what the file said when it was opened.
+    if (m_cubeDialog) {
+        m_cubeDialog->raise();
+        m_cubeDialog->activateWindow();
+        return;
+    }
     SceneConfig config;
     collectCurrentConfig(config);
-    HyperspectralExportDialog dialog(config, this);
-    dialog.exec();
+    // Modeless: a cube takes minutes to hours, and its dialog says the viewport
+    // keeps working meanwhile. It reads the document again when Render is
+    // pressed, so edits made while it is open are in the cube.
+    auto* dialog = new HyperspectralExportDialog(config, this);
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+    dialog->documentProvider = [this] {
+        SceneConfig current;
+        collectCurrentConfig(current);
+        return current;
+    };
+    m_cubeDialog = dialog;
+    dialog->show();
 }
 
 void MainWindow::onRenderSequence() {
+    if (m_sequenceDialog) {
+        m_sequenceDialog->raise();
+        m_sequenceDialog->activateWindow();
+        return;
+    }
     const auto* scene = m_vulkanWindow->getScene();
     if (!scene) {
         QMessageBox::information(this, tr("No Scene"),
@@ -3296,9 +3701,18 @@ void MainWindow::onRenderSequence() {
         }
     }
 
-    SequenceRenderDialog dialog(config, materialNames, m_vulkanWindow->timelineInfo(),
-                                this);
-    dialog.exec();
+    // Modeless, for the cube's reason: a sequence runs for as long as its
+    // frames take, and the viewport has no reason to wait for it.
+    auto* dialog = new SequenceRenderDialog(config, materialNames,
+                                            m_vulkanWindow->timelineInfo(), this);
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+    dialog->documentProvider = [this] {
+        SceneConfig current;
+        collectCurrentConfig(current);
+        return current;
+    };
+    m_sequenceDialog = dialog;
+    dialog->show();
 }
 
 void MainWindow::onDumpThermalElements() {
@@ -3424,12 +3838,18 @@ void MainWindow::onExportCameraProducts() {
         return;
     }
 
-    showStatusMessage(tr("Exported %1 camera product(s) to %2")
-                          .arg(written)
+    showStatusMessage(tr("Exported %n camera product(s) to %1", "", written)
                           .arg(QFileInfo(fileName).dir().dirName()));
 }
 
 void MainWindow::onExportImage() {
+    // Checked before the file dialog, like every other export: asking for a
+    // name and then saying there is nothing to write wastes the question.
+    if (!m_vulkanWindow->getScene()) {
+        QMessageBox::information(this, tr("No Scene"),
+            tr("Open a scene before exporting an image."));
+        return;
+    }
     QString fileName = QFileDialog::getSaveFileName(
         this,
         tr("Export Image (raw render)"),
@@ -3660,7 +4080,8 @@ void MainWindow::onResetLayout() {
     // workspace should not lose their layout work everywhere else.
     m_workspaces->resetCurrentToDefault();
     showStatusMessage(tr("Layout reset for %1")
-                          .arg(WorkspaceManager::workspaceTitle(m_workspaces->currentWorkspace())));
+                          .arg(WorkspaceManager::workspaceDisplayName(
+                              m_workspaces->currentWorkspace())));
 }
 
 void MainWindow::onTakeScreenshot() {
@@ -3744,7 +4165,6 @@ void MainWindow::onShowShortcuts() {
         {tr("G"),            tr("Translate mode")},
         {tr("R"),            tr("Rotate mode")},
         {tr("T"),            tr("Scale mode")},
-        {tr("X / Y / Z"),    tr("Constrain the transform to an axis")},
         {tr("Space"),        tr("Toggle world / local space")},
         {tr("Escape"),       tr("Cancel the drag, then clear the selection")},
         {tr("Left-drag"),    tr("Transform the selection")},
@@ -4298,23 +4718,8 @@ void MainWindow::updateRenderEta(uint32_t sampleCount, uint32_t target) {
         return;
     }
     const double remainingMs = m_msPerSample * static_cast<double>(target - sampleCount);
-    m_etaLabel->setText(tr("ETA %1").arg(formatDuration(static_cast<qint64>(remainingMs))));
-}
-
-QString MainWindow::formatDuration(qint64 ms) {
-    const qint64 totalSeconds = ms / 1000;
-    const qint64 hours = totalSeconds / 3600;
-    const qint64 minutes = (totalSeconds % 3600) / 60;
-    const qint64 seconds = totalSeconds % 60;
-    if (hours > 0) {
-        return QStringLiteral("%1:%2:%3")
-            .arg(hours)
-            .arg(minutes, 2, 10, QLatin1Char('0'))
-            .arg(seconds, 2, 10, QLatin1Char('0'));
-    }
-    return QStringLiteral("%1:%2")
-        .arg(minutes)
-        .arg(seconds, 2, 10, QLatin1Char('0'));
+    m_etaLabel->setText(
+        tr("ETA %1").arg(offlineexport::formatDuration(static_cast<qint64>(remainingMs))));
 }
 
 void MainWindow::onRenderReachedTarget(uint32_t sampleCount) {
@@ -4331,7 +4736,7 @@ void MainWindow::onRenderReachedTarget(uint32_t sampleCount) {
         ? QDateTime::currentMSecsSinceEpoch() - m_renderStartedAt : 0;
     showStatusMessage(tr("Render complete — %1 samples in %2")
                           .arg(sampleCount)
-                          .arg(formatDuration(elapsed)));
+                          .arg(offlineexport::formatDuration(elapsed)));
 
     if (m_renderSettingsPanel->autoExportOnComplete()) {
         autoExportRender(sampleCount);
@@ -4406,12 +4811,35 @@ void MainWindow::onNodeTransformEdited(int nodeIndex, const glm::mat4& transform
 
 void MainWindow::onMaterialWithCriChanged(int index, const quantiloom::Material& material,
                                           const quantiloom::ComplexRefractiveIndex& cri) {
+    const auto* scene = m_vulkanWindow->getScene();
+    if (!scene || index < 0 || static_cast<size_t>(index) >= scene->materials.size()) {
+        showStatusMessage(tr("Material %1 does not exist in this scene").arg(index));
+        return;
+    }
+    // The generator owns the reflectance curve, roughness and metallic and
+    // nothing else. Starting from the scene's material keeps its name, base
+    // colour, textures, emission and IR transmittance; starting from a default
+    // Material would reset them all.
+    quantiloom::Material updated = scene->materials[static_cast<size_t>(index)];
+    updated.roughnessFactor = material.roughnessFactor;
+    updated.metallicFactor = material.metallicFactor;
+    updated.irReflectanceCurve = material.irReflectanceCurve;
+    updated.spectralSource = material.spectralSource;
+
     // The generator has no route to the GPU; uploading its (n,k) curves and
-    // filling in the index is the shell's job.
-    quantiloom::Material updated = material;
-    const int criIndex = m_vulkanWindow->addComplexRefractiveIndex(cri);
-    if (criIndex >= 0) {
-        updated.complexRefractiveIndexIndex = criIndex;
+    // filling in the index is the shell's job. The same curves applied twice
+    // reuse the slot the first upload took instead of growing the buffer.
+    if (m_lastCriIndex >= 0 && m_lastCri &&
+        m_lastCri->wavelengths_nm == cri.wavelengths_nm && m_lastCri->n == cri.n &&
+        m_lastCri->k == cri.k) {
+        updated.complexRefractiveIndexIndex = m_lastCriIndex;
+    } else {
+        const int criIndex = m_vulkanWindow->addComplexRefractiveIndex(cri);
+        if (criIndex >= 0) {
+            updated.complexRefractiveIndexIndex = criIndex;
+            m_lastCriIndex = criIndex;
+            m_lastCri = std::make_unique<quantiloom::ComplexRefractiveIndex>(cri);
+        }
     }
     onMaterialChanged(index, updated);
 }
@@ -4545,7 +4973,8 @@ void MainWindow::applySpectralEndmembers(int materialIndex, const QString& datab
     if (basis.empty() || materials.empty()) {
         QMessageBox::warning(this, tr("Assign Failed"),
             tr("The %1 spectral database was not found beside the application "
-               "or in the working directory.").arg(databaseId));
+               "or in the working directory.")
+                .arg(SpectralLibraryPanel::databaseDisplayName(databaseId)));
         return;
     }
 
@@ -4623,9 +5052,11 @@ void MainWindow::applySpectralEndmembers(int materialIndex, const QString& datab
 
     if (updated.weightTextureIndex >= 0) {
         showStatusMessage(bound.size() == 1
-            ? tr("Assigned %1 (%2, %3 band)").arg(bound.first(), databaseId, band)
+            ? tr("Assigned %1 (%2, %3 band)")
+                  .arg(bound.first(), SpectralLibraryPanel::databaseDisplayName(databaseId), band)
             : tr("Mixed %n endmember(s) on '%1' (%2, %3 band)", "", static_cast<int>(bound.size()))
-                  .arg(QString::fromStdString(updated.name), databaseId, band));
+                  .arg(QString::fromStdString(updated.name),
+                       SpectralLibraryPanel::databaseDisplayName(databaseId), band));
     }
 }
 
@@ -4639,6 +5070,8 @@ void MainWindow::updateSpectralMenuState() {
     // and stops at the mixture limit.
     m_addEndmemberAction->setEnabled(haveMaterial && haveRow && bound > 0 &&
                                      bound < quantiloom::Material::MAX_ENDMEMBERS);
+    m_removeEndmemberAction->setEnabled(haveMaterial &&
+                                        m_spectralLibraryPanel->canRemoveEndmember());
 }
 
 void MainWindow::refreshSpectralLibraryTarget() {
@@ -4666,11 +5099,11 @@ void MainWindow::onCameraChanged() {
 // The panel-side entry points delegate to the same apply* functions the menu
 // and the toolbar use, so all three routes are literally one code path.
 void MainWindow::onSppChanged(uint32_t spp) {
-    applyTargetSpp(spp);
+    requestTargetSpp(spp);
 }
 
 void MainWindow::onSpectralModeChanged(quantiloom::SpectralMode mode) {
-    applySpectralMode(mode);
+    requestSpectralMode(mode);
 }
 
 void MainWindow::onWavelengthChanged(float wavelength_nm) {
@@ -4711,8 +5144,9 @@ void MainWindow::updatePanelsFromScene() {
         // first slider move published the panel's whole set of defaults over
         // the config's values through onLightingChanged().
         m_lightingPanel->setLightingParams(*m_lightingParams);
-        m_spectralConfigPanel->setWavelengthRange(
-            scene->lambda_min, scene->lambda_max, scene->delta_lambda);
+        // Not the cube range: scene->lambda_min is [spectral] range_nm, a
+        // different grid. The panel's range comes from [hyperspectral], in
+        // applyConfig().
     }
 
 }
@@ -4791,8 +5225,11 @@ void MainWindow::applyConfig(const SceneConfig& config) {
 
     m_spectralConfigPanel->setSpectralMode(config.spectralMode);
     m_spectralConfigPanel->setWavelength(config.wavelength_nm);
-    m_spectralConfigPanel->setWavelengthRange(config.lambda_min, config.lambda_max,
-                                              config.delta_lambda);
+    {
+        const HyperspectralConfig cube = config.hyperspectral.value_or(HyperspectralConfig{});
+        m_spectralConfigPanel->setWavelengthRange(cube.wavelengthMin_nm, cube.wavelengthMax_nm,
+                                                  cube.wavelengthStep_nm);
+    }
     // The lighting panel needs it too -- every illuminant notice it shows is
     // about the mode. It had no way to know here before, so a configuration
     // opened into a quantitative mode with no spectrum said nothing about the
@@ -5071,9 +5508,25 @@ void MainWindow::collectCurrentConfig(SceneConfig& config) {
         config.spectralMode = m_spectralConfigPanel->spectralMode();
     }
     config.wavelength_nm = m_spectralConfigPanel->wavelength();
-    config.lambda_min = m_spectralConfigPanel->lambdaMin();
-    config.lambda_max = m_spectralConfigPanel->lambdaMax();
-    config.delta_lambda = m_spectralConfigPanel->deltaLambda();
+    // The panel's range is the [hyperspectral] cube grid -- the only range a
+    // render here reads. It used to be written to spectral.lambda_min/max,
+    // which nothing in the core reads, so an edit was saved and ignored. A
+    // document without a [hyperspectral] block gains one only once the range
+    // has been moved off the defaults, so opening and saving changes nothing.
+    {
+        const HyperspectralConfig defaults;
+        const auto range = m_spectralConfigPanel->wavelengthRange();
+        const SpectralConfigPanel::WavelengthRange defaultRange{
+            defaults.wavelengthMin_nm, defaults.wavelengthMax_nm,
+            defaults.wavelengthStep_nm};
+        if (config.hyperspectral || range != defaultRange) {
+            HyperspectralConfig hs = config.hyperspectral.value_or(defaults);
+            hs.wavelengthMin_nm = range[0];
+            hs.wavelengthMax_nm = range[1];
+            hs.wavelengthStep_nm = range[2];
+            config.hyperspectral = hs;
+        }
+    }
 
     // Camera, read from the renderer so that orbiting with the mouse is
     // exported too -- previously the camera in the file was whatever the
@@ -5435,7 +5888,7 @@ void MainWindow::onSelectionChanged(const QSet<int>& selectedNodes) {
         return;
     }
 
-    showStatusMessage(tr("%1 objects selected").arg(selectedNodes.size()));
+    showStatusMessage(tr("%n object(s) selected", "", static_cast<int>(selectedNodes.size())));
     m_propertiesPanel->showMultipleSelection(selectedNodes.size());
 
     if (scene) {

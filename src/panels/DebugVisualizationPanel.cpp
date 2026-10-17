@@ -129,6 +129,9 @@ void DebugVisualizationPanel::retranslateUi() {
     m_parameterCaption->setText(tr("Sun column: 0 is the whole day, higher numbers "
                                    "are the individual hours a solve with a shadow "
                                    "memory remembers."));
+    // The meaning of 0 on the field itself, not only in the caption above it.
+    m_parameterSpin->setSpecialValueText(tr("Whole day"));
+    m_parameterSpin->setPrefix(tr("Hour "));
     updateDescription(m_mode);
 }
 

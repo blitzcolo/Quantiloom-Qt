@@ -26,6 +26,8 @@
 #include <QThread>
 #include <QPointer>
 #include <QMessageBox>
+#include <QDialogButtonBox>
+#include <QEvent>
 
 #include <core/Config.hpp>
 #include <renderer/OfflineRenderer.hpp>
@@ -59,89 +61,86 @@ HyperspectralExportDialog::HyperspectralExportDialog(const SceneConfig& config, 
 }
 
 HyperspectralExportDialog::~HyperspectralExportDialog() {
-    // The worker owns nothing this dialog outlives; it is only ever waited on
-    // in finish(), which runs before the dialog can be destroyed while running
-    // (the close button is disabled meanwhile).
+    // reject() refuses while a cube is being traced, so the only way here with
+    // the worker alive is the application shutting down -- which the shell
+    // asks about first. The worker holds only a QPointer back to the dialog.
     if (m_worker) {
-        m_worker->quit();
         m_worker->wait();
     }
 }
 
 void HyperspectralExportDialog::setupUi() {
-    setWindowTitle(tr("Render Hyperspectral Cube"));
-    setModal(true);
     resize(520, 400);
+    m_styling.attach(this);
+
+    const auto caption = [this](const char* text) {
+        auto* label = new QLabel(this);
+        m_captions.push_back({label, text});
+        return label;
+    };
 
     auto* mainLayout = new QVBoxLayout(this);
 
-    auto* intro = new QLabel(
-        tr("Traces every band to completion and streams the result to disk. This is "
-           "an offline render on a device of its own — the viewport keeps working, "
-           "and the two share the GPU."), this);
-    intro->setWordWrap(true);
-    uistyle::applyHintStyle(intro);
-    mainLayout->addWidget(intro);
+    m_introLabel = new QLabel(this);
+    m_introLabel->setWordWrap(true);
+    m_styling.bind([this] { uistyle::applyHintStyle(m_introLabel); });
+    mainLayout->addWidget(m_introLabel);
 
     // --- range ----------------------------------------------------------
-    auto* rangeGroup = new QGroupBox(tr("Wavelength Range"), this);
-    auto* rangeLayout = new QFormLayout(rangeGroup);
+    m_rangeGroup = new QGroupBox(this);
+    auto* rangeLayout = new QFormLayout(m_rangeGroup);
 
     const auto seed = m_baseConfig.hyperspectral.value_or(HyperspectralConfig{});
 
     m_lambdaMin = new QDoubleSpinBox();
     m_lambdaMin->setObjectName(QStringLiteral("cubeWavelengthMin"));
     m_lambdaMin->setRange(100.0, 20000.0);
-    m_lambdaMin->setSuffix(tr(" nm"));
     m_lambdaMin->setValue(seed.wavelengthMin_nm);
     connect(m_lambdaMin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &HyperspectralExportDialog::onRangeChanged);
-    rangeLayout->addRow(tr("From:"), m_lambdaMin);
+    rangeLayout->addRow(caption(QT_TR_NOOP("From:")), m_lambdaMin);
 
     m_lambdaMax = new QDoubleSpinBox();
     m_lambdaMax->setObjectName(QStringLiteral("cubeWavelengthMax"));
     m_lambdaMax->setRange(100.0, 20000.0);
-    m_lambdaMax->setSuffix(tr(" nm"));
     m_lambdaMax->setValue(seed.wavelengthMax_nm);
     connect(m_lambdaMax, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &HyperspectralExportDialog::onRangeChanged);
-    rangeLayout->addRow(tr("To:"), m_lambdaMax);
+    rangeLayout->addRow(caption(QT_TR_NOOP("To:")), m_lambdaMax);
 
     m_lambdaStep = new QDoubleSpinBox();
     m_lambdaStep->setObjectName(QStringLiteral("cubeWavelengthStep"));
     m_lambdaStep->setRange(0.1, 500.0);
-    m_lambdaStep->setSuffix(tr(" nm"));
     m_lambdaStep->setValue(seed.wavelengthStep_nm);
     connect(m_lambdaStep, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &HyperspectralExportDialog::onRangeChanged);
-    rangeLayout->addRow(tr("Step:"), m_lambdaStep);
+    rangeLayout->addRow(caption(QT_TR_NOOP("Step:")), m_lambdaStep);
 
     m_bandCountLabel = new QLabel();
-    uistyle::applyHintStyle(m_bandCountLabel);
+    m_bandCountLabel->setWordWrap(true);
+    m_styling.bind([this] { uistyle::applyHintStyle(m_bandCountLabel); });
     rangeLayout->addRow(m_bandCountLabel);
-    mainLayout->addWidget(rangeGroup);
+    mainLayout->addWidget(m_rangeGroup);
 
     // --- output ---------------------------------------------------------
-    auto* outputGroup = new QGroupBox(tr("Output"), this);
-    auto* outputLayout = new QFormLayout(outputGroup);
+    m_outputGroup = new QGroupBox(this);
+    auto* outputLayout = new QFormLayout(m_outputGroup);
 
     m_spp = new QSpinBox();
     m_spp->setObjectName(QStringLiteral("cubeSpp"));
     m_spp->setRange(1, 65536);
     m_spp->setValue(static_cast<int>(m_baseConfig.spp > 0 ? m_baseConfig.spp : 16));
-    m_spp->setToolTip(tr("Samples per pixel, per band. Every band is traced to this "
-                         "count, so the total cost scales with the band count too."));
-    outputLayout->addRow(tr("Samples per band:"), m_spp);
+    outputLayout->addRow(caption(QT_TR_NOOP("Samples per band:")), m_spp);
 
     m_format = new QComboBox();
     m_format->setObjectName(QStringLiteral("cubeFormat"));
     for (const FormatOption& format : kFormats) {
-        m_format->addItem(tr(format.label), QString::fromLatin1(format.id));
+        m_format->addItem(QString(), QString::fromLatin1(format.id));
     }
     if (const int index = m_format->findData(seed.outputFormat); index >= 0) {
         m_format->setCurrentIndex(index);
     }
-    outputLayout->addRow(tr("Format:"), m_format);
+    outputLayout->addRow(caption(QT_TR_NOOP("Format:")), m_format);
 
     auto* pathRow = new QHBoxLayout();
     m_outputEdit = new QLineEdit();
@@ -152,19 +151,16 @@ void HyperspectralExportDialog::setupUi() {
                               ? QStringLiteral("hyperspectral_output")
                               : QFileInfo(m_baseConfig.outputPath).completeBaseName());
     pathRow->addWidget(m_outputEdit, 1);
-    auto* browseButton = new QPushButton(tr("Browse..."));
-    connect(browseButton, &QPushButton::clicked,
+    m_browseButton = new QPushButton();
+    connect(m_browseButton, &QPushButton::clicked,
             this, &HyperspectralExportDialog::onBrowseOutput);
-    pathRow->addWidget(browseButton);
-    outputLayout->addRow(tr("Base name:"), pathRow);
+    pathRow->addWidget(m_browseButton);
+    outputLayout->addRow(caption(QT_TR_NOOP("Base name:")), pathRow);
 
-    m_saveIntermediates = new QCheckBox(tr("Also save each band as EXR"));
+    m_saveIntermediates = new QCheckBox();
     m_saveIntermediates->setChecked(seed.saveIntermediates);
-    m_saveIntermediates->setToolTip(
-        tr("Writes one image per band beside the cube, for inspecting a single "
-           "wavelength. Multiplies the output size by the band count."));
     outputLayout->addRow(m_saveIntermediates);
-    mainLayout->addWidget(outputGroup);
+    mainLayout->addWidget(m_outputGroup);
 
     // --- progress -------------------------------------------------------
     m_progress = new QProgressBar();
@@ -175,23 +171,77 @@ void HyperspectralExportDialog::setupUi() {
 
     m_statusLabel = new QLabel();
     m_statusLabel->setWordWrap(true);
-    uistyle::applyHintStyle(m_statusLabel);
+    m_styling.bind([this] { uistyle::applyHintStyle(m_statusLabel); });
     mainLayout->addWidget(m_statusLabel);
 
     mainLayout->addStretch();
 
-    auto* buttons = new QHBoxLayout();
-    buttons->addStretch();
-    m_startButton = new QPushButton(tr("Render"));
+    auto* buttons = new QDialogButtonBox(this);
+    m_startButton = buttons->addButton(QString(), QDialogButtonBox::AcceptRole);
     m_startButton->setObjectName(QStringLiteral("cubeStart"));
     m_startButton->setDefault(true);
+    // Not the box's accepted(): Render starts a run and leaves the dialog open.
     connect(m_startButton, &QPushButton::clicked,
             this, &HyperspectralExportDialog::onStartOrCancel);
-    buttons->addWidget(m_startButton);
-    m_closeButton = new QPushButton(tr("Close"));
+    m_closeButton = buttons->addButton(QDialogButtonBox::Close);
     connect(m_closeButton, &QPushButton::clicked, this, &QDialog::reject);
-    buttons->addWidget(m_closeButton);
-    mainLayout->addLayout(buttons);
+    mainLayout->addWidget(buttons);
+
+    retranslateUi();
+}
+
+void HyperspectralExportDialog::retranslateUi() {
+    setWindowTitle(tr("Render Hyperspectral Cube"));
+    m_introLabel->setText(
+        tr("Traces every band to completion and streams the result to disk. This is "
+           "an offline render on a device of its own — the viewport keeps working, "
+           "and the two share the GPU."));
+    for (const Caption& c : m_captions) {
+        c.label->setText(tr(c.text));
+    }
+    m_rangeGroup->setTitle(tr("Wavelength Range"));
+    m_outputGroup->setTitle(tr("Output"));
+    m_lambdaMin->setSuffix(tr(" nm"));
+    m_lambdaMax->setSuffix(tr(" nm"));
+    m_lambdaStep->setSuffix(tr(" nm"));
+    m_spp->setToolTip(tr("Samples per pixel, per band. Every band is traced to this "
+                         "count, so the total cost scales with the band count too."));
+    for (int i = 0; i < m_format->count(); ++i) {
+        m_format->setItemText(i, tr(kFormats[i].label));
+    }
+    m_browseButton->setText(tr("Browse..."));
+    m_saveIntermediates->setText(tr("Also save each band as EXR"));
+    m_saveIntermediates->setToolTip(
+        tr("Writes one image per band beside the cube, for inspecting a single "
+           "wavelength. Multiplies the output size by the band count."));
+    m_startButton->setText(tr("Render"));
+    m_closeButton->setText(tr("Close"));
+    updateBandCount();
+}
+
+void HyperspectralExportDialog::changeEvent(QEvent* event) {
+    QDialog::changeEvent(event);
+    if (event->type() == QEvent::LanguageChange) {
+        retranslateUi();
+    }
+}
+
+void HyperspectralExportDialog::reject() {
+    if (m_running) {
+        // The core has no cancel for a cube, and destroying the dialog would
+        // block the window on the worker until the last band. Say so instead
+        // of closing; the window is modeless, so it is not in the way.
+        m_statusLabel->setText(
+            tr("A cube render cannot be interrupted. This window can be closed "
+               "once it has finished."));
+        return;
+    }
+    QDialog::reject();
+}
+
+void HyperspectralExportDialog::setInputsEnabled(const bool enabled) {
+    m_rangeGroup->setEnabled(enabled);
+    m_outputGroup->setEnabled(enabled);
 }
 
 void HyperspectralExportDialog::onRangeChanged() {
@@ -207,7 +257,13 @@ void HyperspectralExportDialog::updateBandCount() {
     const double span = m_lambdaMax->value() - m_lambdaMin->value();
     const double step = m_lambdaStep->value();
     const int bands = (step > 0.0) ? static_cast<int>(std::floor(span / step)) + 1 : 0;
-    m_bandCountLabel->setText(tr("%n band(s) — each traced to completion", "", bands));
+    if (bands > 1) {
+        m_bandCountLabel->setText(tr("%n band(s) — each traced to completion", "", bands));
+    } else {
+        m_bandCountLabel->setText(
+            tr("%n band(s) — a cube needs at least two; widen the range or shorten "
+               "the step.", "", bands));
+    }
     m_startButton->setEnabled(bands > 1 && !m_running);
 }
 
@@ -248,6 +304,11 @@ void HyperspectralExportDialog::onStartOrCancel() {
         return;   // A cube cannot be interrupted; the core has no cancel.
     }
 
+    if (documentProvider) {
+        // Modeless: the document may have changed since the dialog opened.
+        m_baseConfig = documentProvider();
+    }
+
     // Serialised here rather than passed as a struct: the offline renderer
     // parses a Config, which is the same reading the CLI does, so the cube
     // cannot mean something different from the same document rendered there.
@@ -261,6 +322,7 @@ void HyperspectralExportDialog::onStartOrCancel() {
     m_running = true;
     m_startButton->setEnabled(false);
     m_closeButton->setEnabled(false);
+    setInputsEnabled(false);
     m_progress->setVisible(true);
     m_progress->setValue(0);
     m_statusLabel->setText(tr("Preparing — compiling shaders and loading the scene..."));
@@ -291,9 +353,10 @@ void HyperspectralExportDialog::onStartOrCancel() {
                             if (!self) return;
                             self->m_progress->setValue(percent);
                             self->m_statusLabel->setText(
-                                tr("Band %1 of %2 — about %3 s remaining")
+                                tr("Band %1 of %2 — about %3 remaining")
                                     .arg(band).arg(total)
-                                    .arg(static_cast<int>(remaining)));
+                                    .arg(offlineexport::formatDuration(
+                                        static_cast<qint64>(remaining * 1000.0f))));
                         }, Qt::QueuedConnection);
                 };
 
@@ -329,6 +392,8 @@ void HyperspectralExportDialog::finish(bool success, const QString& message) {
     m_worker = nullptr;   // deleteLater is already connected
     m_startButton->setEnabled(true);
     m_closeButton->setEnabled(true);
+    setInputsEnabled(true);
+    updateBandCount();
     m_progress->setValue(success ? 100 : 0);
     m_progress->setVisible(success);
     m_statusLabel->setText(message);

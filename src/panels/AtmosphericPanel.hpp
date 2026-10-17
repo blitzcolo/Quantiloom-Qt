@@ -19,6 +19,8 @@
 
 #pragma once
 
+#include <string>
+
 #include "../ui/PanelBase.hpp"
 
 #include <atmos/AtmosphereNNConfig.hpp>
@@ -48,9 +50,13 @@ public:
     void retranslateUi() override;
 
     /**
-     * @brief Set current preset from config file
+     * @brief Load a preset's parameters, without reporting a change
      */
     void setPreset(const QString& preset);
+
+    /// A preset id ("urban_haze") as the user reads it, in the current
+    /// language. Ids the panel does not know come back unchanged.
+    [[nodiscard]] static QString presetDisplayName(const QString& preset);
 
     /**
      * @brief Get current preset name
@@ -104,6 +110,10 @@ private:
     void updateAdvancedParamsFromConfig(const quantiloom::AtmosphereNNConfig& config);
     void blockSignalsForUpdate(bool block);
     static void selectComboData(QComboBox* combo, double value);
+    /// True when the weather has been moved off the preset it started from.
+    [[nodiscard]] bool presetEdited() const;
+    void updatePresetDisplay();
+    void updateNetworkEnabled();
 
     // --- analytic group -------------------------------------------------
     QGroupBox* m_analyticGroup = nullptr;
@@ -160,5 +170,8 @@ private:
     QLabel* m_h2oCaption = nullptr;
 
     quantiloom::AtmosphereNNConfig m_config;
+    /// The preset the model was last on with, so switching it off and on
+    /// again restores it rather than resetting to Clear.
+    std::string m_lastEnabledPreset;
     bool m_updatingUi = false;
 };

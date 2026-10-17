@@ -87,14 +87,19 @@ void TimelinePanel::setupUi() {
     transportLayout->addWidget(m_slider);
 
     auto* spinForm = new QFormLayout();
+    // The spin boxes seek on commit; a typed 120 would otherwise seek to 1,
+    // 12 and 120, and a seek can cross a thermal epoch. The slider stays
+    // live -- scrubbing is what it is for.
     m_tickSpin = new QSpinBox(m_transportGroup);
     m_tickSpin->setRange(0, 0);
+    m_tickSpin->setKeyboardTracking(false);
     connect(m_tickSpin, QOverload<int>::of(&QSpinBox::valueChanged), this,
             &TimelinePanel::onTickSpinChanged);
     m_tickCaption = new QLabel(m_transportGroup);
     spinForm->addRow(m_tickCaption, m_tickSpin);
 
     m_secondsSpin = new QDoubleSpinBox(m_transportGroup);
+    m_secondsSpin->setKeyboardTracking(false);
     m_secondsSpin->setDecimals(3);
     m_secondsSpin->setRange(0.0, 0.0);
     m_secondsSpin->setSuffix(QStringLiteral(" s"));
@@ -126,7 +131,7 @@ void TimelinePanel::setupUi() {
 
     m_speedCombo = new QComboBox(m_playbackGroup);
     for (const double speed : {0.25, 0.5, 1.0, 2.0, 5.0, 10.0, 100.0}) {
-        m_speedCombo->addItem(QStringLiteral("x%1").arg(speed), speed);
+        m_speedCombo->addItem(QString(), speed);   // text set in retranslateUi()
     }
     m_speedCombo->setCurrentIndex(2);  // x1
     connect(m_speedCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
@@ -135,7 +140,8 @@ void TimelinePanel::setupUi() {
     playbackForm->addRow(m_speedCaption, m_speedCombo);
 
     m_loopCheck = new QCheckBox(m_playbackGroup);
-    connect(m_loopCheck, &QCheckBox::toggled, this, [this](bool) { /* read on wrap */ });
+    // Read when playback wraps; reported so the menu's tick follows the box.
+    connect(m_loopCheck, &QCheckBox::toggled, this, &TimelinePanel::loopChanged);
     playbackForm->addRow(QString(), m_loopCheck);
 
     mainLayout->addWidget(m_playbackGroup);
@@ -144,10 +150,12 @@ void TimelinePanel::setupUi() {
     // Readout
     // ------------------------------------------------------------------
     m_readout = new QLabel(this);
+    m_readout->setWordWrap(true);
     m_readout->setTextInteractionFlags(Qt::TextSelectableByMouse);
     mainLayout->addWidget(m_readout);
 
     m_thermalReadout = new QLabel(this);
+    m_thermalReadout->setWordWrap(true);
     m_thermalReadout->setTextInteractionFlags(Qt::TextSelectableByMouse);
     mainLayout->addWidget(m_thermalReadout);
 
@@ -158,50 +166,76 @@ void TimelinePanel::setupUi() {
 
     mainLayout->addStretch(1);
 
+    // The icons come from the style, and a theme switch can change the style.
+    bindStyle([this] {
+        m_toStartButton->setIcon(style()->standardIcon(QStyle::SP_MediaSkipBackward));
+        m_stepBackButton->setIcon(style()->standardIcon(QStyle::SP_MediaSeekBackward));
+        m_stepForwardButton->setIcon(style()->standardIcon(QStyle::SP_MediaSeekForward));
+        m_toEndButton->setIcon(style()->standardIcon(QStyle::SP_MediaSkipForward));
+        updatePlayButton();
+    });
+
     setInfo({});
+    retranslateUi();
 }
 
 void TimelinePanel::retranslateUi() {
-    bindText([this] {
-        m_transportGroup->setTitle(tr("Transport"));
-        m_createButton->setText(tr("Create 0-10 s timeline (20 ticks/s)"));
-        m_playbackGroup->setTitle(tr("Playback"));
-        m_tickCaption->setText(tr("Tick"));
-        m_secondsCaption->setText(tr("Time"));
-        m_modeCaption->setText(tr("Mode"));
-        m_speedCaption->setText(tr("Speed"));
-        m_loopCheck->setText(tr("Loop"));
+    // Everything here is set directly rather than through bindText(): this
+    // runs on every language change, and bindText() would register another
+    // copy of the setter each time.
+    m_transportGroup->setTitle(tr("Transport"));
+    m_createButton->setText(tr("Create 0-10 s timeline (20 ticks/s)"));
+    m_playbackGroup->setTitle(tr("Playback"));
+    m_tickCaption->setText(tr("Tick:"));
+    m_secondsCaption->setText(tr("Time:"));
+    m_modeCaption->setText(tr("Mode:"));
+    m_speedCaption->setText(tr("Speed:"));
+    m_loopCheck->setText(tr("Loop"));
 
-        m_toStartButton->setToolTip(tr("Go to start (Alt+Home)"));
-        m_stepBackButton->setToolTip(tr("Previous tick (Alt+Left)"));
-        m_playButton->setToolTip(m_playing ? tr("Pause (Ctrl+Space)")
-                                           : tr("Play (Ctrl+Space)"));
-        m_stepForwardButton->setToolTip(tr("Next tick (Alt+Right)"));
-        m_toEndButton->setToolTip(tr("Go to end (Alt+End)"));
+    m_toStartButton->setToolTip(tr("Go to start (Alt+Home)"));
+    m_stepBackButton->setToolTip(tr("Previous tick (Alt+Left)"));
+    updatePlayButton();
+    m_stepForwardButton->setToolTip(tr("Next tick (Alt+Right)"));
+    m_toEndButton->setToolTip(tr("Go to end (Alt+End)"));
 
-        const int mode = m_modeCombo->currentIndex();
-        m_modeCombo->setItemText(0, tr("Real time"));
-        m_modeCombo->setItemText(1, tr("Step when converged"));
-        m_modeCombo->setCurrentIndex(mode);
-        m_modeCombo->setToolTip(
-            tr("Real time advances on a timer. Step when converged waits for each "
-               "frame to reach its sample target first, which is the only way to "
-               "watch a path-traced sequence without watching the noise."));
+    const int mode = m_modeCombo->currentIndex();
+    m_modeCombo->setItemText(0, tr("Real time"));
+    m_modeCombo->setItemText(1, tr("Step when converged"));
+    m_modeCombo->setCurrentIndex(mode);
+    m_modeCombo->setToolTip(
+        tr("Real time advances on a timer. Step when converged waits for each "
+           "frame to reach its sample target first, which is the only way to "
+           "watch a path-traced sequence without watching the noise."));
 
-        m_speedCombo->setToolTip(
-            tr("Multiplies the tick rate during playback. A timeline that spans a "
-               "month is not watchable at one tick per twentieth of a second."));
+    for (int i = 0; i < m_speedCombo->count(); ++i) {
+        m_speedCombo->setItemText(
+            i, tr("×%1").arg(locale().toString(m_speedCombo->itemData(i).toDouble())));
+    }
+    m_speedCombo->setToolTip(
+        tr("Multiplies the tick rate during playback. A timeline that spans a "
+           "month is not watchable at one tick per twentieth of a second. Each "
+           "tick still has to be rendered, so a high multiplier runs as fast as "
+           "the frames allow, not faster."));
 
-        m_hint->setText(
-            m_info.present
-                ? tr("Moving the clock is not an edit: it does not enter the undo "
-                     "stack and does not mark the document modified. Saving records "
-                     "where it stands.")
-                : tr("This scene declares no [timeline]. Add one, with [[models]] "
-                     "carrying a motion, to give it a clock."));
-    });
     PanelBase::retranslateUi();
+    updateHint();
     updateReadout();
+}
+
+void TimelinePanel::updateHint() {
+    m_hint->setText(
+        m_info.present
+            ? tr("Moving the clock is not an edit: it does not enter the undo "
+                 "stack and does not mark the document modified. Saving records "
+                 "where it stands.")
+            : tr("This scene declares no [timeline]. Add one, with [[models]] "
+                 "carrying a motion, to give it a clock."));
+}
+
+void TimelinePanel::updatePlayButton() {
+    m_playButton->setIcon(
+        style()->standardIcon(m_playing ? QStyle::SP_MediaPause : QStyle::SP_MediaPlay));
+    m_playButton->setToolTip(m_playing ? tr("Pause (Alt+P)") : tr("Play (Alt+P)"));
 }
 
 // ============================================================================
@@ -235,26 +269,18 @@ void TimelinePanel::setInfo(const quantiloom::TimelineInfo& info) {
     restartTimer();
     updateReadout();
     // The hint says different things with and without a clock.
-    bindText([this] {
-        m_hint->setText(
-            m_info.present
-                ? tr("Moving the clock is not an edit: it does not enter the undo "
-                     "stack and does not mark the document modified. Saving records "
-                     "where it stands.")
-                : tr("This scene declares no [timeline]. Add one, with [[models]] "
-                     "carrying a motion, to give it a clock."));
-    });
+    updateHint();
 }
 
 void TimelinePanel::updateReadout() {
     if (!m_readout) {
         return;
     }
+    // Set directly: this runs on every tick, and is re-run by retranslateUi(),
+    // so a bindText() here would pile up one setter per tick.
     if (!m_info.present) {
-        bindText([this] {
-            m_readout->setText(tr("No timeline"));
-            m_thermalReadout->clear();
-        });
+        m_readout->setText(tr("No timeline"));
+        m_thermalReadout->clear();
         return;
     }
 
@@ -264,30 +290,24 @@ void TimelinePanel::updateReadout() {
     const int animated = static_cast<int>(m_info.animatedNodeCount);
     const int models = static_cast<int>(m_info.modelCount);
 
-    bindText([this, time, lastTick, animated, models] {
-        m_readout->setText(tr("Tick %1 / %2   %3   %4 animated node(s) over %5 model(s)")
-                               .arg(m_tick)
-                               .arg(lastTick)
-                               .arg(time)
-                               .arg(animated)
-                               .arg(models));
-    });
+    m_readout->setText(tr("Tick %1 / %2 · %3").arg(m_tick).arg(lastTick).arg(time) +
+                       QStringLiteral("\n") +
+                       tr("%n animated node(s)", "", animated) + tr(", ") +
+                       tr("%n model(s)", "", models));
 
     if (m_info.thermalMapped) {
         const double hour = m_info.currentThermalHour;
         const int epoch = static_cast<int>(m_info.currentThermalEpoch) + 1;
         const int epochs = static_cast<int>(std::max<quantiloom::u32>(m_info.thermalEpochCount, 1));
         const double scale = m_info.thermalTimeScale;
-        bindText([this, hour, epoch, epochs, scale] {
-            m_thermalReadout->setText(
-                tr("Thermal hour %1 h   geometry epoch %2 / %3   %4 simulated s per clock s")
-                    .arg(hour, 0, 'f', 3)
-                    .arg(epoch)
-                    .arg(epochs)
-                    .arg(scale, 0, 'g', 4));
-        });
+        m_thermalReadout->setText(
+            tr("Thermal hour %1 h · geometry epoch %2 / %3 · %4 simulated s per clock s")
+                .arg(hour, 0, 'f', 3)
+                .arg(epoch)
+                .arg(epochs)
+                .arg(scale, 0, 'g', 4));
     } else {
-        bindText([this] { m_thermalReadout->clear(); });
+        m_thermalReadout->clear();
     }
 }
 
@@ -371,13 +391,15 @@ void TimelinePanel::setPlaying(bool playing) {
     if (playing == m_playing) {
         return;
     }
+    // Play from the last tick with Loop off would stop on the first timer
+    // tick and look as if nothing had happened; it starts over instead.
+    if (playing && !m_loopCheck->isChecked() &&
+        m_tick >= std::max<long long>(m_info.TickCount() - 1, 0)) {
+        requestTick(0);
+    }
     m_playing = playing;
 
-    m_playButton->setIcon(
-        style()->standardIcon(m_playing ? QStyle::SP_MediaPause : QStyle::SP_MediaPlay));
-    bindText([this] {
-        m_playButton->setToolTip(m_playing ? tr("Pause (Ctrl+Space)") : tr("Play (Ctrl+Space)"));
-    });
+    updatePlayButton();
 
     restartTimer();
     emit playbackStateChanged(m_playing);

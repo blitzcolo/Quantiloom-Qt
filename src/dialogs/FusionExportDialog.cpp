@@ -37,6 +37,9 @@
 #include <QLineEdit>
 #include <QListWidget>
 #include <QMessageBox>
+#include <QDialogButtonBox>
+
+#include <initializer_list>
 #include <QProgressBar>
 #include <QPushButton>
 #include <QRegularExpression>
@@ -221,6 +224,10 @@ void FusionExportDialog::setupUi() {
     listLayout->addWidget(m_referenceLabel);
     m_reference = new QComboBox;
     listLayout->addWidget(m_reference);
+    // Labelled: under "Reference camera" with no caption of their own, the
+    // pairing controls read as a second choice of reference.
+    m_pairModeLabel = new QLabel;
+    listLayout->addWidget(m_pairModeLabel);
     m_pairMode = new QComboBox;
     m_pairMode->setObjectName(QStringLiteral("pairMode"));
     m_pairMode->addItem(QString());
@@ -246,15 +253,21 @@ void FusionExportDialog::setupUi() {
     m_id = new QLineEdit;
     m_cameraIdLabel = new QLabel;
     pose->addRow(m_cameraIdLabel, m_id);
+    // Ranges a rig actually spans: ±100 km and a full turn. The old ±1e8 at
+    // six decimals made each field wide enough to set the dialog's width.
     for (int i = 0; i < 6; ++i) {
         m_pose[i] = new QDoubleSpinBox;
-        m_pose[i]->setRange(i < 3 ? -1e8 : -360, i < 3 ? 1e8 : 360);
-        m_pose[i]->setDecimals(6);
+        m_pose[i]->setRange(i < 3 ? -1e5 : -360, i < 3 ? 1e5 : 360);
+        m_pose[i]->setDecimals(i < 3 ? 4 : 3);
+        m_pose[i]->setSingleStep(i < 3 ? 0.1 : 1.0);
         m_poseLabels[i] = new QLabel;
         pose->addRow(m_poseLabels[i], m_pose[i]);
     }
     rightLayout->addLayout(pose);
     m_sensor = new SensorPanel;
+    // Every rig camera is a camera: the export forces the simulation on
+    // (saveCamera), so the panel's own switch here would do nothing.
+    m_sensor->setEnableSwitchVisible(false);
     rightLayout->addWidget(m_sensor);
     m_previewButton = new QPushButton;
     rightLayout->addWidget(m_previewButton);
@@ -272,13 +285,11 @@ void FusionExportDialog::setupUi() {
     m_status->setWordWrap(true);
     layout->addWidget(m_status);
 
-    auto* buttons = new QHBoxLayout;
-    m_start = new QPushButton;
-    m_closeButton = new QPushButton;
-    buttons->addStretch();
-    buttons->addWidget(m_start);
-    buttons->addWidget(m_closeButton);
-    layout->addLayout(buttons);
+    auto* buttons = new QDialogButtonBox;
+    m_start = buttons->addButton(QString(), QDialogButtonBox::AcceptRole);
+    m_start->setDefault(true);
+    m_closeButton = buttons->addButton(QDialogButtonBox::Close);
+    layout->addWidget(buttons);
 
     connect(m_closeButton, &QPushButton::clicked,
             this, &FusionExportDialog::reject);
@@ -352,6 +363,15 @@ void FusionExportDialog::removeCamera() {
         return;
     }
     const String removed = m_rig.cameras[static_cast<size_t>(m_selected)].id;
+    // A camera carries a whole sensor configuration and its pairs go with it;
+    // there is no undo in this dialog.
+    if (QMessageBox::question(
+            this, tr("Remove Camera"),
+            tr("Remove camera '%1' and every pair that uses it?")
+                .arg(QString::fromStdString(removed)),
+            QMessageBox::Yes | QMessageBox::No, QMessageBox::No) != QMessageBox::Yes) {
+        return;
+    }
     std::erase_if(m_rig.pairs, [&removed](const RigPair& pair) {
         return pair.sourceCamera == removed || pair.targetCamera == removed;
     });
@@ -477,7 +497,7 @@ void FusionExportDialog::selectCamera(int index) {
         m_pose[i]->setValue(pose[i]);
     }
     m_sensor->setCameraConfig(camera.sensor);
-    m_sensor->setCameraEnabled(camera.sensor.enabled);
+    m_sensor->setCameraEnabled(true);
     m_loading = false;
     updatePreview();
 }
@@ -493,6 +513,7 @@ void FusionExportDialog::refreshList() {
     }
     m_reference->setCurrentText(QString::fromStdString(m_rig.referenceCamera));
     m_loading = false;
+    updateRemoveEnabled();
 }
 
 bool FusionExportDialog::collectPairs() {
@@ -603,10 +624,13 @@ void FusionExportDialog::start() {
         }
         m_start->setEnabled(true);
         m_start->setText(tr("Export"));
-        m_cameras->setEnabled(true);
+        setInputsEnabled(true);
     });
     m_start->setText(tr("Cancel"));
-    m_cameras->setEnabled(false);
+    // Everything the job read when it started. Leaving the pose fields and
+    // the sensor live let an edit appear to apply to a run that would not
+    // see it.
+    setInputsEnabled(false);
     m_thread->start();
 }
 
@@ -618,9 +642,52 @@ void FusionExportDialog::showProgress(
         m_start->setEnabled(false);
         m_status->setText(tr("Completing publication..."));
     } else {
-        m_status->setText(
-            QString::fromStdString(progress.cameraId + ": " + progress.phase));
+        m_lastProgress = progress;
+        updateProgressText();
     }
+}
+
+void FusionExportDialog::updateProgressText() {
+    // The SDK reports a phase as a protocol id; this is what it means.
+    const QString camera = QString::fromStdString(m_lastProgress.cameraId);
+    const std::string& phase = m_lastProgress.phase;
+    QString text;
+    if (phase == "capture") {
+        text = tr("Capturing %1 (%2 of %3)...")
+                   .arg(camera)
+                   .arg(m_lastProgress.completedCameras + 1)
+                   .arg(m_lastProgress.totalCameras);
+    } else if (phase == "correspondence") {
+        text = tr("Computing correspondences from %1...").arg(camera);
+    } else if (phase == "ready_to_publish") {
+        text = tr("Ready to publish...");
+    } else {
+        text = camera.isEmpty() ? QString::fromStdString(phase)
+                                : tr("%1: %2").arg(camera, QString::fromStdString(phase));
+    }
+    m_status->setText(text);
+}
+
+void FusionExportDialog::setInputsEnabled(bool enabled) {
+    for (QWidget* widget : std::initializer_list<QWidget*>{
+             m_sample, m_output, m_browseButton, m_cameras, m_addButton, m_removeButton,
+             m_reference, m_pairMode, m_loadRigButton, m_saveRigButton, m_id,
+             m_sensor, m_previewButton, m_rectify}) {
+        widget->setEnabled(enabled);
+    }
+    for (QDoubleSpinBox* spin : m_pose) {
+        spin->setEnabled(enabled);
+    }
+    m_pairs->setEnabled(enabled && m_pairMode->currentIndex() == 1);
+    if (enabled) {
+        updateRemoveEnabled();
+    }
+}
+
+void FusionExportDialog::updateRemoveEnabled() {
+    // A rig keeps at least one camera; Remove used to look available and do
+    // nothing with one left.
+    m_removeButton->setEnabled(!m_thread && m_rig.cameras.size() > 1);
 }
 
 void FusionExportDialog::showResult(
@@ -681,6 +748,10 @@ void FusionExportDialog::retranslateUi() {
     m_addButton->setText(tr("Add camera"));
     m_removeButton->setText(tr("Remove"));
     m_referenceLabel->setText(tr("Reference camera:"));
+    m_pairModeLabel->setText(tr("Pairs:"));
+    m_pairMode->setToolTip(
+        tr("Which cameras get correspondences: each camera against the reference, "
+           "or the pairs listed below."));
     m_pairMode->setItemText(0, tr("Default reference pairs"));
     m_pairMode->setItemText(1, tr("Explicit pairs"));
     m_pairs->setPlaceholderText(tr("source > target; source > target"));
@@ -695,4 +766,7 @@ void FusionExportDialog::retranslateUi() {
         tr("Also export undistorted images and coordinate maps"));
     m_start->setText(m_thread ? tr("Cancel") : tr("Export"));
     m_closeButton->setText(tr("Close"));
+    if (m_thread && !m_publishing && !m_lastProgress.phase.empty()) {
+        updateProgressText();
+    }
 }

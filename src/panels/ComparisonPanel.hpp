@@ -23,6 +23,8 @@
 
 #include <core/Image.hpp>
 
+#include <QImage>
+
 #include <memory>
 
 QT_BEGIN_NAMESPACE
@@ -52,24 +54,45 @@ public:
     /// statistics about the noise.
     void setRenderedImage(std::unique_ptr<quantiloom::Image> image);
 
+public slots:
+    /// Ask for an EXR and load it as the reference. The Tools menu reaches
+    /// it too; the button is a shortcut.
+    void loadReference();
+    /// Compare the current frame against the reference.
+    void compare();
+
 signals:
     /// The panel wants the current frame. The window is what can capture one.
     void frameRequested();
 
-private slots:
-    void onLoadReference();
-    void onCompare();
+protected:
+    void resizeEvent(QResizeEvent* event) override;
 
 private:
     void updateReport();
     void showDifference();
+    void rescaleDifference();
+    void updateEnabled();
+    void updateReferenceCaption();
+    /// A sentence in place of the figures.
+    void showMessage(const QString& message);
+
+    static constexpr int kFigureCount = 5;
 
     QPushButton* m_loadButton = nullptr;
     QPushButton* m_compareButton = nullptr;
     QLabel* m_referenceCaption = nullptr;
     QComboBox* m_channelCombo = nullptr;
+    QLabel* m_channelCaption = nullptr;
     QLabel* m_report = nullptr;
+    QWidget* m_figures = nullptr;
+    QLabel* m_figureCaptions[kFigureCount] = {};
+    QLabel* m_figureValues[kFigureCount] = {};
     QLabel* m_differenceView = nullptr;
+    QLabel* m_legend = nullptr;
+    QImage m_differenceImage;
+    /// The file name a failed load named, so the caption can be re-worded.
+    QString m_loadFailed;
 
     std::unique_ptr<quantiloom::Image> m_reference;
     std::unique_ptr<quantiloom::Image> m_rendered;

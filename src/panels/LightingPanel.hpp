@@ -129,11 +129,25 @@ private slots:
     void onBrowseIlluminant();
     void onSunAzimuthChanged(int value);
     void onSunElevationChanged(int value);
+    void onSunAzimuthSpinChanged(double value);
+    void onSunElevationSpinChanged(double value);
     void onSunIntensityChanged(double value);
     void onSkyIntensityChanged(double value);
     void onEnvironmentEnabledToggled(bool enabled);
+
+public slots:
+    /// The Render ▸ Lighting entries. Each does exactly what its widget does,
+    /// through the widget's own handler, so the two routes cannot differ.
     void onBrowseEnvironmentMap();
     void onClearEnvironmentMap();
+    void requestEnvironmentEnabled(bool enabled);
+    /// "none", "equal_energy", "astm" or "file"; "file" asks for the file.
+    void requestIlluminantKind(const QString& kind);
+
+public:
+    [[nodiscard]] bool environmentEnabled() const { return m_environmentEnabled; }
+    [[nodiscard]] bool hasEnvironmentMap() const { return !m_environmentMapPath.isEmpty(); }
+    [[nodiscard]] QString illuminantKind() const { return m_illuminant.kind; }
 
 protected:
     // The environment-map path is elided to the label's current width, so the
@@ -143,6 +157,10 @@ protected:
 private:
     void setupUi();
     void emitChanges();
+    /// emitChanges() wrapped as one undoable edit unless a slider drag is
+    /// already bracketing it.
+    void emitEdit();
+    void syncAngleWidgets();
     /// Show or hide the file row, and rebuild the notice from illuminantNotices().
     void updateIlluminantWidgets();
 
@@ -169,10 +187,14 @@ private:
     // Sun radiance
     glm::vec3 m_sunRadiance{1.0f};
     float m_sunIntensity = 1.0f;
+    /// The RGB shape of the sun radiance, normalised to mean 1.
+    glm::vec3 m_sunChroma{1.0f};
 
     // Sky radiance
     glm::vec3 m_skyRadiance{0.1f, 0.15f, 0.2f};
     float m_skyIntensity = 0.1f;
+    /// The RGB shape of the sky radiance, normalised to mean 1.
+    glm::vec3 m_skyChroma{2.0f / 3.0f, 1.0f, 4.0f / 3.0f};
 
     // Not in the UI: carried so that emitChanges() does not drop an override a
     // config supplied. Initialised from the SDK rather than typed out, because
@@ -197,10 +219,10 @@ private:
     QPushButton* m_envClearButton = nullptr;
     QLabel* m_doubleCountNotice = nullptr;
     QSlider* m_azimuthSlider = nullptr;
-    QLabel* m_azimuthLabel = nullptr;
+    QDoubleSpinBox* m_azimuthSpin = nullptr;
     QLabel* m_azimuthCaption = nullptr;
     QSlider* m_elevationSlider = nullptr;
-    QLabel* m_elevationLabel = nullptr;
+    QDoubleSpinBox* m_elevationSpin = nullptr;
     QLabel* m_elevationCaption = nullptr;
     QDoubleSpinBox* m_sunIntensitySpin = nullptr;
     QLabel* m_sunCaption = nullptr;

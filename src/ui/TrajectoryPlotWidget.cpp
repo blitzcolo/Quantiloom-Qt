@@ -13,6 +13,8 @@
 #include <QLabel>
 #include <QVBoxLayout>
 
+#include <algorithm>
+
 namespace uiplot {
 namespace {
 
@@ -47,7 +49,8 @@ TrajectoryPlotWidget::TrajectoryPlotWidget(QWidget* parent) : QWidget(parent) {
     m_note = new QLabel(this);
     m_note->setWordWrap(true);
     m_note->setVisible(false);
-    uistyle::applyHintStyle(m_note);
+    m_styling.attach(this);
+    m_styling.bind([this] { uistyle::applyHintStyle(m_note); });
 
     // The temperatures get the larger share: they are what a user came to see,
     // and the fluxes are the explanation underneath.
@@ -60,6 +63,18 @@ TrajectoryPlotWidget::TrajectoryPlotWidget(QWidget* parent) : QWidget(parent) {
 
 void TrajectoryPlotWidget::setTrajectory(
     const quantiloom::ThermalElementTrajectory& trajectory) {
+    // Kept, so a language switch can rename the series: their names are ours,
+    // and they were set only here.
+    m_trajectory = trajectory;
+    rebuildSeries();
+    retranslate();
+}
+
+void TrajectoryPlotWidget::rebuildSeries() {
+    if (!m_trajectory) {
+        return;
+    }
+    const quantiloom::ThermalElementTrajectory& trajectory = *m_trajectory;
     QVector<Series> temperatures;
     QVector<QPair<double, double>> surface;
     QVector<QPair<double, double>> back;
@@ -106,10 +121,10 @@ void TrajectoryPlotWidget::setTrajectory(
     // that is a different thing from a surface with nothing happening to it.
     m_hadFluxes = !trajectory.fluxes.empty();
     m_note->setVisible(!m_hadFluxes && !trajectory.time_h.empty());
-    retranslate();
 }
 
 void TrajectoryPlotWidget::clear() {
+    m_trajectory.reset();
     m_temperatures->clear();
     m_fluxes->clear();
     m_hadFluxes = false;
@@ -123,9 +138,12 @@ void TrajectoryPlotWidget::setPlaceholderText(const QString& text) {
 
 void TrajectoryPlotWidget::retranslate() {
     m_temperatures->setDomainAxisTitle(tr("Hour"));
-    m_temperatures->setValueAxisTitle(tr("Temperature (K)"));
+    // Qualified like every temperature in the application: these are the
+    // surface's (and its back face's), not the air's.
+    m_temperatures->setValueAxisTitle(tr("Surface temperature (K)"));
     m_fluxes->setDomainAxisTitle(tr("Hour"));
-    m_fluxes->setValueAxisTitle(tr("Flux (W/m2), into the surface"));
+    m_fluxes->setValueAxisTitle(tr("Flux into the surface (W/m²)"));
+    rebuildSeries();
     m_note->setText(tr("No flux breakdown: this solve ran on a stepper that does not "
                        "decompose its own energy balance."));
 }

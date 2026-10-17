@@ -73,6 +73,8 @@ public:
 
     /// Localised title of a workspace, for menu entries.
     [[nodiscard]] static QString workspaceTitle(const QString& id);
+    /// workspaceTitle() for a label rather than a tab or a menu entry.
+    [[nodiscard]] static QString workspaceDisplayName(const QString& id);
 
     /// Ids in display order.
     [[nodiscard]] static QStringList workspaceIds();

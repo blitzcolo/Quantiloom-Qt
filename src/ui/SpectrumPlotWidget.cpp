@@ -105,8 +105,9 @@ void SpectrumPlotWidget::setPlaceholderText(const QString& text) {
 
 void SpectrumPlotWidget::changeEvent(QEvent* event) {
     QWidget::changeEvent(event);
-    // The axis titles are the only translated strings the chart owns, and they
-    // are recreated by rebuild() rather than held.
+    // Only the default axis title is the chart's own; a title or series name
+    // the owner set is the owner's to re-word, and both owners do (in their
+    // retranslate). This picks up the default.
     if (event->type() == QEvent::LanguageChange) {
         rebuild();
     }
@@ -117,7 +118,10 @@ void SpectrumPlotWidget::rebuild() {
     chart->removeAllSeries();
     const auto axes = chart->axes();
     for (auto* axis : axes) {
+        // removeAxis() hands ownership back rather than deleting; without the
+        // delete every rebuild -- several per probe click -- leaked two axes.
         chart->removeAxis(axis);
+        delete axis;
     }
 
     // Nothing to draw is a state worth naming, not a blank rectangle.

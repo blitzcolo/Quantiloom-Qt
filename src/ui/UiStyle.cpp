@@ -9,6 +9,7 @@
 #include <QApplication>
 #include <QEvent>
 #include <QFont>
+#include <QFontDatabase>
 #include <QLabel>
 #include <QPalette>
 #include <QWidget>
@@ -90,9 +91,11 @@ void applyHintStyle(QWidget* widget, bool smaller) {
 
 void applyMonospaceStyle(QLabel* label) {
     if (!label) return;
-    QFont f = QApplication::font();
-    f.setStyleHint(QFont::Monospace);
-    f.setFamily(QStringLiteral("monospace"));
+    // The system's own fixed-pitch face at the application's size. "monospace"
+    // is a fontconfig alias that Windows does not have, so the hover readout's
+    // columns were set in the proportional default there.
+    QFont f = QFontDatabase::systemFont(QFontDatabase::FixedFont);
+    f.setPointSizeF(QApplication::font().pointSizeF());
     label->setFont(f);
 }
 

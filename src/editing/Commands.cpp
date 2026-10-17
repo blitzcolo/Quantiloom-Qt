@@ -10,6 +10,8 @@
 #include <renderer/LightingParams.hpp>
 #include <QCoreApplication>
 
+#include <chrono>
+
 // ============================================================================
 // TransformNodeCommand
 // ============================================================================
@@ -226,8 +228,18 @@ bool ModifyMaterialCommand::mergeWith(const Command* other) {
     if (!otherCmd || otherCmd->m_materialIndex != m_materialIndex) {
         return false;
     }
+    // Only a burst: a slider drag or a run of spin-box steps arrives as many
+    // edits a few frames apart, and is one change. Merging every edit of the
+    // same material regardless made one Ctrl+Z undo a whole session's work
+    // on it. The panel has no press/release to bracket a gesture with, so
+    // the gap between edits is what marks one.
+    constexpr auto kBurstGap = std::chrono::milliseconds(800);
+    if (otherCmd->m_createdAt - m_lastMergedAt > kBurstGap) {
+        return false;
+    }
     // Keep our old material, take their new material
     m_newMaterial = otherCmd->m_newMaterial;
+    m_lastMergedAt = otherCmd->m_createdAt;
     return true;
 }
 

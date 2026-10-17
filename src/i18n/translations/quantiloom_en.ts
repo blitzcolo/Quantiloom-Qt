@@ -76,16 +76,8 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>These live in the lighting parameters. The network model below supersedes them entirely — it measures this sky rather than correlating it.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Directory of &lt;band&gt;_&lt;geom&gt;_&lt;net&gt;.safetensors files.
 Leave empty to auto-detect.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>...</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -133,6 +125,10 @@ Leave empty to auto-detect.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>These live in the lighting parameters. With the network model below on and its model pack found, transmittance and path radiance come from it instead, and these remain the thermal-sky fallback.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Neural network model (MODTRAN surrogate)</source>
         <translation type="unfinished"></translation>
     </message>
@@ -149,6 +145,14 @@ Leave empty to auto-detect.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Choose the model pack directory</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>A named weather. Choosing one sets every parameter below; editing a parameter afterwards keeps the preset as the starting point and marks it edited.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Atmosphere model:</source>
         <translation type="unfinished"></translation>
     </message>
@@ -162,6 +166,30 @@ Leave empty to auto-detect.</source>
     </message>
     <message>
         <source>Cirrus (18)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>MODTRAN&apos;s standard atmosphere profile: the temperature, pressure and gas columns with height.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>MODTRAN&apos;s boundary-layer aerosol model, which sets how particles scatter and absorb near the ground.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>MODTRAN&apos;s cloud or rain model, if any.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Meteorological range: how far a dark object stays distinguishable against the horizon sky. Lower is hazier.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Multiplies the profile&apos;s water-vapour column. Above 1 is a wetter atmosphere than the standard profile, which mostly matters in the infrared.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Relative humidity at the ground, as the network was trained on it.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -198,6 +226,10 @@ Leave empty to auto-detect.</source>
     </message>
     <message>
         <source>Dew point %1 °C, zenith emissivity %2, effective sky %3 K (%4 K below the air).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 (edited)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -280,7 +312,15 @@ Leave empty to auto-detect.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Key the viewport&apos;s current camera at the clock&apos;s time. With a key selected, that key is replaced -- and moved to the clock&apos;s time.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Add key</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add a key at the clock&apos;s time from the fields below.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -288,7 +328,19 @@ Leave empty to auto-detect.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Replace the selected key with the fields below.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Delete key</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No keys</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The camera trajectory drives the pose. A pose typed here lasts until the clock moves; capture it to keep it.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -363,23 +415,22 @@ Leave empty to auto-detect.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Load reference...</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Compare with the current frame</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>No reference loaded. An EXR of a measurement, or of another render.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>%1: %2 × %3, %n channel(s).</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Load Reference Image</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Load a reference, then compare.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Load reference image</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -391,11 +442,74 @@ Leave empty to auto-detect.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Load Reference...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>An EXR of a measurement, or of another render.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Channel:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Compare with Current Frame</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Read the frame on screen now. A path-traced frame is still converging, so compare once it has the samples you want.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Red: the render is brighter. Blue: it is darker. Black: they agree. Scaled to the 99th percentile of the difference.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Reference mean:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Bias:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>RMSE:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>95th percentile:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Worst pixel:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The render minus the reference, so positive means brighter.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Channel %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>%1: %2 x %3, %4 channel(s).</source>
+        <source>The frame is %1 × %2 and the reference is %3 × %4. Match the render resolution to the reference rather than resampling either -- what a resampling does to a radiance belongs to whoever made the measurement.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>The frame has %n channel(s), so %1 has no counterpart in it.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Against %1, channel %2:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 (%2%)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -403,21 +517,7 @@ Leave empty to auto-detect.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>The frame is %1 x %2 and the reference is %3 x %4. Match the render resolution to the reference rather than resampling either -- what a resampling does to a radiance belongs to whoever made the measurement.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>That channel is not in both images.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Against %1, channel %2:
-  reference mean  %3
-  bias            %4  (%5%)
-  RMSE            %6
-  95th percentile %7
-  worst pixel     %8
-Bias is the render minus the reference, so positive means brighter.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -460,6 +560,14 @@ Help ▸ Reading Debug Output explains the colour encodings.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Whole day</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Hour </source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>%1, %2 px</source>
         <translation type="unfinished"></translation>
     </message>
@@ -474,10 +582,6 @@ Help ▸ Reading Debug Output explains the colour encodings.</source>
 </context>
 <context>
     <name>DisplayEnhancementPanel</name>
-    <message>
-        <source>4x4</source>
-        <translation type="unfinished"></translation>
-    </message>
     <message>
         <source>Display Enhancement</source>
         <translation type="unfinished"></translation>
@@ -550,6 +654,10 @@ Anything but greyscale replaces the image&apos;s own colour, which is what false
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>to</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Low percentile of the range to map from. Above zero, so a single cold pixel does not decide what the rest of the image looks like.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -568,25 +676,29 @@ Anything but greyscale replaces the image&apos;s own colour, which is what false
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Tile size:</source>
+        <source>Tile grid:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>8x8 (default)</source>
+        <source>4 × 4 tiles</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>16x16</source>
+        <source>8 × 8 tiles (default)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>32x32</source>
+        <source>16 × 16 tiles</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Number of contextual tiles.
-Smaller tiles = more local contrast.
-Larger tiles = more global contrast.</source>
+        <source>32 × 32 tiles</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>How many tiles CLAHE divides the image into, per axis.
+More tiles = more local contrast.
+Fewer tiles = more global contrast.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -639,7 +751,31 @@ May cause colour shifts.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Remove Camera</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove camera &apos;%1&apos; and every pair that uses it?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Completing publication...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Capturing %1 (%2 of %3)...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Computing correspondences from %1...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ready to publish...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1: %2</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -668,6 +804,14 @@ May cause colour shifts.</source>
     </message>
     <message>
         <source>Reference camera:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Pairs:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Which cameras get correspondences: each camera against the reference, or the pairs listed below.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -872,8 +1016,19 @@ May cause colour shifts.</source>
         <source>Close</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>A cube render cannot be interrupted. This window can be closed once it has finished.</source>
+        <translation type="unfinished"></translation>
+    </message>
     <message numerus="yes">
         <source>%n band(s) — each traced to completion</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>%n band(s) — a cube needs at least two; widen the range or shorten the step.</source>
         <translation type="unfinished">
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -900,7 +1055,7 @@ May cause colour shifts.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Band %1 of %2 — about %3 s remaining</source>
+        <source>Band %1 of %2 — about %3 remaining</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -965,6 +1120,14 @@ May cause colour shifts.</source>
     <message>
         <source>Elevation:</source>
         <translation>Elevation:</translation>
+    </message>
+    <message>
+        <source>Compass bearing of the sun: 0° is north (+Z), 90° is east (+X), 180° south, 270° west.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Height of the sun above the horizon: 0° on the horizon, 90° overhead.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Illuminant</source>
@@ -1038,10 +1201,6 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
     </message>
     <message>
         <source>Clear</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>%1°</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1141,6 +1300,10 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Material %1 does not exist in this scene</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Select a material in the scene first</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1188,6 +1351,13 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <source>&apos;%1&apos; selected</source>
         <translation type="unfinished"></translation>
     </message>
+    <message numerus="yes">
+        <source>%n object(s) selected</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
     <message>
         <source>&amp;Undo</source>
         <translation>&amp;Undo</translation>
@@ -1214,7 +1384,7 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
     </message>
     <message>
         <source>S&amp;top Render</source>
-        <translation>S&amp;top Render</translation>
+        <translation type="vanished">S&amp;top Render</translation>
     </message>
     <message>
         <source>&amp;Tools</source>
@@ -1446,6 +1616,30 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Target samples</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Will export an EXR when the target is reached</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Automatic export off</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Field of view</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Hyperspectral cube range</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Thermal parameters</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Workspace: %1</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1658,10 +1852,6 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Display &amp;Enhancement (CLAHE)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Affects the viewport and screenshots only; exported images keep their raw values.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1703,10 +1893,6 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
     </message>
     <message>
         <source>&amp;Spectral Mode</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>&amp;Timeline</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1759,14 +1945,6 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
     </message>
     <message>
         <source>Main Toolbar</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source> Spectral: </source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source> Debug: </source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1823,11 +2001,6 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
     </message>
     <message>
         <source>Open Failed</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>This file no longer exists:
-%1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1950,6 +2123,137 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Display &amp;Enhancement</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Pause Render</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Stop tracing, keeping the samples so far</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ti&amp;meline</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Key the viewport&apos;s camera at the clock&apos;s time; with a key selected, replace it</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Spectral:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Debug:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Other mode</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Remove Spectral Endmember</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Drop the endmember selected in the Spectral Library&apos;s list</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Lighting</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose &amp;Environment Map...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Light from Environment Map</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Clear Environment Map</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Illuminant</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>None — RGB radiance only</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Equal energy (CIE E)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>ASTM G-173 (bundled)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>From file...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Camera Simulation</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Render through the physical camera on the Camera panel</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Thermal Solve</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Solve surface temperatures over the simulated day</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>E&amp;xport EXR When Target Is Reached</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Writes beside the open configuration, named after it and the sample count. Has no effect in Infinite mode, which has no target to reach.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Load Comparison &amp;Reference...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Compare with Current Frame</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Bias, RMSE, 95th percentile and worst pixel of the frame on screen against the reference, in the Comparison panel</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This file no longer exists:
+%1
+
+Remove it from the recent files?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Render in Progress</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>An offline render is still running. Stop it, or wait for it to finish, before closing Quantiloom Studio.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Still opening %1 — try again when it has loaded</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Fusion Export</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1963,6 +2267,17 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
     </message>
     <message>
         <source>Could not restore the camera product request: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>Exported %n camera product(s) to %1</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Open a scene before exporting an image.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -2120,14 +2435,6 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>X / Y / Z</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Constrain the transform to an axis</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Space</source>
         <translation type="unfinished"></translation>
     </message>
@@ -2245,7 +2552,7 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
     </message>
     <message>
         <source>%1 objects selected</source>
-        <translation>%1 objects selected</translation>
+        <translation type="vanished">%1 objects selected</translation>
     </message>
     <message>
         <source>[G] Translate</source>
@@ -2357,7 +2664,7 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
     </message>
     <message>
         <source>Exported %1 camera product(s) to %2</source>
-        <translation>Exported %1 camera product(s) to %2</translation>
+        <translation type="vanished">Exported %1 camera product(s) to %2</translation>
     </message>
 </context>
 <context>
@@ -2372,7 +2679,7 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
     </message>
     <message>
         <source>Base Color</source>
-        <translation>Base Color</translation>
+        <translation type="vanished">Base Color</translation>
     </message>
     <message>
         <source>PBR Properties</source>
@@ -2439,10 +2746,6 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>...</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Image whose red channel carries the temperature field, normalised to [0, 1] and mapped to kelvin by the scale and offset below. Leave empty to use the single object temperature.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -2467,27 +2770,11 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source> W/mK</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Not solved</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source> kg/m3</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source> J/kgK</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source> m</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source> W/m2K</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -2568,10 +2855,6 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
     </message>
     <message>
         <source>Back face:</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Behind it:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -2741,6 +3024,42 @@ This has no effect on a material that also has transmission — refraction and c
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Base Colour</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Scene ambient</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose a temperature map image</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Temperature behind:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source> W/(m·K)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source> kg/m³</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source> J/(kg·K)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source> W/(m²·K)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source> W/m²</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>This material carries full spectral IR curves from the material generator. The three values below are a two-point summary of them; editing one replaces the curves.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -2752,6 +3071,10 @@ This has no effect on a material that also has transmission — refraction and c
         <source>This material&apos;s infrared response is stored as full spectral curves. Editing this value replaces them with two constant sample points.
 
 Replace the curves?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Select Base Colour</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -2825,10 +3148,6 @@ Replace the curves?</source>
     <message>
         <source>Transmittance:</source>
         <translation type="unfinished">Transmittance:</translation>
-    </message>
-    <message>
-        <source>Select Base Color</source>
-        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Set IR properties for thermal rendering</source>
@@ -3094,6 +3413,14 @@ Pick a node or a material in the scene tree.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>%1 / %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 / ∞</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>%1 x %2</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3209,6 +3536,38 @@ Rebuild with:
         <translation>Camera</translation>
     </message>
     <message>
+        <source>Generic CMOS (visible, Bayer, global)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Generic InGaAs (SWIR, mono)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Generic cooled photon IR (MWIR, mono)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Generic uncooled thermal IR (LWIR, mono)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Allied Vision Alvium 1800 U-507 (mono)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Allied Vision Alvium 1800 U-507 (colour)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Hamamatsu C12741-11 (−60 °C)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Hamamatsu C12741-11 (−70 °C)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Detector</source>
         <translation>Detector</translation>
     </message>
@@ -3243,6 +3602,14 @@ Rebuild with:
     <message>
         <source>Thermography</source>
         <translation>Thermography</translation>
+    </message>
+    <message>
+        <source>Display Grading</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Display Noise</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Enable Camera Simulation</source>
@@ -3361,6 +3728,22 @@ Rebuild with:
         <translation>Viridis</translation>
     </message>
     <message>
+        <source>Preset:</source>
+        <translation type="unfinished">Preset:</translation>
+    </message>
+    <message>
+        <source>A device to start from. Editing any value afterwards makes the camera Custom.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Detector Type:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Photon detectors count electrons; thermal detectors (bolometers) respond to absorbed power with a time constant.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Colour Filter Array:</source>
         <translation>Colour Filter Array:</translation>
     </message>
@@ -3399,6 +3782,10 @@ Rebuild with:
     <message>
         <source>Gaussian blur width of the point spread function, in pixels. Auto derives it from the aperture and wavelength; setting it here holds the blur fixed while the aperture varies, and 0 disables it.</source>
         <translation>Gaussian blur width of the point spread function, in pixels. Auto derives it from the aperture and wavelength; setting it here holds the blur fixed while the aperture varies, and 0 disables it.</translation>
+    </message>
+    <message>
+        <source>Focal length in pixels, as a calibration reports it.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Shutter:</source>
@@ -3762,6 +4149,7 @@ Rebuild with:
     </message>
     <message>
         <source>%1 %2</source>
+        <extracomment>%1 is a count, %2 the provenance grade it counts (&quot;3 manufacturer&quot;)</extracomment>
         <translation>%1 %2</translation>
     </message>
     <message>
@@ -3932,10 +4320,6 @@ Rebuild with:
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source> K</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>From:</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3976,10 +4360,6 @@ Rebuild with:
         <translation type="unfinished">Output</translation>
     </message>
     <message>
-        <source>...</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Directory:</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3993,10 +4373,6 @@ Rebuild with:
     </message>
     <message>
         <source>Export Manifest...</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Write this sequence as a batch manifest the command line renders, for a run long enough to want a machine of its own.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -4024,15 +4400,7 @@ Rebuild with:
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>%1 frames at %2 samples each, on one device.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>The open scene has no materials to sweep.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>%1 frames at %2 samples each.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -4084,6 +4452,48 @@ Rebuild with:
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Browse...</source>
+        <translation type="unfinished">Browse...</translation>
+    </message>
+    <message>
+        <source>Write this sequence as a batch manifest the command line renders, for a run long enough to want a machine of its own. The manifest names a configuration file on disk, so edits not yet saved are not in it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>One scene, one frame per tick. The clock moves between frames; everything else is the document as it stands.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>{tick} is the scene tick, zero padded; {time_s} is its time in seconds; {index} is the frame number.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Stopping after this frame, then closing...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 — tick %2, %3 s</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>%n frame(s) at %1 samples each, on one device.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>%1 — %2 K</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>%n frame(s) at %1 samples each.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
         <source>Frame %1 of %2...</source>
         <translation type="unfinished"></translation>
     </message>
@@ -4103,9 +4513,12 @@ Rebuild with:
         <source>Stopped after %1 of %2 frames.</source>
         <translation type="unfinished"></translation>
     </message>
-    <message>
-        <source>%1 frames written.</source>
-        <translation type="unfinished"></translation>
+    <message numerus="yes">
+        <source>%n frame(s) written.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
     </message>
     <message>
         <source>The document is not valid TOML: %1</source>
@@ -4139,7 +4552,11 @@ Rebuild with:
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Hyperspectral Range</source>
+        <source>Hyperspectral Cube Range</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The band grid File ▸ Render Hyperspectral Cube starts from, saved with the document. The viewport does not use it.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -4308,6 +4725,10 @@ Coverage — %3</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Material %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Auto IR Generation (SpectraForge)</source>
         <translation type="unfinished"></translation>
     </message>
@@ -4368,10 +4789,6 @@ Coverage — %3</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Start must be below End, and Output Steps at least 2, for a curve to be generated.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Anchor Points</source>
         <translation>Anchor Points</translation>
     </message>
@@ -4385,11 +4802,11 @@ Coverage — %3</source>
     </message>
     <message>
         <source>Load CSV</source>
-        <translation>Load CSV</translation>
+        <translation type="vanished">Load CSV</translation>
     </message>
     <message>
         <source>Load YAML</source>
-        <translation>Load YAML</translation>
+        <translation type="vanished">Load YAML</translation>
     </message>
     <message>
         <source>Interpolation:</source>
@@ -4397,6 +4814,18 @@ Coverage — %3</source>
     </message>
     <message>
         <source>Linear</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Apply</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Target material:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Give the target the curves above, with this roughness and metallic. Everything else about the material is kept.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -4432,12 +4861,20 @@ Coverage — %3</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Replace Anchor Points?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choosing a material type replaces the anchor points with its preset. Replace the points in the table?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Wavelength (nm)</source>
         <translation>Wavelength (nm)</translation>
     </message>
     <message>
         <source>Actions</source>
-        <translation>Actions</translation>
+        <translation type="vanished">Actions</translation>
     </message>
     <message>
         <source> K</source>
@@ -4453,11 +4890,11 @@ Coverage — %3</source>
     </message>
     <message>
         <source>Save CSV</source>
-        <translation>Save CSV</translation>
+        <translation type="vanished">Save CSV</translation>
     </message>
     <message>
         <source>Target Material Index:</source>
-        <translation>Target Material Index:</translation>
+        <translation type="vanished">Target Material Index:</translation>
     </message>
     <message>
         <source>Apply to Material</source>
@@ -4501,6 +4938,22 @@ Coverage — %3</source>
     </message>
     <message>
         <source>Cluster temperature:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Start must be below End for a curve to be generated.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Load CSV...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Load YAML...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save CSV...</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -4586,15 +5039,7 @@ Coverage — %3</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Hour at timeline start</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>With a [timeline], this is the hour the clock starts at. Which hour is being rendered comes from the transport.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Simulation time</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -4602,51 +5047,7 @@ Coverage — %3</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Start time</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Timestep</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Layers</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Initial condition</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Initial temperature</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Solar irradiance</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Diffuse irradiance</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Sunlight arriving from the sky dome rather than from the disc. Under overcast it is the whole of it.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Exchange rays</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Exchange top-K</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Checkpoint stride</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Forcing file</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -4694,11 +5095,127 @@ Coverage — %3</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>%1% of the parameter, added as a first-order correction. Exact for a small step; a linearisation for a large one.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Click a surface to see its day and what heated it.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Elements: %1 (%2 solved)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Start time:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The hour of the simulated day the run starts stepping from. Rendering a later hour costs the stepping in between.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Timestep:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Simulated seconds per solver step.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Layers:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Nodes through the depth of each surface&apos;s column. More resolves a steeper gradient below the surface, at a proportional cost.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Initial condition:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Steady</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Uniform</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Steady starts from the temperature each surface would settle at under the starting forcing. Uniform starts every node at the initial temperature below.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Initial object temperature:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Where every node starts when the initial condition is Uniform. Steady does not read it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Solar irradiance:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Direct normal irradiance, used when no forcing file is given. A clear noon is around 900 W/m².</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Diffuse irradiance:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Exchange rays:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Rays per element for the view-factor precompute: how surfaces see and heat each other. More is less noise and a slower precompute.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Exchange top-K:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>How many of each element&apos;s strongest view-factor entries to keep. A row past the top few is mostly noise.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Checkpoint stride:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>How often the trajectory stores a full state, in simulated hours. Shorter is more memory and a cheaper scrub.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Forcing file:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose a forcing CSV</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Time-varying air temperature, irradiance, sun position and sky temperature, as CSV. Empty means the constant values above.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Hour at timeline start:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Rendered hour:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The hour of the simulated day shown in the viewport. The solve steps to it from the start time under Solver Parameters.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Not solved yet.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -4722,11 +5239,11 @@ Coverage — %3</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Off. Move the slider to see what changing this parameter would do, before the solve is asked to do it.</source>
+        <source>Solver error: %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>%1%2% of the parameter, added as a first-order correction. Exact for a small step; a linearisation for a large one.</source>
+        <source>Off. Move the slider to see what changing this parameter would do, before the solve is asked to do it.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -4765,22 +5282,6 @@ Coverage — %3</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Tick</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Time</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Mode</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Speed</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Loop</source>
         <translation type="unfinished"></translation>
     </message>
@@ -4793,11 +5294,19 @@ Coverage — %3</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Pause (Ctrl+Space)</source>
+        <source>Tick:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Play (Ctrl+Space)</source>
+        <source>Time:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Mode:</source>
+        <translation type="unfinished">Mode:</translation>
+    </message>
+    <message>
+        <source>Speed:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -4821,7 +5330,37 @@ Coverage — %3</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Multiplies the tick rate during playback. A timeline that spans a month is not watchable at one tick per twentieth of a second.</source>
+        <source>×%1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Multiplies the tick rate during playback. A timeline that spans a month is not watchable at one tick per twentieth of a second. Each tick still has to be rendered, so a high multiplier runs as fast as the frames allow, not faster.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Tick %1 / %2 · %3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>%n animated node(s)</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>, </source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>%n model(s)</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Thermal hour %1 h · geometry epoch %2 / %3 · %4 simulated s per clock s</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -4833,15 +5372,15 @@ Coverage — %3</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Pause (Alt+P)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Play (Alt+P)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>No timeline</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Tick %1 / %2   %3   %4 animated node(s) over %5 model(s)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Thermal hour %1 h   geometry epoch %2 / %3   %4 simulated s per clock s</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -5511,11 +6050,11 @@ Right-drag orbits the camera, middle-drag pans, the wheel zooms; G/R/T switch tr
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Temperature (K)</source>
+        <source>Surface temperature (K)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Flux (W/m2), into the surface</source>
+        <source>Flux into the surface (W/m²)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

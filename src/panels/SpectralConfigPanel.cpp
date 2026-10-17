@@ -20,10 +20,14 @@
 #include <cmath>
 
 namespace {
-// The span the hyperspectral range spinboxes may cover. They also bound each
-// other inside it, so min can never exceed max.
-constexpr double kLambdaFloor = 300.0;
-constexpr double kLambdaCeil  = 2500.0;
+// The span the hyperspectral range spinboxes may cover -- the same span the
+// cube export dialog accepts, so a range set here is never clamped there. They
+// also bound each other inside it, so min can never exceed max.
+constexpr double kLambdaFloor = 100.0;
+constexpr double kLambdaCeil  = 20000.0;
+// Where a single-wavelength render may sit.
+constexpr double kSingleFloor = 100.0;
+constexpr double kSingleCeil  = 20000.0;
 }  // namespace
 
 SpectralConfigPanel::SpectralConfigPanel(QWidget* parent)
@@ -89,11 +93,19 @@ void SpectralConfigPanel::setupUi() {
     auto* singleLayout = new QFormLayout(singlePage);
 
     auto* sliderRow = new QHBoxLayout();
+    // The whole span a single-wavelength render accepts, the same one the MCP
+    // tool takes -- not just the visible band: an infrared line is the usual
+    // reason to render at one wavelength.
     m_wavelengthSlider = new QSlider(Qt::Horizontal);
-    m_wavelengthSlider->setRange(380, 760);
+    m_wavelengthSlider->setRange(static_cast<int>(kSingleFloor), static_cast<int>(kSingleCeil));
     m_wavelengthSlider->setValue(550);
     connect(m_wavelengthSlider, &QSlider::valueChanged,
             this, &SpectralConfigPanel::onWavelengthSliderChanged);
+    // A drag is one edit, entered into the history once, on release.
+    connect(m_wavelengthSlider, &QSlider::sliderPressed,
+            this, &SpectralConfigPanel::wavelengthGestureStarted);
+    connect(m_wavelengthSlider, &QSlider::sliderReleased,
+            this, &SpectralConfigPanel::wavelengthGestureFinished);
     sliderRow->addWidget(m_wavelengthSlider);
 
     m_wavelengthColorPreview = new QLabel();
@@ -102,8 +114,10 @@ void SpectralConfigPanel::setupUi() {
     singleLayout->addRow(sliderRow);
 
     m_wavelengthSpin = new QDoubleSpinBox();
-    m_wavelengthSpin->setRange(380.0, 760.0);
+    m_wavelengthSpin->setRange(kSingleFloor, kSingleCeil);
+    m_wavelengthSpin->setDecimals(1);
     m_wavelengthSpin->setSingleStep(1.0);
+    m_wavelengthSpin->setKeyboardTracking(false);
     m_wavelengthSpin->setValue(550.0);
     connect(m_wavelengthSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &SpectralConfigPanel::onWavelengthSpinChanged);
@@ -145,13 +159,17 @@ void SpectralConfigPanel::setupUi() {
 
     mainLayout->addWidget(m_settingsStack);
 
-    // Hyperspectral range settings (always visible for reference)
+    // Hyperspectral cube range: document state for the cube export, not the
+    // viewport.
     auto* rangeGroup = new QGroupBox(this);
     auto* rangeLayout = new QFormLayout(rangeGroup);
 
     m_lambdaMinSpin = new QDoubleSpinBox();
     m_lambdaMinSpin->setRange(kLambdaFloor, kLambdaCeil);
-    m_lambdaMinSpin->setValue(380.0);
+    m_lambdaMinSpin->setDecimals(1);
+    m_lambdaMinSpin->setSingleStep(10.0);
+    m_lambdaMinSpin->setValue(400.0);
+    m_lambdaMinSpin->setKeyboardTracking(false);
     connect(m_lambdaMinSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &SpectralConfigPanel::onRangeChanged);
     auto* minCaption = new QLabel(rangeGroup);
@@ -159,15 +177,20 @@ void SpectralConfigPanel::setupUi() {
 
     m_lambdaMaxSpin = new QDoubleSpinBox();
     m_lambdaMaxSpin->setRange(kLambdaFloor, kLambdaCeil);
-    m_lambdaMaxSpin->setValue(760.0);
+    m_lambdaMaxSpin->setDecimals(1);
+    m_lambdaMaxSpin->setSingleStep(10.0);
+    m_lambdaMaxSpin->setValue(2500.0);
+    m_lambdaMaxSpin->setKeyboardTracking(false);
     connect(m_lambdaMaxSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &SpectralConfigPanel::onRangeChanged);
     auto* maxCaption = new QLabel(rangeGroup);
     rangeLayout->addRow(maxCaption, m_lambdaMaxSpin);
 
     m_deltaSpin = new QDoubleSpinBox();
-    m_deltaSpin->setRange(1.0, 100.0);
-    m_deltaSpin->setValue(5.0);
+    m_deltaSpin->setRange(0.1, 500.0);
+    m_deltaSpin->setDecimals(1);
+    m_deltaSpin->setValue(10.0);
+    m_deltaSpin->setKeyboardTracking(false);
     connect(m_deltaSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &SpectralConfigPanel::onRangeChanged);
     auto* deltaCaption = new QLabel(rangeGroup);
@@ -178,7 +201,10 @@ void SpectralConfigPanel::setupUi() {
     rangeLayout->addRow(bandsCaption, m_bandCountLabel);
 
     bindText([this, rangeGroup, minCaption, maxCaption, deltaCaption, bandsCaption] {
-        rangeGroup->setTitle(tr("Hyperspectral Range"));
+        rangeGroup->setTitle(tr("Hyperspectral Cube Range"));
+        rangeGroup->setToolTip(
+            tr("The band grid File ▸ Render Hyperspectral Cube starts from, saved "
+               "with the document. The viewport does not use it."));
         minCaption->setText(tr("Min λ:"));
         maxCaption->setText(tr("Max λ:"));
         deltaCaption->setText(tr("Δλ:"));
@@ -224,6 +250,10 @@ void SpectralConfigPanel::applyModePage(quantiloom::SpectralMode mode) {
         case quantiloom::SpectralMode::LWIR_Fused: m_settingsStack->setCurrentIndex(3); break;
         default:                                   m_settingsStack->setCurrentIndex(0); break;
     }
+    // Only Single has settings of its own. The other pages repeated the mode
+    // description shown just above them, so the same paragraph appeared
+    // twice; the stack is shown only when it has something to add.
+    m_settingsStack->setVisible(mode == quantiloom::SpectralMode::Single);
 }
 
 void SpectralConfigPanel::setSpectralMode(quantiloom::SpectralMode mode) {
@@ -297,6 +327,10 @@ void SpectralConfigPanel::onModeChanged(int index) {
     emit spectralModeChanged(mode);
 }
 
+bool SpectralConfigPanel::isWavelengthDragging() const {
+    return m_wavelengthSlider->isSliderDown();
+}
+
 void SpectralConfigPanel::onWavelengthSliderChanged(int value) {
     updateWavelengthSwatch(value);
     emit wavelengthChanged(m_wavelength);
@@ -362,6 +396,7 @@ void SpectralConfigPanel::syncRangeBounds() {
 }
 
 void SpectralConfigPanel::onRangeChanged() {
+    const WavelengthRange before = wavelengthRange();
     syncRangeBounds();
 
     m_lambdaMin = static_cast<float>(m_lambdaMinSpin->value());
@@ -370,7 +405,7 @@ void SpectralConfigPanel::onRangeChanged() {
 
     updateBandCount();
 
-    emit wavelengthRangeChanged(m_lambdaMin, m_lambdaMax, m_deltaLambda);
+    emit wavelengthRangeChanged(before, wavelengthRange());
 }
 
 void SpectralConfigPanel::updateModeDescription(quantiloom::SpectralMode mode) {

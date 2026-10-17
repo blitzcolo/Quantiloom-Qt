@@ -155,12 +155,16 @@ void PreferencesDialog::setSelectedThemeId(const QString& id) {
 }
 
 QString PreferencesDialog::defaultScreenshotPath() {
-#ifdef Q_OS_WIN
-    const QString tempDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation);
-    return QDir(tempDir).filePath(QStringLiteral("Quantiloom/screenshots"));
-#else
-    return QStringLiteral("/tmp/Quantiloom/screenshots");
-#endif
+    // The user's Pictures folder, not the temp directory: a screenshot is kept
+    // on purpose, and the system clears temp without asking.
+    QString base = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
+    if (base.isEmpty()) {
+        base = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
+    }
+    if (base.isEmpty()) {
+        base = QDir::homePath();
+    }
+    return QDir(base).filePath(QStringLiteral("Quantiloom/screenshots"));
 }
 
 QString PreferencesDialog::screenshotPath() const {

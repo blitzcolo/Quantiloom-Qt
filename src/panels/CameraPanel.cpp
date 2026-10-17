@@ -4,6 +4,7 @@
 
 #include "CameraPanel.hpp"
 
+#include "../ui/CompactSpinBox.hpp"
 #include "../ui/UiStyle.hpp"
 
 #include <QDoubleSpinBox>
@@ -21,11 +22,13 @@
 #include <cmath>
 #include <functional>
 
+
 CameraPanel::CameraPanel(QWidget* parent)
     : PanelBase(parent)
 {
     setObjectName(panelId());
     setupUi();
+    updateKeyButtons();
 }
 
 QString CameraPanel::panelTitle() const {
@@ -46,10 +49,12 @@ void CameraPanel::setupUi() {
     static const char* const kAxisNames[3] = {"X", "Y", "Z"};
     auto makeTriple = [this](QWidget* parent, QDoubleSpinBox* (&fields)[3],
                              double range, int decimals,
-                             const std::function<void(QDoubleSpinBox*)>& wire) {
+                             const std::function<void(QDoubleSpinBox*)>& wire,
+                             bool precise = false) {
         auto* row = new QGridLayout();
         for (int axis = 0; axis < 3; ++axis) {
-            auto* spin = new QDoubleSpinBox(parent);
+            QDoubleSpinBox* spin = precise ? new uistyle::CompactDoubleSpinBox(parent)
+                                           : new QDoubleSpinBox(parent);
             spin->setRange(-range, range);
             spin->setDecimals(decimals);
             spin->setKeyboardTracking(false);
@@ -75,9 +80,17 @@ void CameraPanel::setupUi() {
     poseLayout->addRow(m_targetCaption,
                        makeTriple(m_poseGroup, m_target, 1e6, 3, wirePoseField));
 
-    m_distanceLabel = new QLabel(QStringLiteral("--"));
+    m_distanceLabel = new QLabel(QStringLiteral("—"));   // a dash, not a word
     m_distanceCaption = new QLabel(m_poseGroup);
     poseLayout->addRow(m_distanceCaption, m_distanceLabel);
+
+    // Shown while a trajectory drives the camera: a pose typed here is a
+    // preview the next clock move replaces, which nothing used to say.
+    m_poseDrivenNote = new QLabel(m_poseGroup);
+    m_poseDrivenNote->setWordWrap(true);
+    m_poseDrivenNote->setVisible(false);
+    bindStyle([this] { uistyle::applyHintStyle(m_poseDrivenNote); });
+    poseLayout->addRow(m_poseDrivenNote);
 
     mainLayout->addWidget(m_poseGroup);
 
@@ -135,6 +148,7 @@ void CameraPanel::setupUi() {
     m_keyList = new QComboBox(m_motionGroup);
     connect(m_keyList, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, [this](int index) {
+                updateKeyButtons();
                 if (index < 0 || index >= static_cast<int>(m_motion.keys.size())) return;
                 const auto& key = m_motion.keys[static_cast<size_t>(index)];
                 m_updatingFields = true;
@@ -147,11 +161,12 @@ void CameraPanel::setupUi() {
                 emit previewTimeRequested(key.timeSeconds);
             });
     motionLayout->addRow(m_keyList);
-    m_keyTime = new QDoubleSpinBox(m_motionGroup);
+    m_keyTime = new uistyle::CompactDoubleSpinBox(m_motionGroup);
     m_keyTime->setRange(-1e9, 1e9);
     // Fifteen decimals is not precision theatre: QDoubleSpinBox rounds its
     // value to its decimals, and the key fields are read back into the
     // trajectory, so fewer would quantise authored key times and positions.
+    // CompactDoubleSpinBox shows them compactly.
     m_keyTime->setDecimals(15);
     m_keyTime->setKeyboardTracking(false);
     m_keyTimeCaption = new QLabel(m_motionGroup);
@@ -159,9 +174,9 @@ void CameraPanel::setupUi() {
     m_keyPositionCaption = new QLabel(m_motionGroup);
     m_keyTargetCaption = new QLabel(m_motionGroup);
     motionLayout->addRow(m_keyPositionCaption,
-                         makeTriple(m_motionGroup, m_keyPosition, 1e9, 15, {}));
+                         makeTriple(m_motionGroup, m_keyPosition, 1e9, 15, {}, true));
     motionLayout->addRow(m_keyTargetCaption,
-                         makeTriple(m_motionGroup, m_keyTarget, 1e9, 15, {}));
+                         makeTriple(m_motionGroup, m_keyTarget, 1e9, 15, {}, true));
     auto* keyButtons = new QGridLayout();
     m_captureButton = new QPushButton(m_motionGroup);
     m_addButton = new QPushButton(m_motionGroup);
@@ -207,9 +222,18 @@ void CameraPanel::setupUi() {
         m_keyPositionCaption->setText(tr("Key position:"));
         m_keyTargetCaption->setText(tr("Key look at:"));
         m_captureButton->setText(tr("Capture pose"));
+        m_captureButton->setToolTip(
+            tr("Key the viewport's current camera at the clock's time. With a key "
+               "selected, that key is replaced -- and moved to the clock's time."));
         m_addButton->setText(tr("Add key"));
+        m_addButton->setToolTip(tr("Add a key at the clock's time from the fields below."));
         m_updateButton->setText(tr("Update key"));
+        m_updateButton->setToolTip(tr("Replace the selected key with the fields below."));
         m_deleteButton->setText(tr("Delete key"));
+        m_keyList->setPlaceholderText(tr("No keys"));
+        m_poseDrivenNote->setText(
+            tr("The camera trajectory drives the pose. A pose typed here lasts "
+               "until the clock moves; capture it to keep it."));
         for (QPushButton* button : presetButtons) {
             const QString id = button->property("presetId").toString();
             if (id == QLatin1String("front"))       button->setText(tr("Front"));
@@ -290,6 +314,7 @@ void CameraPanel::onFovChanged(double value) {
 void CameraPanel::setMotion(const quantiloom::camera::CameraMotionConfig& motion) {
     int selected = m_keyList->currentIndex();
     m_motion = motion;
+    m_poseDrivenNote->setVisible(!m_motion.keys.empty());
     const bool previewEditedKey = m_selectAfterEdit.has_value();
     if (m_selectAfterEdit) {
         const auto at = std::find_if(m_motion.keys.begin(), m_motion.keys.end(),
@@ -315,6 +340,21 @@ void CameraPanel::setMotion(const quantiloom::camera::CameraMotionConfig& motion
         m_updatingFields = false;
         if (previewEditedKey) emit previewTimeRequested(key.timeSeconds);
     }
+    updateKeyButtons();
+}
+
+bool CameraPanel::hasSelectedKey() const {
+    const int selected = m_keyList->currentIndex();
+    return selected >= 0 && selected < static_cast<int>(m_motion.keys.size());
+}
+
+void CameraPanel::updateKeyButtons() {
+    // Update and Delete act on the selected key; with none they did nothing
+    // while looking available.
+    const bool has = hasSelectedKey();
+    m_updateButton->setEnabled(has);
+    m_deleteButton->setEnabled(has);
+    emit keySelectionChanged(has);
 }
 
 void CameraPanel::setCurrentTime(double seconds) {
@@ -364,9 +404,13 @@ void CameraPanel::updateKeyframe() {
     if (m_updatingFields) return;
     const int selected = m_keyList->currentIndex();
     if (selected < 0 || selected >= static_cast<int>(m_motion.keys.size())) return;
+    const auto key = keyFromFields(m_keyTime->value());
+    // editingFinished fires on every focus change, edited or not. Tabbing
+    // through the fields used to re-emit an unchanged trajectory -- which
+    // also stopped playback -- once per field.
+    if (key == m_motion.keys[static_cast<size_t>(selected)]) return;
     quantiloom::camera::CameraMotionConfig next = m_motion;
     next.keys.erase(next.keys.begin() + selected);
-    const auto key = keyFromFields(m_keyTime->value());
     insertSorted(next, key);
     m_selectAfterEdit = key.timeSeconds;
     emit motionEdited(next);

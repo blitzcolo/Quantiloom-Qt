@@ -19,6 +19,10 @@
 #include <QDialog>
 
 #include "../config/ConfigManager.hpp"
+#include "../ui/UiStyle.hpp"
+
+#include <functional>
+#include <vector>
 
 QT_BEGIN_NAMESPACE
 class QDoubleSpinBox;
@@ -30,6 +34,7 @@ class QLabel;
 class QProgressBar;
 class QPushButton;
 class QThread;
+class QGroupBox;
 QT_END_NAMESPACE
 
 /**
@@ -46,6 +51,21 @@ public:
     explicit HyperspectralExportDialog(const SceneConfig& config, QWidget* parent = nullptr);
     ~HyperspectralExportDialog() override;
 
+    /// True while the cube is being traced. The shell asks before it closes.
+    [[nodiscard]] bool isRunning() const { return m_running; }
+
+    /// The document as it stands now. The dialog is modeless, so the scene
+    /// can be edited while it is open; Render reads the document through this
+    /// rather than rendering the copy it was opened with.
+    std::function<SceneConfig()> documentProvider;
+
+public slots:
+    /// Refused while a cube is being traced: the core has no cancel.
+    void reject() override;
+
+protected:
+    void changeEvent(QEvent* event) override;
+
 private slots:
     void onBrowseOutput();
     void onStartOrCancel();
@@ -53,6 +73,8 @@ private slots:
 
 private:
     void setupUi();
+    void retranslateUi();
+    void setInputsEnabled(bool enabled);
     void updateBandCount();
     /// Build the TOML the offline renderer will parse: the open document with
     /// multispectral forced on and this dialog's [hyperspectral] block.
@@ -60,6 +82,17 @@ private:
     void finish(bool success, const QString& message);
 
     SceneConfig m_baseConfig;
+
+    struct Caption {
+        QLabel* label;
+        const char* text;   // QT_TR_NOOP source, translated in retranslateUi()
+    };
+    std::vector<Caption> m_captions;
+    uistyle::StyleBindings m_styling;
+    QLabel* m_introLabel = nullptr;
+    QGroupBox* m_rangeGroup = nullptr;
+    QGroupBox* m_outputGroup = nullptr;
+    QPushButton* m_browseButton = nullptr;
 
     QDoubleSpinBox* m_lambdaMin = nullptr;
     QDoubleSpinBox* m_lambdaMax = nullptr;

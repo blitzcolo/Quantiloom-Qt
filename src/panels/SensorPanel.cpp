@@ -115,9 +115,38 @@ QLabel* SensorPanel::addRow(QFormLayout* layout, const char* source, QWidget* fi
     return label;
 }
 
+QString SensorPanel::presetDisplayName(CameraPresetKind kind) {
+    // The SDK's names are English; these are the same names, translatable.
+    // Product names stay as the manufacturer writes them.
+    switch (kind) {
+        case CameraPresetKind::GenericCmos:
+            return tr("Generic CMOS (visible, Bayer, global)");
+        case CameraPresetKind::GenericIngaas:
+            return tr("Generic InGaAs (SWIR, mono)");
+        case CameraPresetKind::GenericCooledPhotonIr:
+            return tr("Generic cooled photon IR (MWIR, mono)");
+        case CameraPresetKind::GenericUncooledThermalIr:
+            return tr("Generic uncooled thermal IR (LWIR, mono)");
+        case CameraPresetKind::Alvium1800U507Mono:
+            return tr("Allied Vision Alvium 1800 U-507 (mono)");
+        case CameraPresetKind::Alvium1800U507Color:
+            return tr("Allied Vision Alvium 1800 U-507 (colour)");
+        case CameraPresetKind::HamamatsuC12741_11Minus60C:
+            return tr("Hamamatsu C12741-11 (−60 °C)");
+        case CameraPresetKind::HamamatsuC12741_11Minus70C:
+            return tr("Hamamatsu C12741-11 (−70 °C)");
+        default:
+            // A preset this build has no wording for: the SDK's own name.
+            return QString::fromStdString(quantiloom::camera::CameraPresetDisplayName(kind));
+    }
+}
+
 QDoubleSpinBox* SensorPanel::makeSpin(double min, double max, double step,
                                       int decimals, double value, const char* suffix) {
     auto* spin = new QDoubleSpinBox();
+    // Every edit here re-measures the camera and enters the history, so a
+    // value is applied when it is committed, not once per keystroke.
+    spin->setKeyboardTracking(false);
     spin->setRange(min, max);
     spin->setDecimals(decimals);
     spin->setSingleStep(step);
@@ -140,6 +169,8 @@ void SensorPanel::retranslateUi() {
     m_irDisplayGroup->setTitle(tr("Infrared Display"));
     m_statusGroup->setTitle(tr("Coverage and Calibration"));
     m_thermographyGroup->setTitle(tr("Thermography"));
+    m_hsvGroup->setTitle(tr("Display Grading"));
+    m_displayNoiseGroup->setTitle(tr("Display Noise"));
 
     m_enabledCheck->setText(tr("Enable Camera Simulation"));
     m_explicitIntrinsics->setText(tr("Use calibrated intrinsics"));
@@ -181,15 +212,19 @@ void SensorPanel::retranslateUi() {
     // Combo items are user-visible text too; refill them in the current
     // language, preserving the selection.
     {
-        const int keep = m_presetCombo->currentIndex();
+        // Restored by value -- the preset the config matches -- not by index.
         const QSignalBlocker blocker(m_presetCombo);
         m_presetCombo->clear();
         m_presetCombo->addItem(tr("Custom (current values)"));
-        for (CameraPresetKind kind : quantiloom::camera::AllCameraPresets()) {
-            m_presetCombo->addItem(QString::fromStdString(
-                quantiloom::camera::CameraPresetDisplayName(kind)));
+        int selected = 0;
+        const auto kinds = quantiloom::camera::AllCameraPresets();
+        for (size_t i = 0; i < kinds.size(); ++i) {
+            m_presetCombo->addItem(presetDisplayName(kinds[i]));
+            if (m_presetKind && *m_presetKind == kinds[i]) {
+                selected = static_cast<int>(i) + 1;
+            }
         }
-        m_presetCombo->setCurrentIndex(keep >= 0 ? keep : 0);
+        m_presetCombo->setCurrentIndex(selected);
     }
     {
         const int keep = m_detectorKind->currentIndex();
@@ -245,6 +280,10 @@ void SensorPanel::retranslateUi() {
 
 void SensorPanel::setupUi() {
     auto* mainLayout = new QVBoxLayout(this);
+    // The margins and spacing every other panel uses; this one had Qt's
+    // defaults, a third wider.
+    mainLayout->setContentsMargins(4, 4, 4, 4);
+    mainLayout->setSpacing(8);
 
     // Enable checkbox
     m_enabledCheck = new QCheckBox();
@@ -257,7 +296,8 @@ void SensorPanel::setupUi() {
     auto* presetLayout = new QFormLayout();
     m_presetCombo = new QComboBox();
     // Items are filled by retranslateUi().
-    presetLayout->addRow(m_presetCombo);
+    addRow(presetLayout, QT_TR_NOOP("Preset:"), m_presetCombo,
+           QT_TR_NOOP("A device to start from. Editing any value afterwards makes the camera Custom."));
     mainLayout->addLayout(presetLayout);
 
     // ========================================================================
@@ -267,7 +307,8 @@ void SensorPanel::setupUi() {
     auto* deviceLayout = new QFormLayout(m_deviceGroup);
 
     m_detectorKind = new QComboBox();
-    deviceLayout->addRow(m_detectorKind);
+    addRow(deviceLayout, QT_TR_NOOP("Detector Type:"), m_detectorKind,
+           QT_TR_NOOP("Photon detectors count electrons; thermal detectors (bolometers) respond to absorbed power with a time constant."));
 
     m_cfaCombo = new QComboBox();
     addRow(deviceLayout, QT_TR_NOOP("Colour Filter Array:"), m_cfaCombo,
@@ -290,13 +331,24 @@ void SensorPanel::setupUi() {
     addRow(opticsLayout, QT_TR_NOOP("Aperture:"), m_fNumber,
            QT_TR_NOOP("f-number, focal length divided by entrance pupil diameter. Lower collects more light: irradiance on the detector goes as 1/(1 + 4 f-number squared)."));
 
-    m_pixelPitch = makeSpin(0.1, 100.0, 0.1, 2, 5.0, " um");
+    m_pixelPitch = makeSpin(0.1, 100.0, 0.1, 2, 5.0, " μm");
     addRow(opticsLayout, QT_TR_NOOP("Pixel Pitch:"), m_pixelPitch,
            QT_TR_NOOP("Centre-to-centre spacing of the detector elements. Sets how much area collects photons for one pixel."));
 
     // -1 is the sentinel for "derive from diffraction", shown as special text
     // rather than as a number.
     m_psfSigma = makeSpin(-1.0, 100.0, 0.1, 3, -1.0, " px");
+    // Between the sentinel and zero there is nothing: a step down from 0
+    // lands on Auto, a step up from Auto lands on 0. Connected before the
+    // parameter slot so that reads the snapped value.
+    connect(m_psfSigma, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
+            [this](double value) {
+                if (value > -1.0 && value < 0.0) {
+                    const QSignalBlocker blocker(m_psfSigma);
+                    m_psfSigma->setValue(value < m_lastPsfSigma ? -1.0 : 0.0);
+                }
+                m_lastPsfSigma = m_psfSigma->value();
+            });
     addRow(opticsLayout, QT_TR_NOOP("PSF Width:"), m_psfSigma,
            QT_TR_NOOP("Gaussian blur width of the point spread function, in pixels. Auto derives it from the aperture and wavelength; setting it here holds the blur fixed while the aperture varies, and 0 disables it."));
 
@@ -327,10 +379,11 @@ void SensorPanel::setupUi() {
         QT_TR_NOOP("Principal y:"),
     };
     for (int i = 0; i < 4; ++i) {
-        m_intrinsics[i] = makeSpin(i < 2 ? 0.0001 : -100000.0, 100000.0, 0.1, 6,
+        m_intrinsics[i] = makeSpin(i < 2 ? 0.0001 : -100000.0, 100000.0, 0.1, 3,
                                    i < 2 ? 1000.0 : 0.0, " px");
         addRow(opticsLayout, kIntrinsicLabels[i], m_intrinsics[i],
-               QT_TR_NOOP("Top-left image coordinates; pixel centres use a half-pixel offset."));
+               i < 2 ? QT_TR_NOOP("Focal length in pixels, as a calibration reports it.")
+                     : QT_TR_NOOP("Top-left image coordinates; pixel centres use a half-pixel offset."));
         connect(m_intrinsics[i], QOverload<double>::of(&QDoubleSpinBox::valueChanged),
                 this, &SensorPanel::onParamChanged);
     }
@@ -342,13 +395,13 @@ void SensorPanel::setupUi() {
         QT_TR_NOOP("k3 (radial):"),
     };
     for (int i = 0; i < 5; ++i) {
-        m_distortion[i] = makeSpin(-100.0, 100.0, 0.0001, 8, 0.0, nullptr);
+        m_distortion[i] = makeSpin(-100.0, 100.0, 0.0001, 6, 0.0, nullptr);
         addRow(opticsLayout, kCoefficientLabels[i], m_distortion[i],
                QT_TR_NOOP("Dimensionless coefficient in the selected lens model."));
         connect(m_distortion[i], QOverload<double>::of(&QDoubleSpinBox::valueChanged),
                 this, &SensorPanel::onParamChanged);
     }
-    m_maxTheta = makeSpin(0.1, 89.99, 0.1, 3, 89.0, " deg");
+    m_maxTheta = makeSpin(0.1, 89.99, 0.1, 2, 89.0, "°");
     addRow(opticsLayout, QT_TR_NOOP("Fisheye Half Angle:"), m_maxTheta,
            QT_TR_NOOP("Maximum valid angle from the forward axis."));
     connect(m_maxTheta, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
@@ -560,7 +613,7 @@ void SensorPanel::setupUi() {
     m_hsvGroup = new CollapsibleGroupBox();
     auto* hsvLayout = new QFormLayout();
 
-    m_hueOffset = makeSpin(-180.0, 180.0, 1.0, 1, 0.0, " deg");
+    m_hueOffset = makeSpin(-180.0, 180.0, 1.0, 1, 0.0, "°");
     addRow(hsvLayout, QT_TR_NOOP("Hue Offset:"), m_hueOffset,
            QT_TR_NOOP("Rotation applied to the hue of the displayed image, in degrees. 0 leaves hue alone."));
 
@@ -572,24 +625,32 @@ void SensorPanel::setupUi() {
     addRow(hsvLayout, QT_TR_NOOP("Value Gamma:"), m_valueGamma,
            QT_TR_NOOP("Exponent applied to the display value after tone mapping. 1 leaves it alone."));
 
+    m_hsvGroup->setContentLayout(hsvLayout);
+    mainLayout->addWidget(m_hsvGroup);
+
+    // Display noise: not grading, but the same display-side stage, so it sits
+    // next to it in a group of its own.
+    m_displayNoiseGroup = new CollapsibleGroupBox();
+    auto* noiseLayout = new QFormLayout();
+
     m_empiricalNoise = new QCheckBox();
     m_empiricalNoise->setChecked(false);
-    hsvLayout->addRow(m_empiricalNoise);
+    noiseLayout->addRow(m_empiricalNoise);
 
     m_noiseSigma = makeSpin(0.0, 1.0, 0.005, 3, 0.02, nullptr);
-    addRow(hsvLayout, QT_TR_NOOP("Noise Sigma:"), m_noiseSigma,
+    addRow(noiseLayout, QT_TR_NOOP("Noise Sigma:"), m_noiseSigma,
            QT_TR_NOOP("Sigma of the empirical display noise stream, in display-value units. The pattern is keyed on the acquisition index, so the same acquisition always shows the same noise."));
 
     m_temporalDrift = new QCheckBox();
     m_temporalDrift->setChecked(false);
-    hsvLayout->addRow(m_temporalDrift);
+    noiseLayout->addRow(m_temporalDrift);
 
     m_driftSigma = makeSpin(0.0, 1.0, 0.005, 3, 0.02, nullptr);
-    addRow(hsvLayout, QT_TR_NOOP("Drift Sigma:"), m_driftSigma,
+    addRow(noiseLayout, QT_TR_NOOP("Drift Sigma:"), m_driftSigma,
            QT_TR_NOOP("Sigma of the empirical temporal drift stream, in display-value units. Slow frame-to-frame wander on top of the noise."));
 
-    m_hsvGroup->setContentLayout(hsvLayout);
-    mainLayout->addWidget(m_hsvGroup);
+    m_displayNoiseGroup->setContentLayout(noiseLayout);
+    mainLayout->addWidget(m_displayNoiseGroup);
 
     // ========================================================================
     // Infrared display group (thermal detectors only)
@@ -695,7 +756,15 @@ void SensorPanel::setupUi() {
     connect(m_fpnNoise, &QCheckBox::toggled, this, &SensorPanel::onFpnToggled);
     connect(m_nucEnable, &QCheckBox::toggled, this, &SensorPanel::onNucToggled);
     connect(m_autoExposure, &QCheckBox::toggled, this, &SensorPanel::onAutoExposureToggled);
-    connect(m_autoWhiteBalance, &QCheckBox::toggled, this, &SensorPanel::onParamChanged);
+    connect(m_autoWhiteBalance, &QCheckBox::toggled, this, [this](bool checked) {
+        // Auto white balance drives the three gains, as their tooltip says;
+        // leaving them editable invited edits it would overwrite.
+        updateWhiteBalanceEnabled(checked);
+        onParamChanged();
+    });
+    for (QSpinBox* box : {m_nativeWidth, m_nativeHeight, m_adcBits}) {
+        box->setKeyboardTracking(false);
+    }
 
     // Display-only params
     for (QDoubleSpinBox* box : {m_wbR, m_wbG, m_wbB, m_toneGamma,
@@ -725,17 +794,25 @@ void SensorPanel::setupUi() {
                 this, &SensorPanel::onThermographyChanged);
     }
 
-    // Fold the grading group away by default.
+    // Fold the grading and noise groups away by default.
     m_hsvGroup->setCollapsed(true);
+    m_displayNoiseGroup->setCollapsed(true);
 
+    // Lay the defaults down through the same path a loaded config takes, so
+    // every dependent enable state (row delay, FPN, AE, AWB, lens fields)
+    // starts consistent instead of all-enabled.
+    updateUiFromConfig(m_camera);
     setCameraEnabled(false);
     updateKindVisibility();
 }
 
-void SensorPanel::setCameraEnabled(bool enabled) {
-    m_updatingUi = true;
-    m_enabledCheck->setChecked(enabled);
-    m_camera.enabled = enabled;
+void SensorPanel::updateWhiteBalanceEnabled(bool automatic) {
+    for (QDoubleSpinBox* box : {m_wbR, m_wbG, m_wbB}) {
+        box->setEnabled(!automatic);
+    }
+}
+
+void SensorPanel::setGroupsEnabled(bool enabled) {
     m_deviceGroup->setEnabled(enabled);
     m_opticsGroup->setEnabled(enabled);
     m_readoutGroup->setEnabled(enabled);
@@ -743,8 +820,23 @@ void SensorPanel::setCameraEnabled(bool enabled) {
     m_thermalGroup->setEnabled(enabled);
     m_ispGroup->setEnabled(enabled);
     m_hsvGroup->setEnabled(enabled);
+    m_displayNoiseGroup->setEnabled(enabled);
     m_irDisplayGroup->setEnabled(enabled);
+}
+
+void SensorPanel::setCameraEnabled(bool enabled) {
+    m_updatingUi = true;
+    m_enabledCheck->setChecked(enabled);
+    m_camera.enabled = enabled;
+    setGroupsEnabled(enabled);
     m_updatingUi = false;
+    // The preview line says whether the simulation is on; a config loaded
+    // with it on still read "off" until something else refreshed it.
+    updateStatusArea();
+}
+
+void SensorPanel::setEnableSwitchVisible(bool visible) {
+    m_enabledCheck->setVisible(visible);
 }
 
 bool SensorPanel::isCameraEnabled() const {
@@ -762,15 +854,9 @@ quantiloom::camera::CameraConfig SensorPanel::getCameraConfig() const {
 }
 
 void SensorPanel::onEnabledChanged(bool enabled) {
-    m_deviceGroup->setEnabled(enabled);
-    m_opticsGroup->setEnabled(enabled);
-    m_readoutGroup->setEnabled(enabled);
-    m_photonGroup->setEnabled(enabled);
-    m_thermalGroup->setEnabled(enabled);
-    m_ispGroup->setEnabled(enabled);
-    m_hsvGroup->setEnabled(enabled);
-    m_irDisplayGroup->setEnabled(enabled);
+    setGroupsEnabled(enabled);
     m_camera.enabled = enabled;
+    updateStatusArea();
 
     if (!m_updatingUi) {
         emit enabledChanged(enabled);
@@ -1057,6 +1143,7 @@ void SensorPanel::updateStatusArea() {
     auto tally = [&parts, &total](const QString& grade, int count) {
         if (count <= 0) return;
         total += count;
+        //: %1 is a count, %2 the provenance grade it counts ("3 manufacturer")
         parts << tr("%1 %2").arg(count).arg(grade);
     };
     if (m_presetKind) {
@@ -1117,6 +1204,7 @@ void SensorPanel::updateUiFromConfig(const quantiloom::camera::CameraConfig& con
     m_fNumber->setValue(config.optics.fNumber);
     m_pixelPitch->setValue(config.optics.pixelPitchUm);
     m_psfSigma->setValue(config.optics.psfSigmaPixelsOverride);
+    m_lastPsfSigma = m_psfSigma->value();
     m_nativeWidth->setValue(static_cast<int>(config.optics.sensorWidthPx));
     m_nativeHeight->setValue(static_cast<int>(config.optics.sensorHeightPx));
     const auto& projection = config.optics.projection;
@@ -1188,6 +1276,7 @@ void SensorPanel::updateUiFromConfig(const quantiloom::camera::CameraConfig& con
     m_aeMaxExposure->setValue(config.isp.autoControl.maxExposureSeconds);
     m_aeMaxGain->setValue(config.isp.autoControl.maxGain);
     m_autoWhiteBalance->setChecked(config.isp.autoWhiteBalance);
+    updateWhiteBalanceEnabled(config.isp.autoWhiteBalance);
     m_wbR->setValue(config.isp.whiteBalance[0]);
     m_wbG->setValue(config.isp.whiteBalance[1]);
     m_wbB->setValue(config.isp.whiteBalance[2]);

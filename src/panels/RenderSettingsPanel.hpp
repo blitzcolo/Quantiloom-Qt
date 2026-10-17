@@ -54,6 +54,7 @@ public:
     /// Session state, like the debug mode: it says what to do with a render,
     /// not what the scene is (src/config/CLAUDE.md).
     [[nodiscard]] bool autoExportOnComplete() const;
+    void setAutoExportOnComplete(bool enabled);
 
 signals:
     void sppChanged(uint32_t spp);
@@ -62,6 +63,8 @@ signals:
     /// listened for, so choosing a file did nothing at all.
     void exportRequested();
     void resetAccumulationRequested();
+    /// The auto-export box was toggled by hand; Render ▸ mirrors it.
+    void autoExportToggled(bool enabled);
 
 private slots:
     void onSppPresetChanged(int index);
@@ -73,6 +76,7 @@ private:
 
     // Current settings
     uint32_t m_targetSPP = 4;
+    uint32_t m_sampleCount = 0;
     uint32_t m_width = 1280;
     uint32_t m_height = 720;
 

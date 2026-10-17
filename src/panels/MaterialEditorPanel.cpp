@@ -5,6 +5,7 @@
 
 #include "MaterialEditorPanel.hpp"
 
+#include "../ui/CompactSpinBox.hpp"
 #include "../ui/UiStyle.hpp"
 #include "../ui/theme/ThemeManager.hpp"
 #include "../ui/CollapsibleGroupBox.hpp"
@@ -14,7 +15,9 @@
 #include <QGroupBox>
 #include <QLabel>
 #include <QSlider>
+#include <QAbstractSpinBox>
 #include <QDoubleSpinBox>
+#include <algorithm>
 #include <cmath>
 #include <QPushButton>
 #include <QColorDialog>
@@ -41,6 +44,11 @@ MaterialEditorPanel::MaterialEditorPanel(QWidget* parent)
 {
     setObjectName(panelId());
     setupUi();
+    // Every value here is applied as it changes -- a material upload, or a
+    // display pass -- so it is applied when committed, not once per keystroke.
+    for (QAbstractSpinBox* spin : findChildren<QAbstractSpinBox*>()) {
+        spin->setKeyboardTracking(false);
+    }
 }
 
 QString MaterialEditorPanel::panelTitle() const {
@@ -58,13 +66,16 @@ void MaterialEditorPanel::setupUi() {
     bindText([this] {
         if (m_currentIndex < 0) {
             m_materialName->setText(tr("No material selected"));
+        } else if (m_currentMaterial && m_currentMaterial->name.empty()) {
+            // The fallback name is ours, so it follows the language too.
+            m_materialName->setText(tr("Material %1").arg(m_currentIndex));
         }
     });
     mainLayout->addWidget(m_materialName);
 
     // Base Color group
     auto* colorGroup = new QGroupBox(this);
-    bindText([colorGroup] { colorGroup->setTitle(tr("Base Color")); });
+    bindText([colorGroup] { colorGroup->setTitle(tr("Base Colour")); });
     auto* colorLayout = new QHBoxLayout(colorGroup);
     m_baseColorBtn = new QPushButton();
     m_baseColorBtn->setFixedSize(80, 30);
@@ -136,11 +147,13 @@ void MaterialEditorPanel::setupUi() {
     // signal-blocked, so a value above the ceiling would not corrupt the
     // material on the way in -- it would show as the clamp, and the next edit
     // of any one channel would write that clamp back over the other two.
+    // Compact display: three fields able to hold 1e6 at two decimals, side by
+    // side, set the width of the whole dock.
     auto createSpinBox = [this]() {
-        auto* spin = new QDoubleSpinBox();
+        auto* spin = new uistyle::CompactDoubleSpinBox(nullptr, 6);
         spin->setRange(0.0, 1.0e6);
         spin->setSingleStep(0.1);
-        spin->setDecimals(2);
+        spin->setDecimals(4);
         connect(spin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
                 this, &MaterialEditorPanel::onEmissiveChanged);
         return spin;
@@ -271,6 +284,8 @@ void MaterialEditorPanel::setupUi() {
         // quantities "Temperature".
         temperatureCaption->setText(tr("Object temperature:"));
         m_irTemperatureSpin->setSuffix(tr(" K"));
+        // 0 is a sentinel, not absolute zero.
+        m_irTemperatureSpin->setSpecialValueText(tr("Scene ambient"));
         m_irTemperatureSpin->setToolTip(
             tr("Surface temperature of this material. 0 uses the scene ambient; "
                "roughly 293 K is room temperature and 310 K is human skin."));
@@ -294,7 +309,8 @@ void MaterialEditorPanel::setupUi() {
     auto* temperatureMapCaption = new QLabel(m_irGroup);
     bindText([this, temperatureMapCaption] {
         temperatureMapCaption->setText(tr("Temperature map:"));
-        m_temperatureTextureBrowse->setText(tr("..."));
+        m_temperatureTextureBrowse->setText(QStringLiteral("…"));
+        m_temperatureTextureBrowse->setToolTip(tr("Choose a temperature map image"));
         m_temperatureTextureEdit->setToolTip(
             tr("Image whose red channel carries the temperature field, normalised "
                "to [0, 1] and mapped to kelvin by the scale and offset below. "
@@ -355,13 +371,19 @@ void MaterialEditorPanel::setupUi() {
     bindText([this] { m_thermalGroup->setTitle(tr("Thermal Properties (Solver)")); });
     auto* thermalLayout = new QFormLayout();
 
-    auto addThermalRow = [this, thermalLayout](const QString& caption, QDoubleSpinBox* box,
-                                               const QString& tip) {
-        box->setToolTip(tip);
+    // Captions and tooltips are QT_TR_NOOP sources translated inside
+    // bindText(), so this whole group follows a language switch; it used to be
+    // set once here and stay in the language the window opened in.
+    auto addThermalRow = [this, thermalLayout](const char* caption, QDoubleSpinBox* box,
+                                               const char* tip) {
         connect(box, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
                 this, &MaterialEditorPanel::onThermalPropertyChanged);
-        auto* label = new QLabel(caption);
-        label->setToolTip(tip);
+        auto* label = new QLabel();
+        bindText([label, box, caption, tip] {
+            label->setText(tr(caption));
+            label->setToolTip(tr(tip));
+            box->setToolTip(tr(tip));
+        });
         thermalLayout->addRow(label, box);
     };
 
@@ -369,35 +391,29 @@ void MaterialEditorPanel::setupUi() {
     m_thermalConductivity->setRange(0.0, 500.0);
     m_thermalConductivity->setDecimals(3);
     m_thermalConductivity->setSingleStep(0.1);
-    m_thermalConductivity->setSuffix(tr(" W/mK"));
-    m_thermalConductivity->setSpecialValueText(tr("Not solved"));
 
     m_thermalDensity = new QDoubleSpinBox();
     m_thermalDensity->setRange(1.0, 25000.0);
     m_thermalDensity->setDecimals(0);
     m_thermalDensity->setSingleStep(100.0);
-    m_thermalDensity->setSuffix(tr(" kg/m3"));
     m_thermalDensity->setValue(2000.0);
 
     m_thermalSpecificHeat = new QDoubleSpinBox();
     m_thermalSpecificHeat->setRange(1.0, 10000.0);
     m_thermalSpecificHeat->setDecimals(0);
     m_thermalSpecificHeat->setSingleStep(50.0);
-    m_thermalSpecificHeat->setSuffix(tr(" J/kgK"));
     m_thermalSpecificHeat->setValue(900.0);
 
     m_thermalThickness = new QDoubleSpinBox();
     m_thermalThickness->setRange(0.001, 10.0);
     m_thermalThickness->setDecimals(3);
     m_thermalThickness->setSingleStep(0.01);
-    m_thermalThickness->setSuffix(tr(" m"));
     m_thermalThickness->setValue(0.2);
 
     m_thermalConvection = new QDoubleSpinBox();
     m_thermalConvection->setRange(0.0, 200.0);
     m_thermalConvection->setDecimals(1);
     m_thermalConvection->setSingleStep(1.0);
-    m_thermalConvection->setSuffix(tr(" W/m2K"));
     m_thermalConvection->setValue(5.0);
 
     m_thermalAbsorptivity = new QDoubleSpinBox();
@@ -412,57 +428,50 @@ void MaterialEditorPanel::setupUi() {
     m_thermalWetness->setSingleStep(0.05);
     m_thermalWetness->setValue(0.0);
 
-    addThermalRow(tr("Conductivity:"), m_thermalConductivity,
-                  tr("How fast heat moves through the material. Zero leaves this surface "
+    addThermalRow(QT_TR_NOOP("Conductivity:"), m_thermalConductivity,
+                  QT_TR_NOOP("How fast heat moves through the material. Zero leaves this surface "
                      "out of the solve, keeping whatever temperature it was given."));
-    addThermalRow(tr("Density:"), m_thermalDensity,
-                  tr("With the specific heat and the thickness, this is the thermal mass -- "
+    addThermalRow(QT_TR_NOOP("Density:"), m_thermalDensity,
+                  QT_TR_NOOP("With the specific heat and the thickness, this is the thermal mass -- "
                      "how much heat the surface has to gain to warm by a degree."));
-    addThermalRow(tr("Specific heat:"), m_thermalSpecificHeat,
-                  tr("Heat one kilogram needs to warm by one kelvin."));
-    addThermalRow(tr("Thickness:"), m_thermalThickness,
-                  tr("How deep the slab is. A thin sheet follows the air within minutes; a "
+    addThermalRow(QT_TR_NOOP("Specific heat:"), m_thermalSpecificHeat,
+                  QT_TR_NOOP("Heat one kilogram needs to warm by one kelvin."));
+    addThermalRow(QT_TR_NOOP("Thickness:"), m_thermalThickness,
+                  QT_TR_NOOP("How deep the slab is. A thin sheet follows the air within minutes; a "
                      "masonry wall takes hours, and is still warm after sunset."));
-    addThermalRow(tr("Convection:"), m_thermalConvection,
-                  tr("Exchange with the air. About 5 in still air, 25 in a brisk wind."));
-    addThermalRow(tr("Solar absorptivity:"), m_thermalAbsorptivity,
-                  tr("Fraction of sunlight absorbed. Not the infrared emissivity: fresh snow "
+    addThermalRow(QT_TR_NOOP("Convection:"), m_thermalConvection,
+                  QT_TR_NOOP("Exchange with the air. About 5 in still air, 25 in a brisk wind."));
+    addThermalRow(QT_TR_NOOP("Solar absorptivity:"), m_thermalAbsorptivity,
+                  QT_TR_NOOP("Fraction of sunlight absorbed. Not the infrared emissivity: fresh snow "
                      "absorbs almost no sunlight and radiates nearly as a blackbody."));
-    addThermalRow(tr("Wetness factor:"), m_thermalWetness,
-                  tr("How much of the surface evaporates: 0 for dry, 1 for open water. "
+    addThermalRow(QT_TR_NOOP("Wetness factor:"), m_thermalWetness,
+                  QT_TR_NOOP("How much of the surface evaporates: 0 for dry, 1 for open water. "
                      "Evaporation is why a lawn is ten degrees cooler than the pavement "
                      "beside it under the same sun."));
 
     // Before the back-face rows, because it decides whether any of them mean
     // anything: a shell has two exposed faces and no interior.
     m_thermalShell = new QCheckBox();
-    m_thermalShell->setText(tr("Exposed on both sides"));
-    m_thermalShell->setToolTip(
-        tr("A panel, a sign, a tent: one thin slab with sky on both faces, "
-           "modelled as two sheets of triangles. Without this the two sheets are "
-           "solved as separate slabs each insulated against a wall that is not "
-           "there, so a panel in the sun comes out as hot as if it were bolted to "
-           "masonry. The rows below then have no interior to describe."));
     connect(m_thermalShell, &QCheckBox::toggled, this,
             &MaterialEditorPanel::onThermalPropertyChanged);
     thermalLayout->addRow(QString(), m_thermalShell);
 
     m_thermalInteriorBc = new QComboBox();
-    m_thermalInteriorBc->addItem(tr("Adiabatic (nothing behind)"), QStringLiteral("adiabatic"));
-    m_thermalInteriorBc->addItem(tr("Held at a temperature"), QStringLiteral("fixed"));
-    m_thermalInteriorBc->addItem(tr("Convects to what is behind"), QStringLiteral("ambient"));
+    m_thermalInteriorBc->addItem(QString(), QStringLiteral("adiabatic"));
+    m_thermalInteriorBc->addItem(QString(), QStringLiteral("fixed"));
+    m_thermalInteriorBc->addItem(QString(), QStringLiteral("ambient"));
     connect(m_thermalInteriorBc, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &MaterialEditorPanel::onThermalPropertyChanged);
-    thermalLayout->addRow(tr("Back face:"), m_thermalInteriorBc);
+    auto* backFaceCaption = new QLabel();
+    thermalLayout->addRow(backFaceCaption, m_thermalInteriorBc);
 
     m_thermalInteriorTemp = new QDoubleSpinBox();
     m_thermalInteriorTemp->setRange(1.0, 2000.0);
     m_thermalInteriorTemp->setDecimals(1);
     m_thermalInteriorTemp->setSingleStep(1.0);
-    m_thermalInteriorTemp->setSuffix(tr(" K"));
     m_thermalInteriorTemp->setValue(293.15);
-    addThermalRow(tr("Behind it:"), m_thermalInteriorTemp,
-                  tr("Temperature of whatever is behind the surface -- a room, usually. "
+    addThermalRow(QT_TR_NOOP("Temperature behind:"), m_thermalInteriorTemp,
+                  QT_TR_NOOP("Temperature of whatever is behind the surface -- a room, usually. "
                      "Read when the back face is held at it or convects to it."));
 
     m_thermalInteriorConvection = new QDoubleSpinBox();
@@ -470,8 +479,8 @@ void MaterialEditorPanel::setupUi() {
     m_thermalInteriorConvection->setDecimals(2);
     m_thermalInteriorConvection->setSingleStep(0.5);
     m_thermalInteriorConvection->setValue(3.0);
-    addThermalRow(tr("Back-face convection:"), m_thermalInteriorConvection,
-                  tr("Exchange between the back face and what is behind it. Lower than "
+    addThermalRow(QT_TR_NOOP("Back-face convection:"), m_thermalInteriorConvection,
+                  QT_TR_NOOP("Exchange between the back face and what is behind it. Lower than "
                      "the front's: still air in a closed bay rather than wind. Read only "
                      "when the back face convects."));
 
@@ -480,18 +489,45 @@ void MaterialEditorPanel::setupUi() {
     m_thermalInternalHeat->setDecimals(1);
     m_thermalInternalHeat->setSingleStep(10.0);
     m_thermalInternalHeat->setValue(0.0);
-    addThermalRow(tr("Internal heat:"), m_thermalInternalHeat,
-                  tr("A flux entering from behind: an engine, a battery, a compartment. "
+    addThermalRow(QT_TR_NOOP("Internal heat:"), m_thermalInternalHeat,
+                  QT_TR_NOOP("A flux entering from behind: an engine, a battery, a compartment. "
                      "The only way a shaded surface can be the warmest thing in an "
                      "infrared scene. Absorbed without trace by a back face that is "
                      "held at a temperature."));
+
+    // Units on every row that has one: the back-face convection and the
+    // internal heat used to be bare numbers beside a front row that had them.
+    bindText([this, backFaceCaption] {
+        m_thermalConductivity->setSuffix(tr(" W/(m·K)"));
+        m_thermalConductivity->setSpecialValueText(tr("Not solved"));
+        m_thermalDensity->setSuffix(tr(" kg/m³"));
+        m_thermalSpecificHeat->setSuffix(tr(" J/(kg·K)"));
+        m_thermalThickness->setSuffix(tr(" m"));
+        m_thermalConvection->setSuffix(tr(" W/(m²·K)"));
+        m_thermalInteriorTemp->setSuffix(tr(" K"));
+        m_thermalInteriorConvection->setSuffix(tr(" W/(m²·K)"));
+        m_thermalInternalHeat->setSuffix(tr(" W/m²"));
+        m_thermalShell->setText(tr("Exposed on both sides"));
+        m_thermalShell->setToolTip(
+            tr("A panel, a sign, a tent: one thin slab with sky on both faces, "
+               "modelled as two sheets of triangles. Without this the two sheets are "
+               "solved as separate slabs each insulated against a wall that is not "
+               "there, so a panel in the sun comes out as hot as if it were bolted to "
+               "masonry. The rows below then have no interior to describe."));
+        backFaceCaption->setText(tr("Back face:"));
+        m_thermalInteriorBc->setItemText(0, tr("Adiabatic (nothing behind)"));
+        m_thermalInteriorBc->setItemText(1, tr("Held at a temperature"));
+        m_thermalInteriorBc->setItemText(2, tr("Convects to what is behind"));
+    });
 
     m_thermalNotice = new QLabel();
     bindStyle([this] { uistyle::applyHintStyle(m_thermalNotice); });
     thermalLayout->addRow(m_thermalNotice);
 
     m_thermalGroup->setContentLayout(thermalLayout);
-    mainLayout->addWidget(m_thermalGroup);
+    // Added to the layout after the visible-light extensions, below: the
+    // solver's inputs are the least-used group, and they sat between the IR
+    // values and the transmission and sheen most materials are edited for.
 
     // ------------------------------------------------------------------
     // Transmission and volume
@@ -651,10 +687,19 @@ void MaterialEditorPanel::setupUi() {
 
     auto* anisoCaption = addSpin(m_anisotropyStrengthSpin, 0.0, 1.0, 0.05, 3);
     auto* anisoRotCaption = addSpin(m_anisotropyRotationSpin, -3.15, 3.15, 0.05, 4);
+    m_anisotropyRotationSpin->setSuffix(QStringLiteral(" rad"));   // unit symbol
     auto* coatCaption = addSpin(m_clearcoatSpin, 0.0, 1.0, 0.05, 3);
     auto* coatRoughCaption = addSpin(m_clearcoatRoughnessSpin, 0.0, 1.0, 0.05, 3);
     auto* dtCaption = addSpin(m_diffuseTransmissionSpin, 0.0, 1.0, 0.05, 3);
 
+    m_diffuseTransmissionColorBtn = new QPushButton();
+    m_diffuseTransmissionColorBtn->setFixedSize(80, 30);
+    connect(m_diffuseTransmissionColorBtn, &QPushButton::clicked,
+            this, &MaterialEditorPanel::onDiffuseTransmissionColorClicked);
+    auto* dtColourCaption = new QLabel();
+    surfaceLayout->addRow(dtColourCaption, m_diffuseTransmissionColorBtn);
+
+    // After the diffuse-transmission colour, not between it and its factor.
     m_alphaModeCombo = new QComboBox();
     m_alphaModeCombo->addItem(QString(), 0);
     m_alphaModeCombo->addItem(QString(), 1);
@@ -666,15 +711,10 @@ void MaterialEditorPanel::setupUi() {
 
     auto* alphaCutoffCaption = addSpin(m_alphaCutoffSpin, 0.0, 1.0, 0.05, 3);
 
-    m_diffuseTransmissionColorBtn = new QPushButton();
-    m_diffuseTransmissionColorBtn->setFixedSize(80, 30);
-    connect(m_diffuseTransmissionColorBtn, &QPushButton::clicked,
-            this, &MaterialEditorPanel::onDiffuseTransmissionColorClicked);
-    auto* dtColourCaption = new QLabel();
-    surfaceLayout->addRow(dtColourCaption, m_diffuseTransmissionColorBtn);
 
     m_surfaceGroup->setContentLayout(surfaceLayout);
     mainLayout->addWidget(m_surfaceGroup);
+    mainLayout->addWidget(m_thermalGroup);
 
     bindText([this, specularCaption, specularColourCaption, anisoCaption, anisoRotCaption,
               coatCaption, coatRoughCaption, dtCaption, dtColourCaption,
@@ -916,6 +956,7 @@ void MaterialEditorPanel::setMaterial(int index, const quantiloom::Material* mat
     m_irTransmittance = material->irTransmittanceCurve.empty()
         ? 0.0f : material->irTransmittanceCurve[0].second;
     m_irTemperature_K = material->irTemperature_K;
+    m_irScalarsEdited = false;
 
     m_hasGeneratedCurves =
         material->irEmissivityCurve.size() > kSimpleCurvePoints ||
@@ -944,6 +985,19 @@ void MaterialEditorPanel::setMaterial(int index, const quantiloom::Material* mat
     updateSpectralCurveNotice();
     updateTemperatureMapNotice();
     updateKirchhoffLabel();
+    updateDependentFields();
+}
+
+void MaterialEditorPanel::updateDependentFields() {
+    // A field that cannot take effect is shown, but not offered: a map range
+    // with no map, a cut-off outside Mask mode, a rotation of a stretch that
+    // is not there.
+    const bool hasMap = !m_temperatureTextureEdit->text().trimmed().isEmpty();
+    m_temperatureScaleSpin->setEnabled(hasMap);
+    m_temperatureOffsetSpin->setEnabled(hasMap);
+    m_alphaCutoffSpin->setEnabled(m_alphaModeCombo->currentData().toInt() == 1);
+    m_anisotropyRotationSpin->setEnabled(m_anisotropyStrengthSpin->value() > 0.0);
+    m_clearcoatRoughnessSpin->setEnabled(m_clearcoatSpin->value() > 0.0);
 }
 
 void MaterialEditorPanel::clear() {
@@ -991,15 +1045,17 @@ bool MaterialEditorPanel::confirmSpectralOverwrite() {
 }
 
 void MaterialEditorPanel::updateColorButton(QPushButton* btn, const glm::vec3& color) {
-    const int r = static_cast<int>(color.r * 255);
-    const int g = static_cast<int>(color.g * 255);
-    const int b = static_cast<int>(color.b * 255);
+    // Clamped for the swatch only: glTF allows a specular colour above 1, and
+    // rgb(2550, ...) is not a style sheet Qt will parse.
+    const int r = std::clamp(static_cast<int>(color.r * 255), 0, 255);
+    const int g = std::clamp(static_cast<int>(color.g * 255), 0, 255);
+    const int b = std::clamp(static_cast<int>(color.b * 255), 0, 255);
     btn->setStyleSheet(QStringLiteral("background-color: rgb(%1, %2, %3);").arg(r).arg(g).arg(b));
 }
 
 void MaterialEditorPanel::onBaseColorClicked() {
     const QColor initial = QColor::fromRgbF(m_baseColor.r, m_baseColor.g, m_baseColor.b);
-    const QColor color = QColorDialog::getColor(initial, this, tr("Select Base Color"));
+    const QColor color = QColorDialog::getColor(initial, this, tr("Select Base Colour"));
 
     if (color.isValid()) {
         m_baseColor = glm::vec4(color.redF(), color.greenF(), color.blueF(), m_baseColor.a);
@@ -1121,6 +1177,7 @@ void MaterialEditorPanel::onIRPropertyChanged() {
     m_irEmissivity = static_cast<float>(m_irEmissivitySpin->value());
     m_irTransmittance = static_cast<float>(m_irTransmittanceSpin->value());
     m_irTemperature_K = static_cast<float>(m_irTemperatureSpin->value());
+    m_irScalarsEdited = true;
 
     // Once the constants are written the curves are gone, so the notice is no
     // longer true.
@@ -1137,6 +1194,7 @@ void MaterialEditorPanel::onTemperatureMapChanged() {
     m_temperatureOffset = static_cast<float>(m_temperatureOffsetSpin->value());
 
     updateTemperatureMapNotice();
+    updateDependentFields();
     applyChanges();
 }
 
@@ -1331,11 +1389,13 @@ void MaterialEditorPanel::onSurfaceExtensionChanged() {
     m_clearcoatRoughness = static_cast<float>(m_clearcoatRoughnessSpin->value());
     m_diffuseTransmission = static_cast<float>(m_diffuseTransmissionSpin->value());
     m_alphaCutoff = static_cast<float>(m_alphaCutoffSpin->value());
+    updateDependentFields();
     applyChanges();
 }
 
 void MaterialEditorPanel::onAlphaModeChanged() {
     m_alphaMode = m_alphaModeCombo->currentIndex();
+    updateDependentFields();
     applyChanges();
 }
 
@@ -1421,7 +1481,13 @@ void MaterialEditorPanel::applyChanges() {
     modified.alphaMode = static_cast<quantiloom::Material::AlphaMode>(m_alphaMode);
     modified.alphaCutoff = m_alphaCutoff;
 
-    applyIrScalars(modified, m_irEmissivity, m_irTransmittance, m_irTemperature_K);
+    // The three IR scalars are a lossy summary of the curves, so writing them
+    // back on an unrelated edit -- a roughness nudge -- would flatten a
+    // generated spectrum the user never asked to touch. Only an edit of the
+    // scalars themselves replaces the curves.
+    if (m_irScalarsEdited) {
+        applyIrScalars(modified, m_irEmissivity, m_irTransmittance, m_irTemperature_K);
+    }
 
     // The scale and offset are material data and reach the shader with this
     // edit; the path only takes effect at the next scene load, which is what

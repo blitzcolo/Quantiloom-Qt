@@ -95,6 +95,12 @@ private:
     void updatePreview();
     /// GUI-thread side of the worker's progress callback.
     void showProgress(const quantiloom::dataset::FusionExportProgress& progress);
+    /// The status line for the last progress report, re-worded on a language
+    /// change.
+    void updateProgressText();
+    /// Lock or release everything a running export read when it started.
+    void setInputsEnabled(bool enabled);
+    void updateRemoveEnabled();
     /// GUI-thread side of the worker's completion.
     void showResult(const quantiloom::Result<quantiloom::dataset::FusionExportResult,
                                              quantiloom::String>& result);
@@ -123,6 +129,8 @@ private:
     QLabel* m_sampleLabel = nullptr;
     QLabel* m_outputLabel = nullptr;
     QLabel* m_referenceLabel = nullptr;
+    QLabel* m_pairModeLabel = nullptr;
+    quantiloom::dataset::FusionExportProgress m_lastProgress{};
     QLabel* m_cameraIdLabel = nullptr;
     QLabel* m_poseLabels[6] = {};
     QPushButton* m_browseButton = nullptr;

@@ -51,6 +51,8 @@ public:
     /// camera -- at the current time, then commit it: update the selected
     /// key if there is one, add a new key otherwise.
     void capturePose(const glm::vec3& position, const glm::vec3& target);
+    /// A key is selected, so Update and Delete have something to act on.
+    [[nodiscard]] bool hasSelectedKey() const;
 
 public slots:
     /// Key the field pose at the transport's time. The time field belongs to
@@ -78,6 +80,9 @@ signals:
     /// Selecting a key asks the host to move the clock to it, so the
     /// viewport shows the pose being edited.
     void previewTimeRequested(double seconds);
+    /// Whether a key is selected changed; the Timeline menu's Update and
+    /// Delete follow it.
+    void keySelectionChanged(bool hasSelectedKey);
 
 private slots:
     void onPoseFieldChanged();
@@ -87,6 +92,7 @@ private:
     void setupUi();
     /// Refresh the derived readout without reporting an edit.
     void updateDistanceLabel();
+    void updateKeyButtons();
     /// The key the six key fields currently describe, at the given time.
     [[nodiscard]] quantiloom::camera::CameraPoseKey keyFromFields(double timeSeconds) const;
     /// Keys stay sorted by time; an edited key may belong anywhere in the list.
@@ -104,6 +110,7 @@ private:
     QDoubleSpinBox* m_fovSpin = nullptr;
     QLabel* m_distanceLabel = nullptr;
     QLabel* m_distanceCaption = nullptr;
+    QLabel* m_poseDrivenNote = nullptr;
 
     QGroupBox* m_presetGroup = nullptr;
     QPushButton* m_resetButton = nullptr;

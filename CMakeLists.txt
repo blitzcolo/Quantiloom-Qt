@@ -193,6 +193,7 @@ set(GUI_SOURCES
     src/ui/HoverReadbackState.hpp
     src/ui/UiStyle.cpp
     src/ui/UiStyle.hpp
+    src/ui/CompactSpinBox.hpp
     src/ui/CollapsibleGroupBox.cpp
     src/ui/CollapsibleGroupBox.hpp
     src/ui/SpectrumPlotWidget.cpp

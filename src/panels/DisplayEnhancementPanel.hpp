@@ -86,5 +86,6 @@ private:
     QLabel* m_clipCaption = nullptr;
     QLabel* m_tileCaption = nullptr;
     QLabel* m_windowCaption = nullptr;
+    QLabel* m_windowToLabel = nullptr;
     QGroupBox* m_channelGroup = nullptr;
 };

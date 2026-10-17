@@ -229,9 +229,11 @@ void SceneTreePanel::onItemClicked(QTreeWidgetItem* item, int /*column*/) {
     QString type = item->data(0, Qt::UserRole + 1).toString();
     int index = item->data(0, Qt::UserRole).toInt();
 
-    if (type == "node") {
-        emit nodeSelected(index);
-    } else if (type == "material") {
+    // Nodes are not reported here. itemSelectionChanged() already has, with
+    // the tree's own Ctrl/Shift handling applied; a second report of the
+    // clicked node alone on release used to collapse a Shift range to one
+    // node and put a Ctrl-deselected node straight back.
+    if (type == "material") {
         emit materialSelected(index);
     }
 }
@@ -273,8 +275,9 @@ void SceneTreePanel::onTreeSelectionChanged() {
         }
     }
     // Only for node selections. Clicking a material or a heading is not a way
-    // of clearing the scene selection.
-    if (!nodes.isEmpty()) {
+    // of clearing the scene selection -- but Ctrl-clicking the last selected
+    // node off, which leaves nothing selected at all, is.
+    if (!nodes.isEmpty() || selected.isEmpty()) {
         emit nodesSelected(nodes);
     }
 }
@@ -315,7 +318,15 @@ void SceneTreePanel::applySelectionHighlight() {
     const QColor bg = palette().color(QPalette::Highlight);
     const QColor fg = palette().color(QPalette::HighlightedText);
 
-    for (int nodeIndex : m_highlightedNodes) {
+    // Selecting items is not a user selection. It runs from populateTree() and
+    // from a theme switch as well as from setSelectedNodes(), and unguarded it
+    // was read back as one -- re-entering setSelectedNodes(), which cleared
+    // m_highlightedNodes while the loop below was iterating it.
+    const QSignalBlocker blocker(m_tree);
+    const bool wasSyncing = m_syncingSelection;
+    m_syncingSelection = true;
+    const QSet<int> nodes = m_highlightedNodes;
+    for (int nodeIndex : nodes) {
         QTreeWidgetItem* item = findNodeItem(nodeIndex);
         if (item) {
             item->setBackground(0, bg);
@@ -325,11 +336,14 @@ void SceneTreePanel::applySelectionHighlight() {
             item->setSelected(true);
         }
     }
+    m_syncingSelection = wasSyncing;
 }
 
 void SceneTreePanel::clearSelectionHighlight() {
     // Remove highlight from previously highlighted nodes
-    for (int nodeIndex : m_highlightedNodes) {
+    const QSignalBlocker blocker(m_tree);
+    const QSet<int> nodes = m_highlightedNodes;
+    for (int nodeIndex : nodes) {
         QTreeWidgetItem* item = findNodeItem(nodeIndex);
         if (item) {
             item->setBackground(0, QBrush());  // Clear background

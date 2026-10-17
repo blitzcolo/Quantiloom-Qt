@@ -44,6 +44,12 @@ QString WorkspaceManager::workspaceTitle(const QString& id) {
     return id;
 }
 
+QString WorkspaceManager::workspaceDisplayName(const QString& id) {
+    // The title is written for a tab bar and a menu, where "&&" is how a
+    // literal ampersand escapes the mnemonic. A label shows it as typed.
+    return workspaceTitle(id).replace(QStringLiteral("&&"), QStringLiteral("&"));
+}
+
 QVector<WorkspaceManager::DockPlacement> WorkspaceManager::preset(const QString& id) {
     // Captured from a hand-arranged session rather than designed at a desk, so
     // the reasoning below describes what the arrangement turned out to be.
@@ -72,6 +78,10 @@ QVector<WorkspaceManager::DockPlacement> WorkspaceManager::preset(const QString&
             {QStringLiteral("sensor"),     Qt::LeftDockWidgetArea,  false, 0,   350},
             {QStringLiteral("spectral"),   Qt::RightDockWidgetArea, false, 363, 559},
             {QStringLiteral("atmosphere"), Qt::RightDockWidgetArea, false, 0,   414},
+            // The one exception to "none tabbed": the thermal solve is in no
+            // other workspace, and was reachable only through View ▸ Panels.
+            // Its air and sky are the atmosphere's, so it shares that slot.
+            {QStringLiteral("thermal"),    Qt::RightDockWidgetArea, true},
         };
     }
     if (id == QLatin1String("material")) {
@@ -92,13 +102,16 @@ QVector<WorkspaceManager::DockPlacement> WorkspaceManager::preset(const QString&
         };
     }
     if (id == QLatin1String("debug")) {
-        // One panel, and the rest of the window is the image. That is the
+        // One column, and the rest of the window is the image. That is the
         // whole point of this workspace: the debug visualisation is read off
         // the render, so anything else in the frame is competing with the
         // thing being looked at. The properties panel was tabbed in here in
         // the session this was captured from, left over rather than wanted.
+        // The comparison is read off the render too, and was in no workspace
+        // at all; it goes under the debug panel, in the same column.
         return {
-            {QStringLiteral("debug"), Qt::RightDockWidgetArea, false},
+            {QStringLiteral("debug"),      Qt::RightDockWidgetArea, false},
+            {QStringLiteral("comparison"), Qt::RightDockWidgetArea, false},
         };
     }
     return {};

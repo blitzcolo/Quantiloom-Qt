@@ -18,6 +18,7 @@
 #include <QVulkanInstance>
 #include <QHash>
 #include <QMap>
+#include <QPointer>
 #include <QSet>
 #include <QStringList>
 #include <concepts>
@@ -25,6 +26,7 @@
 #include <deque>
 #include <filesystem>
 #include <memory>
+#include <type_traits>
 #include <vector>
 
 #include <atmos/AtmosphereNNConfig.hpp>
@@ -85,6 +87,8 @@ class SpectralMaterialGenPanel;
 class ComparisonPanel;
 class ThermalPanel;
 class TimelinePanel;
+class HyperspectralExportDialog;
+class SequenceRenderDialog;
 class ConfigManager;
 class ViewportFrame;
 class TitleBar;
@@ -275,6 +279,15 @@ private:
     void applyDebugMode(quantiloom::DebugVisualizationMode mode);
     void applySpectralMode(quantiloom::SpectralMode mode);
     void applyTargetSpp(uint32_t spp);
+    /// A user's request for a mode or a target, from any of the three routes:
+    /// recorded in the history, then applied through the dispatcher.
+    void requestSpectralMode(quantiloom::SpectralMode mode);
+    void requestTargetSpp(uint32_t spp);
+    void requestThermalEnabled(bool enabled);
+    /// Export EXR when the target is reached: the menu entry and the panel's
+    /// box both come here, and the choice is remembered across sessions.
+    void applyAutoExport(bool enabled);
+    void updateEditModeLabel();
     void applyDisplayEnhancementEnabled(bool enabled);
     void applyGridVisible(bool visible);
     void applyMotionAdaptiveResolution(bool enabled);
@@ -432,6 +445,7 @@ private:
     /// SceneConfig so the two cannot disagree about which file they describe.
     std::shared_ptr<const quantiloom::Config> m_pendingRawConfig;
     void rebuildRecentMenu();
+    void openRecentFile(const QString& path);
     [[nodiscard]] QStringList recentFiles() const;
 
     // --- persistence -----------------------------------------------------
@@ -463,8 +477,6 @@ private:
     /// Fires once when the target sample count is met.
     void onRenderReachedTarget(uint32_t sampleCount);
     void autoExportRender(uint32_t sampleCount);
-    /// h:mm:ss past an hour, m:ss below it.
-    [[nodiscard]] static QString formatDuration(qint64 ms);
     /// The path of a single dropped .toml, or empty for anything else.
     [[nodiscard]] static QString droppedConfigPath(const QMimeData* mime);
     /// Locate one of the baked NMF databases, or an empty path when the
@@ -535,6 +547,17 @@ private:
     /// the node selection: a material is picked in the scene tree or by
     /// clicking geometry, and stays picked while the library is browsed.
     int m_currentMaterialIndex = -1;
+    /// The wavelength when a slider drag began; set only while one is in
+    /// progress.
+    std::optional<float> m_wavelengthBeforeGesture;
+    /// The modeless offline-render dialogs, one of each at a time. Owned by
+    /// Qt (WA_DeleteOnClose); the pointers go null when they close.
+    QPointer<HyperspectralExportDialog> m_cubeDialog;
+    QPointer<SequenceRenderDialog> m_sequenceDialog;
+    /// The last (n,k) table the material generator uploaded and the slot it
+    /// took, so applying the same curves again reuses it.
+    std::unique_ptr<quantiloom::ComplexRefractiveIndex> m_lastCri;
+    int m_lastCriIndex = -1;
     /// The illuminant the document is using, for export and for the panel.
     LightingPanel::IlluminantChoice m_illuminant;
     /// The choice as the document was loaded, so collectCurrentConfig() can
@@ -742,6 +765,18 @@ private:
     QAction* m_spectralGenAction = nullptr;
     QAction* m_assignSpectrumAction = nullptr;
     QAction* m_addEndmemberAction = nullptr;
+    QAction* m_removeEndmemberAction = nullptr;
+    QMenu* m_lightingMenu = nullptr;
+    QAction* m_envBrowseAction = nullptr;
+    QAction* m_envEnabledAction = nullptr;
+    QAction* m_envClearAction = nullptr;
+    QMenu* m_illuminantMenu = nullptr;
+    QActionGroup* m_illuminantGroup = nullptr;
+    QAction* m_cameraSimulationAction = nullptr;
+    QAction* m_thermalSolveAction = nullptr;
+    QAction* m_autoExportAction = nullptr;
+    QAction* m_compareLoadAction = nullptr;
+    QAction* m_compareAction = nullptr;
     QAction* m_shortcutsAction = nullptr;
     QAction* m_debugReferenceAction = nullptr;
     QAction* m_aboutAction = nullptr;
@@ -908,6 +943,16 @@ private:
     std::unique_ptr<WindowChrome> m_chrome;
 };
 
+/// "Nothing changed" for the two settings that hold strings or arrays, where
+/// comparing bytes compares the heap pointers inside them and every re-emit of
+/// an identical value used to read as a change. Defined in MainWindow.cpp.
+[[nodiscard]] bool settingsEqual(const quantiloom::AtmosphereNNConfig& a,
+                                 const quantiloom::AtmosphereNNConfig& b);
+[[nodiscard]] bool settingsEqual(const quantiloom::camera::CameraConfig& a,
+                                 const quantiloom::camera::CameraConfig& b);
+[[nodiscard]] bool settingsEqual(const quantiloom::ThermalSolveParams& a,
+                                 const quantiloom::ThermalSolveParams& b);
+
 // Defined here rather than in the .cpp: McpTools.cpp instantiates it too, and
 // a template used from more than one translation unit needs its definition
 // visible in all of them.
@@ -919,15 +964,23 @@ void MainWindow::pushSettingCommand(CommandId id, const QString& description,
     if (m_suppressHistory) {
         return;
     }
-    // Structs without operator== are compared bytewise. They are plain
-    // aggregates of floats and enums from the SDK's layout-contract headers,
-    // so this is well-defined for them; the point is only to notice "nothing
-    // changed" and leave the history alone.
+    // The point is only to notice "nothing changed" and leave the history
+    // alone. operator== where the type has one; settingsEqual() for the SDK
+    // structs that hold strings or arrays; and bytewise only for what is left,
+    // which has to be a plain aggregate of floats and enums for that to mean
+    // anything -- the static_assert keeps a new string member from quietly
+    // turning the comparison into a pointer comparison again.
     if constexpr (std::equality_comparable<T>) {
         if (before == after) {
             return;
         }
+    } else if constexpr (requires { settingsEqual(before, after); }) {
+        if (settingsEqual(before, after)) {
+            return;
+        }
     } else {
+        static_assert(std::is_trivially_copyable_v<T>,
+                      "compare this setting with operator== or settingsEqual()");
         if (std::memcmp(&before, &after, sizeof(T)) == 0) {
             return;
         }

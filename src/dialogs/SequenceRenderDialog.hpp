@@ -29,11 +29,16 @@
 #include <QStringList>
 
 #include "../config/ConfigManager.hpp"
+#include "../ui/UiStyle.hpp"
 
 #include <renderer/OfflineRenderer.hpp>
 #include <renderer/TimelineControl.hpp>
 
 #include <QVector>
+
+#include <atomic>
+#include <functional>
+#include <vector>
 
 QT_BEGIN_NAMESPACE
 class QComboBox;
@@ -46,6 +51,7 @@ class QPushButton;
 class QStackedWidget;
 class QThread;
 class QPlainTextEdit;
+class QGroupBox;
 QT_END_NAMESPACE
 
 /**
@@ -68,6 +74,21 @@ public:
                          QWidget* parent = nullptr);
     ~SequenceRenderDialog() override;
 
+    /// True while frames are being traced. The shell asks before it closes.
+    [[nodiscard]] bool isRunning() const { return m_running; }
+
+    /// The document as it stands now. The dialog is modeless, so the scene
+    /// can be edited while it is open; Render reads the document through this
+    /// rather than rendering the copy it was opened with.
+    std::function<SceneConfig()> documentProvider;
+
+public slots:
+    /// While running, a request to stop after the frame in flight, then close.
+    void reject() override;
+
+protected:
+    void changeEvent(QEvent* event) override;
+
 private slots:
     void onBrowseOutputDir();
     void onSweepChanged();
@@ -77,6 +98,10 @@ private slots:
 
 private:
     void setupUi();
+    void retranslateUi();
+    /// The intro and the name template's tooltip, which describe the mode.
+    void updateModeText();
+    void setInputsEnabled(bool enabled);
     void updatePreview();
     void finish(bool success, const QString& message);
 
@@ -116,9 +141,19 @@ private:
     QStringList m_materialNames;
     quantiloom::TimelineInfo m_timeline{};
 
+    struct Caption {
+        QLabel* label;
+        const char* text;   // QT_TR_NOOP source, translated in retranslateUi()
+    };
+    std::vector<Caption> m_captions;
+    uistyle::StyleBindings m_styling;
+    QLabel* m_introLabel = nullptr;
+    QGroupBox* m_outputGroup = nullptr;
+    QPushButton* m_browseButton = nullptr;
+
     QComboBox* m_modeCombo = nullptr;
-    QWidget* m_sweepPage = nullptr;
-    QWidget* m_timelinePage = nullptr;
+    QGroupBox* m_sweepPage = nullptr;
+    QGroupBox* m_timelinePage = nullptr;
     QSpinBox* m_fromTick = nullptr;
     QSpinBox* m_toTick = nullptr;
     QSpinBox* m_everyTick = nullptr;
@@ -142,4 +177,6 @@ private:
     /// Set from the GUI thread, read by the worker between frames: the only
     /// place a sequence can be stopped without abandoning a frame mid-trace.
     std::atomic<bool> m_cancelled{false};
+    /// The dialog was closed during a run; close it once the run stops.
+    bool m_closeWhenStopped = false;
 };

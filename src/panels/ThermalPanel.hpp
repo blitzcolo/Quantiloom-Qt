@@ -83,6 +83,11 @@ private slots:
 
 private:
     void updateWhatIfCaption();
+    void updateTimeGroupText();
+    void updateStatusText();
+    void updateProbeCaption();
+    void updateInitialTemperatureEnabled();
+    void updateSolveDependentEnabled();
 
     /// Set when the global clock owns the hour; the caption and the slider's
     /// enabled state both read it.
@@ -162,6 +167,14 @@ private:
     uiplot::TrajectoryPlotWidget* m_probePlot = nullptr;
     /// -1 when nothing is probed, which is what the caption reads off.
     int m_probeElement = -1;
+    // What the probe caption is built from, so it can be re-worded.
+    bool m_probeHasRange = false;
+    double m_probeLow_K = 0.0;
+    double m_probeHigh_K = 0.0;
+    QString m_probeReason;
+    /// The last status, so the status lines can be re-worded on a language
+    /// change instead of waiting for the next solve.
+    std::optional<quantiloom::ThermalSolveStatus> m_lastStatus;
 
     /// Fields of ThermalSolveParams the panel does not show. They still have
     /// to survive a round trip: params() builds the whole struct, so anything

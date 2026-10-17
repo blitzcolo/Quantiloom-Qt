@@ -47,10 +47,10 @@ public:
     void clearSelectionHighlight();
 
 signals:
-    void nodeSelected(int nodeIndex);
     void materialSelected(int materialIndex);
-    /// A multi-selection made in the tree, for the shell to mirror into the
-    /// SelectionManager. Distinct from nodeSelected, which is one click.
+    /// The node selection made in the tree, for the shell to mirror into the
+    /// SelectionManager. The only route a node selection leaves the tree by;
+    /// empty when the last node was Ctrl-clicked off.
     void nodesSelected(const QSet<int>& nodeIndices);
     /// Right-click in the tree. The panel owns no scene operations, so the
     /// shell builds and shows the menu.

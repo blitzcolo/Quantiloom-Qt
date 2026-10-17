@@ -63,6 +63,9 @@ public:
      * reach it instead of this one.
      */
     void setCameraEnabled(bool enabled);
+    /// Hide the enable switch, for a host where the camera is always on (a
+    /// fusion rig) and the switch would do nothing.
+    void setEnableSwitchVisible(bool visible);
 
     /**
      * @brief Check if camera is enabled
@@ -148,6 +151,11 @@ private:
     /// but the radial k3 under fisheye); the half angle only under fisheye.
     void updateLensFieldStates();
     void updateStatusArea();
+    void updateWhiteBalanceEnabled(bool automatic);
+    /// Every group the enable switch governs.
+    void setGroupsEnabled(bool enabled);
+    /// A preset's name in the current language.
+    [[nodiscard]] static QString presetDisplayName(quantiloom::camera::CameraPresetKind kind);
 
     /// Form captions, kept with their untranslated source so that a language
     /// change can re-apply them. QT_TR_NOOP marks the literal for lupdate; the
@@ -248,6 +256,10 @@ private:
 
     // HSV grading group
     CollapsibleGroupBox* m_hsvGroup = nullptr;
+    CollapsibleGroupBox* m_displayNoiseGroup = nullptr;
+    /// The PSF spin box's last value, so a step into the gap between the
+    /// Auto sentinel (-1) and 0 can tell which way it was going.
+    double m_lastPsfSigma = -1.0;
     QDoubleSpinBox* m_hueOffset = nullptr;
     QDoubleSpinBox* m_saturationScale = nullptr;
     QDoubleSpinBox* m_valueGamma = nullptr;

@@ -25,6 +25,7 @@
 #include <QTextEdit>
 #include <QTextStream>
 #include <QDateTime>
+#include <QSignalBlocker>
 
 #include <QtCharts/QChart>
 #include <QtCharts/QChartView>
@@ -58,12 +59,44 @@ SpectralMaterialGenPanel::SpectralMaterialGenPanel(QWidget* parent)
 
 void SpectralMaterialGenPanel::setCurrentMaterialIndex(int index) {
     m_currentMaterialIndex = index;
-    if (m_targetMaterialSpin && index >= 0)
-        m_targetMaterialSpin->setValue(index);
+    if (m_targetMaterialCombo && index >= 0) {
+        const int at = m_targetMaterialCombo->findData(index);
+        if (at >= 0) {
+            m_targetMaterialCombo->setCurrentIndex(at);
+        }
+    }
 }
 
 void SpectralMaterialGenPanel::setScene(const quantiloom::Scene* scene) {
     m_scene = scene;
+    populateTargets();
+}
+
+void SpectralMaterialGenPanel::populateTargets() {
+    // The scene's materials by name. A bare index from 0 to 255 named nothing
+    // and could name a material the scene did not have.
+    if (!m_targetMaterialCombo) {
+        return;
+    }
+    const int keep = m_targetMaterialCombo->currentData().isValid()
+                         ? m_targetMaterialCombo->currentData().toInt()
+                         : m_currentMaterialIndex;
+    const QSignalBlocker blocker(m_targetMaterialCombo);
+    m_targetMaterialCombo->clear();
+    if (m_scene) {
+        for (size_t i = 0; i < m_scene->materials.size(); ++i) {
+            const auto& material = m_scene->materials[i];
+            const QString name = material.name.empty()
+                                     ? tr("Material %1").arg(i)
+                                     : QString::fromStdString(material.name);
+            m_targetMaterialCombo->addItem(name, static_cast<int>(i));
+        }
+    }
+    const int at = m_targetMaterialCombo->findData(keep);
+    m_targetMaterialCombo->setCurrentIndex(at >= 0 ? at : (m_targetMaterialCombo->count() ? 0 : -1));
+    if (m_applyButton) {
+        m_applyButton->setEnabled(m_targetMaterialCombo->count() > 0);
+    }
 }
 
 QString SpectralMaterialGenPanel::panelTitle() const {
@@ -72,6 +105,9 @@ QString SpectralMaterialGenPanel::panelTitle() const {
 
 void SpectralMaterialGenPanel::retranslateUi() {
     PanelBase::retranslateUi();
+    // The axis title is built with the chart; rebuilding it re-words it.
+    updateChart();
+    populateTargets();
 }
 
 // ============================================================================
@@ -82,8 +118,9 @@ void SpectralMaterialGenPanel::setupUi() {
     // No scroll area of its own any more: the shell puts every panel inside
     // one, and two nested scroll areas produce two sets of scrollbars.
     auto* mainLayout = new QVBoxLayout(this);
-    mainLayout->setContentsMargins(6, 6, 6, 6);
-    mainLayout->setSpacing(4);
+    // The margins and spacing every other panel uses.
+    mainLayout->setContentsMargins(4, 4, 4, 4);
+    mainLayout->setSpacing(8);
 
     // --- Auto IR Generation group (SpectraForge) ---
     {
@@ -228,8 +265,7 @@ void SpectralMaterialGenPanel::setupUi() {
             m_lambdaStartSpin->setSuffix(tr(" nm"));
             m_lambdaEndSpin->setSuffix(tr(" nm"));
             m_rangeWarning->setText(
-                tr("Start must be below End, and Output Steps at least 2, "
-                   "for a curve to be generated."));
+                tr("Start must be below End for a curve to be generated."));
         });
 
         mainLayout->addWidget(group);
@@ -258,16 +294,25 @@ void SpectralMaterialGenPanel::setupUi() {
         m_anchorTable->setMinimumHeight(120);
         vlay->addWidget(m_anchorTable);
 
+        // Editing the table, and moving it to and from a file: Save sits with
+        // the two Loads, where it used to be alone in Actions at the bottom.
         auto* btnRow = new QHBoxLayout();
         auto* addBtn = new QPushButton(group);
         auto* removeBtn = new QPushButton(group);
-        auto* loadCsvBtn = new QPushButton(group);
-        auto* loadYamlBtn = new QPushButton(group);
         btnRow->addWidget(addBtn);
         btnRow->addWidget(removeBtn);
-        btnRow->addWidget(loadCsvBtn);
-        btnRow->addWidget(loadYamlBtn);
+        btnRow->addStretch();
         vlay->addLayout(btnRow);
+        auto* fileRow = new QHBoxLayout();
+        auto* loadCsvBtn = new QPushButton(group);
+        auto* loadYamlBtn = new QPushButton(group);
+        auto* saveCsvBtn = new QPushButton(group);
+        fileRow->addWidget(loadCsvBtn);
+        fileRow->addWidget(loadYamlBtn);
+        fileRow->addWidget(saveCsvBtn);
+        fileRow->addStretch();
+        vlay->addLayout(fileRow);
+        connect(saveCsvBtn, &QPushButton::clicked, this, &SpectralMaterialGenPanel::onSaveCSV);
 
         auto* interpRow = new QHBoxLayout();
         auto* interpCaption = new QLabel(group);
@@ -278,12 +323,14 @@ void SpectralMaterialGenPanel::setupUi() {
         interpRow->addWidget(m_interpCombo);
         vlay->addLayout(interpRow);
 
-        bindText([this, group, addBtn, removeBtn, loadCsvBtn, loadYamlBtn, interpCaption] {
+        bindText([this, group, addBtn, removeBtn, loadCsvBtn, loadYamlBtn, saveCsvBtn,
+                  interpCaption] {
             group->setTitle(tr("Anchor Points"));
             addBtn->setText(tr("Add Point"));
             removeBtn->setText(tr("Remove Point"));
-            loadCsvBtn->setText(tr("Load CSV"));
-            loadYamlBtn->setText(tr("Load YAML"));
+            loadCsvBtn->setText(tr("Load CSV..."));
+            loadYamlBtn->setText(tr("Load YAML..."));
+            saveCsvBtn->setText(tr("Save CSV..."));
             interpCaption->setText(tr("Interpolation:"));
             // PCHIP stays Latin by glossary decision; "Linear" does not.
             m_interpCombo->setItemText(0, tr("Linear"));
@@ -297,8 +344,43 @@ void SpectralMaterialGenPanel::setupUi() {
         connect(loadYamlBtn, &QPushButton::clicked, this, &SpectralMaterialGenPanel::onLoadYAML);
         connect(m_anchorTable, &QTableWidget::cellChanged,
                 this, &SpectralMaterialGenPanel::onAnchorDataChanged);
+        // Signals from the table are blocked while presets and files fill it,
+        // so a cellChanged that arrives is a hand edit.
+        connect(m_anchorTable, &QTableWidget::cellChanged,
+                this, [this](int, int) { m_anchorsEdited = true; });
         connect(m_interpCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
                 this, [this](int) { onAnchorDataChanged(); });
+    }
+
+    // --- Apply ---
+    // Above the chart rather than under it: the chart takes the stretch, and
+    // the one button that commits anything used to sit below its fold.
+    {
+        auto* group = new QGroupBox(this);
+        auto* form = new QFormLayout(group);
+        form->setContentsMargins(6, 10, 6, 6);
+
+        m_targetMaterialCombo = new QComboBox();
+        auto* targetCaption = new QLabel(group);
+        form->addRow(targetCaption, m_targetMaterialCombo);
+
+        m_applyButton = new QPushButton(group);
+        m_applyButton->setEnabled(false);
+        form->addRow(m_applyButton);
+
+        bindText([this, group, targetCaption] {
+            group->setTitle(tr("Apply"));
+            targetCaption->setText(tr("Target material:"));
+            m_applyButton->setText(tr("Apply to Material"));
+            m_applyButton->setToolTip(
+                tr("Give the target the curves above, with this roughness and "
+                   "metallic. Everything else about the material is kept."));
+        });
+
+        mainLayout->addWidget(group);
+
+        connect(m_applyButton, &QPushButton::clicked,
+                this, &SpectralMaterialGenPanel::onApplyToMaterial);
     }
 
     // --- Preview Chart group ---
@@ -324,37 +406,6 @@ void SpectralMaterialGenPanel::setupUi() {
         bindStyle([this] { applyChartTheme(); });
 
         mainLayout->addWidget(m_previewGroup, 1);
-    }
-
-    // --- Actions group ---
-    {
-        auto* group = new QGroupBox(this);
-        auto* form = new QFormLayout(group);
-        form->setContentsMargins(6, 10, 6, 6);
-
-        auto* saveCsvBtn = new QPushButton(group);
-        form->addRow(saveCsvBtn);
-
-        m_targetMaterialSpin = new QSpinBox();
-        m_targetMaterialSpin->setRange(0, 255);
-        m_targetMaterialSpin->setValue(0);
-        auto* targetCaption = new QLabel(group);
-        form->addRow(targetCaption, m_targetMaterialSpin);
-
-        auto* applyBtn = new QPushButton(group);
-        form->addRow(applyBtn);
-
-        bindText([this, group, saveCsvBtn, targetCaption, applyBtn] {
-            group->setTitle(tr("Actions"));
-            saveCsvBtn->setText(tr("Save CSV"));
-            targetCaption->setText(tr("Target Material Index:"));
-            applyBtn->setText(tr("Apply to Material"));
-        });
-
-        mainLayout->addWidget(group);
-
-        connect(saveCsvBtn, &QPushButton::clicked, this, &SpectralMaterialGenPanel::onSaveCSV);
-        connect(applyBtn, &QPushButton::clicked, this, &SpectralMaterialGenPanel::onApplyToMaterial);
     }
 
     mainLayout->addStretch();
@@ -446,7 +497,32 @@ void SpectralMaterialGenPanel::onAutoIRGenerate() {
 // Material Type Presets
 // ============================================================================
 
+void SpectralMaterialGenPanel::setMaterialTypeQuietly(int index) {
+    // Loading a file names the type of the data it carries. Going through
+    // onMaterialTypeChanged() would replace that data with the preset's
+    // anchors, which is what picking a type by hand is for, not reading one.
+    const QSignalBlocker blocker(m_materialTypeCombo);
+    m_materialTypeCombo->setCurrentIndex(index);
+    m_lastMaterialType = index;
+}
+
 void SpectralMaterialGenPanel::onMaterialTypeChanged(int index) {
+    // Choosing a type loads its preset anchors over whatever is in the table.
+    // Anchors typed or loaded by hand are work; ask before throwing it away.
+    if (m_anchorsEdited) {
+        const auto reply = QMessageBox::question(
+            this, tr("Replace Anchor Points?"),
+            tr("Choosing a material type replaces the anchor points with its "
+               "preset. Replace the points in the table?"),
+            QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+        if (reply != QMessageBox::Yes) {
+            setMaterialTypeQuietly(m_lastMaterialType);
+            return;
+        }
+    }
+    m_lastMaterialType = index;
+    m_anchorsEdited = false;
+
     // Block signals to avoid triggering reinterpolate per-cell
     m_anchorTable->blockSignals(true);
     m_anchorTable->setRowCount(0);
@@ -488,6 +564,7 @@ void SpectralMaterialGenPanel::onMaterialTypeChanged(int index) {
 // ============================================================================
 
 void SpectralMaterialGenPanel::onAddAnchorPoint() {
+    m_anchorsEdited = true;
     int row = m_anchorTable->rowCount();
     m_anchorTable->blockSignals(true);
     m_anchorTable->insertRow(row);
@@ -501,6 +578,7 @@ void SpectralMaterialGenPanel::onAddAnchorPoint() {
 void SpectralMaterialGenPanel::onRemoveAnchorPoint() {
     int row = m_anchorTable->currentRow();
     if (row >= 0) {
+        m_anchorsEdited = true;
         m_anchorTable->removeRow(row);
         reinterpolate();
     }
@@ -535,9 +613,17 @@ void SpectralMaterialGenPanel::reinterpolate() {
             pts.push_back({l, n, k});
     }
 
-    // 2. Sort by wavelength
-    std::sort(pts.begin(), pts.end(),
-              [](const Point& a, const Point& b) { return a.lambda < b.lambda; });
+    // 2. Sort by wavelength. Two anchors at one wavelength would divide by a
+    // zero interval in the interpolant; the later row wins.
+    std::stable_sort(pts.begin(), pts.end(),
+                     [](const Point& a, const Point& b) { return a.lambda < b.lambda; });
+    for (size_t i = 1; i < pts.size();) {
+        if (pts[i].lambda == pts[i - 1].lambda) {
+            pts.erase(pts.begin() + static_cast<long>(i) - 1);
+        } else {
+            ++i;
+        }
+    }
 
     // 3. Need at least 2 points
     if (pts.size() < 2) {
@@ -683,10 +769,13 @@ void SpectralMaterialGenPanel::updateChart() {
     auto* chart = m_chartView->chart();
     chart->removeAllSeries();
 
-    // Remove old axes
+    // Remove old axes. removeAxis() hands ownership back, so they are
+    // deleted here or every redraw leaks three.
     const auto axes = chart->axes();
-    for (auto* ax : axes)
+    for (auto* ax : axes) {
         chart->removeAxis(ax);
+        delete ax;
+    }
 
     if (!m_interpolatedCRI.IsValid()) return;
 
@@ -836,9 +925,9 @@ void SpectralMaterialGenPanel::onLoadCSV() {
         if (line.startsWith('#')) {
             if (line.contains("material_type")) {
                 QString val = line.section('=', 1).trimmed();
-                if (val == "conductor") m_materialTypeCombo->setCurrentIndex(0);
-                else if (val == "dielectric") m_materialTypeCombo->setCurrentIndex(1);
-                else if (val == "semiconductor") m_materialTypeCombo->setCurrentIndex(2);
+                if (val == "conductor") setMaterialTypeQuietly(0);
+                else if (val == "dielectric") setMaterialTypeQuietly(1);
+                else if (val == "semiconductor") setMaterialTypeQuietly(2);
             } else if (line.contains("roughness")) {
                 bool ok;
                 double v = line.section('=', 1).trimmed().toDouble(&ok);
@@ -865,6 +954,7 @@ void SpectralMaterialGenPanel::onLoadCSV() {
     }
 
     m_anchorTable->blockSignals(false);
+    m_anchorsEdited = true;   // loaded data is worth asking about before a preset replaces it
     reinterpolate();
 }
 
@@ -953,9 +1043,9 @@ void SpectralMaterialGenPanel::onLoadYAML() {
         float avgK = 0;
         for (auto kv : cri.k) avgK += kv;
         avgK /= static_cast<float>(cri.k.size());
-        if (avgK > 1.0f) m_materialTypeCombo->setCurrentIndex(0);       // Conductor
-        else if (avgK < 0.01f) m_materialTypeCombo->setCurrentIndex(1);  // Dielectric
-        else m_materialTypeCombo->setCurrentIndex(2);                     // Semiconductor
+        if (avgK > 1.0f) setMaterialTypeQuietly(0);       // Conductor
+        else if (avgK < 0.01f) setMaterialTypeQuietly(1);  // Dielectric
+        else setMaterialTypeQuietly(2);                     // Semiconductor
     }
 
     // Update wavelength range from data
@@ -963,6 +1053,7 @@ void SpectralMaterialGenPanel::onLoadYAML() {
     m_lambdaEndSpin->setValue(cri.wavelengths_nm.back());
 
     m_anchorTable->blockSignals(false);
+    m_anchorsEdited = true;   // loaded data is worth asking about before a preset replaces it
     reinterpolate();
 }
 
@@ -982,7 +1073,11 @@ void SpectralMaterialGenPanel::onApplyToMaterial() {
 
     // The (n,k) curves have to reach the GPU before the material can point at
     // them, and that upload belongs to the shell.
-    emit materialWithCriChanged(m_targetMaterialSpin->value(), mat, m_interpolatedCRI);
+    if (!m_targetMaterialCombo->currentData().isValid()) {
+        return;
+    }
+    emit materialWithCriChanged(m_targetMaterialCombo->currentData().toInt(), mat,
+                                m_interpolatedCRI);
 }
 
 void SpectralMaterialGenPanel::applyToMaterialStruct(quantiloom::Material& mat) {

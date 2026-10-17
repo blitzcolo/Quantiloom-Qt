@@ -145,44 +145,6 @@ float IrScalar(const quantiloom::Vector<std::pair<float, float>>& curve) {
     return curve.empty() ? 0.0f : curve[0].second;
 }
 
-/// Written out because ThermalSolveParams has none, and the byte-wise
-/// fallback pushSettingCommand would use instead compares the innards of a
-/// std::string. Also what decides whether a tool call has to rebuild the
-/// trajectory: applying identical parameters would throw away every
-/// checkpoint and re-solve from the start of the day.
-bool SameThermalParams(const quantiloom::ThermalSolveParams& a,
-                       const quantiloom::ThermalSolveParams& b) {
-    return a.startTime_h == b.startTime_h && a.timestep_s == b.timestep_s &&
-           a.layerCount == b.layerCount && a.initial == b.initial &&
-           a.initialTemperature_K == b.initialTemperature_K &&
-           a.exchangeRays == b.exchangeRays && a.exchangeTopK == b.exchangeTopK &&
-           a.airTemperature_K == b.airTemperature_K &&
-           a.sunIrradiance_W_m2 == b.sunIrradiance_W_m2 &&
-           a.diffuseIrradiance_W_m2 == b.diffuseIrradiance_W_m2 &&
-           a.skyTemperature_K == b.skyTemperature_K &&
-           a.relativeHumidity == b.relativeHumidity &&
-           a.forcingFile == b.forcingFile &&
-           a.checkpointStride_h == b.checkpointStride_h &&
-           a.convectionModel == b.convectionModel &&
-           a.convectionWindA_W_m2K == b.convectionWindA_W_m2K &&
-           a.convectionWindB_W_s_m3K == b.convectionWindB_W_s_m3K &&
-           a.convectionFreeC == b.convectionFreeC &&
-           a.convectionReferenceHeight_m == b.convectionReferenceHeight_m &&
-           a.convectionStableDamping == b.convectionStableDamping &&
-           // The three that size the state rather than being read later. A
-           // change to any of them rebuilds the timeline, so a comparison that
-           // missed one would report "already applied" and leave the viewport
-           // showing a field solved under the old ones.
-           a.lateralConduction == b.lateralConduction &&
-           a.sunMemoryLags == b.sunMemoryLags &&
-           a.sunCorrection == b.sunCorrection &&
-           a.parameterSensitivities == b.parameterSensitivities &&
-           // Not a solver input at all -- it records where a dump would go --
-           // but a set that differs only here is still a different set, and
-           // reporting it as identical would silently drop the path.
-           a.dumpElementsFile == b.dumpElementsFile;
-}
-
 /// The thermal solve as one undoable value. Three things the user thinks of
 /// together -- whether it runs, when, and how -- so one tool call is one
 /// history entry rather than three.
@@ -193,7 +155,7 @@ struct ThermalToolState {
 
     bool operator==(const ThermalToolState& other) const {
         return enabled == other.enabled && time_h == other.time_h &&
-               SameThermalParams(params, other.params);
+               settingsEqual(params, other.params);
     }
 };
 
@@ -955,7 +917,7 @@ void MainWindow::registerMcpTools() {
                                    // checkpoint, which would make scrubbing
                                    // time through this tool cost a full day of
                                    // stepping every call.
-                                   if (!SameThermalParams(v.params, currentThermalParams())) {
+                                   if (!settingsEqual(v.params, currentThermalParams())) {
                                        applyThermalParams(v.params);
                                    }
                                    applyThermalTime(v.time_h);

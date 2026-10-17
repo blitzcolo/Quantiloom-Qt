@@ -44,4 +44,9 @@ bool writeCameraProducts(const quantiloom::camera::CameraOutput& output,
                          quantiloom::dataset::ExportSession* session,
                          int* written = nullptr);
 
+/// A duration as m:ss, or h:mm:ss from an hour up. The status bar's ETA and
+/// elapsed time and the cube's time remaining all read it, so the same
+/// interval is never written two ways.
+[[nodiscard]] QString formatDuration(qint64 ms);
+
 } // namespace offlineexport

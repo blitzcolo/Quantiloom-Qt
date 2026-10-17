@@ -9,6 +9,8 @@
 
 #include <core/Types.hpp>
 
+#include <array>
+
 QT_BEGIN_NAMESPACE
 class QComboBox;
 class QDoubleSpinBox;
@@ -26,6 +28,9 @@ class SpectralConfigPanel : public PanelBase {
     Q_OBJECT
 
 public:
+    /// Min, max and step of the hyperspectral cube's band grid, in nm.
+    using WavelengthRange = std::array<float, 3>;
+
     explicit SpectralConfigPanel(QWidget* parent = nullptr);
 
     [[nodiscard]] QString panelTitle() const override;
@@ -41,14 +46,25 @@ public:
     // whatever had been loaded, never what the user had since selected.
     [[nodiscard]] quantiloom::SpectralMode spectralMode() const { return m_mode; }
     [[nodiscard]] float wavelength() const { return m_wavelength; }
+    [[nodiscard]] bool isWavelengthDragging() const;
     [[nodiscard]] float lambdaMin() const { return m_lambdaMin; }
     [[nodiscard]] float lambdaMax() const { return m_lambdaMax; }
     [[nodiscard]] float deltaLambda() const { return m_deltaLambda; }
+    [[nodiscard]] WavelengthRange wavelengthRange() const {
+        return {m_lambdaMin, m_lambdaMax, m_deltaLambda};
+    }
 
 signals:
     void spectralModeChanged(quantiloom::SpectralMode mode);
     void wavelengthChanged(float wavelength_nm);
-    void wavelengthRangeChanged(float min_nm, float max_nm, float delta_nm);
+    /// Press and release of the wavelength slider, so a drag enters the
+    /// history once rather than once per step.
+    void wavelengthGestureStarted();
+    void wavelengthGestureFinished();
+    /// A hand edit of the cube range. Carries the range from before the edit
+    /// so the shell can record it; nothing in the viewport reads it.
+    void wavelengthRangeChanged(const SpectralConfigPanel::WavelengthRange& before,
+                                const SpectralConfigPanel::WavelengthRange& after);
 
 private slots:
     void onModeChanged(int index);
@@ -68,9 +84,10 @@ private:
     // Current settings
     quantiloom::SpectralMode m_mode = quantiloom::SpectralMode::RGB;
     float m_wavelength = 550.0f;
-    float m_lambdaMin = 380.0f;
-    float m_lambdaMax = 760.0f;
-    float m_deltaLambda = 5.0f;
+    // The [hyperspectral] cube grid; defaults match HyperspectralConfig's.
+    float m_lambdaMin = 400.0f;
+    float m_lambdaMax = 2500.0f;
+    float m_deltaLambda = 10.0f;
 
     // UI elements
     QComboBox* m_modeCombo = nullptr;

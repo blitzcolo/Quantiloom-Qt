@@ -22,6 +22,10 @@
 
 #include <QWidget>
 
+#include "UiStyle.hpp"
+
+#include <optional>
+
 namespace uiplot {
 class SpectrumPlotWidget;
 }
@@ -55,6 +59,10 @@ public:
     void retranslate();
 
 private:
+    void rebuildSeries();
+
+    std::optional<quantiloom::ThermalElementTrajectory> m_trajectory;
+    uistyle::StyleBindings m_styling;
     SpectrumPlotWidget* m_temperatures = nullptr;
     SpectrumPlotWidget* m_fluxes = nullptr;
     QLabel* m_note = nullptr;

@@ -72,6 +72,8 @@ private slots:
     void onRemoveAnchorPoint();
     void onAnchorDataChanged();
     void onMaterialTypeChanged(int index);
+    void setMaterialTypeQuietly(int index);
+    void populateTargets();
     void onLoadCSV();
     void onSaveCSV();
     void onLoadYAML();
@@ -106,7 +108,8 @@ private:
     QTableWidget*   m_anchorTable       = nullptr;
     QComboBox*      m_interpCombo       = nullptr;
     QChartView*     m_chartView          = nullptr;
-    QSpinBox*       m_targetMaterialSpin = nullptr;
+    QComboBox*      m_targetMaterialCombo = nullptr;
+    QPushButton*    m_applyButton = nullptr;
 
     // Preview. There is no detach button any more: the panel is a dock, and
     // dragging it out of the window is the same gesture with none of the
@@ -117,5 +120,9 @@ private:
     // Interpolated data
     quantiloom::ComplexRefractiveIndex m_interpolatedCRI;
     int m_currentMaterialIndex = -1;
+    /// The anchor table holds points typed or loaded by hand, which a type
+    /// change would overwrite.
+    bool m_anchorsEdited = false;
+    int m_lastMaterialType = 0;
     const quantiloom::Scene* m_scene = nullptr;
 };

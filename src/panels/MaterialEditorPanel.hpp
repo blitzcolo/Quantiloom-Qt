@@ -116,6 +116,8 @@ private:
     void updateTemperatureMapNotice();
     /// Returns false when the user declined to overwrite generated curves.
     bool confirmSpectralOverwrite();
+    /// Enable only the fields that can take effect with the values beside them.
+    void updateDependentFields();
 
     int m_currentIndex = -1;
     const quantiloom::Material* m_currentMaterial = nullptr;
@@ -201,6 +203,9 @@ private:
     float m_irEmissivity = 0.0f;
     float m_irTransmittance = 0.0f;
     float m_irTemperature_K = 0.0f;
+    // Set when the user edits one of the three IR scalars, cleared by
+    // setMaterial(). Until then the material's own curves are left alone.
+    bool m_irScalarsEdited = false;
 
     /// A temperature field instead of one temperature. The path is the
     /// material's own, mounted by the core when the scene loads; the scale and

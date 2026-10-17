@@ -5,6 +5,8 @@
 
 #include "RenderSettingsPanel.hpp"
 
+#include <algorithm>
+
 #include "../ui/ModeCatalog.hpp"
 #include "../ui/UiStyle.hpp"
 
@@ -60,7 +62,8 @@ void RenderSettingsPanel::setupUi() {
         m_sppPreset->addItem(QString(), preset.spp);
     }
     m_sppPreset->addItem(QString(), -1);   // custom
-    m_sppPreset->setCurrentIndex(1);       // Draft (4 spp)
+    // By value: the catalogue's order is its own business.
+    m_sppPreset->setCurrentIndex(std::max(0, m_sppPreset->findData(4)));
     connect(m_sppPreset, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &RenderSettingsPanel::onSppPresetChanged);
     auto* targetCaption = new QLabel(qualityGroup);
@@ -69,6 +72,10 @@ void RenderSettingsPanel::setupUi() {
     m_customSpp = new QSpinBox();
     m_customSpp->setRange(1, 65536);
     m_customSpp->setValue(4);
+    m_customSpp->setSuffix(QStringLiteral(" spp"));   // unit symbol, not translated
+    // Applied on commit: typing 1024 used to set a target of 1, 10, 102 and
+    // then 1024, restarting the render's timing at each.
+    m_customSpp->setKeyboardTracking(false);
     m_customSpp->setEnabled(false);
     connect(m_customSpp, QOverload<int>::of(&QSpinBox::valueChanged),
             this, &RenderSettingsPanel::onCustomSppChanged);
@@ -102,7 +109,7 @@ void RenderSettingsPanel::setupUi() {
     auto* resGroup = new QGroupBox(this);
     auto* resLayout = new QFormLayout(resGroup);
 
-    m_resolutionLabel = new QLabel(QStringLiteral("1280 x 720"));
+    m_resolutionLabel = new QLabel();   // filled by setResolution(), in retranslateUi()
     auto* resCaption = new QLabel(resGroup);
     resLayout->addRow(resCaption, m_resolutionLabel);
 
@@ -143,6 +150,8 @@ void RenderSettingsPanel::setupUi() {
     // unattended export could be written from.
     m_autoExportCheck = new QCheckBox(actionsGroup);
     m_autoExportCheck->setChecked(false);
+    connect(m_autoExportCheck, &QCheckBox::toggled,
+            this, &RenderSettingsPanel::autoExportToggled);
     actionsLayout->addWidget(m_autoExportCheck);
 
     bindText([this, actionsGroup] {
@@ -165,9 +174,15 @@ bool RenderSettingsPanel::autoExportOnComplete() const {
     return m_autoExportCheck && m_autoExportCheck->isChecked();
 }
 
+void RenderSettingsPanel::setAutoExportOnComplete(bool enabled) {
+    const QSignalBlocker blocker(m_autoExportCheck);
+    m_autoExportCheck->setChecked(enabled);
+}
+
 void RenderSettingsPanel::retranslateUi() {
     PanelBase::retranslateUi();
     setResolution(m_width, m_height);
+    setSampleCount(m_sampleCount);
 }
 
 void RenderSettingsPanel::setDisplayEnhancementWidget(QWidget* widget) {
@@ -179,11 +194,16 @@ void RenderSettingsPanel::setDisplayEnhancementWidget(QWidget* widget) {
 }
 
 void RenderSettingsPanel::setSampleCount(uint32_t count) {
-    m_sampleCountLabel->setText(QString::number(count));
+    // Against the target, so the number says how far along it is.
+    m_sampleCount = count;
+    m_sampleCountLabel->setText(m_targetSPP > 0
+                                    ? tr("%1 / %2").arg(count).arg(m_targetSPP)
+                                    : tr("%1 / ∞").arg(count));
 }
 
 void RenderSettingsPanel::setTargetSPP(uint32_t spp) {
     m_targetSPP = spp;
+    setSampleCount(m_sampleCount);
 
     // Find matching preset (the last entry is "Custom...")
     for (int i = 0; i < m_sppPreset->count() - 1; ++i) {

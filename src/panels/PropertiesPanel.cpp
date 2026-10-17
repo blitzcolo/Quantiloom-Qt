@@ -202,6 +202,7 @@ void PropertiesPanel::showNode(int nodeIndex, const QString& name,
 
 void PropertiesPanel::showMultipleSelection(int count) {
     m_nodeIndex = -1;
+    m_materialIndex = -1;
     m_multiCount = count;
     m_multiLabel->setText(tr("%n nodes selected. Drag in the viewport to transform them "
                              "together.", "", count));
@@ -220,6 +221,26 @@ void PropertiesPanel::updateNodeTransform(const glm::mat4& transform) {
 }
 
 void PropertiesPanel::writeTransformFields(const glm::mat4& transform) {
+    // An edit comes back here through the shell as the matrix it produced.
+    // Decomposing that again gives *an* Euler triple for it, not the one the
+    // user typed -- Y = 120 returns as (180, 60, 180) -- and the fields jumped
+    // under the cursor. When the fields already describe this matrix, they
+    // are left as they are.
+    const glm::mat4 shown = readTransformFields();
+    bool alreadyShown = true;
+    for (int column = 0; column < 4 && alreadyShown; ++column) {
+        for (int row = 0; row < 4; ++row) {
+            const float expected = transform[column][row];
+            if (std::abs(shown[column][row] - expected) > 1e-4f * (1.0f + std::abs(expected))) {
+                alreadyShown = false;
+                break;
+            }
+        }
+    }
+    if (alreadyShown) {
+        return;
+    }
+
     glm::vec3 translation;
     glm::vec3 euler;
     glm::vec3 scale;

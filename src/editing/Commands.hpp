@@ -15,6 +15,7 @@
 #include <scene/Mesh.hpp>
 #include <scene/Material.hpp>
 #include <glm/glm.hpp>
+#include <chrono>
 #include <functional>
 
 // Forward declarations
@@ -48,6 +49,13 @@ enum class CommandId {
     // CameraConfig snapshot, the same way ModifySensor was one id for the old
     // SensorParams snapshot.
     ModifyCamera = 13,
+    // The hyperspectral cube's band grid: document state, read by the export.
+    ModifyWavelengthRange = 14,
+    // Settings that marked the document modified without entering the
+    // history, so Ctrl+Z skipped past them.
+    ModifyTargetSamples = 15,
+    ModifyCameraFov = 16,
+    ModifyThermalSolve = 17,
 };
 
 /**
@@ -242,6 +250,10 @@ private:
     int m_materialIndex;
     quantiloom::Material m_oldMaterial;
     quantiloom::Material m_newMaterial;
+    /// When this edit was made, and when the last one merged into it was:
+    /// edits closer together than a burst gap merge, others do not.
+    std::chrono::steady_clock::time_point m_createdAt = std::chrono::steady_clock::now();
+    std::chrono::steady_clock::time_point m_lastMergedAt = m_createdAt;
 };
 
 /**

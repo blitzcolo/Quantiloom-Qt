@@ -41,12 +41,24 @@ namespace {
 struct DatabaseInfo {
     const char* id;
     const char* csvSuffix;
+    /// The database's own published name. A proper noun, the same in every
+    /// language, so it is not translated; the id is protocol and not shown.
+    const char* displayName;
 };
 const DatabaseInfo kDatabases[] = {
-    {"usgs", "usgs"},
-    {"ecostress", "ecostress"},
-    {"rii", "rii"},
+    {"usgs", "usgs", "USGS"},
+    {"ecostress", "ecostress", "ECOSTRESS"},
+    {"rii", "rii", "refractiveindex.info"},
 };
+
+QString databaseDisplayName(const QString& id) {
+    for (const DatabaseInfo& db : kDatabases) {
+        if (id == QLatin1String(db.id)) {
+            return QString::fromLatin1(db.displayName);
+        }
+    }
+    return id;
+}
 
 /// The bands the databases are summarised over, in wavelength order. These are
 /// protocol on both sides -- they name the `<BAND>_coverage` columns of
@@ -126,7 +138,7 @@ public:
         if (role == Qt::DisplayRole) {
             switch (index.column()) {
                 case ColumnName:     return entry.name;
-                case ColumnDatabase: return entry.database;
+                case ColumnDatabase: return databaseDisplayName(entry.database);
                 case ColumnCategory: return entry.category;
                 case ColumnCoverage:
                     // The widest band this entry actually covers, as a
@@ -154,7 +166,8 @@ public:
             return QCoreApplication::translate(
                        "SpectralLibraryPanel",
                        "%1\nDatabase: %2\nCoverage — %3")
-                .arg(entry.name, entry.database, bands.join(QStringLiteral(", ")));
+                .arg(entry.name, databaseDisplayName(entry.database),
+                     bands.join(QStringLiteral(", ")));
         }
         return {};
     }
@@ -264,6 +277,53 @@ private:
     QString m_loadError;
 };
 
+/// Filters on two terms with an AND between them: the database (exact, on
+/// the entry's id rather than on its display name) and free text in any
+/// column.
+class LibraryFilterProxy : public QSortFilterProxyModel {
+public:
+    using QSortFilterProxyModel::QSortFilterProxyModel;
+
+    void setTerms(const QString& database, const QString& search) {
+        if (database == m_database && search == m_search) {
+            return;
+        }
+        beginFilterChange();
+        m_database = database;
+        m_search = search;
+        endFilterChange();
+    }
+
+protected:
+    [[nodiscard]] bool filterAcceptsRow(int sourceRow,
+                                        const QModelIndex& sourceParent) const override {
+        const auto* model = static_cast<const SpectralLibraryModel*>(sourceModel());
+        const auto* entry = model->entryAt(sourceRow);
+        if (!entry) {
+            return false;
+        }
+        if (!m_database.isEmpty() && entry->database != m_database) {
+            return false;
+        }
+        if (m_search.isEmpty()) {
+            return true;
+        }
+        for (int column = 0; column < model->columnCount(sourceParent); ++column) {
+            const QString text =
+                model->data(model->index(sourceRow, column, sourceParent), Qt::DisplayRole)
+                    .toString();
+            if (text.contains(m_search, Qt::CaseInsensitive)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+private:
+    QString m_database;
+    QString m_search;
+};
+
 // ============================================================================
 // Panel
 // ============================================================================
@@ -282,10 +342,10 @@ QString SpectralLibraryPanel::panelTitle() const {
 void SpectralLibraryPanel::setupUi() {
     auto* mainLayout = new QVBoxLayout(this);
     mainLayout->setContentsMargins(4, 4, 4, 4);
-    mainLayout->setSpacing(6);
+    mainLayout->setSpacing(8);
 
     m_model = new SpectralLibraryModel(this);
-    m_proxy = new QSortFilterProxyModel(this);
+    m_proxy = new LibraryFilterProxy(this);
     m_proxy->setSourceModel(m_model);
     m_proxy->setFilterCaseSensitivity(Qt::CaseInsensitive);
     m_proxy->setFilterKeyColumn(-1);   // name, database and category all match
@@ -302,7 +362,7 @@ void SpectralLibraryPanel::setupUi() {
     // so the display text can be translated without changing what is matched.
     m_databaseCombo->addItem(QString(), QString());
     for (const DatabaseInfo& db : kDatabases) {
-        m_databaseCombo->addItem(QString::fromLatin1(db.id), QString::fromLatin1(db.id));
+        m_databaseCombo->addItem(QString::fromLatin1(db.displayName), QString::fromLatin1(db.id));
     }
     connect(m_databaseCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &SpectralLibraryPanel::onFilterChanged);
@@ -378,8 +438,6 @@ void SpectralLibraryPanel::setupUi() {
             this, &SpectralLibraryPanel::onRemoveEndmemberClicked);
     endmemberLayout->addWidget(m_removeEndmemberButton);
 
-    mainLayout->addWidget(m_endmemberGroup);
-
     auto* assignRow = new QHBoxLayout();
     m_assignButton = new QPushButton(this);
     m_assignButton->setEnabled(false);
@@ -391,7 +449,11 @@ void SpectralLibraryPanel::setupUi() {
     connect(m_addEndmemberButton, &QPushButton::clicked,
             this, &SpectralLibraryPanel::onAddEndmemberClicked);
     assignRow->addWidget(m_addEndmemberButton, 1);
+    // "Assigning to …" directly above the buttons that do the assigning, then
+    // what the target is made of. The endmember group used to sit between
+    // the label and its buttons.
     mainLayout->addLayout(assignRow);
+    mainLayout->addWidget(m_endmemberGroup);
 
     bindText([this, previewGroup, bandCaption] {
         m_searchEdit->setPlaceholderText(tr("Search %n material(s)...", "",
@@ -469,6 +531,7 @@ void SpectralLibraryPanel::updateAssignEnabled() {
     const int selected = m_endmemberList->currentRow();
     m_removeEndmemberButton->setEnabled(haveTarget && !m_currentRefs.isEmpty() &&
                                         selected >= 0 && selected < m_currentRefs.size());
+    emit actionStateChanged();
 
     if (!haveTarget) {
         m_targetLabel->setText(tr("Select a material in the scene to assign to."));
@@ -536,6 +599,18 @@ void SpectralLibraryPanel::onAddEndmemberClicked() {
     emit endmemberAddRequested(entry->database, entry->name);
 }
 
+QString SpectralLibraryPanel::databaseDisplayName(const QString& databaseId) {
+    return ::databaseDisplayName(databaseId);
+}
+
+bool SpectralLibraryPanel::canRemoveEndmember() const {
+    return m_removeEndmemberButton->isEnabled();
+}
+
+void SpectralLibraryPanel::removeSelectedEndmember() {
+    onRemoveEndmemberClicked();
+}
+
 void SpectralLibraryPanel::onRemoveEndmemberClicked() {
     const int slot = m_endmemberList->currentRow();
     if (m_targetMaterial < 0 || slot < 0 || slot >= m_currentRefs.size()) {
@@ -548,29 +623,11 @@ void SpectralLibraryPanel::onFilterChanged() {
     const QString database = m_databaseCombo->currentData().toString();
     const QString search = m_searchEdit->text().trimmed();
 
-    // Both terms at once, as a regular expression over every column: the
-    // database id appears in its own column, so requiring it there and the
-    // search text anywhere would need two proxies.
-    QString pattern = QRegularExpression::escape(search);
-    if (!database.isEmpty()) {
-        // Anchored on the database column's exact value, then the free text.
-        m_proxy->setFilterKeyColumn(SpectralLibraryModel::ColumnDatabase);
-        m_proxy->setFilterFixedString(database);
-        // A second pass is not possible with one proxy, so the free text is
-        // applied over the database-filtered rows by widening the key column
-        // only when there is no database filter. This keeps the common cases
-        // -- browse one database, or search everything -- both exact.
-        if (!search.isEmpty()) {
-            m_proxy->setFilterKeyColumn(-1);
-            m_proxy->setFilterRegularExpression(
-                QRegularExpression(QStringLiteral("(?=.*%1)(?=.*%2)")
-                                       .arg(QRegularExpression::escape(database), pattern),
-                                   QRegularExpression::CaseInsensitiveOption));
-        }
-    } else {
-        m_proxy->setFilterKeyColumn(-1);
-        m_proxy->setFilterFixedString(search);
-    }
+    // Both terms at once: the database exactly, AND the search text in any
+    // column. A single regular expression over every column cannot say that
+    // -- the proxy tests each cell on its own, and no one cell holds both --
+    // so picking a database and typing a name used to show nothing at all.
+    static_cast<LibraryFilterProxy*>(m_proxy)->setTerms(database, search);
 
     if (!m_model->isEmpty()) {
         m_countLabel->setText(tr("%n material(s) shown", "", m_proxy->rowCount()));
