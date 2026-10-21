@@ -1715,11 +1715,16 @@ void QuantiloomVulkanRenderer::setSensorEnabled(bool enabled) {
     // Use GPU sensor via libQuantiloom (real-time)
     if (m_renderContext) {
         m_renderContext->SetGPUSensorEnabled(enabled);
-        // Display-stage: the accumulation is still valid, so no
-        // resetAccumulation() -- but the image on screen no longer shows the
-        // current settings, and a loop stopped at its target would never
-        // redraw it.
-        requestDisplayReprocess();
+        // Turning the camera off is display-stage: the visibility
+        // accumulation is still valid, so it is re-presented, not re-traced.
+        // Turning it on is not: the camera's acquisition starts with no paths
+        // in it, and a loop already stopped at its target re-presented one
+        // that did not exist -- a black frame -- and never traced the first.
+        if (enabled) {
+            resetAccumulation();
+        } else {
+            requestDisplayReprocess();
+        }
     }
 
     qDebug() << "[Sensor] GPU sensor simulation" << (enabled ? "ENABLED" : "DISABLED");
@@ -1754,10 +1759,16 @@ quantiloom::Result<void, quantiloom::String> QuantiloomVulkanRenderer::setCamera
     }
     m_cameraConfig = config;
     m_sensorEnabled = config.enabled;
-    // Tier-3 changes rebuild the measurement on the SDK side; the display on
-    // screen no longer reflects the settings, and a loop stopped at its target
-    // would never redraw it -- same reasoning as setSensorEnabled above.
-    requestDisplayReprocess();
+    // Tier-3 changes rebuild the measurement on the SDK side: the acquisition
+    // starts again with no paths in it, so the count the loop stops on starts
+    // again too. Re-presenting instead showed a loop stopped at its target an
+    // acquisition that no longer existed -- black -- and never traced the new
+    // one. With the camera off nothing was acquired, and a redraw suffices.
+    if (config.enabled) {
+        resetAccumulation();
+    } else {
+        requestDisplayReprocess();
+    }
     return quantiloom::Result<void, quantiloom::String>::Ok();
 }
 

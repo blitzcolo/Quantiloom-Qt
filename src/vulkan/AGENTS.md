@@ -30,19 +30,23 @@ showing a value read from a previous image. So a new setter that changes what th
 accumulation holds must go through `resetAccumulation()` rather than call the SDK's
 `ResetAccumulation()` directly — that skips both.
 
-Display-stage setters are the deliberate exception. Sensor simulation and CLAHE change
-how the accumulation is *shown*, not what it holds, so `setSensorEnabled` and
-`setDisplayEnhancement` call `requestDisplayReprocess()` instead: it arms a one-shot
-flag and asks for a frame, and `startNextFrame()` routes that frame through the SDK's
-`ReprocessAccumulated()` — post-processing re-run over the unchanged accumulation, no
-sample added. The physical camera works the same way, in two tiers:
-`reprocessCameraDisplay()` (`UpdateCameraDisplayConfig`) is the display-only tier —
-the display half of the ISP re-run over the last completed acquisition, with no ray
-retraced and the acquisition state never advanced — and `setCameraConfig()` also ends
-in `requestDisplayReprocess()`, whether the core could answer the edit from the
-standing measured rate or had to rebuild the measurement, because either way the
-image on screen no longer reflects the settings. `setGridVisible` is display-only too
-but compositing rather than post-processing, so it just requests a frame.
+Display-stage setters are the deliberate exception. CLAHE changes how the
+accumulation is *shown*, not what it holds, so `setDisplayEnhancement` calls
+`requestDisplayReprocess()` instead: it arms a one-shot flag and asks for a frame, and
+`startNextFrame()` routes that frame through the SDK's `ReprocessAccumulated()` —
+post-processing re-run over the unchanged accumulation, no sample added. Turning the
+camera *off* is display-stage the same way. The physical camera has three tiers:
+`reprocessCameraDisplay()` (`UpdateCameraDisplayConfig`) re-runs the display half of
+the ISP over the last completed acquisition, with no ray retraced and the acquisition
+state never advanced; a `setCameraConfig()` the core answers from the standing
+measured rate (readout, noise, ADC) re-runs detector-to-display and ends in
+`requestDisplayReprocess()`; and a `setCameraConfig()` that rebuilds the measurement —
+a preset, the optics, the exposure — or `setSensorEnabled(true)` starts the
+acquisition over with no paths in it, so it goes through `resetAccumulation()`.
+Re-presenting there used to show a loop stopped at its target an acquisition that no
+longer existed: a black frame, and the new one never traced. `setGridVisible` is
+display-only too but compositing rather than post-processing, so it just requests a
+frame.
 
 ## Camera angles are radians
 
