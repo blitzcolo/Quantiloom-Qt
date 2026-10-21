@@ -74,6 +74,21 @@ int paletteIndex(quantiloom::DisplayPalette p) {
     return 0;
 }
 
+/// A preset as the viewport applies it. The SDK's presets define devices, and
+/// carry the device's manual operating point: 10 ms on the visible ones, which
+/// a sunlit scene overexposes forty to a hundred times over. A viewport points
+/// at whatever the document holds, so a photon preset arrives here with AE on,
+/// and with AWB on when it has colour channels to balance -- the way a camera
+/// ships. Both stay ordinary fields the user can turn off.
+auto viewportPreset(CameraPresetKind kind) {
+    auto preset = quantiloom::camera::MakePresetCameraConfig(kind);
+    if (preset && preset.value().device.detector == DetectorKind::Photon) {
+        preset.value().isp.autoExposure = true;
+        preset.value().isp.autoWhiteBalance = preset.value().device.channels.size() > 1;
+    }
+    return preset;
+}
+
 /// Find the preset the config still matches, if any. The comparison is the
 /// SDK's own serialization on both sides with the enabled flag normalised,
 /// so "the user only toggled the switch" still reads as the same preset.
@@ -83,7 +98,7 @@ std::optional<CameraPresetKind> matchPreset(const CameraConfig& config) {
     const QString mineText =
         QString::fromStdString(quantiloom::CameraConfigToToml(mine));
     for (CameraPresetKind kind : quantiloom::camera::AllCameraPresets()) {
-        auto preset = quantiloom::camera::MakePresetCameraConfig(kind);
+        auto preset = viewportPreset(kind);
         if (!preset) continue;
         preset.value().enabled = true;
         if (QString::fromStdString(quantiloom::CameraConfigToToml(preset.value())) == mineText) {
@@ -878,7 +893,7 @@ void SensorPanel::onPresetChanged(int index) {
     if (presetIndex < 0 || presetIndex >= static_cast<int>(kinds.size())) {
         return;
     }
-    auto built = quantiloom::camera::MakePresetCameraConfig(kinds[presetIndex]);
+    auto built = viewportPreset(kinds[presetIndex]);
     if (!built) {
         qWarning("[SensorPanel] preset failed: %s", built.error().c_str());
         return;
