@@ -2696,7 +2696,7 @@ void MainWindow::showStatusMessage(const QString& message, int timeoutMs) {
 }
 
 void MainWindow::updateRenderProgress() {
-    const uint32_t target = m_renderSettingsPanel ? m_renderSettingsPanel->spp() : 0;
+    const uint32_t target = m_vulkanWindow ? m_vulkanWindow->targetSPP() : 0;
     const uint32_t samples = m_vulkanWindow ? m_vulkanWindow->currentSampleCount() : 0;
     if (target == 0) {
         // Infinite mode: pulsing indeterminate bar while accumulating.
@@ -3950,7 +3950,7 @@ void MainWindow::onStartRender() {
     m_vulkanWindow->resetAccumulation();
     beginRenderTiming();
     setRenderActionsRunning(true);
-    const uint32_t spp = m_renderSettingsPanel->spp();
+    const uint32_t spp = m_vulkanWindow->targetSPP();
     if (spp == 0)
         showStatusMessage(tr("Rendering (infinite)"));
     else
@@ -3964,7 +3964,7 @@ void MainWindow::onResumeRender() {
     m_vulkanWindow->setRenderPaused(false);
     beginRenderTiming();
     setRenderActionsRunning(true);
-    const uint32_t spp = m_renderSettingsPanel->spp();
+    const uint32_t spp = m_vulkanWindow->targetSPP();
     if (spp == 0)
         showStatusMessage(tr("Resuming from %1 samples (infinite)").arg(already));
     else
