@@ -55,6 +55,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <optional>
+#include <string>
 
 namespace mcp = quantiloom::mcp;
 
@@ -142,6 +144,107 @@ bool ReadVec3(const QJsonObject& args, const char* key, glm::vec3& value,
 
 QJsonArray WriteVec3(const glm::vec3& v) {
     return QJsonArray{v.x, v.y, v.z};
+}
+
+/// Checks one argument against the schema fragment that describes it: type,
+/// enum, minimum and maximum, and for an array its length and its items. These
+/// are the only keywords the tools' schemas use. The server advertises the
+/// schema but does not enforce it, so without this a handler's toDouble()
+/// turned a string into 0 and an out-of-range number went straight to the
+/// renderer.
+std::optional<std::string> ValidateValue(const std::string& name, const QJsonObject& schema,
+                                         const QJsonValue& value) {
+    const auto fail = [&name](const std::string& why) {
+        return std::optional<std::string>(name + " " + why + ".");
+    };
+    const auto text = [](double number) {
+        return QString::number(number, 'g', 10).toStdString();
+    };
+
+    const QString type = schema.value(QStringLiteral("type")).toString();
+    if (type == QLatin1String("number") || type == QLatin1String("integer")) {
+        if (!value.isDouble()) {
+            return fail("must be a number");
+        }
+        const double number = value.toDouble();
+        if (type == QLatin1String("integer") && number != std::floor(number)) {
+            return fail("must be an integer");
+        }
+        if (schema.contains(QStringLiteral("minimum")) &&
+            number < schema.value(QStringLiteral("minimum")).toDouble()) {
+            return fail("must be at least " +
+                        text(schema.value(QStringLiteral("minimum")).toDouble()));
+        }
+        if (schema.contains(QStringLiteral("maximum")) &&
+            number > schema.value(QStringLiteral("maximum")).toDouble()) {
+            return fail("must be at most " +
+                        text(schema.value(QStringLiteral("maximum")).toDouble()));
+        }
+    } else if (type == QLatin1String("string")) {
+        if (!value.isString()) {
+            return fail("must be a string");
+        }
+    } else if (type == QLatin1String("boolean")) {
+        if (!value.isBool()) {
+            return fail("must be true or false");
+        }
+    } else if (type == QLatin1String("array")) {
+        if (!value.isArray()) {
+            return fail("must be an array");
+        }
+        const QJsonArray array = value.toArray();
+        if (schema.contains(QStringLiteral("minItems")) &&
+            array.size() < schema.value(QStringLiteral("minItems")).toInt()) {
+            return fail("needs at least " +
+                        std::to_string(schema.value(QStringLiteral("minItems")).toInt()) +
+                        " items");
+        }
+        if (schema.contains(QStringLiteral("maxItems")) &&
+            array.size() > schema.value(QStringLiteral("maxItems")).toInt()) {
+            return fail("takes at most " +
+                        std::to_string(schema.value(QStringLiteral("maxItems")).toInt()) +
+                        " items");
+        }
+        const QJsonObject items = schema.value(QStringLiteral("items")).toObject();
+        for (int i = 0; i < array.size(); ++i) {
+            if (auto problem =
+                    ValidateValue(name + "[" + std::to_string(i) + "]", items, array[i])) {
+                return problem;
+            }
+        }
+    }
+
+    if (schema.contains(QStringLiteral("enum"))) {
+        const QJsonArray allowed = schema.value(QStringLiteral("enum")).toArray();
+        std::string list;
+        for (const QJsonValue& candidate : allowed) {
+            if (candidate == value) {
+                return std::nullopt;
+            }
+            list += (list.empty() ? "" : ", ") +
+                    (candidate.isString() ? candidate.toString().toStdString()
+                                          : text(candidate.toDouble()));
+        }
+        return fail("must be one of: " + list);
+    }
+    return std::nullopt;
+}
+
+/// Every argument that is present, checked against its entry in the schema's
+/// "properties". An argument the schema does not name is left to the handler.
+std::optional<std::string> ValidateArguments(const QJsonObject& schema,
+                                             const QJsonObject& args) {
+    const QJsonObject properties = schema.value(QStringLiteral("properties")).toObject();
+    for (auto it = args.begin(); it != args.end(); ++it) {
+        if (!properties.contains(it.key())) {
+            continue;
+        }
+        if (auto problem = ValidateValue(it.key().toStdString(),
+                                         properties.value(it.key()).toObject(), it.value())) {
+            return problem;
+        }
+    }
+    return std::nullopt;
 }
 
 /// The one sentence every tool that needs a live renderer says when there is
@@ -242,7 +345,24 @@ void MainWindow::registerMcpTools() {
     }
 
     int registered = 0;
-    const auto add = [this, &registered](const mcp::ToolDef& tool) {
+    const auto add = [this, &registered](mcp::ToolDef tool) {
+        // Every tool is checked against its own schema before its handler
+        // runs, so a bound the schema declares is a bound the tool enforces.
+        // Arguments that are not a JSON object are left for the handler's
+        // ParseArgs to explain.
+        const QJsonObject schema =
+            QJsonDocument::fromJson(QByteArray::fromStdString(tool.inputSchemaJson)).object();
+        tool.handler = [schema, inner = std::move(tool.handler)](
+                           const quantiloom::String& argumentsJson) {
+            const QJsonDocument document =
+                QJsonDocument::fromJson(QByteArray::fromStdString(argumentsJson));
+            if (document.isObject()) {
+                if (const auto problem = ValidateArguments(schema, document.object())) {
+                    return mcp::ToolResult::Error(*problem);
+                }
+            }
+            return inner(argumentsJson);
+        };
         if (auto added = m_mcpServer->RegisterTool(tool); added.has_value()) {
             ++registered;
         } else {
@@ -1577,7 +1697,7 @@ void MainWindow::registerMcpTools() {
         tool.inputSchemaJson = R"({
   "type": "object",
   "properties": {
-    "scale": {"type": "number", "minimum": 0.25, "maximum": 1, "description": "Clamped to [0.25, 1]. 1 traces at the full viewport extent."}
+    "scale": {"type": "number", "minimum": 0.25, "maximum": 1, "description": "Must be in [0.25, 1]. 1 traces at the full viewport extent."}
   },
   "required": ["scale"]
 })";
