@@ -649,8 +649,10 @@ void LightingPanel::setLightingParams(const quantiloom::LightingParams& params) 
     // sunDirection points FROM surface TO sun
     const glm::vec3& dir = params.sunDirection;
 
+    // Held at full precision: a sun below the horizon is a legitimate document
+    // value and must survive the next edit. Only the widgets, whose range is
+    // 0..90, clamp what they show (syncAngleWidgets).
     m_sunElevation = std::asin(dir.y) * 180.0f / static_cast<float>(M_PI);
-    m_sunElevation = std::max(0.0f, std::min(90.0f, m_sunElevation));
 
     m_sunAzimuth = std::atan2(dir.x, dir.z) * 180.0f / static_cast<float>(M_PI);
     if (m_sunAzimuth < 0) m_sunAzimuth += 360.0f;
@@ -704,8 +706,9 @@ void LightingPanel::syncAngleWidgets() {
     const QSignalBlocker elevationSpin(m_elevationSpin);
     m_azimuthSlider->setValue(static_cast<int>(std::lround(m_sunAzimuth)));
     m_azimuthSpin->setValue(static_cast<double>(m_sunAzimuth));
-    m_elevationSlider->setValue(static_cast<int>(std::lround(m_sunElevation)));
-    m_elevationSpin->setValue(static_cast<double>(m_sunElevation));
+    const float shownElevation = std::clamp(m_sunElevation, 0.0f, 90.0f);
+    m_elevationSlider->setValue(static_cast<int>(std::lround(shownElevation)));
+    m_elevationSpin->setValue(static_cast<double>(shownElevation));
 }
 
 void LightingPanel::emitEdit() {
