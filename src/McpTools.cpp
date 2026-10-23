@@ -113,17 +113,30 @@ bool ParseArgs(const quantiloom::String& argumentsJson, QJsonObject& out, mcp::T
     return true;
 }
 
-glm::vec3 ReadVec3(const QJsonValue& value, const glm::vec3& fallback) {
-    if (!value.isArray()) {
-        return fallback;
+/// Reads the optional 3-number array under `key` into `value`. An absent key
+/// leaves `value` alone. A key that is present but is not an array of exactly
+/// three numbers is an error: carrying on with the old value would answer a
+/// malformed argument with a reply that looks like success.
+bool ReadVec3(const QJsonObject& args, const char* key, glm::vec3& value,
+              mcp::ToolResult& error) {
+    const QString name = QLatin1String(key);
+    if (!args.contains(name)) {
+        return true;
     }
-    const QJsonArray array = value.toArray();
-    if (array.size() != 3) {
-        return fallback;
+    const QJsonArray array = args.value(name).toArray();
+    bool wellFormed = args.value(name).isArray() && array.size() == 3;
+    for (int i = 0; wellFormed && i < 3; ++i) {
+        wellFormed = array[i].isDouble();
     }
-    return glm::vec3(static_cast<float>(array[0].toDouble()),
-                     static_cast<float>(array[1].toDouble()),
-                     static_cast<float>(array[2].toDouble()));
+    if (!wellFormed) {
+        error = mcp::ToolResult::Error(std::string(key) +
+                                       " must be an array of exactly 3 numbers.");
+        return false;
+    }
+    value = glm::vec3(static_cast<float>(array[0].toDouble()),
+                      static_cast<float>(array[1].toDouble()),
+                      static_cast<float>(array[2].toDouble()));
+    return true;
 }
 
 QJsonArray WriteVec3(const glm::vec3& v) {
@@ -672,10 +685,15 @@ void MainWindow::registerMcpTools() {
             float fovY = 45.0f;
             m_vulkanWindow->getCameraState(position, target, up, fovY);
 
+            glm::vec3 newPosition = position;
+            glm::vec3 newTarget = target;
+            if (!ReadVec3(args, "position", newPosition, error) ||
+                !ReadVec3(args, "target", newTarget, error)) {
+                return error;
+            }
             if (args.contains(QStringLiteral("position")) ||
                 args.contains(QStringLiteral("target"))) {
-                applyCameraPose(ReadVec3(args.value(QStringLiteral("position")), position),
-                                ReadVec3(args.value(QStringLiteral("target")), target));
+                applyCameraPose(newPosition, newTarget);
             }
             if (args.contains(QStringLiteral("fov_y"))) {
                 applyCameraFov(static_cast<float>(args.value(QStringLiteral("fov_y")).toDouble()));
@@ -725,21 +743,17 @@ void MainWindow::registerMcpTools() {
             }
 
             quantiloom::LightingParams params = *m_lightingParams;
+            glm::vec3 sunDirection = params.sunDirection;
+            if (!ReadVec3(args, "sun_direction", sunDirection, error) ||
+                !ReadVec3(args, "sun_radiance", params.sunRadiance_rgb, error) ||
+                !ReadVec3(args, "sky_radiance", params.skyRadiance_rgb, error)) {
+                return error;
+            }
             if (args.contains(QStringLiteral("sun_direction"))) {
-                const glm::vec3 dir =
-                    ReadVec3(args.value(QStringLiteral("sun_direction")), params.sunDirection);
-                const float length = glm::length(dir);
+                const float length = glm::length(sunDirection);
                 if (length > 1e-6f) {
-                    params.sunDirection = dir / length;
+                    params.sunDirection = sunDirection / length;
                 }
-            }
-            if (args.contains(QStringLiteral("sun_radiance"))) {
-                params.sunRadiance_rgb =
-                    ReadVec3(args.value(QStringLiteral("sun_radiance")), params.sunRadiance_rgb);
-            }
-            if (args.contains(QStringLiteral("sky_radiance"))) {
-                params.skyRadiance_rgb =
-                    ReadVec3(args.value(QStringLiteral("sky_radiance")), params.skyRadiance_rgb);
             }
             if (args.contains(QStringLiteral("shadow_rays"))) {
                 params.enableShadowRays =
@@ -1229,10 +1243,13 @@ void MainWindow::registerMcpTools() {
             }
 
             quantiloom::Material material = scene->materials[static_cast<size_t>(index)];
+            glm::vec3 baseColor(material.baseColorFactor);
+            if (!ReadVec3(args, "base_color", baseColor, error) ||
+                !ReadVec3(args, "emissive", material.emissiveFactor, error)) {
+                return error;
+            }
             if (args.contains(QStringLiteral("base_color"))) {
-                const glm::vec3 rgb = ReadVec3(args.value(QStringLiteral("base_color")),
-                                               glm::vec3(material.baseColorFactor));
-                material.baseColorFactor = glm::vec4(rgb, material.baseColorFactor.a);
+                material.baseColorFactor = glm::vec4(baseColor, material.baseColorFactor.a);
             }
             if (args.contains(QStringLiteral("metallic"))) {
                 material.metallicFactor =
@@ -1241,10 +1258,6 @@ void MainWindow::registerMcpTools() {
             if (args.contains(QStringLiteral("roughness"))) {
                 material.roughnessFactor =
                     static_cast<float>(args.value(QStringLiteral("roughness")).toDouble());
-            }
-            if (args.contains(QStringLiteral("emissive"))) {
-                material.emissiveFactor =
-                    ReadVec3(args.value(QStringLiteral("emissive")), material.emissiveFactor);
             }
 
             // Same conversion the material editor does, from the same function:
@@ -1354,12 +1367,14 @@ void MainWindow::registerMcpTools() {
                     }
                 }
             } else {
-                const glm::vec3 translation =
-                    ReadVec3(args.value(QStringLiteral("translation")), glm::vec3(0.0f));
-                const glm::vec3 euler =
-                    ReadVec3(args.value(QStringLiteral("rotation_euler_degrees")), glm::vec3(0.0f));
-                const glm::vec3 scale =
-                    ReadVec3(args.value(QStringLiteral("scale")), glm::vec3(1.0f));
+                glm::vec3 translation(0.0f);
+                glm::vec3 euler(0.0f);
+                glm::vec3 scale(1.0f);
+                if (!ReadVec3(args, "translation", translation, error) ||
+                    !ReadVec3(args, "rotation_euler_degrees", euler, error) ||
+                    !ReadVec3(args, "scale", scale, error)) {
+                    return error;
+                }
 
                 // Degrees in, radians out. The renderer works in radians and
                 // writing degrees into it has shipped as a bug here before.
