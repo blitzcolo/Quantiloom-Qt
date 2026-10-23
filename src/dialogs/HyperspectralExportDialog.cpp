@@ -245,10 +245,17 @@ void HyperspectralExportDialog::setInputsEnabled(const bool enabled) {
 }
 
 void HyperspectralExportDialog::onRangeChanged() {
-    // Bound each other, so an inverted range cannot be submitted.
+    // Bound each other, so an inverted range cannot be submitted. The side the
+    // user just edited wins and the other one follows, in both directions;
+    // always moving "To" took back a lowered upper bound.
     if (m_lambdaMin->value() > m_lambdaMax->value()) {
-        const QSignalBlocker blocker(m_lambdaMax);
-        m_lambdaMax->setValue(m_lambdaMin->value());
+        if (sender() == m_lambdaMax) {
+            const QSignalBlocker blocker(m_lambdaMin);
+            m_lambdaMin->setValue(m_lambdaMax->value());
+        } else {
+            const QSignalBlocker blocker(m_lambdaMax);
+            m_lambdaMax->setValue(m_lambdaMin->value());
+        }
     }
     updateBandCount();
 }
