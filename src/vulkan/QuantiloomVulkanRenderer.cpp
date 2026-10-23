@@ -362,10 +362,13 @@ void QuantiloomVulkanRenderer::startNextFrame() {
     // swapchain image -- so a pause takes effect from the next frame on.
     m_window->frameReady();
     const bool atTarget = m_targetSPP > 0 && m_sampleCount >= m_targetSPP;
-    // A pending composited capture keeps the loop alive past the target: it
-    // records in one frame and is written a few frames later, so stopping at
-    // the target left the request recorded and never saved.
-    if (!m_paused && (!atTarget || m_overlay.capturePending())) {
+    // A pending composited capture keeps the loop alive past the target and
+    // through a pause: it records in one frame and is written when a countdown
+    // of *frames* runs out, so stopping at either left the request recorded,
+    // never saved, and every later request refused as "one at a time". Past the
+    // target or paused these frames re-present the accumulation, so the wait
+    // costs no sample.
+    if (m_overlay.capturePending() || (!m_paused && !atTarget)) {
         m_window->requestUpdate();
     }
 }
