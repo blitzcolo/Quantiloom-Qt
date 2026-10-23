@@ -283,6 +283,7 @@ private:
     /// recorded in the history, then applied through the dispatcher.
     void requestSpectralMode(quantiloom::SpectralMode mode);
     void requestTargetSpp(uint32_t spp);
+    void requestWavelength(float wavelength_nm);
     void requestThermalEnabled(bool enabled);
     /// Export EXR when the target is reached: the menu entry and the panel's
     /// box both come here, and the choice is remembered across sessions.

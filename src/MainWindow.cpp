@@ -1113,6 +1113,14 @@ void MainWindow::requestTargetSpp(uint32_t spp) {
                        [this](const uint32_t& v) { applyTargetSpp(v); });
 }
 
+void MainWindow::requestWavelength(float wavelength_nm) {
+    // Recorded like the mode and the sample target above, so the panel and
+    // ql_set_spectral share one undoable route.
+    pushSettingCommand(CommandId::ModifyWavelength, tr("Wavelength"),
+                       m_vulkanWindow->wavelength(), wavelength_nm,
+                       [this](const float& v) { applyWavelength(v); });
+}
+
 void MainWindow::syncSpectralModeUi(quantiloom::SpectralMode mode) {
     if (QAction* action = m_spectralActions.value(static_cast<int>(mode), nullptr)) {
         action->setChecked(true);
@@ -2374,9 +2382,7 @@ void MainWindow::setupDockWidgets() {
                     applyWavelength(wavelength_nm);
                     return;
                 }
-                pushSettingCommand(CommandId::ModifyWavelength, tr("Wavelength"),
-                                   m_vulkanWindow->wavelength(), wavelength_nm,
-                                   [this](const float& v) { applyWavelength(v); });
+                requestWavelength(wavelength_nm);
             });
     connect(m_spectralConfigPanel, &SpectralConfigPanel::wavelengthGestureStarted,
             this, [this] { m_wavelengthBeforeGesture = m_vulkanWindow->wavelength(); });
@@ -5155,7 +5161,7 @@ void MainWindow::onSpectralModeChanged(quantiloom::SpectralMode mode) {
 }
 
 void MainWindow::onWavelengthChanged(float wavelength_nm) {
-    applyWavelength(wavelength_nm);
+    requestWavelength(wavelength_nm);
 }
 
 void MainWindow::onDebugModeChanged(quantiloom::DebugVisualizationMode mode) {

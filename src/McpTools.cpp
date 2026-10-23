@@ -1114,9 +1114,7 @@ void MainWindow::registerMcpTools() {
             if (args.contains(QStringLiteral("wavelength_nm"))) {
                 const float wavelength =
                     static_cast<float>(args.value(QStringLiteral("wavelength_nm")).toDouble());
-                pushSettingCommand(CommandId::ModifyWavelength, tr("Wavelength"),
-                                   m_vulkanWindow->wavelength(), wavelength,
-                                   [this](const float& v) { applyWavelength(v); });
+                requestWavelength(wavelength);
             }
             if (args.contains(QStringLiteral("target_samples"))) {
                 const int spp = args.value(QStringLiteral("target_samples")).toInt(1);
