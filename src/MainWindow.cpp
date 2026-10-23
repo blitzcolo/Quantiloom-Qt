@@ -1943,16 +1943,28 @@ void MainWindow::setMcpServerRunning(bool running) {
 
     // Called on the transport thread. Nothing here may touch the renderer or a
     // widget -- it posts, and pumpMcp() does the work on this thread.
-    options.onCommandQueued = [this] {
-        QMetaObject::invokeMethod(this, &MainWindow::pumpMcp, Qt::QueuedConnection);
+    //
+    // Both callbacks hold a QPointer rather than a bare this: they run on a
+    // thread this window does not own, and the installed Server header does
+    // not promise that Stop() has joined it before the window's teardown
+    // proceeds. A callback that fires late then finds a null pointer instead of
+    // a destroyed window.
+    const QPointer<MainWindow> self(this);
+    options.onCommandQueued = [self] {
+        if (self) {
+            QMetaObject::invokeMethod(self.data(), &MainWindow::pumpMcp, Qt::QueuedConnection);
+        }
     };
 
     // A tool that reloads the document runs here instead of inside Pump(),
     // because opening a scene pumps Qt events of its own while shaders compile
     // and doing that from within the pump would nest one inside the other.
-    options.hostDispatch = [this](std::function<void()> work) {
-        QMetaObject::invokeMethod(
-            this, [work = std::move(work)]() mutable { work(); }, Qt::QueuedConnection);
+    options.hostDispatch = [self](std::function<void()> work) {
+        if (self) {
+            QMetaObject::invokeMethod(
+                self.data(), [work = std::move(work)]() mutable { work(); },
+                Qt::QueuedConnection);
+        }
     };
 
     auto created = quantiloom::mcp::Server::Create(options);
