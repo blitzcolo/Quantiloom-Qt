@@ -20,6 +20,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 #include <algorithm>
+#include <cmath>
 
 // The camera's [sensor] tree is the SDK's serialization, in both directions:
 // reading goes through ParseCameraConfig (which also migrates legacy
@@ -249,7 +250,15 @@ void ConfigManager::extractSceneConfig(const quantiloom::Config& config, SceneCo
     // [lighting]
     auto sunDir = config.GetArray<quantiloom::f32>("lighting.sun_direction");
     if (sunDir.size() >= 3) {
-        out.lighting.sunDirection = glm::normalize(glm::vec3(sunDir[0], sunDir[1], sunDir[2]));
+        const glm::vec3 raw(sunDir[0], sunDir[1], sunDir[2]);
+        // normalize() of a zero (or non-finite) vector is NaN, which would reach
+        // the sun-angle widgets and the renderer. Keep the default direction.
+        const float length = glm::length(raw);
+        if (std::isfinite(length) && length > 1e-6f) {
+            out.lighting.sunDirection = raw / length;
+        } else {
+            QL_LOG_WARN("lighting.sun_direction has no usable length; keeping the default direction");
+        }
     }
 
     auto sunRad = config.GetArray<quantiloom::f32>("lighting.sun_radiance");
