@@ -330,6 +330,14 @@ void ConfigManager::extractSceneConfig(const quantiloom::Config& config, SceneCo
         static_cast<quantiloom::f32>(out.atmosphere.tGroundK));
     out.atmosphere.rh = config.GetFloat("atmosphere.rh",
         static_cast<quantiloom::f32>(out.atmosphere.rh));
+    // The field is a fraction in [0.05, 1]. A value above 1 can only be a
+    // percentage (the shipped scenes wrote 25, 35, 85); the core reads it the
+    // same way, so the panel, the dew point and a re-save all agree with it.
+    if (out.atmosphere.rh > 1.0) {
+        QL_LOG_WARN("atmosphere.rh = {} is above 1; reading it as a percentage ({})",
+                    out.atmosphere.rh, out.atmosphere.rh / 100.0);
+        out.atmosphere.rh /= 100.0;
+    }
     out.atmosphere.pHPa = config.GetFloat("atmosphere.p_hPa",
         static_cast<quantiloom::f32>(out.atmosphere.pHPa));
     out.atmosphere.h2oScale = config.GetFloat("atmosphere.h2o_scale",
