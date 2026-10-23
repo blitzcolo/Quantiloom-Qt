@@ -607,6 +607,10 @@ private:
     /// that header is a layout contract with no room for solver inputs -- so
     /// the shell is where they live between being read and being written.
     QHash<QString, MaterialThermalProps> m_thermalProperties;
+    /// `emissive_scale` by material name, for the same reason: the Material has
+    /// no field for it. Absent means the file did not say, and the core's
+    /// default ("match_luminance") applies.
+    QHash<QString, QString> m_emissiveScales;
     /// The [thermal] block as the file gave it, so a config that has one
     /// survives being opened and saved. No panel edits it yet; the sequence
     /// dialog overrides the hour per frame. Held as the individual values

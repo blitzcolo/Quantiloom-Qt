@@ -196,7 +196,7 @@ void MaterialEditorPanel::setupUi() {
     m_emissiveScale->addItem(QString(), QStringLiteral("match_luminance"));
     m_emissiveScale->addItem(QString(), QStringLiteral("absolute"));
     connect(m_emissiveScale, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this, &MaterialEditorPanel::onEmissiveCurveChanged);
+            this, &MaterialEditorPanel::onEmissiveScaleChanged);
 
     auto* spectrumCaption = new QLabel();
     auto* scaleCaption = new QLabel();
@@ -1115,6 +1115,18 @@ void MaterialEditorPanel::onEmissiveCurveChanged() {
     m_emissiveCurveSource = m_emissiveCurve->currentData().toString();
     updateEmissiveCurveNote();
     applyChanges();
+}
+
+void MaterialEditorPanel::setEmissiveScale(const QString& scale) {
+    const QSignalBlocker blocker(m_emissiveScale);
+    const int index = m_emissiveScale->findData(scale);
+    m_emissiveScale->setCurrentIndex(index >= 0 ? index : 0);
+}
+
+void MaterialEditorPanel::onEmissiveScaleChanged() {
+    if (m_currentIndex >= 0) {
+        emit emissiveScaleChanged(m_currentIndex, m_emissiveScale->currentData().toString());
+    }
 }
 
 void MaterialEditorPanel::updateEmissiveCurveNote() {

@@ -53,6 +53,11 @@ public:
     /// the only place they exist, since the Material does not carry them.
     void setThermalProperties(const MaterialThermalProps& props);
 
+    /// The emissive "Level" for the material now shown, from the config --
+    /// `emissive_scale` is not on the Material either. Empty or unknown shows
+    /// the core's default, "match_luminance".
+    void setEmissiveScale(const QString& scale);
+
     /**
      * @brief Write the scalar infrared trio into a material as flat curves
      *
@@ -81,6 +86,11 @@ signals:
     /// inputs, and that header is a layout contract with no room for them.
     void thermalPropertiesChanged(int index, const MaterialThermalProps& props);
 
+    /// The emissive "Level" token ("match_luminance" or "absolute") for the
+    /// material at @p index. Separate from materialChanged for the same reason
+    /// as the thermal properties: quantiloom::Material has no field for it.
+    void emissiveScaleChanged(int index, const QString& scale);
+
 private slots:
     void onBaseColorClicked();
     void onTransmissionChanged();
@@ -97,6 +107,7 @@ private slots:
     void onRoughnessSpinChanged(double value);
     void onEmissiveChanged();
     void onEmissiveCurveChanged();
+    void onEmissiveScaleChanged();
     void onIRPropertyChanged();
     void onTemperatureMapChanged();
     void onBrowseTemperatureTexture();

@@ -1881,6 +1881,9 @@ void MainWindow::applyMaterial(int index, const quantiloom::Material& material) 
         m_materialEditorPanel->setThermalProperties(
             m_thermalProperties.value(
                 QString::fromStdString(scene->materials[static_cast<size_t>(index)].name)));
+        m_materialEditorPanel->setEmissiveScale(
+            m_emissiveScales.value(
+                QString::fromStdString(scene->materials[static_cast<size_t>(index)].name)));
     }
     setSceneModified(true);
     showStatusMessage(tr("Material modified"));
@@ -2522,6 +2525,24 @@ void MainWindow::setupDockWidgets() {
                 m_thermalProperties[name] = props;
                 m_editedMaterials.insert(index);
                 applyThermalMaterial(name, props);
+                setSceneModified(true);
+            });
+
+    // The emissive "Level" is held the same way: by name, written on save.
+    connect(m_materialEditorPanel, &MaterialEditorPanel::emissiveScaleChanged,
+            this, [this](int index, const QString& scale) {
+                const auto* scene = m_vulkanWindow->getScene();
+                if (!scene || index < 0 ||
+                    static_cast<size_t>(index) >= scene->materials.size()) {
+                    return;
+                }
+                const QString name =
+                    QString::fromStdString(scene->materials[static_cast<size_t>(index)].name);
+                if (name.isEmpty() || m_emissiveScales.value(name) == scale) {
+                    return;
+                }
+                m_emissiveScales[name] = scale;
+                m_editedMaterials.insert(index);
                 setSceneModified(true);
             });
 
@@ -4826,6 +4847,8 @@ void MainWindow::onMaterialSelected(int materialIndex) {
         m_materialEditorPanel->setMaterial(materialIndex, &material);
         m_materialEditorPanel->setThermalProperties(
             m_thermalProperties.value(QString::fromStdString(material.name)));
+        m_materialEditorPanel->setEmissiveScale(
+            m_emissiveScales.value(QString::fromStdString(material.name)));
         m_propertiesPanel->showMaterial();
         m_spectralMaterialGenPanel->setCurrentMaterialIndex(materialIndex);
         m_currentMaterialIndex = materialIndex;
@@ -5359,6 +5382,12 @@ void MainWindow::applyConfig(const SceneConfig& config) {
             m_thermalProperties[material.name] = material.thermal;
         }
     }
+    m_emissiveScales.clear();
+    for (const MaterialConfig& material : config.materialConfigs) {
+        if (!material.emissiveScale.isEmpty()) {
+            m_emissiveScales[material.name] = material.emissiveScale;
+        }
+    }
     m_thermalEnabled = config.thermalEnabled;
     m_thermalTimeH = config.thermalTimeH;
     m_thermalStartTimeH = config.thermalStartTimeH;
@@ -5846,6 +5875,12 @@ void MainWindow::collectCurrentConfig(SceneConfig& config) {
         // correct: it is what the scene now is.
         matConfig.emissiveCurve =
             QString::fromStdString(material.emissiveCurveSource);
+        // The level the editor chose, or the file's own when it was not touched
+        // (matConfig already holds that one).
+        if (const auto level = m_emissiveScales.constFind(name);
+            level != m_emissiveScales.constEnd()) {
+            matConfig.emissiveScale = level.value();
+        }
     }
 }
 
