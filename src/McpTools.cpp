@@ -41,11 +41,13 @@
 
 #include <QCoreApplication>
 #include <QElapsedTimer>
+#include <QEventLoop>
 #include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonValue>
+#include <QTimer>
 
 #include <core/Log.hpp>
 #include <io/ImageIO.hpp>
@@ -757,7 +759,8 @@ void MainWindow::registerMcpTools() {
         // runs an event loop of its own while shaders compile, and nesting one
         // inside the other is a re-entrancy this shell has already paid for.
         tool.venue = mcp::ToolVenue::HostDispatch;
-        tool.timeoutMs = 900000;
+        static constexpr int kOpenTimeoutMs = 900000;
+        tool.timeoutMs = kOpenTimeoutMs;
         tool.handler = [this](const quantiloom::String& argumentsJson) {
             QJsonObject args;
             mcp::ToolResult error;
@@ -775,17 +778,55 @@ void MainWindow::registerMcpTools() {
             // The same route File > Open takes, so the recent-files list, the
             // window title and the panels all end up correct without this
             // having its own opinion about any of them.
+            //
+            // Failures come back here instead of in a modal box: nobody may be
+            // at the screen, and the box would hold this call until somebody
+            // was.
             m_lastSceneLoadSucceeded.reset();
-            if (!openPath(path)) {
+            m_openFailuresGoToCaller = true;
+            const bool started = openPath(path);
+            if (started && !m_lastSceneLoadSucceeded.has_value()) {
+                // No renderer yet -- the first scene of a session -- so the
+                // load is queued until the viewport creates one and reports a
+                // turn or more later. Wait for that report here, still in the
+                // caller's mode: answering before it would leave the outcome
+                // to a dialog and hand the caller no reason.
+                QEventLoop wait;
+                QTimer deadline;
+                deadline.setSingleShot(true);
+                connect(&deadline, &QTimer::timeout, &wait, &QEventLoop::quit);
+                // Connected after MainWindow's own sceneLoaded handler, so the
+                // report is recorded by the time this quits.
+                connect(m_vulkanWindow, &QuantiloomVulkanWindow::sceneLoaded, &wait,
+                        &QEventLoop::quit);
+                connect(m_vulkanWindow, &QuantiloomVulkanWindow::renderContextFailed, &wait,
+                        &QEventLoop::quit);
+                deadline.start(kOpenTimeoutMs - 10000);
+                wait.exec();
+            }
+            m_openFailuresGoToCaller = false;
+            if (!started) {
+                if (m_lastSceneLoadSucceeded.has_value()) {
+                    return mcp::ToolResult::Error(
+                        "Studio did not open " + path.toStdString() + ": " +
+                        m_lastSceneLoadMessage.toStdString() +
+                        " The scene that was loaded is unchanged.");
+                }
                 return mcp::ToolResult::Error(
                     "Studio did not start opening " + path.toStdString() +
-                    ": another open is still running, or the file is not a scene "
-                    "configuration. The scene that was loaded is unchanged.");
+                    ": another open is still running. The scene that was loaded is "
+                    "unchanged.");
+            }
+            if (!m_lastSceneLoadSucceeded.has_value()) {
+                return mcp::ToolResult::Error(
+                    "Studio started opening " + path.toStdString() +
+                    " but the load has not reported back: the renderer did not start, or "
+                    "it is still loading. ql_get_status shows which.");
             }
             // A load that failed leaves the previous scene in place, so the
             // scene's presence says nothing about this call; the load's own
             // report does.
-            if (m_lastSceneLoadSucceeded.has_value() && !*m_lastSceneLoadSucceeded) {
+            if (!*m_lastSceneLoadSucceeded) {
                 return mcp::ToolResult::Error(
                     "Failed to open " + path.toStdString() + ": " +
                     m_lastSceneLoadMessage.toStdString());

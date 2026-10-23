@@ -458,6 +458,11 @@ private:
     /// cannot tell a success from a failure.
     std::optional<bool> m_lastSceneLoadSucceeded;
     QString m_lastSceneLoadMessage;
+    /// Set while ql_apply_config drives an open. Its caller is a program
+    /// waiting on the tool's answer, so a failure goes there (through the two
+    /// fields above) and to the status line, not into a modal box that holds
+    /// the call until somebody at the screen dismisses it.
+    bool m_openFailuresGoToCaller = false;
     void rebuildRecentMenu();
     void openRecentFile(const QString& path);
     [[nodiscard]] QStringList recentFiles() const;

@@ -2928,7 +2928,11 @@ void MainWindow::setupConnections() {
                     m_pendingDocumentConfig.reset();
                     m_pendingRawConfig.reset();
 
-                    QMetaObject::invokeMethod(this, [this, message]() {
+                    // Read now, not in the turn below: ql_apply_config clears
+                    // it as soon as its open returns, and the message it
+                    // reports came from the two fields set above.
+                    const bool toCaller = m_openFailuresGoToCaller;
+                    QMetaObject::invokeMethod(this, [this, message, toCaller]() {
                         // Deliberately *not* returning to the guidance page.
                         //
                         // openPath() shows the render surface before asking for
@@ -2945,7 +2949,9 @@ void MainWindow::setupConnections() {
                         // more than it would, and File > Open is still one
                         // menu away.
                         showStatusMessage(tr("Failed to load scene"));
-                        QMessageBox::warning(this, tr("Scene Load Failed"), message);
+                        if (!toCaller) {
+                            QMessageBox::warning(this, tr("Scene Load Failed"), message);
+                        }
                     }, Qt::QueuedConnection);
                 }
             });
@@ -3643,14 +3649,25 @@ bool MainWindow::openPath(const QString& filePath) {
                               .arg(QFileInfo(m_pendingOpenPath).fileName()));
         return false;
     }
+    // A refusal here is the open's outcome as much as a failed load is, so it
+    // is reported the same way: to an MCP caller through the load report, to
+    // a person in a dialog.
+    const auto refuseOpen = [this](const QString& reason) {
+        if (m_openFailuresGoToCaller) {
+            m_lastSceneLoadSucceeded = false;
+            m_lastSceneLoadMessage = reason;
+            showStatusMessage(reason);
+        } else {
+            QMessageBox::warning(this, tr("Open Failed"), reason);
+        }
+    };
     std::unique_ptr<SceneConfig> pending;
     std::shared_ptr<const quantiloom::Config> raw;
     if (filePath.endsWith(QLatin1String(".toml"), Qt::CaseInsensitive)) {
         ConfigManager loader;
         pending = std::make_unique<SceneConfig>();
         if (!loader.loadConfig(filePath, *pending)) {
-            QMessageBox::warning(this, tr("Open Failed"),
-                tr("Failed to load configuration: %1").arg(loader.lastError()));
+            refuseOpen(tr("Failed to load configuration: %1").arg(loader.lastError()));
             return false;
         }
         // Any syntactically valid TOML parses, so a successful load says
@@ -3661,7 +3678,7 @@ bool MainWindow::openPath(const QString& filePath) {
         // the same reason, and accepts [[models]] as a third way of naming a
         // scene.
         if (pending->gltfPath.isEmpty() && pending->usdPath.isEmpty() && pending->models.isEmpty()) {
-            QMessageBox::warning(this, tr("Open Failed"),
+            refuseOpen(
                 tr("%1 is not a scene configuration: it names no scene.gltf, scene.usd "
                    "or [[models]].").arg(QFileInfo(filePath).fileName()));
             return false;
