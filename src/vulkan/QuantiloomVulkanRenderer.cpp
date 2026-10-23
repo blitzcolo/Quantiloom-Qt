@@ -743,7 +743,8 @@ void QuantiloomVulkanRenderer::frameBounds(const glm::vec3& min, const glm::vec3
     // Far enough that the bounding sphere fits the vertical field of view,
     // with a margin so the object does not touch the frame edges.
     constexpr float kMargin = 1.35f;
-    const float halfFov = m_cameraFovY * 0.5f;
+    // m_cameraFovY is degrees (Camera::GetFovY); std::sin wants radians.
+    const float halfFov = glm::radians(m_cameraFovY) * 0.5f;
     const float distance = (halfFov > 1e-4f)
         ? (safeRadius / std::sin(halfFov)) * kMargin
         : safeRadius * 3.0f;
