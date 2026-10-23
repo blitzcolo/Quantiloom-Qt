@@ -2,7 +2,7 @@
 
 Qt6 desktop GUI for the Quantiloom spectral path tracer. Holds no physics of its own —
 it links a prebuilt SDK and drives it through `ExternalRenderContext`. C++20, one CMake
-target, ~38k lines across 103 source files.
+target, ~41k lines across 104 source files.
 
 ## Build: WSL2 shell, Windows toolchain
 
