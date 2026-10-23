@@ -1830,15 +1830,22 @@ void MainWindow::registerMcpTools() {
             if (!path.isEmpty() && !QFileInfo::exists(path)) {
                 return mcp::ToolResult::Error("No such file: " + path.toStdString());
             }
+            // No path means "the map the document already names". With none,
+            // enabling would switch on a map that does not exist and report
+            // it as on.
+            const QString map = path.isEmpty() && m_lastConfig ? m_lastConfig->environmentMap
+                                                               : path;
+            if (enabled && map.isEmpty()) {
+                return mcp::ToolResult::Error(
+                    "No environment map is loaded; give path, or pass enabled=false.");
+            }
 
             // The enable flag rides on LightingParams; set it the way the
             // lighting panel would, then load the map the way it would.
             quantiloom::LightingParams params = *m_lightingParams;
             params.enableEnvironmentMap = enabled ? 1 : 0;
             applyLightingParams(params);
-            applyEnvironmentMap(path.isEmpty() && m_lastConfig ? m_lastConfig->environmentMap
-                                                               : path,
-                                enabled);
+            applyEnvironmentMap(map, enabled);
 
             QJsonObject out;
             out["environment_map"] = m_lastConfig ? m_lastConfig->environmentMap : QString();
