@@ -816,10 +816,9 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
     if (!config.environmentMapEnabled) {
         out << "environment_map_enabled = false\n";
     }
-    // shadow ray control
-    if (config.lighting.enableShadowRays) {
-        out << "enable_shadow_rays = true\n";
-    }
+    // Shadow ray control, written in both states: the reader defaults an absent
+    // key to true, so omitting "false" turned shadows back on at the next open.
+    out << "enable_shadow_rays = " << (config.lighting.enableShadowRays ? "true" : "false") << "\n";
     out << "\n";
 
     // [spectral]
