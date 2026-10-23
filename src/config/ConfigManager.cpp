@@ -8,6 +8,8 @@
 #include <QFile>
 #include <QDir>
 #include <QSaveFile>
+#include <QRegularExpression>
+#include <QStringList>
 #include <QFileInfo>
 #include <QTextStream>
 #include <QDebug>
@@ -21,6 +23,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <functional>
 
 // The camera's [sensor] tree is the SDK's serialization, in both directions:
 // reading goes through ParseCameraConfig (which also migrates legacy
@@ -52,6 +55,64 @@ QString tomlQuoted(const QString& s) {
     quoted += QLatin1Char('"');
     return quoted;
 }
+
+namespace {
+
+// Rewrites the two path-valued keys of a carried [[models]] block through
+// `rebase`: `file` of a [[models]] entry and `keys_file` of its motion
+// table (a [models.motion] section or an inline motion = { ... }). Those are
+// the keys ConfigResolve.cpp and MotionSpec.cpp resolve against the config's
+// directory; nothing else in the block is a path. The text is edited in place,
+// line by line, so everything else the SDK serialised stays as it was, and a
+// value that rebase leaves unchanged is not touched at all.
+QString rebaseModelsToml(const QString& toml, const std::function<void(QString&)>& rebase) {
+    static const QString kValue =
+        QStringLiteral(R"re((?:"((?:[^"\\]|\\.)*)"|'([^']*)'))re");
+    static const QRegularExpression fileKey(
+        QStringLiteral(R"re(^(\s*file\s*=\s*))re") + kValue);
+    static const QRegularExpression keysFileKey(
+        QStringLiteral(R"re((?<![\w.-])(keys_file\s*=\s*))re") + kValue);
+
+    const auto rewrite = [&](const QString& line, const QRegularExpression& key) {
+        QString result;
+        qsizetype last = 0;
+        auto it = key.globalMatch(line);
+        while (it.hasNext()) {
+            const QRegularExpressionMatch m = it.next();
+            const bool basic = m.capturedStart(2) >= 0;
+            QString path = basic ? m.captured(2) : m.captured(3);
+            if (basic && path.contains(QLatin1Char('\\'))) continue;  // escapes not decoded here
+            const QString original = path;
+            rebase(path);
+            if (path == original) continue;
+            result += line.mid(last, m.capturedStart(0) - last);
+            result += m.captured(1) + tomlQuoted(path);
+            last = m.capturedEnd(0);
+        }
+        if (last == 0) return line;
+        return result + line.mid(last);
+    };
+
+    QStringList lines = toml.split(QLatin1Char('\n'));
+    bool inModelEntry = false;
+    bool inMotionTable = false;
+    for (QString& line : lines) {
+        const QString head = line.trimmed();
+        if (head.startsWith(QLatin1Char('['))) {
+            inModelEntry = head.startsWith(QLatin1String("[[models]]"));
+            inMotionTable = head.startsWith(QLatin1String("[models.motion]"));
+            continue;
+        }
+        if (inModelEntry) {
+            line = rewrite(rewrite(line, fileKey), keysFileKey);
+        } else if (inMotionTable) {
+            line = rewrite(line, keysFileKey);
+        }
+    }
+    return lines.join(QLatin1Char('\n'));
+}
+
+}  // namespace
 
 ConfigManager::ConfigManager(QObject* parent)
     : QObject(parent)
@@ -784,6 +845,11 @@ bool ConfigManager::exportConfig(const QString& filePath, const SceneConfig& con
     rebase(output.basisFile);
     rebase(output.materialsJson);
     rebase(output.thermalForcingFile);
+    // [[models]] is carried as text, so the structured fields above never saw its
+    // paths. A save beside the document leaves the block byte-for-byte alone.
+    if (QDir::cleanPath(destination.absolutePath()) != QDir::cleanPath(QDir(config.baseDir).absolutePath())) {
+        output.modelsToml = rebaseModelsToml(output.modelsToml, rebase);
+    }
     for (auto& path : output.spectralCurves) rebase(path);
     for (auto& path : output.refractiveIndexFiles) rebase(path);
     for (auto& material : output.materialConfigs) {

@@ -76,6 +76,11 @@ directory onto the destination's, so a Save As into another directory still reso
 Writes go through `QSaveFile`, so a failed save does not leave a truncated document
 behind.
 
+The carried `[[models]]` text is rebased too, key-aware: `file` of each entry and
+`keys_file` of its motion table, edited in place so the rest of the block stays as the SDK
+wrote it. A save into the document's own directory leaves the block byte-identical.
+`[dataset]` has no path-valued keys, so it needs nothing.
+
 ### The clock and the models are carried, not read
 
 `[timeline]` and `[[models]]` round-trip as **text**. `Config::ToToml("<key>")` gives
