@@ -40,6 +40,7 @@
 #include "vulkan/QuantiloomVulkanWindow.hpp"
 
 #include <QCoreApplication>
+#include <QElapsedTimer>
 #include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -436,7 +437,12 @@ void MainWindow::registerMcpTools() {
             "number would answer the question; use this when the question is about how it looks.\n"
             "\n"
             "Give save_path to also write the full-resolution capture to disk, as EXR or PNG "
-            "chosen by extension.";
+            "chosen by extension.\n"
+            "\n"
+            "The capture reads the whole frame back from the GPU on Studio's UI thread, so the "
+            "window stops responding while it runs -- longer for a larger viewport. Calls less "
+            "than a second after the previous capture finished are refused; ql_read_pixel is the "
+            "cheap alternative.";
         tool.inputSchemaJson = R"({
   "type": "object",
   "properties": {
@@ -459,7 +465,13 @@ void MainWindow::registerMcpTools() {
 })";
         tool.readOnly = true;
         tool.timeoutMs = 60000;  // the readback stalls on the GPU
-        tool.handler = [this](const quantiloom::String& argumentsJson) {
+        // The SDK has no asynchronous full-frame readback, so each capture
+        // freezes the UI thread for its duration. Calls run one at a time on
+        // that thread, so they cannot overlap; what an agent in a loop can do
+        // is run them back to back and leave the window frozen throughout.
+        tool.handler = [this, sinceLastCapture = QElapsedTimer()](
+                           const quantiloom::String& argumentsJson) mutable {
+            constexpr qint64 kMinCaptureIntervalMs = 1000;
             QJsonObject args;
             mcp::ToolResult error;
             if (!ParseArgs(argumentsJson, args, error)) {
@@ -467,6 +479,12 @@ void MainWindow::registerMcpTools() {
             }
             if (!m_vulkanWindow->getScene()) {
                 return mcp::ToolResult::Error("No scene is loaded, so there is nothing to capture.");
+            }
+            if (sinceLastCapture.isValid() && sinceLastCapture.elapsed() < kMinCaptureIntervalMs) {
+                return mcp::ToolResult::Error(
+                    "The previous capture finished less than a second ago. A capture reads the "
+                    "whole frame back on the UI thread and freezes the window, so they are "
+                    "limited to one per second; retry shortly.");
             }
 
             const bool raw =
@@ -503,6 +521,7 @@ void MainWindow::registerMcpTools() {
             result.imageBase64 =
                 mcp::EncodeImageContent(*image, static_cast<quantiloom::u32>(maxDim));
             result.imageMimeType = "image/png";
+            sinceLastCapture.start();
             return result;
         };
         add(tool);
