@@ -1813,6 +1813,39 @@ void MainWindow::applyCameraFov(float fovYDegrees) {
     setSceneModified(true);
 }
 
+bool MainWindow::bindEmissionSpectrum(int index, const std::string& source) {
+    const auto* scene = m_vulkanWindow->getScene();
+    if (!scene || index < 0 || static_cast<size_t>(index) >= scene->materials.size()) {
+        return false;
+    }
+    // The level is the editor's (or the file's) choice for this material; a
+    // lamp is levelled when it is bound, so it has to be given here.
+    const QString level = m_emissiveScales.value(
+        QString::fromStdString(scene->materials[static_cast<size_t>(index)].name),
+        QStringLiteral("match_luminance"));
+    const QString baseDir =
+        m_currentConfigFile.isEmpty() ? QString()
+                                      : QFileInfo(m_currentConfigFile).absolutePath();
+    auto bound = m_vulkanWindow->setMaterialEmissionSpectrum(
+        static_cast<uint32_t>(index), source, level.toStdString(), baseDir);
+    if (!bound) {
+        QMessageBox::warning(
+            this, tr("Emission spectrum"),
+            tr("Could not bind '%1':\n\n%2")
+                .arg(QString::fromStdString(source),
+                     QString::fromStdString(bound.error())));
+        return false;
+    }
+    // Not errors. Emission is zero outside a curve's measured span rather
+    // than held flat, so the commonest one says this lamp will be dark in
+    // the band on screen -- which the user needs to see now, not infer from
+    // a black image.
+    if (!bound.value().empty()) {
+        showStatusMessage(QString::fromStdString(bound.value().front()));
+    }
+    return true;
+}
+
 void MainWindow::applyMaterial(int index, const quantiloom::Material& material) {
     const auto* scene = m_vulkanWindow->getScene();
     if (!scene || index < 0 || static_cast<size_t>(index) >= scene->materials.size()) {
@@ -1834,25 +1867,8 @@ void MainWindow::applyMaterial(int index, const quantiloom::Material& material) 
     // the half-set one the panel emitted.
     quantiloom::Material applied = material;
     if (material.emissiveCurveSource != previous.emissiveCurveSource) {
-        const QString baseDir =
-            m_currentConfigFile.isEmpty() ? QString()
-                                          : QFileInfo(m_currentConfigFile).absolutePath();
-        auto bound = m_vulkanWindow->setMaterialEmissionSpectrum(
-            static_cast<uint32_t>(index), material.emissiveCurveSource, baseDir);
-        if (!bound) {
-            QMessageBox::warning(
-                this, tr("Emission spectrum"),
-                tr("Could not bind '%1':\n\n%2")
-                    .arg(QString::fromStdString(material.emissiveCurveSource),
-                         QString::fromStdString(bound.error())));
+        if (!bindEmissionSpectrum(index, material.emissiveCurveSource)) {
             return;
-        }
-        // Not errors. Emission is zero outside a curve's measured span rather
-        // than held flat, so the commonest one says this lamp will be dark in
-        // the band on screen -- which the user needs to see now, not infer from
-        // a black image.
-        if (!bound.value().empty()) {
-            showStatusMessage(QString::fromStdString(bound.value().front()));
         }
         // Re-read what the core produced. It rewrote emissiveFactor from the
         // spectrum and assigned the curve index, and the undo entry has to
@@ -2538,10 +2554,42 @@ void MainWindow::setupDockWidgets() {
                 }
                 const QString name =
                     QString::fromStdString(scene->materials[static_cast<size_t>(index)].name);
-                if (name.isEmpty() || m_emissiveScales.value(name) == scale) {
+                const QString previousScale =
+                    m_emissiveScales.value(name, QStringLiteral("match_luminance"));
+                if (name.isEmpty() || previousScale == scale) {
                     return;
                 }
+                const bool hadScale = m_emissiveScales.contains(name);
                 m_emissiveScales[name] = scale;
+
+                // A lamp is levelled when it is bound, so the viewport follows
+                // the choice only if the bound curve is bound again. Without a
+                // curve there is nothing to level and nothing to redo.
+                const std::string curve =
+                    scene->materials[static_cast<size_t>(index)].emissiveCurveSource;
+                if (!curve.empty()) {
+                    if (!bindEmissionSpectrum(index, curve)) {
+                        if (hadScale) {
+                            m_emissiveScales[name] = previousScale;
+                        } else {
+                            m_emissiveScales.remove(name);
+                        }
+                        m_materialEditorPanel->setEmissiveScale(previousScale);
+                        return;
+                    }
+                    // The core rewrote emissiveFactor from the re-levelled
+                    // spectrum; the editor has to show it, or its next edit
+                    // would write the stale colour back.
+                    if (m_materialEditorPanel->currentMaterialIndex() == index) {
+                        if (const auto* refreshed = m_vulkanWindow->getScene()) {
+                            m_materialEditorPanel->setMaterial(
+                                index, &refreshed->materials[static_cast<size_t>(index)]);
+                            m_materialEditorPanel->setThermalProperties(
+                                m_thermalProperties.value(name));
+                            m_materialEditorPanel->setEmissiveScale(scale);
+                        }
+                    }
+                }
                 m_editedMaterials.insert(index);
                 setSceneModified(true);
             });

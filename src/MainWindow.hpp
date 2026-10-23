@@ -366,6 +366,10 @@ private:
     void applyCameraPose(const glm::vec3& position, const glm::vec3& target);
     void applyCameraFov(float fovYDegrees);
     void applyMaterial(int index, const quantiloom::Material& material);
+    /// Bind @p source as the spectrum of material @p index, levelled by that
+    /// material's emissive scale. Shows the failure or warnings itself; false
+    /// means nothing was bound.
+    bool bindEmissionSpectrum(int index, const std::string& source);
     /// Bind a material to a set of measured spectra, replacing whatever it had.
     ///
     /// The single point every route goes through: the panel's two buttons, the

@@ -184,6 +184,7 @@ public:
     /// see ExternalRenderContext::SetMaterialEmissionSpectrum. Returns warnings
     /// worth showing -- most often that the lamp does not cover the band on
     /// screen and will therefore be dark -- or an error if nothing was bound.
+    /// @p scale is the SDK's token, "match_luminance" or "absolute".
     /// Write the thermal solve at the hour on screen, one row per element; see
     /// ExternalRenderContext::DumpThermalElements. An empty path takes the one
     /// the document's `[thermal] dump_elements` set. Returns the file written.
@@ -191,7 +192,7 @@ public:
         const QString& pathOrEmpty);
     [[nodiscard]] quantiloom::Result<std::vector<std::string>, std::string>
     setMaterialEmissionSpectrum(uint32_t materialIndex, const std::string& sourceOrEmpty,
-                                const QString& baseDir);
+                                const std::string& scale, const QString& baseDir);
     /// See QuantiloomVulkanRenderer::setSolarLutFromSpec.
     [[nodiscard]] std::optional<QString> setSolarLutFromSpec(
         const quantiloom::SolarLutSpec& spec, const QString& baseDir);
