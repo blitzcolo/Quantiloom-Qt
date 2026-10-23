@@ -447,6 +447,12 @@ private:
     /// The same file as the SDK parsed it, for applyConfig(); kept with the
     /// SceneConfig so the two cannot disagree about which file they describe.
     std::shared_ptr<const quantiloom::Config> m_pendingRawConfig;
+    /// How the most recent load reported back through sceneLoaded, and what it
+    /// said. ql_apply_config clears it before opening and reads it afterwards:
+    /// a failed open leaves the previous scene loaded, so "is there a scene"
+    /// cannot tell a success from a failure.
+    std::optional<bool> m_lastSceneLoadSucceeded;
+    QString m_lastSceneLoadMessage;
     void rebuildRecentMenu();
     void openRecentFile(const QString& path);
     [[nodiscard]] QStringList recentFiles() const;

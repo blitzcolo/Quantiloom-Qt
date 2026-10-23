@@ -636,7 +636,21 @@ void MainWindow::registerMcpTools() {
             // The same route File > Open takes, so the recent-files list, the
             // window title and the panels all end up correct without this
             // having its own opinion about any of them.
-            openPath(path);
+            m_lastSceneLoadSucceeded.reset();
+            if (!openPath(path)) {
+                return mcp::ToolResult::Error(
+                    "Studio did not start opening " + path.toStdString() +
+                    ": another open is still running, or the file is not a scene "
+                    "configuration. The scene that was loaded is unchanged.");
+            }
+            // A load that failed leaves the previous scene in place, so the
+            // scene's presence says nothing about this call; the load's own
+            // report does.
+            if (m_lastSceneLoadSucceeded.has_value() && !*m_lastSceneLoadSucceeded) {
+                return mcp::ToolResult::Error(
+                    "Failed to open " + path.toStdString() + ": " +
+                    m_lastSceneLoadMessage.toStdString());
+            }
 
             QJsonObject out;
             out["opened"] = path;

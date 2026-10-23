@@ -2768,6 +2768,8 @@ void MainWindow::setupConnections() {
     connect(m_vulkanWindow, &QuantiloomVulkanWindow::sceneLoaded,
             this, [this](bool success, const QString& message) {
                 resetHoverReadback();
+                m_lastSceneLoadSucceeded = success;
+                m_lastSceneLoadMessage = message;
                 if (success) {
                     // The open is only now known to have worked, which is the
                     // first point at which the file is worth remembering.
