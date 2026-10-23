@@ -1355,6 +1355,17 @@ void MainWindow::registerMcpTools() {
                     std::to_string(scene->nodes.size()) + ".");
             }
 
+            // The transform is absolute, so a call with no component would
+            // reset the node to the identity and report success.
+            if (!args.contains(QStringLiteral("matrix")) &&
+                !args.contains(QStringLiteral("translation")) &&
+                !args.contains(QStringLiteral("rotation_euler_degrees")) &&
+                !args.contains(QStringLiteral("scale"))) {
+                return mcp::ToolResult::Error(
+                    "Give matrix, or at least one of translation, rotation_euler_degrees "
+                    "and scale.");
+            }
+
             glm::mat4 transform(1.0f);
             if (args.contains(QStringLiteral("matrix"))) {
                 const QJsonArray m = args.value(QStringLiteral("matrix")).toArray();
