@@ -527,6 +527,8 @@ private:
 
     // Accumulation state
     uint32_t m_sampleCount = 0;
+    /// Frames started by this renderer; only paces the progress log line.
+    uint64_t m_frameCounter = 0;
     uint32_t m_targetSPP = 4;  // Default SPP for preview
     bool m_paused = false;
     /// One-shot: the next non-accumulating frame goes through

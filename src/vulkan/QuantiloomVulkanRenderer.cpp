@@ -212,8 +212,7 @@ void QuantiloomVulkanRenderer::releaseResources() {
 }
 
 void QuantiloomVulkanRenderer::startNextFrame() {
-    static uint64_t frameCounter = 0;
-    frameCounter++;
+    m_frameCounter++;
 
     // A composited capture recorded a few frames ago is complete by now
     m_overlay.finishCaptureIfReady(m_window);
@@ -279,8 +278,8 @@ void QuantiloomVulkanRenderer::startNextFrame() {
     }
 
     // Log every 100 frames to track progress
-    if (frameCounter % 100 == 0) {
-        qDebug() << "Frame" << frameCounter << "- samples:" << m_sampleCount;
+    if (m_frameCounter % 100 == 0) {
+        qDebug() << "Frame" << m_frameCounter << "- samples:" << m_sampleCount;
     }
 
     // Get current command buffer and swapchain image
