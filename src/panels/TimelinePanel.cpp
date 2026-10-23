@@ -22,6 +22,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 namespace {
 
@@ -257,10 +258,14 @@ void TimelinePanel::setInfo(const quantiloom::TimelineInfo& info) {
     m_tick = enabled ? std::clamp<long long>(info.TickOf(info.current_s), 0, lastTick) : 0;
 
     m_suppressSignals = true;
-    m_slider->setRange(0, static_cast<int>(lastTick));
-    m_slider->setValue(static_cast<int>(m_tick));
-    m_tickSpin->setRange(0, static_cast<int>(lastTick));
-    m_tickSpin->setValue(static_cast<int>(m_tick));
+    // The widgets are int-valued; a tick count past INT_MAX must saturate
+    // rather than wrap to a negative range.
+    constexpr long long kWidgetMax = std::numeric_limits<int>::max();
+    const int widgetLast = static_cast<int>(std::min(lastTick, kWidgetMax));
+    m_slider->setRange(0, widgetLast);
+    m_slider->setValue(static_cast<int>(std::min(m_tick, kWidgetMax)));
+    m_tickSpin->setRange(0, widgetLast);
+    m_tickSpin->setValue(static_cast<int>(std::min(m_tick, kWidgetMax)));
     m_secondsSpin->setRange(info.start_s, std::max(info.end_s, info.start_s));
     m_secondsSpin->setSingleStep(info.ticksPerSecond > 0.0 ? 1.0 / info.ticksPerSecond : 0.05);
     m_secondsSpin->setValue(info.current_s);
