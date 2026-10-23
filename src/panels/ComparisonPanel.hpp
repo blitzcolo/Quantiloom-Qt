@@ -26,6 +26,7 @@
 #include <QImage>
 
 #include <memory>
+#include <vector>
 
 QT_BEGIN_NAMESPACE
 class QComboBox;
@@ -70,7 +71,8 @@ protected:
 
 private:
     void updateReport();
-    void showDifference();
+    void showDifference(const std::vector<double>& reference,
+                        const std::vector<double>& rendered);
     void rescaleDifference();
     void updateEnabled();
     void updateReferenceCaption();

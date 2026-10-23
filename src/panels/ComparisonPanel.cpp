@@ -316,18 +316,14 @@ void ComparisonPanel::updateReport() {
     m_figureValues[4]->setText(locale.toString(worst, 'g', 4));
     m_figures->setVisible(true);
 
-    showDifference();
+    showDifference(reference, rendered);
 }
 
-void ComparisonPanel::showDifference() {
+void ComparisonPanel::showDifference(const std::vector<double>& reference,
+                                     const std::vector<double>& rendered) {
+    // The caller has already extracted the channel from both images and checked
+    // that the two agree in size and are not empty.
     if (!m_reference || !m_rendered) return;
-
-    const auto channel = static_cast<quantiloom::u32>(
-        m_channelCombo->currentData().isValid() ? m_channelCombo->currentData().toUInt() : 0u);
-    const auto reference = ChannelOf(*m_reference, channel);
-    if (channel >= m_rendered->channels) return;
-    const auto rendered = ChannelOf(*m_rendered, channel);
-    if (reference.size() != rendered.size() || reference.empty()) return;
 
     // Signed, and scaled by the 99th percentile rather than the maximum: one
     // firefly would otherwise set the scale and the rest of the frame would
