@@ -511,7 +511,7 @@ void QuantiloomVulkanRenderer::loadScene(const QString& filePath, bool adoptScen
             m_cameraUp = sceneCamera.GetUpReference();
             m_cameraFovY = sceneCamera.GetFovY();
 
-            // Orbit state is derived, and in radians -- see src/vulkan/CLAUDE.md.
+            // Orbit state is derived, and in radians -- see src/vulkan/AGENTS.md.
             const glm::vec3 offset = m_cameraPosition - m_cameraTarget;
             m_orbitDistance = glm::length(offset);
             if (m_orbitDistance > 1e-6f) {
@@ -581,7 +581,7 @@ bool QuantiloomVulkanRenderer::applyConfigToContext(bool isFreshOpen) {
     // either way.
     options.freezeDerivedAtmosGeometry = false;
     // The debug visualisation is a way of looking at a scene, not part of it
-    // (src/config/CLAUDE.md).
+    // (src/config/AGENTS.md).
     options.applyDebugMode = false;
 
     const quantiloom::ConfigApplyReport report =
@@ -644,7 +644,7 @@ bool QuantiloomVulkanRenderer::applyConfigToContext(bool isFreshOpen) {
             camera.GetProjection() == quantiloom::Camera::Projection::Orthographic;
         m_orthoHeight = camera.GetOrthoHeight();
 
-        // Radians -- see src/vulkan/CLAUDE.md.
+        // Radians -- see src/vulkan/AGENTS.md.
         const glm::vec3 offset = m_cameraPosition - m_cameraTarget;
         m_orbitDistance = glm::length(offset);
         if (m_orbitDistance > 1e-6f) {
@@ -795,7 +795,7 @@ void QuantiloomVulkanRenderer::frameBounds(const glm::vec3& min, const glm::vec3
     m_cameraPosition = centre + direction * distance;
     m_orbitDistance = distance;
 
-    // Radians -- see src/vulkan/CLAUDE.md. Derived from the new offset rather
+    // Radians -- see src/vulkan/AGENTS.md. Derived from the new offset rather
     // than left alone, or the first drag afterwards snaps back.
     m_orbitPitch = std::asin(glm::clamp(direction.y, -1.0f, 1.0f));
     m_orbitYaw = std::atan2(direction.x, direction.z);

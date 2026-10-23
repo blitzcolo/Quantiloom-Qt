@@ -1761,7 +1761,7 @@ void MainWindow::applyDisplayEnhancement(
         m_displayEnhancementAction->setChecked(params.enabled);
     }
 
-    // Session state, not the document -- see src/config/CLAUDE.md. No
+    // Session state, not the document -- see src/config/AGENTS.md. No
     // setSceneModified() here, deliberately.
     if (!params.enabled) {
         showStatusMessage(tr("Display enhancement off"));
@@ -2077,7 +2077,7 @@ void MainWindow::restyleUi() {
 void MainWindow::applyGridVisible(bool visible) {
     // Single application point for the grid overlay. Display-only: the scene
     // is unchanged, only what is composited over the frame -- so this is the
-    // deliberate exception to src/vulkan/CLAUDE.md's "every setter resets
+    // deliberate exception to src/vulkan/AGENTS.md's "every setter resets
     // accumulation" rule, and toggling it must not restart convergence.
     //
     // What the renderer shows is the preference gated by the workspace: the
@@ -5487,7 +5487,7 @@ void MainWindow::collectCurrentConfig(SceneConfig& config) {
     // configuration" produced something that was not what the window showed.
     // Everything a panel owns is collected here, and everything that is
     // deliberately session-only -- debug mode, display enhancement, the
-    // generator's working state -- is listed in src/config/CLAUDE.md rather
+    // generator's working state -- is listed in src/config/AGENTS.md rather
     // than left ambiguous.
     // Start from the last config we were given rather than from a default
     // SceneConfig, then let the panels overwrite what they own. The panels do
