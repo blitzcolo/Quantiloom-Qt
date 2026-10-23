@@ -655,6 +655,14 @@ void SequenceRenderDialog::onExportManifest() {
         // would rather have a list.
         const QString relativeTimelineConfig = manifestDir.relativeFilePath(configPath);
         const QVector<long long> ticks = timelineTicks();
+        // The frame number is replaced in the file name only: a directory that
+        // happens to contain "00000" is part of the path, not the template.
+        QString outputTemplate = manifestDir.relativeFilePath(frameOutputPath(0))
+                                     .replace(QLatin1Char('\\'), QLatin1String("/"));
+        const int nameStart = outputTemplate.lastIndexOf(QLatin1Char('/')) + 1;
+        outputTemplate = outputTemplate.left(nameStart) +
+            outputTemplate.mid(nameStart).replace(QStringLiteral("00000"),
+                                                  QStringLiteral("{tick:05}"));
         out << "# Timeline sequence: ticks " << m_fromTick->value() << " to "
             << m_toTick->value() << " every " << m_everyTick->value() << ", "
             << ticks.size() << " frames.\n"
@@ -663,9 +671,7 @@ void SequenceRenderDialog::onExportManifest() {
             << " --from-tick " << m_fromTick->value()
             << " --to-tick " << m_toTick->value()
             << " --every " << m_everyTick->value()
-            << " --output \"" << QString(manifestDir.relativeFilePath(frameOutputPath(0)))
-                                     .replace(QLatin1Char('\\'), QLatin1String("/"))
-                                     .replace(QStringLiteral("00000"), QStringLiteral("{tick:05}"))
+            << " --output \"" << outputTemplate
             << "\"\n"
             << "#\n"
             << "# Batch lines below create independent devices per frame.\n"
