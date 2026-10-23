@@ -585,6 +585,14 @@ void OverlayRenderer::ensureSizedResources(QVulkanWindow* window, VkCommandBuffe
                                            uint32_t width, uint32_t height) {
     VkDevice device = window->device();
 
+    // Both images below are destroyed here, in the middle of recording a frame,
+    // with no wait of our own. That is safe only because width and height are
+    // the swapchain's extent (QuantiloomVulkanRenderer::startNextFrame passes
+    // swapChainImageSize()), so a mismatch means the swapchain was just
+    // rebuilt -- and QVulkanWindow calls vkDeviceWaitIdle before rebuilding it,
+    // so no earlier frame can still be reading the old images. Sizing these
+    // from anything that can change between swapchain rebuilds would break
+    // that, and would need a wait here.
     if (m_depthAov.width != width || m_depthAov.height != height) {
         destroyImage(device, m_depthAov);
         m_depthAov = createImage(window, width, height, VK_FORMAT_R32_SFLOAT,
