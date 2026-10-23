@@ -769,6 +769,13 @@ bool ConfigManager::exportConfig(const QString& filePath, const SceneConfig& con
     rebase(output.thermalForcingFile);
     for (auto& path : output.spectralCurves) rebase(path);
     for (auto& path : output.refractiveIndexFiles) rebase(path);
+    for (auto& material : output.materialConfigs) {
+        rebase(material.temperatureTexture);
+        rebase(material.spectralWeightTexture);
+        rebase(material.emissiveCurve);
+        rebase(material.fluorescenceExcitationCurve);
+        rebase(material.fluorescenceEmissionCurve);
+    }
     QSaveFile file(filePath);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
         m_lastError = tr("Cannot open file for writing: %1").arg(filePath);
