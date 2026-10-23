@@ -645,6 +645,13 @@ bool QuantiloomVulkanRenderer::applyConfigToContext(bool isFreshOpen) {
         applyAtmosphereToContext();
         m_renderContext->SetCameraLookAt(m_cameraPosition, m_cameraTarget, m_cameraUp);
         m_renderContext->SetCameraFOV(m_cameraFovY);
+        // The projection is session state too: the rebuilt context starts in
+        // perspective, while the overlay (grid, gizmo) keeps m_orthographic
+        // and would be drawn over a render that no longer matches it.
+        m_renderContext->SetCameraProjection(
+            m_orthographic ? quantiloom::CameraProjection::Orthographic
+                           : quantiloom::CameraProjection::Perspective,
+            m_orthoHeight);
         // The camera the user configured rides over the file's, the same way
         // the lighting params do. A camera that is off applied nothing this
         // session, so the file's own (already applied) configuration stands.
