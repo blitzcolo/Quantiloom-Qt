@@ -118,10 +118,16 @@ void UndoStack::setUndoLimit(int limit) {
     m_undoLimit = limit;
 
     // Enforce new limit
+    bool trimmed = false;
     while (static_cast<int>(m_commands.size()) > m_undoLimit && m_undoLimit > 0) {
         m_commands.erase(m_commands.begin());
         m_undoIndex = std::max(0, m_undoIndex - 1);
         m_cleanIndex = std::max(-1, m_cleanIndex - 1);
+        trimmed = true;
+    }
+    // Dropping the oldest commands moves the index and can lose the clean state.
+    if (trimmed) {
+        emitStateChanged();
     }
 }
 
