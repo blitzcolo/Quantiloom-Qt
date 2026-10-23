@@ -515,6 +515,12 @@ public:
      * The pick ray is the raygen shader's own primary ray for the pixel, so
      * the answer agrees with the frame on screen. Returns std::nullopt when
      * no scene is loaded or the pick could not run (the error is logged).
+     *
+     * Synchronous: the SDK submits the ray query and waits for the result on
+     * the calling (UI) thread. That is affordable because the only caller is a
+     * viewport click -- one per user gesture -- and no MCP tool picks (ql_select
+     * takes a node index). A new caller that can fire repeatedly has to
+     * rate-limit itself.
      */
     [[nodiscard]] std::optional<quantiloom::PickResult> pickScene(const QPointF& devicePos);
 
