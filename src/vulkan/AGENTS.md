@@ -55,6 +55,21 @@ frame.
 only "Horizontal angle" / "Vertical angle". Writing degrees into them has already
 shipped once as a bug: the camera jumped on the first drag after loading a scene.
 
+## Straight down still has a heading
+
+`m_cameraUp` is the up the document authored: it is what a save writes and what
+the SDK's motion poses are built from, so it goes to the SDK as the reference and
+never as anything view-dependent. Along it, though, it says nothing about which
+way the picture faces, and the SDK then falls back to one fixed axis — every
+straight-down view faced the same way, so an orbit reaching the pole snapped to
+that orientation and could not turn about the vertical. The orbit's own up,
+`orbitViewUp()`, therefore rides along as the view-up hint of the four-argument
+`SetCameraLookAt`, which the SDK reads only in that case. Send poses through
+`pushCameraLookAt()`; only `setCamera()` uses the three-argument call, because a
+document's camera must render as the CLI renders it. And recover angles with
+`setOrbitAnglesFromView()`, not `atan2(dir.x, dir.z)`: on the pole that is
+rounding noise, and the yaw it produced was what the next drag snapped to.
+
 ## Commits
 
 **No Codex session link in a commit message.** No `Codex-Session:` trailer,

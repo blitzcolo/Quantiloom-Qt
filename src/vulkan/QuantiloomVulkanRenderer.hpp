@@ -567,6 +567,20 @@ private:
     float m_orbitYaw = 0.0f;    // Horizontal angle
     float m_orbitPitch = 0.0f;  // Vertical angle
 
+    /// The film's up the orbit angles imply: perpendicular to the view at
+    /// every pitch, and at the poles horizontal, carrying the yaw.
+    [[nodiscard]] glm::vec3 orbitViewUp() const;
+    /// Recover the orbit angles for a view from @p dir (unit, target to
+    /// camera). On the pole the yaw is read from @p viewUp, the up the view
+    /// is shown with, since @p dir has no usable heading there.
+    void setOrbitAnglesFromView(const glm::vec3& dir, const glm::vec3& viewUp);
+    /// Right and up of the picture: the SDK's resolved basis when a context
+    /// exists, the orbit's otherwise. Defined straight down.
+    void viewBasis(glm::vec3& right, glm::vec3& up) const;
+    /// Send the pose to the SDK: m_cameraUp as the reference, orbitViewUp()
+    /// as the hint for views parallel to it. Requires m_renderContext.
+    void pushCameraLookAt();
+
     // Movement state
     bool m_moveForward = false;
     bool m_moveBackward = false;

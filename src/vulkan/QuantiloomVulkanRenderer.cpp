@@ -185,7 +185,7 @@ void QuantiloomVulkanRenderer::initSwapChainResources() {
     // Set initial camera. Skipped for a config document, which has just had one
     // applied -- pushing the stale members over it would undo that.
     if (!m_currentConfig) {
-        m_renderContext->SetCameraLookAt(m_cameraPosition, m_cameraTarget, m_cameraUp);
+        pushCameraLookAt();
         m_renderContext->SetCameraFOV(m_cameraFovY);
         m_renderContext->SetCameraProjection(
             m_orthographic ? quantiloom::CameraProjection::Orthographic
@@ -512,12 +512,12 @@ void QuantiloomVulkanRenderer::loadScene(const QString& filePath, bool adoptScen
             m_cameraFovY = sceneCamera.GetFovY();
 
             // Orbit state is derived, and in radians -- see src/vulkan/AGENTS.md.
+            // GetUp() is the resolved film up, which is what says which way a
+            // straight-down scene camera faces.
             const glm::vec3 offset = m_cameraPosition - m_cameraTarget;
             m_orbitDistance = glm::length(offset);
             if (m_orbitDistance > 1e-6f) {
-                const glm::vec3 dir = offset / m_orbitDistance;
-                m_orbitPitch = std::asin(glm::clamp(dir.y, -1.0f, 1.0f));
-                m_orbitYaw = std::atan2(dir.x, dir.z);
+                setOrbitAnglesFromView(offset / m_orbitDistance, sceneCamera.GetUp());
             }
             emit m_window->cameraChanged();
         }
@@ -648,9 +648,7 @@ bool QuantiloomVulkanRenderer::applyConfigToContext(bool isFreshOpen) {
         const glm::vec3 offset = m_cameraPosition - m_cameraTarget;
         m_orbitDistance = glm::length(offset);
         if (m_orbitDistance > 1e-6f) {
-            const glm::vec3 dir = offset / m_orbitDistance;
-            m_orbitPitch = std::asin(glm::clamp(dir.y, -1.0f, 1.0f));
-            m_orbitYaw = std::atan2(dir.x, dir.z);
+            setOrbitAnglesFromView(offset / m_orbitDistance, camera.GetUp());
         }
         emit m_window->cameraChanged();
 
@@ -669,7 +667,7 @@ bool QuantiloomVulkanRenderer::applyConfigToContext(bool isFreshOpen) {
         m_renderContext->SetSamplingSeed(m_samplingSeed);
         m_renderContext->SetDebugMode(m_debugMode);
         applyAtmosphereToContext();
-        m_renderContext->SetCameraLookAt(m_cameraPosition, m_cameraTarget, m_cameraUp);
+        pushCameraLookAt();
         m_renderContext->SetCameraFOV(m_cameraFovY);
         // The projection is session state too: the rebuilt context starts in
         // perspective, while the overlay (grid, gizmo) keeps m_orthographic
@@ -796,12 +794,12 @@ void QuantiloomVulkanRenderer::frameBounds(const glm::vec3& min, const glm::vec3
     m_orbitDistance = distance;
 
     // Radians -- see src/vulkan/AGENTS.md. Derived from the new offset rather
-    // than left alone, or the first drag afterwards snaps back.
-    m_orbitPitch = std::asin(glm::clamp(direction.y, -1.0f, 1.0f));
-    m_orbitYaw = std::atan2(direction.x, direction.z);
+    // than left alone, or the first drag afterwards snaps back. The direction
+    // is unchanged, so on the pole the heading it is shown with is too.
+    setOrbitAnglesFromView(direction, orbitViewUp());
 
     if (m_renderContext) {
-        m_renderContext->SetCameraLookAt(m_cameraPosition, m_cameraTarget, m_cameraUp);
+        pushCameraLookAt();
         resetAccumulation();
     }
     emit m_window->cameraChanged();
@@ -821,7 +819,7 @@ void QuantiloomVulkanRenderer::resetCamera() {
     m_orbitYaw = std::atan2(offset.x, offset.z);
 
     if (m_renderContext) {
-        m_renderContext->SetCameraLookAt(m_cameraPosition, m_cameraTarget, m_cameraUp);
+        pushCameraLookAt();
         resetAccumulation();
     }
     emit m_window->cameraChanged();
@@ -844,15 +842,21 @@ void QuantiloomVulkanRenderer::setCamera(const glm::vec3& position, const glm::v
     // config and then dragging jumped the camera to an unrelated angle.
     // A zero-length view vector has no angles to recover; keep the current
     // ones rather than normalize() a zero vector into NaN.
-    if (m_orbitDistance > 1e-6f) {
-        const glm::vec3 dir = (position - lookAt) / m_orbitDistance;
-        m_orbitPitch = std::asin(glm::clamp(dir.y, -1.0f, 1.0f));
-        m_orbitYaw = std::atan2(dir.x, dir.z);
-    }
-
+    //
+    // The pose goes to the SDK as given, with no view-up hint: this is a
+    // document's camera, and what it renders must be what the CLI renders
+    // from the same numbers. The yaw is then read back from the up the SDK
+    // resolved, so that a straight-down pose -- whose direction carries no
+    // heading -- continues into the orbit facing the way it is shown.
     if (m_renderContext) {
         m_renderContext->SetCameraLookAt(m_cameraPosition, m_cameraTarget, m_cameraUp);
         m_renderContext->SetCameraFOV(fovY);
+    }
+    if (m_orbitDistance > 1e-6f) {
+        setOrbitAnglesFromView((position - lookAt) / m_orbitDistance,
+                               m_renderContext ? m_renderContext->GetCamera().GetUp() : up);
+    }
+    if (m_renderContext) {
         resetAccumulation();
     }
 
@@ -888,13 +892,15 @@ void QuantiloomVulkanRenderer::setViewDirection(const glm::vec3& direction) {
     const glm::vec3 dir = direction / length;
 
     // Same radians-everywhere convention as orbitCamera(): these two feed
-    // sin/cos directly and are clamped against half_pi.
+    // sin/cos directly and are clamped against half_pi. Top and bottom come
+    // out at yaw 0, atan2(0, 0): the heading the front view has, so they
+    // face the way an orbit up or down from the front arrives at.
     m_orbitPitch = std::asin(glm::clamp(dir.y, -1.0f, 1.0f));
     m_orbitYaw = std::atan2(dir.x, dir.z);
     m_cameraPosition = m_cameraTarget + dir * m_orbitDistance;
 
     if (m_renderContext) {
-        m_renderContext->SetCameraLookAt(m_cameraPosition, m_cameraTarget, m_cameraUp);
+        pushCameraLookAt();
         resetAccumulation();
     }
     emit m_window->cameraChanged();
@@ -1039,8 +1045,64 @@ void QuantiloomVulkanRenderer::getCameraInfo(glm::vec3& position, glm::vec3& for
                                               glm::vec3& right, glm::vec3& up) const {
     position = m_cameraPosition;
     forward = glm::normalize(m_cameraTarget - m_cameraPosition);
-    right = glm::normalize(glm::cross(forward, m_cameraUp));
-    up = glm::cross(right, forward);
+    viewBasis(right, up);
+}
+
+glm::vec3 QuantiloomVulkanRenderer::orbitViewUp() const {
+    // d/dpitch of the orbit offset (cos p sin y, sin p, cos p cos y). Away from
+    // the poles this is exactly the up a +Y reference resolves to, so passing
+    // it changes nothing there; at a pole it is horizontal and turns with yaw.
+    return glm::vec3(-std::sin(m_orbitPitch) * std::sin(m_orbitYaw),
+                     std::cos(m_orbitPitch),
+                     -std::sin(m_orbitPitch) * std::cos(m_orbitYaw));
+}
+
+void QuantiloomVulkanRenderer::setOrbitAnglesFromView(const glm::vec3& dir,
+                                                      const glm::vec3& viewUp) {
+    m_orbitPitch = std::asin(glm::clamp(dir.y, -1.0f, 1.0f));
+
+    // Off the pole the direction has the heading. On it, its horizontal part
+    // is rounding left over from position - target, and atan2 of that is
+    // noise -- the yaw it produced was what the next drag snapped to.
+    constexpr float kVertical = 1e-3f;
+    if (std::hypot(dir.x, dir.z) > kVertical) {
+        m_orbitYaw = std::atan2(dir.x, dir.z);
+        return;
+    }
+
+    // There the film's up is horizontal and is the heading: orbitViewUp() is
+    // (-sin y, 0, -cos y) looking down and (sin y, 0, cos y) looking up.
+    const float sign = (dir.y > 0.0f) ? -1.0f : 1.0f;
+    const float hx = sign * viewUp.x;
+    const float hz = sign * viewUp.z;
+    if (std::hypot(hx, hz) > kVertical) {
+        m_orbitYaw = std::atan2(hx, hz);
+    }
+    // Otherwise nothing says which way the view faces; keep the heading.
+}
+
+void QuantiloomVulkanRenderer::viewBasis(glm::vec3& right, glm::vec3& up) const {
+    // The basis the frame on screen was rendered with, when there is one --
+    // the same source CameraMatrices reads, and well defined straight down,
+    // where cross(forward, m_cameraUp) is zero or rounding noise.
+    if (m_renderContext) {
+        const quantiloom::Camera& camera = m_renderContext->GetCamera();
+        right = camera.GetRight();
+        up = camera.GetUp();
+        return;
+    }
+    right = glm::vec3(std::cos(m_orbitYaw), 0.0f, -std::sin(m_orbitYaw));
+    up = orbitViewUp();
+}
+
+void QuantiloomVulkanRenderer::pushCameraLookAt() {
+    // m_cameraUp stays the reference -- what a save writes and what motion
+    // poses are built from. The orbit's own up only rides along as the hint
+    // the SDK consults when the view is parallel to it: without it every
+    // straight-down view faced one fixed axis, so an orbit reaching the pole
+    // snapped to that orientation and could not turn about the vertical.
+    m_renderContext->SetCameraLookAt(m_cameraPosition, m_cameraTarget, m_cameraUp,
+                                     orbitViewUp());
 }
 
 void QuantiloomVulkanRenderer::updateCameraMovement(
@@ -1090,7 +1152,7 @@ void QuantiloomVulkanRenderer::orbitCamera(float deltaX, float deltaY) {
     m_cameraPosition = m_cameraTarget + glm::vec3(x, y, z);
 
     if (m_renderContext) {
-        m_renderContext->SetCameraLookAt(m_cameraPosition, m_cameraTarget, m_cameraUp);
+        pushCameraLookAt();
         resetAccumulation();
     }
     emit m_window->cameraChanged();
@@ -1117,33 +1179,20 @@ void QuantiloomVulkanRenderer::panCamera(float deltaX, float deltaY) {
     const float sensitivity =
         2.0f * m_orbitDistance * std::tan(halfFov) / static_cast<float>(viewportHeight);
 
-    glm::vec3 forward = glm::normalize(m_cameraTarget - m_cameraPosition);
-
-    // Straight-down and straight-up views are reachable now that orbitCamera()
-    // no longer keeps a margin away from the poles, and there forward is
-    // parallel to m_cameraUp. That breaks the cross product two ways: exactly
-    // parallel (a camera placed directly above the target by setCamera) gives a
-    // zero vector that normalize() turns into NaN, which pans the camera to
-    // nowhere and never recovers; arriving via orbitCamera leaves cos(pitch) at
-    // ~-4.4e-8 instead of 0, so the cross product is merely tiny and normalize()
-    // returns a finite direction made of floating-point dust that swings with
-    // yaw. Swing to a reference axis that is not parallel, exactly as the SDK's
-    // Camera::UpdateVectors does for the same input.
-    glm::vec3 upRef = m_cameraUp;
-    if (std::abs(glm::dot(forward, upRef)) > 1.0f - 1e-6f) {
-        upRef = (std::abs(forward.y) > 0.9f) ? glm::vec3(0.0f, 0.0f, 1.0f)
-                                             : glm::vec3(0.0f, 1.0f, 0.0f);
-    }
-
-    glm::vec3 right = glm::normalize(glm::cross(forward, upRef));
-    glm::vec3 up = glm::cross(right, forward);
+    // The picture's own right and up, so a drag moves the scene the way the
+    // cursor goes at every orientation. Straight down, cross(forward,
+    // m_cameraUp) is zero (NaN after normalize) or rounding noise that swings
+    // with yaw; the basis the frame was rendered with is neither.
+    glm::vec3 right;
+    glm::vec3 up;
+    viewBasis(right, up);
 
     glm::vec3 pan = -right * deltaX * sensitivity + up * deltaY * sensitivity;
     m_cameraPosition += pan;
     m_cameraTarget += pan;
 
     if (m_renderContext) {
-        m_renderContext->SetCameraLookAt(m_cameraPosition, m_cameraTarget, m_cameraUp);
+        pushCameraLookAt();
         resetAccumulation();
     }
     emit m_window->cameraChanged();
@@ -1168,7 +1217,7 @@ void QuantiloomVulkanRenderer::zoomCamera(float delta) {
     m_cameraPosition = m_cameraTarget + glm::vec3(x, y, z);
 
     if (m_renderContext) {
-        m_renderContext->SetCameraLookAt(m_cameraPosition, m_cameraTarget, m_cameraUp);
+        pushCameraLookAt();
         resetAccumulation();
     }
     emit m_window->cameraChanged();
@@ -1183,7 +1232,11 @@ void QuantiloomVulkanRenderer::updateCamera(float deltaTime) {
     float speed = m_moveFast ? baseSpeed * 3.0f : baseSpeed;
 
     glm::vec3 forward = glm::normalize(m_cameraTarget - m_cameraPosition);
-    glm::vec3 right = glm::normalize(glm::cross(forward, m_cameraUp));
+    // Not cross(forward, m_cameraUp): that is zero straight down. Strafing
+    // follows the picture's right; up and down below stay world-vertical.
+    glm::vec3 right;
+    glm::vec3 viewUp;
+    viewBasis(right, viewUp);
 
     glm::vec3 movement(0.0f);
     if (m_moveForward)  movement += forward;
@@ -1199,7 +1252,7 @@ void QuantiloomVulkanRenderer::updateCamera(float deltaTime) {
         m_cameraTarget += movement;
 
         if (m_renderContext) {
-            m_renderContext->SetCameraLookAt(m_cameraPosition, m_cameraTarget, m_cameraUp);
+            pushCameraLookAt();
             resetAccumulation();
         }
         emit m_window->cameraChanged();
