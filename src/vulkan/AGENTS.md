@@ -65,8 +65,11 @@ straight-down view faced the same way, so an orbit reaching the pole snapped to
 that orientation and could not turn about the vertical. The orbit's own up,
 `orbitViewUp()`, therefore rides along as the view-up hint of the four-argument
 `SetCameraLookAt`, which the SDK reads only in that case. Send poses through
-`pushCameraLookAt()`; only `setCamera()` uses the three-argument call, because a
-document's camera must render as the CLI renders it. And recover angles with
+`pushCameraLookAt()`. `setCamera()` is the exception: a document's camera must
+render as the CLI renders it, so its hint is the document's own `camera.view_up`
+(zero when the file has none), and a save writes `viewUp()` — the up on screen —
+back as that key, which is how a straight-down view reopens facing the way it
+was saved. And recover angles with
 `setOrbitAnglesFromView()`, not `atan2(dir.x, dir.z)`: on the pole that is
 rounding noise, and the yaw it produced was what the next drag snapped to.
 

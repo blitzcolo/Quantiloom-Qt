@@ -111,9 +111,18 @@ public:
 
     /**
      * @brief Set camera from config parameters
+     *
+     * @p viewUpHint is camera.view_up, the up to show when the view runs along
+     * @p up; zero leaves it to the SDK's fallback.
      */
     void setCamera(const glm::vec3& position, const glm::vec3& lookAt,
-                   const glm::vec3& up, float fovY);
+                   const glm::vec3& up, float fovY,
+                   const glm::vec3& viewUpHint = glm::vec3(0.0f));
+
+    /**
+     * @brief The film's up as the frame on screen has it (camera.view_up)
+     */
+    [[nodiscard]] glm::vec3 viewUp() const;
 
     /**
      * @brief Read the current camera pose

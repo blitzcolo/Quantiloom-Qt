@@ -1336,10 +1336,12 @@ void MainWindow::applyCameraConfig(const quantiloom::camera::CameraConfig& confi
         glm::vec3 position, target, up;
         float fov = 45.0f;
         m_vulkanWindow->getCameraState(position, target, up, fov);
+        const glm::vec3 viewUp = m_vulkanWindow->viewUp();
         for (int axis = 0; axis < 3; ++axis) {
             m_lastConfig->cameraPosition[axis] = position[axis];
             m_lastConfig->cameraLookAt[axis] = target[axis];
             m_lastConfig->cameraUp[axis] = up[axis];
+            m_lastConfig->cameraViewUp[axis] = viewUp[axis];
         }
         m_lastConfig->cameraFovY = fov;
     }
@@ -1358,7 +1360,10 @@ void MainWindow::applyCameraConfig(const quantiloom::camera::CameraConfig& confi
             glm::vec3(m_lastConfig->cameraUp[0],
                       m_lastConfig->cameraUp[1],
                       m_lastConfig->cameraUp[2]),
-            m_lastConfig->cameraFovY);
+            m_lastConfig->cameraFovY,
+            glm::vec3(m_lastConfig->cameraViewUp[0],
+                      m_lastConfig->cameraViewUp[1],
+                      m_lastConfig->cameraViewUp[2]));
     }
     setSceneModified(true);
     showStatusMessage(tr("Camera configuration updated"));
@@ -1653,9 +1658,15 @@ void MainWindow::applyTimelineTime(double time_s) {
             float fov = 45.0f;
             m_vulkanWindow->getCameraState(staticPosition, staticTarget, up, fov);
             const auto& key = pose.value();
+            // The document's view_up, as the CLI's keyed poses carry it, so a
+            // key that looks straight down faces the same way in both.
+            const glm::vec3 viewUp = m_lastConfig
+                ? glm::vec3(m_lastConfig->cameraViewUp[0], m_lastConfig->cameraViewUp[1],
+                            m_lastConfig->cameraViewUp[2])
+                : glm::vec3(0.0f);
             m_vulkanWindow->setCamera(
                 glm::vec3(key.position[0], key.position[1], key.position[2]),
-                glm::vec3(key.lookAt[0], key.lookAt[1], key.lookAt[2]), up, fov);
+                glm::vec3(key.lookAt[0], key.lookAt[1], key.lookAt[2]), up, fov, viewUp);
         }
     }
 
@@ -1794,7 +1805,9 @@ void MainWindow::applyCameraPose(const glm::vec3& position, const glm::vec3& tar
     glm::vec3 up;
     float fovY = 45.0f;
     m_vulkanWindow->getCameraState(currentPosition, currentTarget, up, fovY);
-    m_vulkanWindow->setCamera(position, target, up, fovY);
+    // The up on screen as the hint, so moving to a straight-down pose keeps
+    // the heading the view had instead of turning to the SDK's fallback.
+    m_vulkanWindow->setCamera(position, target, up, fovY, m_vulkanWindow->viewUp());
     // No write-back: the renderer emits cameraChanged() when it adopts a pose,
     // and onCameraChanged() is the single point that shows it.
     if (m_vulkanWindow->cameraConfig().motion.keys.empty())
@@ -3781,7 +3794,8 @@ void MainWindow::onExportFusionDataset() {
         m_vulkanWindow->setCamera(camera.value().GetPosition(),
                                   camera.value().GetLookAt(),
                                   camera.value().GetUpReference(),
-                                  camera.value().GetFovY());
+                                  camera.value().GetFovY(),
+                                  camera.value().GetViewUpHint());
     };
     dialog.exec();
     // The dialog's previews moved the viewport camera; put the document's
@@ -3796,7 +3810,8 @@ void MainWindow::onExportFusionDataset() {
         {config.cameraPosition[0], config.cameraPosition[1], config.cameraPosition[2]},
         {config.cameraLookAt[0], config.cameraLookAt[1], config.cameraLookAt[2]},
         {config.cameraUp[0], config.cameraUp[1], config.cameraUp[2]},
-        config.cameraFovY);
+        config.cameraFovY,
+        {config.cameraViewUp[0], config.cameraViewUp[1], config.cameraViewUp[2]});
 }
 
 void MainWindow::onExportHyperspectralCube() {
@@ -5699,10 +5714,16 @@ void MainWindow::collectCurrentConfig(SceneConfig& config) {
         float fovY = 45.0f;
         m_vulkanWindow->getCameraState(position, target, up, fovY);
         const bool motionEnabled = !m_vulkanWindow->cameraConfig().motion.keys.empty();
+        // The up the view is shown with, as camera.view_up: `up` cannot say
+        // which way a straight-down view faces, and without it the file
+        // reopens facing the SDK's fallback axis. It belongs to the pose, so
+        // under motion the static baseline's is kept along with the pose.
+        const glm::vec3 viewUp = m_vulkanWindow->viewUp();
         for (int axis = 0; axis < 3; ++axis) {
             if (!motionEnabled || !m_lastConfig) {
                 config.cameraPosition[axis] = position[axis];
                 config.cameraLookAt[axis] = target[axis];
+                config.cameraViewUp[axis] = viewUp[axis];
             }
             config.cameraUp[axis] = up[axis];
         }

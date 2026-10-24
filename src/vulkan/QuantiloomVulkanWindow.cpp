@@ -215,10 +215,15 @@ void QuantiloomVulkanWindow::resetCamera() {
 }
 
 void QuantiloomVulkanWindow::setCamera(const glm::vec3& position, const glm::vec3& lookAt,
-                                        const glm::vec3& up, float fovY) {
-    withRenderer([position, lookAt, up, fovY](QuantiloomVulkanRenderer& r) {
-        r.setCamera(position, lookAt, up, fovY);
+                                        const glm::vec3& up, float fovY,
+                                        const glm::vec3& viewUpHint) {
+    withRenderer([position, lookAt, up, fovY, viewUpHint](QuantiloomVulkanRenderer& r) {
+        r.setCamera(position, lookAt, up, fovY, viewUpHint);
     });
+}
+
+glm::vec3 QuantiloomVulkanWindow::viewUp() const {
+    return m_renderer ? m_renderer->viewUp() : glm::vec3(0.0f);
 }
 
 void QuantiloomVulkanWindow::getCameraState(glm::vec3& position, glm::vec3& target,

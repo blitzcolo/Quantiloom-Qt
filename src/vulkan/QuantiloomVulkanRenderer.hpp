@@ -220,9 +220,16 @@ public:
     void setPaused(bool paused);
     bool isPaused() const { return m_paused; }
 
-    // Camera setup from config
+    // Camera setup from config. @p viewUpHint is the document's camera.view_up:
+    // which way the picture faces when the view runs along @p up. Zero means
+    // the document says nothing, and the SDK's fallback decides, as the CLI's.
     void setCamera(const glm::vec3& position, const glm::vec3& lookAt,
-                   const glm::vec3& up, float fovY);
+                   const glm::vec3& up, float fovY,
+                   const glm::vec3& viewUpHint = glm::vec3(0.0f));
+
+    /// The film's up as the frame on screen has it -- what a save writes as
+    /// camera.view_up, so a straight-down view reopens facing the same way.
+    [[nodiscard]] glm::vec3 viewUp() const;
 
     /// Current pose, for the camera panel and for config export.
     void getCameraState(glm::vec3& position, glm::vec3& target,
@@ -571,9 +578,9 @@ private:
     /// every pitch, and at the poles horizontal, carrying the yaw.
     [[nodiscard]] glm::vec3 orbitViewUp() const;
     /// Recover the orbit angles for a view from @p dir (unit, target to
-    /// camera). On the pole the yaw is read from @p viewUp, the up the view
+    /// camera). On the pole the yaw is read from @p shownUp, the up the view
     /// is shown with, since @p dir has no usable heading there.
-    void setOrbitAnglesFromView(const glm::vec3& dir, const glm::vec3& viewUp);
+    void setOrbitAnglesFromView(const glm::vec3& dir, const glm::vec3& shownUp);
     /// Right and up of the picture: the SDK's resolved basis when a context
     /// exists, the orbit's otherwise. Defined straight down.
     void viewBasis(glm::vec3& right, glm::vec3& up) const;

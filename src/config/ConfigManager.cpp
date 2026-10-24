@@ -304,6 +304,13 @@ void ConfigManager::extractSceneConfig(const quantiloom::Config& config, SceneCo
         out.cameraUp[2] = camUp[2];
     }
 
+    auto camViewUp = config.GetArray<quantiloom::f32>("camera.view_up");
+    if (camViewUp.size() >= 3) {
+        out.cameraViewUp[0] = camViewUp[0];
+        out.cameraViewUp[1] = camViewUp[1];
+        out.cameraViewUp[2] = camViewUp[2];
+    }
+
     // 60, the core Camera's own default -- not 45, which framed every config
     // without the key differently here than in the CLI.
     out.cameraFovY = config.GetFloat("camera.fov_y", 60.0f);
@@ -1019,6 +1026,15 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
     out << "up = [" << config.cameraUp[0] << ", "
                     << config.cameraUp[1] << ", "
                     << config.cameraUp[2] << "]\n";
+    // The up the view was shown with. Only a view along `up` reads it, but
+    // that is the one view `up` cannot describe: without it a straight-down
+    // camera reopens facing the SDK's fallback axis instead of how it was saved.
+    if (config.cameraViewUp[0] != 0.0f || config.cameraViewUp[1] != 0.0f ||
+        config.cameraViewUp[2] != 0.0f) {
+        out << "view_up = [" << config.cameraViewUp[0] << ", "
+                             << config.cameraViewUp[1] << ", "
+                             << config.cameraViewUp[2] << "]\n";
+    }
     out << "fov_y = " << config.cameraFovY << "\n";
     // Written only when orthographic: perspective is the default, and a key
     // restating a default on every save is noise in a hand-edited file.

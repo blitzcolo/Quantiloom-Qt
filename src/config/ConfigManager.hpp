@@ -302,6 +302,10 @@ struct SceneConfig {
     float cameraPosition[3] = {0.0f, 0.0f, 5.0f};
     float cameraLookAt[3] = {0.0f, 0.0f, 0.0f};
     float cameraUp[3] = {0.0f, 1.0f, 0.0f};
+    /// camera.view_up: the film's up the view was shown with. The SDK reads
+    /// it only when the view runs along cameraUp, which then cannot say which
+    /// way a straight-down picture faces. All zero means absent.
+    float cameraViewUp[3] = {0.0f, 0.0f, 0.0f};
     float cameraFovY = 45.0f;
     /// camera.projection / camera.ortho_height. Absent means perspective,
     /// which is what every scene written before the key existed meant.
