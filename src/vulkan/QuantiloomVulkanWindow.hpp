@@ -547,8 +547,10 @@ public:
     /**
      * @brief One-shot what-you-see PNG of the composited viewport
      *
-     * The swapchain image with grid and gizmo overlays -- the SDK-side
-     * captures cannot show those. Saved asynchronously a few frames later.
+     * The rendered frame with grid and gizmo overlays -- the SDK-side
+     * captures cannot show those -- at the extent it is rendered at, which
+     * while a resize is held is not the viewport's. Saved asynchronously a
+     * few frames later.
      */
     void requestCompositedCapture(const QString& path);
 
@@ -667,15 +669,21 @@ private:
     friend class QuantiloomVulkanRenderer;
 
     /**
-     * @brief Convert a Qt pointer position to device pixels
+     * @brief Convert a Qt pointer position to a pixel of the rendered image
      *
      * The single crossing point between interface coordinates and renderer
      * coordinates. Everything that hands a pointer position to the render
-     * side -- debug pixel readout, gizmo dragging, camera drag deltas -- goes
-     * through here, so a fractional scale factor cannot desynchronise one of
-     * them while the others stay correct.
+     * side -- debug pixel readout, picking, gizmo dragging -- goes through
+     * here, so a fractional scale factor cannot desynchronise one of them
+     * while the others stay correct. Device pixels, then the renderer's
+     * targetExtent(): the same pixels unless a resize is being held and the
+     * render is shown fitted into a viewport of another size.
      */
-    [[nodiscard]] QPointF toDevicePixels(const QPointF& logical) const;
+    [[nodiscard]] QPointF toTargetPixels(const QPointF& logical) const;
+
+    /// mouseHovered() for a toTargetPixels() position on the image, and
+    /// mouseHoverLeft() for one off it.
+    void reportHover(const QPointF& pixel);
 
     /**
      * @brief Try to grab a gizmo handle at a device-pixel position
@@ -744,7 +752,7 @@ private:
     /**
      * @brief Previous pointer position of a camera drag, in *logical* pixels
      *
-     * Deliberately not `toDevicePixels()`d, unlike every other position that
+     * Deliberately not `toTargetPixels()`d, unlike every other position that
      * crosses into the render side. Those are positions -- a debug readout or a
      * gizmo pick has to name one framebuffer pixel, so it must carry the scale
      * factor. A camera drag consumes only the *difference* between two

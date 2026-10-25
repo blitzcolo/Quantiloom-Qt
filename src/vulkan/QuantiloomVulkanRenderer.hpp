@@ -10,6 +10,8 @@
 #include <QVulkanWindowRenderer>
 #include <QCoreApplication>
 #include <QString>
+#include <QPointF>
+#include <QRect>
 #include <QSize>
 #include <QFuture>
 #include <memory>
@@ -267,8 +269,19 @@ public:
     /// pixel rays. Only valid while a scene is loaded.
     [[nodiscard]] vkview::CameraMatrices overlayCamera() const;
 
-    /// One-shot what-you-see PNG: the swapchain image with grid and gizmo
-    /// composited, saved a few frames from now. Poll the file.
+    /// The extent the SDK renders to, and the space every pixel coordinate it
+    /// takes -- Pick, ReadPixelValue, overlayCamera() rays -- is in. The
+    /// swapchain's extent unless a resize is being held; see
+    /// initSwapChainResources().
+    [[nodiscard]] QSize targetExtent() const { return m_targetExtent; }
+
+    /// A swapchain pixel position as a position in targetExtent(): the
+    /// identity, except while a held render is fitted into the swapchain.
+    /// Positions over the bars around it come out outside the extent.
+    [[nodiscard]] QPointF swapchainToTarget(const QPointF& swapchainPixel) const;
+
+    /// One-shot what-you-see PNG: the rendered frame, at targetExtent(), with
+    /// grid and gizmo composited, saved a few frames from now. Poll the file.
     void requestCompositedCapture(const QString& path) {
         m_overlay.requestCompositedCapture(path);
     }
@@ -517,7 +530,22 @@ private:
     // Check if this is the first run (no pipeline cache)
     bool isFirstRun() const;
 
+    /// Make the swapchain's extent the one the SDK renders at. Costs the
+    /// accumulation when it changes anything, so it runs only where that is
+    /// lost anyway: resetAccumulation(), or a rebuild with nothing accumulated.
+    void adoptSwapchainExtent();
+
+    /// Where the image at m_targetExtent is drawn in the swapchain image:
+    /// all of it when the two agree, else fitted with its aspect kept.
+    [[nodiscard]] QRect presentedRect() const;
+
     QuantiloomVulkanWindow* m_window;
+
+    /// What every frame hands the SDK as the target extent. It follows the
+    /// swapchain only through adoptSwapchainExtent(), so a viewport resize
+    /// alone leaves the accumulation as it is. Empty while there is no
+    /// context.
+    QSize m_targetExtent;
 
     // libQuantiloom render context
     std::unique_ptr<quantiloom::ExternalRenderContext> m_renderContext;
@@ -602,7 +630,7 @@ private:
     quantiloom::SpectralMode m_spectralMode = quantiloom::SpectralMode::RGB;
     quantiloom::DebugVisualizationMode m_debugMode = quantiloom::DebugVisualizationMode::None;
 
-    // Lighting params (stored for restore after window minimize)
+    // Lighting params (stored for a context rebuild)
     quantiloom::LightingParams m_lightingParams = quantiloom::CreateDefaultLightingParams();
     bool m_hasLightingParams = false;  // True if set from config
 
@@ -661,11 +689,11 @@ private:
     // Initialization state
     bool m_initialized = false;
     QString m_pendingScenePath;
-    QString m_currentScenePath;  // Track loaded scene for restore after minimize
+    QString m_currentScenePath;  // Track loaded scene for a context rebuild
 
     // The open document, when it is a config rather than a bare model. Kept for
-    // the same reason as m_currentScenePath -- a minimize destroys the render
-    // context -- but it restores far more: everything ApplyConfig sets that this
+    // the same reason as m_currentScenePath -- a lost device destroys the
+    // render context -- but it restores far more: everything ApplyConfig sets that this
     // class holds no member for. A bare model load clears it, which is what
     // stops one document's illuminant reaching the next one's scene.
     std::shared_ptr<const quantiloom::Config> m_currentConfig;

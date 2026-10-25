@@ -18,7 +18,8 @@
  *
  * Handlers run on the GUI thread, from MainWindow::pumpMcp(). They may touch
  * widgets and the render context freely; what they may not do is assume either
- * exists, since minimising the window destroys the render context.
+ * exists: there is no render context before the first scene opens, nor for the
+ * moment after a lost device.
  *
  * @author blitzcolo
  */
@@ -250,12 +251,13 @@ std::optional<std::string> ValidateArguments(const QJsonObject& schema,
 }
 
 /// The one sentence every tool that needs a live renderer says when there is
-/// not one. Minimising Studio releases the Vulkan resources; restoring it
-/// rebuilds them and replays the document.
+/// not one. The context is created when the viewport first shows, which is
+/// when a scene opens, and rebuilt -- document replayed -- after a lost device.
+/// A minimise no longer releases it.
 mcp::ToolResult NoContext() {
     return mcp::ToolResult::Error(
-        "Studio has no render context right now, which happens while the window is minimised. "
-        "Restore the window and retry.");
+        "Studio has no render context right now: there is none until a scene has been opened, "
+        "and none for a moment after the GPU device was lost. Open a scene and retry.");
 }
 
 /// The scalar view of a material's infrared curves, as the material editor
@@ -2291,8 +2293,9 @@ void MainWindow::registerMcpTools() {
         mcp::ToolDef tool;
         tool.name = "ql_capture_composited";
         tool.description =
-            "A what-you-see screenshot: the viewport's final swapchain image with the "
-            "grid and transform gizmo overlays composited, which ql_capture_viewport's "
+            "A what-you-see screenshot: the viewport's rendered frame, at the extent it is "
+            "rendered at, with the grid and transform gizmo overlays composited, which "
+            "ql_capture_viewport's "
             "SDK-side captures cannot show. Asynchronous -- the PNG lands at save_path a "
             "few frames after this returns; poll the file. Grid and gizmo visibility "
             "follow the current UI state (View menu, ql_select).";

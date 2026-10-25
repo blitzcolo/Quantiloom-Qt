@@ -48,6 +48,26 @@ longer existed: a black frame, and the new one never traced. `setGridVisible` is
 display-only too but compositing rather than post-processing, so it just requests a
 frame.
 
+## The viewport's size is not the render's
+
+`m_targetExtent` is what every frame hands the SDK as its target extent, and
+it follows the swapchain only through `adoptSwapchainExtent()` — called from
+`resetAccumulation()`, and from a swapchain rebuild when nothing is
+accumulated. A rebuilt swapchain alone (a splitter, a workspace switch, a
+window resize) leaves the accumulation alone: `startNextFrame()` routes the
+frame through the overlay's held frame at `m_targetExtent` and fits it into
+the swapchain, aspect kept, bars cleared. Calling `Resize()` from
+`initSwapChainResources()` is the bug this replaced — every step of a splitter
+drag restarted the render at zero.
+
+Two consequences. Anything that turns a pointer into a pixel goes through the
+window's `toTargetPixels()`, never `devicePixelRatio()` alone, because the
+image on screen may be scaled and offset; and anything sized from the target
+extent may be replaced mid-frame only because `adoptSwapchainExtent()` drains
+the queue first. The window also sets `PersistentResources`: Qt's default
+releases the device when the window is hidden, and a minimize hides it, which
+rebuilt the context and reloaded the scene on every restore.
+
 ## Camera angles are radians
 
 `m_orbitYaw` and `m_orbitPitch` are radians throughout — clamped against

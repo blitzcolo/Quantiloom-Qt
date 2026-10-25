@@ -61,14 +61,19 @@ void QuantiloomVulkanRenderer::initSwapChainResources() {
         return;
     }
 
-    // If already initialized, just resize
+    // A context already exists, so this is a rebuilt swapchain: the viewport
+    // changed size -- a splitter, a workspace, the window -- or came back
+    // after being hidden. That is a new window onto the render, not a new
+    // render. The SDK stays at the extent it is accumulating at, and
+    // startNextFrame() fits that image into the swapchain until something
+    // restarts the accumulation anyway, which is when resetAccumulation()
+    // takes the new size up. Resizing here discarded every sample on each
+    // step of a splitter drag. With nothing accumulated there is nothing to
+    // keep, so the new size is taken at once.
     if (m_renderContext) {
-        //qDebug() << "  Resizing existing context...";
-        m_renderContext->Resize(
-            static_cast<quantiloom::u32>(swapSize.width()),
-            static_cast<quantiloom::u32>(swapSize.height())
-        );
-        resetAccumulation();
+        if (m_sampleCount == 0 || !m_renderContext->HasScene()) {
+            adoptSwapchainExtent();
+        }
         return;
     }
 
@@ -150,6 +155,7 @@ void QuantiloomVulkanRenderer::initSwapChainResources() {
 
     m_renderContext = std::move(result.value());
     m_initialized = true;
+    m_targetExtent = swapSize;
 
     // The epoch build is synchronous on this thread and can take minutes on a
     // large scene; this is how the shell gets to say which epoch it is on.
@@ -168,8 +174,10 @@ void QuantiloomVulkanRenderer::initSwapChainResources() {
     // configuration it was opened with rather than with defaults.
     m_window->applyDeferredSettings();
 
-    // Rebuild the open document. A minimize destroys the context, and the fresh
-    // one starts at its constructor defaults -- which for a config document
+    // Rebuild the open document. A lost device or a destroyed surface takes the
+    // context with it (a minimize no longer does -- the window keeps its
+    // resources across being hidden), and the fresh one starts at its
+    // constructor defaults -- which for a config document
     // means no solar LUT, no spectral curves, no refractive indices, no
     // temperature backfill and a disabled atmosphere. Re-pushing this class's
     // members never covered any of that, because it holds none of it; replaying
@@ -199,7 +207,7 @@ void QuantiloomVulkanRenderer::releaseSwapChainResources() {
 }
 
 void QuantiloomVulkanRenderer::releaseResources() {
-    // Save current scene path for reload after window restore
+    // Save current scene path for reload when the context is rebuilt
     if (!m_currentScenePath.isEmpty()) {
         m_pendingScenePath = m_currentScenePath;
         qDebug() << "Saved scene path for restore:" << m_pendingScenePath;
@@ -207,6 +215,7 @@ void QuantiloomVulkanRenderer::releaseResources() {
     m_overlay.releaseResources(m_window);
     m_renderContext.reset();
     m_initialized = false;
+    m_targetExtent = QSize();
     // The next context is a fresh one and knows none of the document.
     m_configAppliedToContext = false;
 }
@@ -282,11 +291,35 @@ void QuantiloomVulkanRenderer::startNextFrame() {
         qDebug() << "Frame" << m_frameCounter << "- samples:" << m_sampleCount;
     }
 
-    // Get current command buffer and swapchain image
     VkCommandBuffer cmd = m_window->currentCommandBuffer();
-    int swapChainIndex = m_window->currentSwapChainImageIndex();
-    VkImage targetImage = m_window->swapChainImage(swapChainIndex);
-    QSize swapSize = m_window->swapChainImageSize();
+    const int swapChainIndex = m_window->currentSwapChainImageIndex();
+
+    // What the SDK presents into: the swapchain image, or -- while the render
+    // keeps an extent the viewport no longer has (see initSwapChainResources)
+    // -- an image of that extent, which presentHeldFrame() then fits into the
+    // swapchain image. A resize changes how the render is shown, never what
+    // it holds.
+    bool held = m_targetExtent != m_window->swapChainImageSize();
+    vkview::OverlayRenderer::FrameTarget heldFrame;
+    if (held) {
+        heldFrame = m_overlay.beginHeldFrame(
+            m_window, cmd, static_cast<uint32_t>(m_targetExtent.width()),
+            static_cast<uint32_t>(m_targetExtent.height()));
+        if (heldFrame.image == VK_NULL_HANDLE) {
+            // No memory for the second image: take the viewport's size, at
+            // the cost of the accumulation -- still better than no frame.
+            resetAccumulation();
+            held = false;
+        }
+    }
+    VkImage targetImage =
+        held ? heldFrame.image : m_window->swapChainImage(swapChainIndex);
+    VkImageView targetView =
+        held ? heldFrame.view : m_window->swapChainImageView(swapChainIndex);
+    // Qt doesn't guarantee the swapchain image's layout; the held frame is
+    // where beginHeldFrame() put it.
+    const VkImageLayout targetLayout =
+        held ? VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL : VK_IMAGE_LAYOUT_UNDEFINED;
 
     // A frame is drawn for two different reasons, and only one of them should
     // cost a sample. Accumulating is what Start/Resume asked for; redrawing
@@ -300,8 +333,8 @@ void QuantiloomVulkanRenderer::startNextFrame() {
     // and then a real frame is the only correct answer.
     const bool accumulating =
         !m_paused && !(m_targetSPP > 0 && m_sampleCount >= m_targetSPP);
-    const auto width = static_cast<quantiloom::u32>(swapSize.width());
-    const auto height = static_cast<quantiloom::u32>(swapSize.height());
+    const auto width = static_cast<quantiloom::u32>(m_targetExtent.width());
+    const auto height = static_cast<quantiloom::u32>(m_targetExtent.height());
 
     bool presentedWithoutTracing = false;
     if (!accumulating) {
@@ -310,13 +343,9 @@ void QuantiloomVulkanRenderer::startNextFrame() {
         // post-processed images as they were. Same refusals, same fallback.
         presentedWithoutTracing = m_reprocessPending
             ? m_renderContext->ReprocessAccumulated(
-                  cmd, targetImage,
-                  VK_IMAGE_LAYOUT_UNDEFINED,  // Qt doesn't guarantee initial layout
-                  width, height)
+                  cmd, targetImage, targetLayout, width, height)
             : m_renderContext->PresentAccumulated(
-                  cmd, targetImage,
-                  VK_IMAGE_LAYOUT_UNDEFINED,
-                  width, height);
+                  cmd, targetImage, targetLayout, width, height);
     }
     // Consumed on every path: when a real frame is traced instead, RenderFrame
     // re-runs the post-processing chains anyway.
@@ -330,12 +359,7 @@ void QuantiloomVulkanRenderer::startNextFrame() {
             m_cameraConfig.enabled);
         m_renderContext->SetViewportSampleBatch(batch);
         // ExternalRenderContext handles layout transitions and blit to swapchain
-        m_renderContext->RenderFrame(
-            cmd,
-            targetImage,
-            VK_IMAGE_LAYOUT_UNDEFINED,
-            width, height
-        );
+        m_renderContext->RenderFrame(cmd, targetImage, targetLayout, width, height);
         tracedFrame = true;
         if (!m_renderContext->IsReady()) {
             // This frame's recording is the one that failed. Nothing reliable
@@ -351,13 +375,17 @@ void QuantiloomVulkanRenderer::startNextFrame() {
     const vkview::CameraMatrices overlayCam = overlayCamera();
     m_gizmoVertices.clear();
     m_window->buildGizmoDrawList(overlayCam, m_gizmoVertices);
-    m_overlay.record(m_window, m_renderContext.get(), cmd,
-                     static_cast<uint32_t>(swapSize.width()),
-                     static_cast<uint32_t>(swapSize.height()),
-                     overlayCam, m_gizmoVertices);
-    m_overlay.recordCaptureIfRequested(m_window, cmd,
-                                       static_cast<uint32_t>(swapSize.width()),
-                                       static_cast<uint32_t>(swapSize.height()));
+    m_overlay.record(m_window, m_renderContext.get(), cmd, targetImage, targetView,
+                     width, height, overlayCam, m_gizmoVertices);
+    m_overlay.recordCaptureIfRequested(m_window, cmd, targetImage, width, height);
+    if (held) {
+        const QRect shown = presentedRect();
+        m_overlay.presentHeldFrame(
+            m_window, cmd,
+            VkRect2D{{shown.x(), shown.y()},
+                     {static_cast<uint32_t>(shown.width()),
+                      static_cast<uint32_t>(shown.height())}});
+    }
 
     // Update sample count
     m_sampleCount = m_renderContext->GetAccumulatedSamples();
@@ -398,12 +426,56 @@ void QuantiloomVulkanRenderer::startNextFrame() {
 
 vkview::CameraMatrices QuantiloomVulkanRenderer::overlayCamera() const {
     if (m_renderContext) {
-        const QSize size = m_window->swapChainImageSize();
+        // The extent the frame is rendered at, which is not the swapchain's
+        // while a resize is being held.
         return vkview::CameraMatrices::fromCamera(
             m_renderContext->GetCamera(),
-            static_cast<float>(size.width()), static_cast<float>(size.height()));
+            static_cast<float>(m_targetExtent.width()),
+            static_cast<float>(m_targetExtent.height()));
     }
     return {};
+}
+
+QRect QuantiloomVulkanRenderer::presentedRect() const {
+    const QSize swapSize = m_window->swapChainImageSize();
+    if (m_targetExtent.isEmpty() || swapSize.isEmpty()) {
+        return QRect(QPoint(0, 0), swapSize);
+    }
+    // Fitted whole, aspect kept: the camera's aspect is the render's, so
+    // stretching would distort and cropping would hide part of the image.
+    const QSize fitted =
+        m_targetExtent.scaled(swapSize, Qt::KeepAspectRatio).expandedTo(QSize(1, 1));
+    return QRect(QPoint((swapSize.width() - fitted.width()) / 2,
+                        (swapSize.height() - fitted.height()) / 2),
+                 fitted);
+}
+
+QPointF QuantiloomVulkanRenderer::swapchainToTarget(const QPointF& swapchainPixel) const {
+    const QRect shown = presentedRect();
+    if (m_targetExtent.isEmpty() || shown.size() == m_targetExtent) {
+        return swapchainPixel;
+    }
+    return QPointF((swapchainPixel.x() - shown.x()) * m_targetExtent.width() / shown.width(),
+                   (swapchainPixel.y() - shown.y()) * m_targetExtent.height() /
+                       shown.height());
+}
+
+void QuantiloomVulkanRenderer::adoptSwapchainExtent() {
+    const QSize swapSize = m_window->swapChainImageSize();
+    if (!m_renderContext || swapSize.isEmpty() || swapSize == m_targetExtent) {
+        return;
+    }
+    // The overlay's depth images and the held frame are sized from this
+    // extent and replaced mid-frame without a wait of their own, so a frame
+    // still in flight must not be reading them. Straight after a swapchain
+    // rebuild the device is idle already; anywhere else this runs once per
+    // resize, not per frame.
+    QVulkanDeviceFunctions* df =
+        m_window->vulkanInstance()->deviceFunctions(m_window->device());
+    df->vkDeviceWaitIdle(m_window->device());
+    m_targetExtent = swapSize;
+    m_renderContext->Resize(static_cast<quantiloom::u32>(swapSize.width()),
+                            static_cast<quantiloom::u32>(swapSize.height()));
 }
 
 void QuantiloomVulkanRenderer::setPaused(bool paused) {
@@ -467,7 +539,7 @@ void QuantiloomVulkanRenderer::loadScene(const QString& filePath, bool adoptScen
 
     if (result) {
         qDebug() << "  Scene loaded successfully!";
-        m_currentScenePath = filePath;  // Save for restore after minimize
+        m_currentScenePath = filePath;  // Save for a context rebuild
         // A bare model is not a configuration, and the previous document's must
         // not outlive it: replaying it here is how one scene's illuminant and
         // spectral curves used to reach an unrelated model.
@@ -477,7 +549,7 @@ void QuantiloomVulkanRenderer::loadScene(const QString& filePath, bool adoptScen
             m_configAppliedToContext = false;
         }
 
-        // Re-apply stored render settings (important for restore after minimize)
+        // Re-apply stored render settings (important after a context rebuild)
         if (m_hasLightingParams) {
             qDebug() << "  Re-applying stored LightingParams";
             m_renderContext->SetLightingParams(m_lightingParams);
@@ -488,7 +560,7 @@ void QuantiloomVulkanRenderer::loadScene(const QString& filePath, bool adoptScen
         m_renderContext->SetSamplingSeed(m_samplingSeed);
         m_renderContext->SetWavelength(m_wavelength);
         // The atmosphere belongs in this list for the same reason as the rest:
-        // a minimize destroys the render context, and the fresh one starts with
+        // a lost device destroys the render context, and the fresh one starts with
         // no model pack and a disabled header. The buffers rebound and the
         // scene rendered, so the only symptom was a sky that quietly stopped
         // being atmospheric until the preset was touched again.
@@ -974,7 +1046,7 @@ void QuantiloomVulkanRenderer::updateMaterial(int index, const quantiloom::Mater
 // The three below are pools and an illuminant added at runtime, from panels
 // rather than from the config. ApplyConfig restores only what the *file*
 // declared, so each is kept here and re-pushed after a context rebuild --
-// otherwise a minimise silently drops every curve the user has loaded this
+// otherwise a rebuild silently drops every curve the user has loaded this
 // session, and the materials pointing at them fall back to their base colour.
 // Order matters: replay appends in the same order, so the indices handed out
 // the first time stay valid.
@@ -1271,6 +1343,10 @@ void QuantiloomVulkanRenderer::resetAccumulation() {
     m_sampleCount = 0;
     m_viewportSampleBatch.reset(m_window->concurrentFrameCount());
     if (m_renderContext) {
+        // A restart is when a size the viewport changed to while the old
+        // image was held gets taken up: nothing is lost that is not being
+        // discarded anyway.
+        adoptSwapchainExtent();
         m_renderContext->ResetAccumulation();
     }
     emit m_window->pixelReadbackInvalidated();

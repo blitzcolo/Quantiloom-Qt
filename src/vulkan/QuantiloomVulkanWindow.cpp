@@ -41,6 +41,13 @@ QuantiloomVulkanWindow::QuantiloomVulkanWindow(QWindow* parent)
     // against the CLI's PNG. Qt falls back to its default if neither is supported.
     setPreferredColorFormats({VK_FORMAT_B8G8R8A8_SRGB, VK_FORMAT_R8G8B8A8_SRGB});
 
+    // Keep the device, and with it the render context, across being hidden.
+    // Qt's default releases everything when the window is unexposed, and a
+    // minimize unexposes it: QWidget hides its children, and the window
+    // container hides this window with them. Restoring then rebuilt the
+    // context and reloaded the whole scene, the accumulation lost with it.
+    setFlags(QVulkanWindow::PersistentResources);
+
     // Request required device extensions for ray tracing
     setDeviceExtensions({
         // Ray tracing core extensions
@@ -333,9 +340,22 @@ bool QuantiloomVulkanWindow::isRenderPaused() const {
     return m_renderer && m_renderer->isPaused();
 }
 
-QPointF QuantiloomVulkanWindow::toDevicePixels(const QPointF& logical) const {
+QPointF QuantiloomVulkanWindow::toTargetPixels(const QPointF& logical) const {
     const qreal ratio = devicePixelRatio();
-    return QPointF(logical.x() * ratio, logical.y() * ratio);
+    const QPointF device(logical.x() * ratio, logical.y() * ratio);
+    return m_renderer ? m_renderer->swapchainToTarget(device) : device;
+}
+
+void QuantiloomVulkanWindow::reportHover(const QPointF& pixel) {
+    // Over the bars around a held render there is no pixel to read, which is
+    // what leaving the viewport already means to the readout.
+    const QSize extent = m_renderer ? m_renderer->targetExtent() : QSize();
+    if (pixel.x() < 0.0 || pixel.y() < 0.0 || pixel.x() >= extent.width() ||
+        pixel.y() >= extent.height()) {
+        emit mouseHoverLeft();
+        return;
+    }
+    emit mouseHovered(static_cast<int>(pixel.x()), static_cast<int>(pixel.y()));
 }
 
 void QuantiloomVulkanWindow::setSpectralMode(quantiloom::SpectralMode mode) {
@@ -904,8 +924,8 @@ void QuantiloomVulkanWindow::keyReleaseEvent(QKeyEvent* event) {
 void QuantiloomVulkanWindow::mousePressEvent(QMouseEvent* event) {
     if (event->button() == Qt::LeftButton) {
         // Always emit for debug value display (regardless of edit mode)
-        const QPointF device = toDevicePixels(event->position());
-        emit mouseHovered(static_cast<int>(device.x()), static_cast<int>(device.y()));
+        const QPointF device = toTargetPixels(event->position());
+        reportHover(device);
 
         if (m_editMode) {
             // Three-way dispatch: a gizmo handle under the cursor starts a
@@ -914,7 +934,7 @@ void QuantiloomVulkanWindow::mousePressEvent(QMouseEvent* event) {
             // as soon as something was selected -- made it impossible to
             // click another object or click empty space to deselect.
             if (m_selection && m_selection->hasSelection() && m_gizmo &&
-                beginGizmoDragAt(toDevicePixels(event->position()))) {
+                beginGizmoDragAt(toTargetPixels(event->position()))) {
                 // handle grabbed; drag state set up in beginGizmoDragAt
             } else {
                 emit viewportClicked(device, event->modifiers());
@@ -1102,11 +1122,16 @@ std::optional<quantiloom::PickResult> QuantiloomVulkanWindow::pickScene(
     if (!ctx || !ctx->HasScene()) {
         return std::nullopt;
     }
+    // Off the image -- over the bars around a held render -- nothing is under
+    // the cursor: a miss, as the sky is, so the click clears the selection
+    // like any click on empty space instead of failing and leaving it be.
+    const QSize extent = m_renderer->targetExtent();
+    if (devicePos.x() < 0.0 || devicePos.y() < 0.0 ||
+        devicePos.x() >= extent.width() || devicePos.y() >= extent.height()) {
+        return quantiloom::PickResult{};
+    }
     const int x = static_cast<int>(devicePos.x());
     const int y = static_cast<int>(devicePos.y());
-    if (x < 0 || y < 0) {
-        return std::nullopt;
-    }
     auto result = ctx->Pick(static_cast<quantiloom::u32>(x),
                             static_cast<quantiloom::u32>(y));
     if (!result.has_value()) {
@@ -1143,7 +1168,7 @@ void QuantiloomVulkanWindow::mouseReleaseEvent(QMouseEvent* event) {
 void QuantiloomVulkanWindow::mouseMoveEvent(QMouseEvent* event) {
     // Transform dragging has priority
     if (m_transformDragging && m_gizmo && m_gizmo->isDragging() && m_renderer) {
-        const QPointF device = toDevicePixels(event->position());
+        const QPointF device = toTargetPixels(event->position());
         const vkview::CameraRay ray = m_renderer->overlayCamera().rayThroughPixel(
             static_cast<float>(device.x()), static_cast<float>(device.y()));
         // Ctrl snaps the TOTAL delta to increments, Blender-style
@@ -1193,8 +1218,8 @@ void QuantiloomVulkanWindow::wheelEvent(QWheelEvent* event) {
 bool QuantiloomVulkanWindow::event(QEvent* event) {
     if (event->type() == QEvent::HoverMove) {
         auto* hoverEvent = static_cast<QHoverEvent*>(event);
-        const QPointF device = toDevicePixels(hoverEvent->position());
-        emit mouseHovered(static_cast<int>(device.x()), static_cast<int>(device.y()));
+        const QPointF device = toTargetPixels(hoverEvent->position());
+        reportHover(device);
 
         // Gizmo hover highlight: the same hit-test the grab uses, so a handle
         // that lights up is a handle that will respond. Overlay-only state, so

@@ -3,7 +3,9 @@
  * @brief Editor overlay pass drawn on top of the SDK's rendered frame
  *
  * The SDK blits its path-traced image straight into the swapchain image and
- * leaves it in PRESENT_SRC. This pass runs after it in the same command
+ * leaves it in PRESENT_SRC -- or, while the render keeps an extent the
+ * viewport no longer has, into the held frame owned here, which is drawn
+ * over and then fitted into the swapchain image. This pass runs after it in the same command
  * buffer: it transitions the image back to a color attachment, draws the
  * viewport grid (and, later, the transform gizmo) with dynamic rendering and
  * LOAD_OP_LOAD, and returns the image to PRESENT_SRC. It never touches
@@ -57,11 +59,15 @@ public:
 
     /// Record the overlay after ExternalRenderContext::RenderFrame in the
     /// same command buffer. A no-op while nothing is visible.
+    /// `targetImage`/`targetView` are the image RenderFrame presented into --
+    /// the swapchain image, or the held frame while the swapchain has another
+    /// size -- left in PRESENT_SRC, and `width`/`height` its extent.
     /// `gizmoVertices` is this frame's gizmo triangle list (world space,
     /// empty = no gizmo); it is copied into a per-frame vertex buffer.
     void record(QVulkanWindow* window,
                 quantiloom::ExternalRenderContext* ctx,
                 VkCommandBuffer cmd,
+                VkImage targetImage, VkImageView targetView,
                 uint32_t width, uint32_t height,
                 const CameraMatrices& camera,
                 const std::vector<editing::GizmoVertex>& gizmoVertices);
@@ -73,15 +79,16 @@ public:
     // Composited capture (what-you-see screenshots for agents/debugging)
     // ========================================================================
 
-    /// Queue a one-shot PNG capture of the final swapchain image -- the
+    /// Queue a one-shot PNG capture of the composited frame -- the
     /// SDK's frame WITH the grid and gizmo composited over it, which the
     /// SDK-side captures cannot show. Saved a few frames later (the copy has
     /// to clear the frames in flight); poll the file.
     void requestCompositedCapture(const QString& path);
 
-    /// Record the swapchain copy for a pending capture. Call after record(),
-    /// while the image is back in PRESENT_SRC.
+    /// Record the copy for a pending capture. Call after record(), with the
+    /// image record() drew into, while it is back in PRESENT_SRC.
     void recordCaptureIfRequested(QVulkanWindow* window, VkCommandBuffer cmd,
+                                  VkImage sourceImage,
                                   uint32_t width, uint32_t height);
 
     /// Save a recorded capture once its frame is provably complete. Call at
@@ -93,6 +100,34 @@ public:
     /// record and a few more to clear the frames in flight, and the loop now
     /// stops on its own at the target sample count.
     [[nodiscard]] bool capturePending() const { return !m_capturePath.isEmpty(); }
+
+    // ========================================================================
+    // Held frame: the render at an extent the swapchain no longer has
+    // ========================================================================
+
+    struct FrameTarget {
+        VkImage image = VK_NULL_HANDLE;
+        VkImageView view = VK_NULL_HANDLE;
+    };
+
+    /// The image the SDK presents into, and the overlay draws over, while the
+    /// render keeps an extent the swapchain does not have. Sized here to
+    /// width x height in the swapchain's format, and recorded into
+    /// TRANSFER_DST behind a barrier on everything submitted before it, which
+    /// is what keeps this frame's write off the previous frame's read. Null
+    /// handles when it cannot be created.
+    ///
+    /// Recreated without a wait of its own when the extent changes, so the
+    /// caller must have drained the queue since the old extent was last used
+    /// -- the same contract ensureSizedResources() relies on.
+    FrameTarget beginHeldFrame(QVulkanWindow* window, VkCommandBuffer cmd,
+                               uint32_t width, uint32_t height);
+
+    /// Draw the held frame into the current swapchain image at `dst`, the
+    /// rest of the image cleared, and leave the swapchain image in
+    /// PRESENT_SRC. Call last, after record() and the capture.
+    void presentHeldFrame(QVulkanWindow* window, VkCommandBuffer cmd,
+                          const VkRect2D& dst);
 
 private:
     struct OwnedImage {
@@ -143,6 +178,8 @@ private:
     OwnedImage m_depthAov;      // R32_SFLOAT, written by BlitDepthTo, sampled by grid
     OwnedImage m_overlayDepth;  // D32_SFLOAT, cleared per pass, overlay self-occlusion
     VkImageLayout m_depthAovLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    OwnedImage m_heldFrame;     // swapchain format; see beginHeldFrame()
+    bool m_heldFrameLinear = false;  // the format can be blitted with LINEAR
 
     // Composited-capture state (one shot at a time)
     QString m_capturePath;             // non-empty = capture requested

@@ -60,6 +60,7 @@ uint32_t findMemoryType(VkPhysicalDevice physDevice, uint32_t typeBits,
 void OverlayRenderer::record(QVulkanWindow* window,
                              quantiloom::ExternalRenderContext* ctx,
                              VkCommandBuffer cmd,
+                             VkImage targetImage, VkImageView targetView,
                              uint32_t width, uint32_t height,
                              const CameraMatrices& camera,
                              const std::vector<editing::GizmoVertex>& gizmoVertices) {
@@ -96,19 +97,15 @@ void OverlayRenderer::record(QVulkanWindow* window,
         }
     }
 
-    // 2. The SDK left the swapchain image in PRESENT_SRC; make it a color
+    // 2. The SDK left the target image in PRESENT_SRC; make it a color
     //    attachment again
-    const int swapIndex = window->currentSwapChainImageIndex();
-    VkImage swapImage = window->swapChainImage(swapIndex);
-    VkImageView swapView = window->swapChainImageView(swapIndex);
-
     VkImageMemoryBarrier toColor{};
     toColor.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
     toColor.oldLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
     toColor.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
     toColor.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     toColor.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    toColor.image = swapImage;
+    toColor.image = targetImage;
     toColor.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     toColor.subresourceRange.levelCount = 1;
     toColor.subresourceRange.layerCount = 1;
@@ -122,7 +119,7 @@ void OverlayRenderer::record(QVulkanWindow* window,
     // 3. Dynamic rendering over the existing frame
     VkRenderingAttachmentInfoKHR colorAttachment{};
     colorAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
-    colorAttachment.imageView = swapView;
+    colorAttachment.imageView = targetView;
     colorAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
     colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;  // never clear the frame
     colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -587,12 +584,11 @@ void OverlayRenderer::ensureSizedResources(QVulkanWindow* window, VkCommandBuffe
 
     // Both images below are destroyed here, in the middle of recording a frame,
     // with no wait of our own. That is safe only because width and height are
-    // the swapchain's extent (QuantiloomVulkanRenderer::startNextFrame passes
-    // swapChainImageSize()), so a mismatch means the swapchain was just
-    // rebuilt -- and QVulkanWindow calls vkDeviceWaitIdle before rebuilding it,
-    // so no earlier frame can still be reading the old images. Sizing these
-    // from anything that can change between swapchain rebuilds would break
-    // that, and would need a wait here.
+    // the renderer's target extent, which while frames are in flight changes
+    // only in QuantiloomVulkanRenderer::adoptSwapchainExtent(), and that drains
+    // the queue first -- so no earlier frame can still be reading the old images. Sizing
+    // these from anything that can change without that wait would break it,
+    // and would need a wait here.
     if (m_depthAov.width != width || m_depthAov.height != height) {
         destroyImage(device, m_depthAov);
         m_depthAov = createImage(window, width, height, VK_FORMAT_R32_SFLOAT,
@@ -720,6 +716,7 @@ void OverlayRenderer::requestCompositedCapture(const QString& path) {
 
 void OverlayRenderer::recordCaptureIfRequested(QVulkanWindow* window,
                                                VkCommandBuffer cmd,
+                                               VkImage sourceImage,
                                                uint32_t width, uint32_t height) {
     if (m_capturePath.isEmpty() || m_captureRecorded || width == 0 || height == 0) {
         return;
@@ -756,16 +753,13 @@ void OverlayRenderer::recordCaptureIfRequested(QVulkanWindow* window,
         return;
     }
 
-    const int swapIndex = window->currentSwapChainImageIndex();
-    VkImage swapImage = window->swapChainImage(swapIndex);
-
     VkImageMemoryBarrier toSrc{};
     toSrc.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
     toSrc.oldLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
     toSrc.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
     toSrc.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     toSrc.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    toSrc.image = swapImage;
+    toSrc.image = sourceImage;
     toSrc.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     toSrc.subresourceRange.levelCount = 1;
     toSrc.subresourceRange.layerCount = 1;
@@ -779,7 +773,7 @@ void OverlayRenderer::recordCaptureIfRequested(QVulkanWindow* window,
     region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     region.imageSubresource.layerCount = 1;
     region.imageExtent = {width, height, 1};
-    vkCmdCopyImageToBuffer(cmd, swapImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+    vkCmdCopyImageToBuffer(cmd, sourceImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                            m_captureBuffer, 1, &region);
 
     VkImageMemoryBarrier toPresent = toSrc;
@@ -829,6 +823,139 @@ void OverlayRenderer::finishCaptureIfReady(QVulkanWindow* window) {
     m_captureRecorded = false;
 }
 
+OverlayRenderer::FrameTarget OverlayRenderer::beginHeldFrame(QVulkanWindow* window,
+                                                             VkCommandBuffer cmd,
+                                                             uint32_t width,
+                                                             uint32_t height) {
+    VkDevice device = window->device();
+    if (m_heldFrame.image == VK_NULL_HANDLE || m_heldFrame.width != width ||
+        m_heldFrame.height != height) {
+        destroyImage(device, m_heldFrame);
+        const VkFormat format = window->colorFormat();
+        // TRANSFER_DST for the SDK's blit, COLOR_ATTACHMENT for the overlay,
+        // TRANSFER_SRC for the capture and for the blit into the swapchain.
+        m_heldFrame = createImage(window, width, height, format,
+                                  VK_IMAGE_USAGE_TRANSFER_DST_BIT |
+                                      VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
+                                      VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+                                  VK_IMAGE_ASPECT_COLOR_BIT);
+        if (m_heldFrame.view == VK_NULL_HANDLE) {
+            destroyImage(device, m_heldFrame);
+            return {};
+        }
+        VkFormatProperties props{};
+        vkGetPhysicalDeviceFormatProperties(window->physicalDevice(), format, &props);
+        m_heldFrameLinear = (props.optimalTilingFeatures &
+                             VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT) != 0;
+    }
+
+    // The SDK's own barrier on its target waits on nothing (srcAccessMask 0,
+    // from its trace stage), which is right for a swapchain image -- the
+    // acquire semaphore orders it -- and not for this one: the previous frame
+    // may still be blitting it into its swapchain image. So everything
+    // submitted before this frame is waited on here. UNDEFINED because the
+    // SDK overwrites the whole image.
+    VkImageMemoryBarrier toDst{};
+    toDst.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    toDst.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    toDst.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    toDst.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    toDst.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    toDst.image = m_heldFrame.image;
+    toDst.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    toDst.subresourceRange.levelCount = 1;
+    toDst.subresourceRange.layerCount = 1;
+    toDst.srcAccessMask = 0;
+    toDst.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+                         VK_PIPELINE_STAGE_TRANSFER_BIT, 0,
+                         0, nullptr, 0, nullptr, 1, &toDst);
+
+    return {m_heldFrame.image, m_heldFrame.view};
+}
+
+void OverlayRenderer::presentHeldFrame(QVulkanWindow* window, VkCommandBuffer cmd,
+                                       const VkRect2D& dst) {
+    if (m_heldFrame.image == VK_NULL_HANDLE) {
+        return;
+    }
+    VkImage swapImage = window->swapChainImage(window->currentSwapChainImageIndex());
+
+    // The held frame is in PRESENT_SRC however it got there -- the SDK's blit,
+    // the overlay pass or the capture copy -- so MEMORY_WRITE from all
+    // commands covers whichever of them ran last. The swapchain image is
+    // written whole, so its old contents are discarded; ALL_COMMANDS also
+    // chains this after the acquire semaphore, which Qt waits on at
+    // COLOR_ATTACHMENT_OUTPUT.
+    VkImageMemoryBarrier toSrc{};
+    toSrc.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    toSrc.oldLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    toSrc.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+    toSrc.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    toSrc.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    toSrc.image = m_heldFrame.image;
+    toSrc.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    toSrc.subresourceRange.levelCount = 1;
+    toSrc.subresourceRange.layerCount = 1;
+    toSrc.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
+    toSrc.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+
+    VkImageMemoryBarrier toDst = toSrc;
+    toDst.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    toDst.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    toDst.image = swapImage;
+    toDst.srcAccessMask = 0;
+    toDst.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+
+    const VkImageMemoryBarrier before[2] = {toSrc, toDst};
+    vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+                         VK_PIPELINE_STAGE_TRANSFER_BIT, 0,
+                         0, nullptr, 0, nullptr, 2, before);
+
+    // The bars. Black, as the no-scene frame is; a clear covers the whole
+    // image, so the blit below has to wait for it.
+    const QSize swapSize = window->swapChainImageSize();
+    const bool bars = dst.offset.x != 0 || dst.offset.y != 0 ||
+                      static_cast<int>(dst.extent.width) != swapSize.width() ||
+                      static_cast<int>(dst.extent.height) != swapSize.height();
+    if (bars) {
+        const VkClearColorValue black{{0.0f, 0.0f, 0.0f, 1.0f}};
+        vkCmdClearColorImage(cmd, swapImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                             &black, 1, &toDst.subresourceRange);
+        VkMemoryBarrier clearDone{};
+        clearDone.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+        clearDone.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        clearDone.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT,
+                             VK_PIPELINE_STAGE_TRANSFER_BIT, 0,
+                             1, &clearDone, 0, nullptr, 0, nullptr);
+    }
+
+    VkImageBlit blit{};
+    blit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    blit.srcSubresource.layerCount = 1;
+    blit.srcOffsets[1] = {static_cast<int32_t>(m_heldFrame.width),
+                          static_cast<int32_t>(m_heldFrame.height), 1};
+    blit.dstSubresource = blit.srcSubresource;
+    blit.dstOffsets[0] = {dst.offset.x, dst.offset.y, 0};
+    blit.dstOffsets[1] = {dst.offset.x + static_cast<int32_t>(dst.extent.width),
+                          dst.offset.y + static_cast<int32_t>(dst.extent.height), 1};
+    vkCmdBlitImage(cmd, m_heldFrame.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                   swapImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit,
+                   m_heldFrameLinear ? VK_FILTER_LINEAR : VK_FILTER_NEAREST);
+
+    // Swapchain image back to PRESENT_SRC for Qt's present. The held frame
+    // stays in TRANSFER_SRC; the next beginHeldFrame() discards it anyway.
+    VkImageMemoryBarrier toPresent = toDst;
+    toPresent.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    toPresent.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    toPresent.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    toPresent.dstAccessMask = 0;
+    vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT,
+                         VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0,
+                         0, nullptr, 0, nullptr, 1, &toPresent);
+}
+
 void OverlayRenderer::destroyCaptureBuffer(VkDevice device) {
     if (m_captureMapped) {
         vkUnmapMemory(device, m_captureMemory);
@@ -857,6 +984,7 @@ void OverlayRenderer::releaseResources(QVulkanWindow* window) {
 
     destroyImage(device, m_depthAov);
     destroyImage(device, m_overlayDepth);
+    destroyImage(device, m_heldFrame);
     m_depthAovLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
     destroyGizmoBuffers(device);
