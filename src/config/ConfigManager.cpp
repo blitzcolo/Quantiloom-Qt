@@ -342,6 +342,15 @@ void ConfigManager::extractSceneConfig(const quantiloom::Config& config, SceneCo
     }
 
     out.lighting.atmosphereTemperature_K = config.GetFloat("lighting.atmosphere_temperature_k", 260.0f);
+    // Where the visible sky's light comes from. The core decides what the keys
+    // mean; they are read here only so a save writes back what the file said.
+    out.lighting.skyDistribution =
+        config.GetString("lighting.sky_distribution", "clear") == "uniform"
+            ? quantiloom::SkyDistributionId::Uniform
+            : quantiloom::SkyDistributionId::Clear;
+    out.lighting.skyAerosolOpticalDepth =
+        config.GetFloat("lighting.sky_aerosol_optical_depth",
+                        quantiloom::LightingDefaults::SKY_AEROSOL_OPTICAL_DEPTH);
     // skyEmissivityClear is not read from the file: the core derives it from
     // [atmosphere] sky_model, air_temperature_k and relative_humidity, which
     // are read below. Setting it from a stale key here would put a second
@@ -1058,6 +1067,15 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
                               << config.lighting.skyRadiance_rgb.g << ", "
                               << config.lighting.skyRadiance_rgb.b << "]\n";
     out << "atmosphere_temperature_k = " << config.lighting.atmosphereTemperature_K << "\n";
+    // The clear sky is the default and is not restated; a file that chose the
+    // uniform dome, or another aerosol depth, keeps saying so.
+    if (config.lighting.skyDistribution == quantiloom::SkyDistributionId::Uniform) {
+        out << "sky_distribution = \"uniform\"\n";
+    }
+    if (std::abs(config.lighting.skyAerosolOpticalDepth -
+                 quantiloom::LightingDefaults::SKY_AEROSOL_OPTICAL_DEPTH) > 1e-6f) {
+        out << "sky_aerosol_optical_depth = " << config.lighting.skyAerosolOpticalDepth << "\n";
+    }
     // Read back by extractSceneConfig, so leaving it out was one more value
     // lighting.transmittance is gone: the key was deprecated when the NN
     // atmosphere took the view path, and the slot it occupied in

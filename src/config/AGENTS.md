@@ -43,7 +43,9 @@ Everything a panel owns is written back, and `MainWindow::collectCurrentConfig()
 it from the panel rather than from the config that was loaded. That includes the
 spectral mode and wavelength range, the camera (read from the renderer, so orbiting with
 the mouse is exported too — `view_up` included, the up the view is shown with, without
-which a straight-down view reopens facing the SDK's fallback axis), the merged lighting parameters, the atmosphere preset and
+which a straight-down view reopens facing the SDK's fallback axis), the merged lighting parameters (the sky's distribution over
+direction, `lighting.sky_distribution` and `sky_aerosol_optical_depth`, rides in them;
+the default clear sky is not restated on save), the atmosphere preset and
 its nine weather features, and the whole sensor block — whose `[sensor]` tree is now
 the SDK's serialization in both directions: `ParseCameraConfig` on load, which
 migrates a legacy unversioned `[sensor]` block, and `CameraConfigToToml` on save, so
