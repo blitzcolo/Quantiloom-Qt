@@ -780,16 +780,31 @@ bool QuantiloomVulkanRenderer::applyConfigToContext(bool isFreshOpen) {
     }
 
     // Anything the config could not be honoured on, in the log next to the
-    // messages the SDK already wrote there.
+    // messages the SDK already wrote there -- and the first of them in the
+    // status bar. The log is stdout, which nobody sees who did not start Studio
+    // from a console, and a config that loads with a warning is one that
+    // renders something other than what it says: a global irradiance read as
+    // the sky lights the whole scene with the sun twice and nothing else does.
+    //
+    // Every warning rides along after the first line, which the status bar
+    // keeps for its tooltip (MainWindow::showStatusMessage).
+    QStringList warnings;
     for (const auto& message : report.messages) {
         if (message.severity == quantiloom::ConfigApplyMessage::Severity::Warning) {
             QL_LOG_WARN("Config: {}", message.text);
+            warnings << QString::fromStdString(message.text).trimmed();
         }
     }
 
     m_configAppliedToContext = true;
     resetAccumulation();
-    emit m_window->sceneLoaded(true, QObject::tr("Scene loaded successfully"));
+    emit m_window->sceneLoaded(true,
+        warnings.isEmpty()
+            ? QObject::tr("Scene loaded successfully")
+            : QObject::tr("Scene loaded with %n warning(s): %1", nullptr,
+                          static_cast<int>(warnings.size()))
+                      .arg(warnings.first()) +
+                  QLatin1Char('\n') + warnings.join(QLatin1Char('\n')));
     return true;
 }
 

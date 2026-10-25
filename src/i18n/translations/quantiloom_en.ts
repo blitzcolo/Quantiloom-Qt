@@ -3346,6 +3346,13 @@ Pick a node or a material in the scene tree.</source>
         <source>Failed to load configuration: %1</source>
         <translation type="unfinished"></translation>
     </message>
+    <message numerus="yes">
+        <source>Scene loaded with %n warning(s): %1</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
     <message>
         <source>The renderer is not ready yet.</source>
         <translation type="unfinished"></translation>

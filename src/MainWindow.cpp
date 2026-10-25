@@ -2777,11 +2777,20 @@ void MainWindow::setupStatusBar() {
     m_statusTimer->setSingleShot(true);
     connect(m_statusTimer, &QTimer::timeout, this, [this]() {
         m_statusLabel->setText(tr("Ready"));
+        m_statusLabel->setToolTip(QString());
     });
 }
 
 void MainWindow::showStatusMessage(const QString& message, int timeoutMs) {
-    m_statusLabel->setText(message);
+    // A message may carry detail after its first line -- every warning a
+    // scene load raised -- which goes in the tooltip rather than stretching
+    // the bar, and is given longer than a transient "Lighting updated".
+    const qsizetype detail = message.indexOf(QLatin1Char('\n'));
+    m_statusLabel->setText(detail < 0 ? message : message.left(detail));
+    m_statusLabel->setToolTip(detail < 0 ? QString() : message.mid(detail + 1));
+    if (detail >= 0 && timeoutMs > 0) {
+        timeoutMs = std::max(timeoutMs, 30000);
+    }
     if (timeoutMs > 0) {
         m_statusTimer->start(timeoutMs);
     } else {

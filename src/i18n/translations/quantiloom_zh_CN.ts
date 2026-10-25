@@ -3531,6 +3531,12 @@ Pick a node or a material in the scene tree.</source>
         <source>Failed to load configuration: %1</source>
         <translation>加载配置失败：%1</translation>
     </message>
+    <message numerus="yes">
+        <source>Scene loaded with %n warning(s): %1</source>
+        <translation>
+            <numerusform>场景已加载，有 %n 条警告：%1</numerusform>
+        </translation>
+    </message>
     <message>
         <source>The renderer is not ready yet.</source>
         <translation>渲染器尚未就绪。</translation>
