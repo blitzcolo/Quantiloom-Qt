@@ -105,6 +105,16 @@ public:
     [[nodiscard]] bool hasRenderer() const { return m_renderer != nullptr; }
 
     /**
+     * @brief Whether the SDK is busy on a worker thread right now
+     *
+     * A scene opening, a mode switch building its pipeline, a thermal solve:
+     * the shell keeps its event loop turning through them, and anything it
+     * would have the renderer do from a timer or a tool call waits until this
+     * is false again.
+     */
+    [[nodiscard]] bool isRendererBusy() const;
+
+    /**
      * @brief Reset camera to default position
      */
     void resetCamera();
@@ -625,11 +635,13 @@ signals:
     void cameraChanged();
 
     /**
-     * @brief A blocking operation is under way (first-run shader compilation)
+     * @brief A renderer operation on its worker thread has outlasted a moment
      *
-     * Reported rather than handled here: the renderer has no business owning
-     * an application-modal dialog, which is what it used to raise before the
-     * main window had appeared.
+     * A scene opening, first-run shader compilation, a pipeline variant, a
+     * thermal solve. The event loop keeps turning meanwhile, and the shell
+     * shows the busy card until longOperationFinished(). Operations that end
+     * sooner emit neither. Reported rather than handled here: the renderer
+     * has no business owning a window.
      */
     void longOperationStarted(const QString& description);
     void longOperationFinished();
@@ -715,7 +727,8 @@ private:
      * swallowed settings across a minimize, which the pending scene path was
      * already working around on its own.
      *
-     * Recorded calls are replayed in order in createRenderer(). Every setter
+     * Recorded calls are replayed in order, from the event loop, once the
+     * render context exists (applyDeferredSettings()). Every setter
      * is idempotent, so replaying a value that was later overwritten is
      * harmless.
      */
@@ -746,7 +759,12 @@ private:
 
     QuantiloomVulkanRenderer* m_renderer = nullptr;
     std::vector<std::function<void(QuantiloomVulkanRenderer&)>> m_deferredCalls;
-    QString m_pendingScenePath;
+    /// applyDeferredSettings() has posted the replay and it has not run yet.
+    /// Calls made meanwhile join the queue, so they keep their order.
+    bool m_deferredReplayQueued = false;
+    /// Set by the renderer while its context is out on a worker thread: no
+    /// frame may be started, because it would submit to the queue in use.
+    bool m_framesHeld = false;
 
     // Camera control state
     bool m_mousePressed = false;

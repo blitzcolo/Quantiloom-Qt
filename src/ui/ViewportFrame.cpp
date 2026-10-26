@@ -12,7 +12,6 @@
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QLabel>
-#include <QProgressBar>
 #include <QPushButton>
 #include <QStackedWidget>
 #include <QVBoxLayout>
@@ -48,18 +47,6 @@ ViewportFrame::ViewportFrame(QWidget* viewport, QWidget* parent)
     stripLayout->addWidget(m_previewOnlyChip);
 
     stripLayout->addStretch();
-
-    m_busyLabel = new QLabel(strip);
-    m_styling.bind([this] { uistyle::applyHintStyle(m_busyLabel); });
-    m_busyLabel->setVisible(false);
-    stripLayout->addWidget(m_busyLabel);
-
-    m_busyBar = new QProgressBar(strip);
-    m_busyBar->setRange(0, 0);          // indeterminate
-    m_busyBar->setMaximumWidth(140);
-    m_busyBar->setTextVisible(false);
-    m_busyBar->setVisible(false);
-    stripLayout->addWidget(m_busyBar);
 
     outer->addWidget(strip);
 
@@ -160,13 +147,6 @@ void ViewportFrame::setSceneLoaded(bool loaded) {
     } else {
         m_stack->setCurrentWidget(m_emptyPage);
     }
-}
-
-void ViewportFrame::setBusyMessage(const QString& message) {
-    const bool busy = !message.isEmpty();
-    m_busyLabel->setText(message);
-    m_busyLabel->setVisible(busy);
-    m_busyBar->setVisible(busy);
 }
 
 void ViewportFrame::setRecentFiles(const QStringList& files) {

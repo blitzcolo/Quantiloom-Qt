@@ -14,6 +14,7 @@
 #include <QRect>
 #include <QSize>
 #include <QFuture>
+#include <functional>
 #include <memory>
 #include <chrono>
 #include <optional>
@@ -99,6 +100,10 @@ public:
     /// True while a scene configuration is the open document, as opposed to a
     /// bare model or nothing at all.
     [[nodiscard]] bool hasConfig() const { return m_currentConfig != nullptr; }
+
+    /// True while runContextJob() has the context out on its worker thread.
+    /// Nothing may reach the SDK meanwhile; see src/vulkan/AGENTS.md.
+    [[nodiscard]] bool contextBusy() const { return m_contextJobActive; }
 
     void resetCamera();
 
@@ -691,6 +696,17 @@ private:
 
     // Display enhancement (CLAHE)
     quantiloom::DisplayEnhancementParams m_displayParams;
+
+    /// Run @p work against the context on a worker thread while this thread
+    /// keeps its event loop turning, and return when it is done. Past a short
+    /// delay longOperationStarted(@p description) puts up the busy card, and
+    /// longOperationFinished() takes it down. Called with the context present;
+    /// runs @p work inline instead inside a QVulkanWindow callback.
+    void runContextJob(const QString& description,
+                       const std::function<void(quantiloom::ExternalRenderContext&)>& work);
+    bool m_contextJobActive = false;
+    /// Set for the duration of initSwapChainResources() and startNextFrame().
+    bool m_inVulkanCallback = false;
 
     // Initialization state
     bool m_initialized = false;

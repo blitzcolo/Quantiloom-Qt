@@ -37,6 +37,7 @@
 #include "dialogs/HelpDialog.hpp"
 #include "dialogs/OfflineExport.hpp"
 #include "i18n/LanguageManager.hpp"
+#include "ui/BusyOverlay.hpp"
 #include "ui/ModeCatalog.hpp"
 #include "ui/UiStyle.hpp"
 #include "ui/ViewportFrame.hpp"
@@ -1650,6 +1651,12 @@ void MainWindow::applyThermalTime(double time_h) {
 }
 
 void MainWindow::applyTimelineTime(double time_s) {
+    // A playback tick while the renderer is busy: dropped, and the next one
+    // after it moves the clock. Applied, it would read back a timeline the
+    // renderer cannot report and stop the transport.
+    if (m_vulkanWindow->isRendererBusy()) {
+        return;
+    }
     m_timelineTimeS = time_s;
     m_vulkanWindow->setTimelineTime(time_s);
     if (m_vulkanWindow->cameraHistoryStatus().historyReset)
@@ -2053,7 +2060,7 @@ void MainWindow::startMcpServerFromCommandLine(quint16 port) {
 }
 
 void MainWindow::pumpMcp() {
-    if (!m_mcpServer || m_mcpPumping || m_longOperationActive) {
+    if (!m_mcpServer || m_mcpPumping || m_vulkanWindow->isRendererBusy()) {
         return;
     }
     m_mcpPumping = true;
@@ -3001,34 +3008,41 @@ void MainWindow::setupConnections() {
     connect(m_vulkanWindow, &QuantiloomVulkanWindow::cameraChanged,
             this, &MainWindow::onCameraChanged);
 
-    // First-run shader compilation used to be an application-modal dialog
-    // raised before the window appeared. It reports beside the viewport now.
+    // A scene opening, a pipeline building, a thermal solve: the renderer runs
+    // them on a worker and keeps this thread's event loop turning, and says so
+    // once one has outlasted a moment. The card is modal because nothing on
+    // the window can reach the renderer until it is done.
     connect(m_vulkanWindow, &QuantiloomVulkanWindow::longOperationStarted,
             this, [this](const QString& description) {
-                // The MCP pump stands down for the duration: this operation
-                // runs its own event loop, and a tool dispatched from it would
-                // reach a renderer that is halfway through building resources.
-                m_longOperationActive = true;
-                m_viewportFrame->setBusyMessage(description);
+                if (!m_busyOverlay) {
+                    m_busyOverlay = new BusyOverlay(m_viewportFrame);
+                }
+                m_busyOverlay->start(description);
+                if (!m_pendingOpenPath.isEmpty()) {
+                    m_busyOverlay->setDetail(QFileInfo(m_pendingOpenPath).fileName());
+                }
                 showStatusMessage(description, 0);
             });
     connect(m_vulkanWindow, &QuantiloomVulkanWindow::longOperationFinished,
             this, [this]() {
-                m_longOperationActive = false;
-                m_viewportFrame->setBusyMessage(QString());
+                if (m_busyOverlay) {
+                    m_busyOverlay->finish();
+                }
                 showStatusMessage(tr("Ready"));
             });
 
-    // The epoch build runs inside the SDK call that asked for the hour, so
-    // the event loop is not turning while it happens: the label is painted
-    // by hand or it is not painted until the build is over, which is exactly
-    // when it stops being useful. Not the long-operation overlay -- that one
-    // stands the MCP pump down and is for a build with a beginning and an
-    // end, whereas this is a counter.
+    // The epoch build runs inside the SDK call that asked for the hour, which
+    // is usually on the renderer's worker -- then the card shows the count.
+    // When it is not, the event loop is not turning: the label is painted by
+    // hand or not until the build is over, when it stops being useful.
     connect(m_vulkanWindow, &QuantiloomVulkanWindow::thermalEpochBuilding,
             this, [this](int epoch, int count) {
-                showStatusMessage(tr("Building thermal epoch %1 of %2\u2026")
-                                      .arg(epoch + 1).arg(count), 5000);
+                const QString progress =
+                    tr("Building thermal epoch %1 of %2\u2026").arg(epoch + 1).arg(count);
+                if (m_busyOverlay && m_busyOverlay->isVisible()) {
+                    m_busyOverlay->setDetail(progress);
+                }
+                showStatusMessage(progress, 5000);
                 m_statusLabel->repaint();
             });
 }
@@ -6284,6 +6298,11 @@ void MainWindow::onViewportHovered(int x, int y) {
 void MainWindow::processHoverReadback() {
     if (!m_hoverReadback.valid()) {
         m_hoverReadTimer->stop();
+        return;
+    }
+    // Kept pending: whatever the renderer is doing ends in a reset, and that
+    // invalidates the read.
+    if (m_vulkanWindow->isRendererBusy()) {
         return;
     }
 

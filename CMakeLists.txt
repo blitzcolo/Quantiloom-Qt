@@ -188,6 +188,8 @@ set(GUI_SOURCES
     # Shared UI infrastructure
     src/ui/PanelBase.cpp
     src/ui/PanelBase.hpp
+    src/ui/BusyOverlay.cpp
+    src/ui/BusyOverlay.hpp
     src/ui/ModeCatalog.cpp
     src/ui/ModeCatalog.hpp
     src/ui/HoverReadbackState.hpp

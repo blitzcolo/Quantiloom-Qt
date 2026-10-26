@@ -5,6 +5,25 @@ the **only** place this repo talks to the SDK — everything goes through
 `quantiloom::ExternalRenderContext`. Qt creates the Vulkan device and the SDK is handed
 the existing handles rather than making its own.
 
+## Long SDK calls run off the GUI thread
+
+Opening a config or a model, switching the spectral mode or the debug view (each
+builds a pipeline variant the first time), re-solving the thermal field and the
+click-time thermal probe go through `runContextJob()`. It hands the context to a
+worker thread and keeps the GUI thread's event loop turning, so a 20 s thermal
+scene no longer has Windows mark the window "Not Responding"; past 300 ms
+`longOperationStarted` puts up the shell's modal `BusyOverlay`.
+
+The SDK has no locking, so nothing may reach it while a job runs, and three
+things make sure of that. `m_renderContext` is *moved out* to the worker, so
+every path that checks for a context finds none; the window swallows
+`UpdateRequest`, so no frame is started; and the shell's timers and the MCP pump
+ask `isRendererBusy()` and stand down. A new caller that pokes the SDK from a
+timer must do the same. Inside a QVulkanWindow callback (`initSwapChainResources`,
+`startNextFrame`) the loop must not turn, so the job runs inline there — which is
+why `applyDeferredSettings()` posts its replay instead of running it: the queue
+usually holds the session's first scene.
+
 ## Every setter has the same shape
 
 ```cpp

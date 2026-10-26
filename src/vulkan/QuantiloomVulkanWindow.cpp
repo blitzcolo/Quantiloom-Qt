@@ -167,44 +167,47 @@ QVulkanWindowRenderer* QuantiloomVulkanWindow::createRenderer() {
     // The queued settings are *not* replayed here: there is no render context
     // yet. The renderer calls applyDeferredSettings() once there is one.
 
-    // Load pending scene if set before renderer was created
-    if (!m_pendingScenePath.isEmpty()) {
-        m_renderer->loadScene(m_pendingScenePath);
-        m_pendingScenePath.clear();
-    }
-
     return m_renderer;
 }
 
 void QuantiloomVulkanWindow::applyDeferredSettings() {
-    if (!m_renderer || m_deferredCalls.empty()) {
+    if (!m_renderer || m_deferredCalls.empty() || m_deferredReplayQueued) {
         return;
     }
-    // Settings first, scene second: the renderer keeps each setting as a
-    // member and re-applies it after a scene loads, so this order is the one
-    // that survives the load.
-    const auto calls = std::move(m_deferredCalls);
-    m_deferredCalls.clear();
-    for (const auto& call : calls) {
-        call(*m_renderer);
-    }
+    // From the event loop, not from here: this is called inside Qt's swapchain
+    // setup, where the loop must not turn, and the queue usually holds the
+    // first scene of the session -- the load most worth running off the GUI
+    // thread (QuantiloomVulkanRenderer::runContextJob).
+    m_deferredReplayQueued = true;
+    QMetaObject::invokeMethod(this, [this]() {
+        m_deferredReplayQueued = false;
+        // Settings first, scene second: the renderer keeps each setting as a
+        // member and re-applies it after a scene loads, so this order is the
+        // one that survives the load.
+        const auto calls = std::move(m_deferredCalls);
+        m_deferredCalls.clear();
+        for (const auto& call : calls) {
+            call(*m_renderer);
+        }
+    }, Qt::QueuedConnection);
 }
 
 void QuantiloomVulkanWindow::withRenderer(std::function<void(QuantiloomVulkanRenderer&)> call) {
-    if (m_renderer) {
+    if (m_renderer && !m_deferredReplayQueued) {
         call(*m_renderer);
         return;
     }
     m_deferredCalls.push_back(std::move(call));
 }
 
+bool QuantiloomVulkanWindow::isRendererBusy() const {
+    return m_renderer && m_renderer->contextBusy();
+}
+
 void QuantiloomVulkanWindow::loadScene(const QString& filePath) {
-    if (m_renderer) {
-        m_renderer->loadScene(filePath);
-    } else {
-        // Store for later loading when renderer is created
-        m_pendingScenePath = filePath;
-    }
+    // Queued like a config before the renderer exists, so that the first model
+    // of a session loads from the event loop too.
+    withRenderer([filePath](QuantiloomVulkanRenderer& renderer) { renderer.loadScene(filePath); });
 }
 
 void QuantiloomVulkanWindow::applyConfig(std::shared_ptr<const quantiloom::Config> config,
@@ -1221,6 +1224,11 @@ void QuantiloomVulkanWindow::wheelEvent(QWheelEvent* event) {
 }
 
 bool QuantiloomVulkanWindow::event(QEvent* event) {
+    // QVulkanWindow starts a frame on this event, and nowhere else; the
+    // renderer asks for one when it takes its context back.
+    if (event->type() == QEvent::UpdateRequest && m_framesHeld) {
+        return true;
+    }
     if (event->type() == QEvent::HoverMove) {
         auto* hoverEvent = static_cast<QHoverEvent*>(event);
         const QPointF device = toTargetPixels(hoverEvent->position());

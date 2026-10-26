@@ -29,7 +29,6 @@
 
 QT_BEGIN_NAMESPACE
 class QLabel;
-class QProgressBar;
 class QPushButton;
 class QStackedWidget;
 class QVBoxLayout;
@@ -48,9 +47,6 @@ public:
     /// Swap between the guidance page and the render surface.
     void setSceneLoaded(bool loaded);
     [[nodiscard]] bool isSceneLoaded() const { return m_sceneLoaded; }
-
-    /// Non-modal busy indicator in the mode strip. An empty message hides it.
-    void setBusyMessage(const QString& message);
 
     /// Recent scenes offered as buttons on the guidance page.
     void setRecentFiles(const QStringList& files);
@@ -81,8 +77,6 @@ private:
     QLabel* m_spectralChip = nullptr;
     QLabel* m_debugChip = nullptr;
     QLabel* m_previewOnlyChip = nullptr;
-    QLabel* m_busyLabel = nullptr;
-    QProgressBar* m_busyBar = nullptr;
 
     // Empty state
     QWidget* m_emptyPage = nullptr;

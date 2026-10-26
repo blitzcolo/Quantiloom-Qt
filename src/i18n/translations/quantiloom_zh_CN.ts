@@ -259,6 +259,13 @@ Leave empty to auto-detect.</source>
     </message>
 </context>
 <context>
+    <name>BusyOverlay</name>
+    <message>
+        <source>%1 s elapsed</source>
+        <translation>已用时 %1 秒</translation>
+    </message>
+</context>
+<context>
     <name>CameraPanel</name>
     <message>
         <source>Camera</source>
@@ -3565,6 +3572,18 @@ Pick a node or a material in the scene tree.</source>
 <context>
     <name>QuantiloomVulkanRenderer</name>
     <message>
+        <source>Loading scene…</source>
+        <translation>正在载入场景…</translation>
+    </message>
+    <message>
+        <source>Switching spectral mode…</source>
+        <translation>正在切换光谱模式…</translation>
+    </message>
+    <message>
+        <source>Switching debug visualization…</source>
+        <translation>正在切换调试可视化…</translation>
+    </message>
+    <message>
         <source>scale %1, bias %2</source>
         <translation>缩放 %1，偏移 %2</translation>
     </message>
@@ -3579,6 +3598,14 @@ Pick a node or a material in the scene tree.</source>
     <message>
         <source>colour-mapped — read against the colour bar</source>
         <translation>已伪彩映射 —— 请对照色标读取</translation>
+    </message>
+    <message>
+        <source>Solving the thermal field…</source>
+        <translation>正在求解温度场…</translation>
+    </message>
+    <message>
+        <source>Replaying this surface&apos;s thermal day…</source>
+        <translation>正在回放该表面全天的温度…</translation>
     </message>
 </context>
 <context>

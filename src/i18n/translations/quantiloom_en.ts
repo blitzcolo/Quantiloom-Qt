@@ -250,6 +250,13 @@ Leave empty to auto-detect.</source>
     </message>
 </context>
 <context>
+    <name>BusyOverlay</name>
+    <message>
+        <source>%1 s elapsed</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>CameraPanel</name>
     <message>
         <source>Camera</source>
@@ -3345,6 +3352,18 @@ Pick a node or a material in the scene tree.</source>
 <context>
     <name>QuantiloomVulkanRenderer</name>
     <message>
+        <source>Loading scene…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Switching spectral mode…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Switching debug visualization…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>scale %1, bias %2</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3358,6 +3377,14 @@ Pick a node or a material in the scene tree.</source>
     </message>
     <message>
         <source>colour-mapped — read against the colour bar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Solving the thermal field…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Replaying this surface&apos;s thermal day…</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

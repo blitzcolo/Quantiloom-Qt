@@ -26,10 +26,15 @@
 #include <QDir>
 #include <QObject>
 #include <QDebug>
-#include <QApplication>
+#include <QElapsedTimer>
+#include <QEventLoop>
+#include <QScopedValueRollback>
 #include <QTimer>
 #include <cmath>
+#include <exception>
 #include <iterator>
+#include <optional>
+#include <thread>
 
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -51,6 +56,7 @@ void QuantiloomVulkanRenderer::initResources() {
 }
 
 void QuantiloomVulkanRenderer::initSwapChainResources() {
+    const QScopedValueRollback inVulkanCallback(m_inVulkanCallback, true);
     //qDebug() << "QuantiloomVulkanRenderer::initSwapChainResources() - Starting...";
 
     QSize swapSize = m_window->swapChainImageSize();
@@ -221,6 +227,7 @@ void QuantiloomVulkanRenderer::releaseResources() {
 }
 
 void QuantiloomVulkanRenderer::startNextFrame() {
+    const QScopedValueRollback inVulkanCallback(m_inVulkanCallback, true);
     m_frameCounter++;
 
     // A composited capture recorded a few frames ago is complete by now
@@ -488,6 +495,79 @@ void QuantiloomVulkanRenderer::setPaused(bool paused) {
     }
 }
 
+namespace {
+// An operation that ends within this never shows the busy card: a mode whose
+// pipeline variant is already built switches in a hash lookup, and a card
+// flashing up for that would be noise. Input arriving meanwhile is held back
+// and delivered afterwards, which at this length reads as type-ahead.
+constexpr int kBusyCardDelayMs = 300;
+}  // namespace
+
+void QuantiloomVulkanRenderer::runContextJob(
+    const QString& description,
+    const std::function<void(quantiloom::ExternalRenderContext&)>& work) {
+    // Inside a QVulkanWindow callback -- a lost context rebuilt during the
+    // swapchain setup, or anything a frame triggers -- the event loop must not
+    // turn: Qt is part way through its own work on this window.
+    if (m_inVulkanCallback) {
+        work(*m_renderContext);
+        return;
+    }
+
+    // The context goes to the worker with the work. Every path into it from
+    // this thread checks for a context first, so whatever the event loop runs
+    // meanwhile -- a timer, a queued signal -- finds none rather than racing a
+    // worker the SDK does not lock against. Frames are held for the same
+    // reason: they would submit to the queue the worker is using.
+    m_contextJobActive = true;
+    m_window->m_framesHeld = true;
+    std::unique_ptr<quantiloom::ExternalRenderContext> context = std::move(m_renderContext);
+
+    QEventLoop loop;
+    bool done = false;
+    std::exception_ptr failure;
+    std::thread worker([&] {
+        try {
+            work(*context);
+        } catch (...) {
+            failure = std::current_exception();
+        }
+        QMetaObject::invokeMethod(&loop, [&] {
+            done = true;
+            loop.quit();
+        }, Qt::QueuedConnection);
+    });
+
+    // Unconnected: it is only there to wake the wait at the deadline.
+    QTimer deadline;
+    deadline.setSingleShot(true);
+    deadline.start(kBusyCardDelayMs);
+    QElapsedTimer clock;
+    clock.start();
+    while (!done && !clock.hasExpired(kBusyCardDelayMs)) {
+        loop.processEvents(QEventLoop::ExcludeUserInputEvents | QEventLoop::WaitForMoreEvents);
+    }
+    const bool cardShown = !done;
+    if (cardShown) {
+        emit m_window->longOperationStarted(description);
+        loop.exec();
+    }
+    worker.join();
+
+    m_renderContext = std::move(context);
+    m_contextJobActive = false;
+    m_window->m_framesHeld = false;
+    if (cardShown) {
+        emit m_window->longOperationFinished();
+    }
+    // A gesture that ended meanwhile could not hand its scale back.
+    applyRenderScale(m_motionActive && m_motionAdaptiveResolution ? m_motionScale : 1.0f);
+    m_window->requestUpdate();
+    if (failure) {
+        std::rethrow_exception(failure);
+    }
+}
+
 void QuantiloomVulkanRenderer::loadScene(const QString& filePath, bool adoptSceneCamera) {
     qDebug() << "QuantiloomVulkanRenderer::loadScene() - Path:" << filePath;
 
@@ -505,35 +585,42 @@ void QuantiloomVulkanRenderer::loadScene(const QString& filePath, bool adoptScen
 
     // First run compiles every pipeline, which takes minutes. This used to
     // raise an application-modal dialog with no cancel button before the
-    // window had even appeared; it reports through the shell now, which shows
-    // it beside the viewport and stays interactive.
+    // window had even appeared; it is the busy card's title now.
     const bool compilingShaders = isFirstRun();
     if (compilingShaders) {
         qDebug() << "  First run detected - shaders will be compiled";
-        emit m_window->longOperationStarted(
-            QObject::tr("Compiling shaders — first run may take a few minutes"));
-        // One pass so the message is painted before the blocking load begins.
-        QApplication::processEvents();
     }
 
-    // Determine file type and call appropriate loader
-    std::string path = filePath.toStdString();
+    const bool usd = filePath.endsWith(".usd", Qt::CaseInsensitive) ||
+                     filePath.endsWith(".usda", Qt::CaseInsensitive) ||
+                     filePath.endsWith(".usdc", Qt::CaseInsensitive) ||
+                     filePath.endsWith(".usdz", Qt::CaseInsensitive);
     quantiloom::Result<void, quantiloom::String> result;
 
-    if (filePath.endsWith(".usd", Qt::CaseInsensitive) ||
-        filePath.endsWith(".usda", Qt::CaseInsensitive) ||
-        filePath.endsWith(".usdc", Qt::CaseInsensitive) ||
-        filePath.endsWith(".usdz", Qt::CaseInsensitive)) {
-        qDebug() << "  Calling LoadSceneFromUsd...";
-        result = m_renderContext->LoadSceneFromUsd(path);
-    } else {
-        qDebug() << "  Calling LoadSceneFromGltf...";
-        result = m_renderContext->LoadSceneFromGltf(path);
-    }
-
-    if (compilingShaders) {
-        emit m_window->longOperationFinished();
-    }
+    // The stored settings are re-applied inside the job, copied in: the new
+    // pipeline starts on its default variant, and setting the mode and the
+    // debug view is what builds theirs -- seconds on a cold driver cache.
+    runContextJob(
+        compilingShaders ? QObject::tr("Compiling shaders — first run may take a few minutes")
+                         : tr("Loading scene\u2026"),
+        [&result, usd, path = filePath.toStdString(),
+         lighting = m_hasLightingParams ? std::optional(m_lightingParams) : std::nullopt,
+         mode = m_spectralMode, debugView = m_debugMode, spp = m_targetSPP,
+         seed = m_samplingSeed, wavelengthNm = m_wavelength](quantiloom::ExternalRenderContext& context) {
+            result = usd ? context.LoadSceneFromUsd(path) : context.LoadSceneFromGltf(path);
+            if (!result) {
+                return;
+            }
+            // Re-apply stored render settings (important after a context rebuild)
+            if (lighting) {
+                context.SetLightingParams(*lighting);
+            }
+            context.SetSpectralMode(mode);
+            context.SetDebugMode(debugView);
+            context.SetSPP(spp);
+            context.SetSamplingSeed(seed);
+            context.SetWavelength(wavelengthNm);
+        });
 
     qDebug() << "  Scene load returned";
 
@@ -549,17 +636,7 @@ void QuantiloomVulkanRenderer::loadScene(const QString& filePath, bool adoptScen
             m_configAppliedToContext = false;
         }
 
-        // Re-apply stored render settings (important after a context rebuild)
-        if (m_hasLightingParams) {
-            qDebug() << "  Re-applying stored LightingParams";
-            m_renderContext->SetLightingParams(m_lightingParams);
-        }
-        m_renderContext->SetSpectralMode(m_spectralMode);
-        m_renderContext->SetDebugMode(m_debugMode);
-        m_renderContext->SetSPP(m_targetSPP);
-        m_renderContext->SetSamplingSeed(m_samplingSeed);
-        m_renderContext->SetWavelength(m_wavelength);
-        // The atmosphere belongs in this list for the same reason as the rest:
+        // The atmosphere is re-applied too, for the same reason as the rest:
         // a lost device destroys the render context, and the fresh one starts with
         // no model pack and a disabled header. The buffers rebound and the
         // scene rendered, so the only symptom was a sky that quietly stopped
@@ -633,11 +710,6 @@ bool QuantiloomVulkanRenderer::applyConfigToContext(bool isFreshOpen) {
     }
 
     const bool compilingShaders = isFirstRun();
-    if (compilingShaders) {
-        emit m_window->longOperationStarted(
-            QObject::tr("Compiling shaders — first run may take a few minutes"));
-        QApplication::processEvents();
-    }
 
     quantiloom::ConfigApplyOptions options;
     // An editor holds a document being written, where half-finished is a normal
@@ -656,12 +728,16 @@ bool QuantiloomVulkanRenderer::applyConfigToContext(bool isFreshOpen) {
     // (src/config/AGENTS.md).
     options.applyDebugMode = false;
 
-    const quantiloom::ConfigApplyReport report =
-        m_renderContext->ApplyConfig(*m_currentConfig, options);
-
-    if (compilingShaders) {
-        emit m_window->longOperationFinished();
-    }
+    // The scene, its textures, the pipeline and -- in a thermal scene -- the
+    // whole solve: tens of seconds on a large site.
+    std::optional<quantiloom::ConfigApplyReport> applied;
+    runContextJob(
+        compilingShaders ? QObject::tr("Compiling shaders — first run may take a few minutes")
+                         : tr("Loading scene\u2026"),
+        [&applied, &options, config = m_currentConfig](quantiloom::ExternalRenderContext& context) {
+            applied.emplace(context.ApplyConfig(*config, options));
+        });
+    const quantiloom::ConfigApplyReport& report = *applied;
 
     if (!report.ok()) {
         const QString message = QString::fromStdString(report.FirstError());
@@ -1032,7 +1108,12 @@ void QuantiloomVulkanRenderer::setWavelength(float wavelength_nm) {
 void QuantiloomVulkanRenderer::setSpectralMode(quantiloom::SpectralMode mode) {
     m_spectralMode = mode;  // Store for restore
     if (m_renderContext) {
-        m_renderContext->SetSpectralMode(mode);
+        // The first switch to a mode since the scene loaded builds its pipeline
+        // variant; every later one is a lookup.
+        runContextJob(tr("Switching spectral mode\u2026"),
+                      [mode](quantiloom::ExternalRenderContext& context) {
+                          context.SetSpectralMode(mode);
+                      });
         resetAccumulation();
     }
 }
@@ -1040,7 +1121,11 @@ void QuantiloomVulkanRenderer::setSpectralMode(quantiloom::SpectralMode mode) {
 void QuantiloomVulkanRenderer::setDebugMode(quantiloom::DebugVisualizationMode mode) {
     m_debugMode = mode;  // Store for restore
     if (m_renderContext) {
-        m_renderContext->SetDebugMode(mode);
+        // Same variant cache as the spectral mode: debug on and off are two.
+        runContextJob(tr("Switching debug visualization\u2026"),
+                      [mode](quantiloom::ExternalRenderContext& context) {
+                          context.SetDebugMode(mode);
+                      });
         resetAccumulation();
     }
 }
@@ -1816,7 +1901,13 @@ void QuantiloomVulkanRenderer::setThermalSolveEnabled(bool enabled) {
 
 void QuantiloomVulkanRenderer::setThermalTime(double time_h) {
     if (m_renderContext) {
-        auto result = m_renderContext->SetThermalTime(time_h);
+        // Along a day already solved this is a replay from a checkpoint; the
+        // first hour asked for after the solve's inputs changed is the solve.
+        quantiloom::Result<void, quantiloom::String> result;
+        runContextJob(tr("Solving the thermal field\u2026"),
+                      [&result, time_h](quantiloom::ExternalRenderContext& context) {
+                          result = context.SetThermalTime(time_h);
+                      });
         if (!result) {
             qWarning() << "[Thermal] SetThermalTime failed:"
                        << QString::fromStdString(result.error());
@@ -1906,7 +1997,16 @@ QuantiloomVulkanRenderer::elementTrajectory(const quantiloom::u32 element,
         return quantiloom::Result<quantiloom::ThermalElementTrajectory,
                                   quantiloom::String>::Err("no renderer");
     }
-    return m_renderContext->GetElementTrajectory(element, fromHour, toHour, samples);
+    // Every sample is the whole field stepped to that hour from a checkpoint.
+    std::optional<quantiloom::Result<quantiloom::ThermalElementTrajectory, quantiloom::String>>
+        trajectory;
+    runContextJob(tr("Replaying this surface's thermal day\u2026"),
+                  [&trajectory, element, fromHour, toHour,
+                   samples](quantiloom::ExternalRenderContext& context) {
+                      trajectory.emplace(
+                          context.GetElementTrajectory(element, fromHour, toHour, samples));
+                  });
+    return std::move(*trajectory);
 }
 
 // ============================================================================

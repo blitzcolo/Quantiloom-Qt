@@ -91,6 +91,7 @@ class HyperspectralExportDialog;
 class SequenceRenderDialog;
 class ConfigManager;
 class ViewportFrame;
+class BusyOverlay;
 class TitleBar;
 class WindowChrome;
 class WorkspaceManager;
@@ -912,13 +913,12 @@ private:
     QAction* m_mcpAction = nullptr;
     QLabel* m_mcpStatusLabel = nullptr;
     class QTimer* m_mcpPumpTimer = nullptr;
-    /// Guards against pumping from inside a pump.
+    /// Guards against pumping from inside a pump. The pump also stands down
+    /// while the renderer is busy on its worker (isRendererBusy()): a tool run
+    /// then would find no render context to work on.
     bool m_mcpPumping = false;
-    /// Scene loads compile shaders and pump Qt events while they do it. A tool
-    /// running from that nested event loop would be reaching into a renderer
-    /// halfway through building its resources, so the pump stands down until
-    /// the operation reports finished.
-    bool m_longOperationActive = false;
+    /// The card up while the renderer is busy; created on first use.
+    BusyOverlay* m_busyOverlay = nullptr;
 
     // Editing system
     SelectionManager* m_selectionManager = nullptr;
