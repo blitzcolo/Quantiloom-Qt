@@ -33,6 +33,12 @@
 
 namespace {
 
+/// Ceiling of the sun and sky spin boxes. Not a physical bound, only a widget
+/// one: loading an absolute spectrum puts the sun in the hundreds -- the core
+/// derives linear sRGB (164.8, 138.6, 112.1) from un-normalised ASTM G-173 --
+/// and the old ceilings of 100 and 10 showed the clamp instead of the value.
+constexpr double kMaxStrength = 100000.0;
+
 /// Direction FROM the surface TO the sun.
 /// Azimuth: 0 = North (+Z), 90 = East (+X), 180 = South (-Z), 270 = West (-X).
 glm::vec3 sunDirectionFromAngles(float azimuthDeg, float elevationDeg) {
@@ -119,7 +125,7 @@ void LightingPanel::setupUi() {
     auto* radianceLayout = new QFormLayout(m_radianceGroup);
 
     m_sunIntensitySpin = new QDoubleSpinBox();
-    m_sunIntensitySpin->setRange(0.0, 100.0);
+    m_sunIntensitySpin->setRange(0.0, kMaxStrength);
     m_sunIntensitySpin->setSingleStep(0.1);
     m_sunIntensitySpin->setValue(1.0);
     m_sunIntensitySpin->setKeyboardTracking(false);
@@ -129,7 +135,7 @@ void LightingPanel::setupUi() {
     radianceLayout->addRow(m_sunCaption, m_sunIntensitySpin);
 
     m_skyIntensitySpin = new QDoubleSpinBox();
-    m_skyIntensitySpin->setRange(0.0, 10.0);
+    m_skyIntensitySpin->setRange(0.0, kMaxStrength);
     m_skyIntensitySpin->setSingleStep(0.01);
     m_skyIntensitySpin->setValue(0.1);
     m_skyIntensitySpin->setKeyboardTracking(false);
