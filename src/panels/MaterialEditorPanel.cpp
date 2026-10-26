@@ -181,6 +181,14 @@ void MaterialEditorPanel::setupUi() {
     spectrumForm->setContentsMargins(0, 0, 0, 0);
 
     m_emissiveCurve = new QComboBox();
+    // Sized by a short label rather than by its longest entry. A combo's
+    // default minimum is its widest item, and the built-ins' descriptions put
+    // that at 534 px -- which, through the Properties dock's page stack, set
+    // the width of the whole dock past the 495 px column it opens in. The row
+    // still stretches it to whatever the dock has, and the popup widens to
+    // show the entries in full.
+    m_emissiveCurve->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
+    m_emissiveCurve->setMinimumContentsLength(16);
     m_emissiveCurve->addItem(QString(), QString());  // text set by bindText below
     for (const auto& info : quantiloom::SpectralIO::BuiltinEmissionSpectra()) {
         const auto token = QString::fromStdString(info.token);

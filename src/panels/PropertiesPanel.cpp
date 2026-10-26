@@ -12,8 +12,11 @@
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QLineEdit>
 #include <QPushButton>
 #include <QStackedWidget>
+#include <QStyle>
+#include <QStyleOptionSpinBox>
 #include <QVBoxLayout>
 
 #include <glm/gtc/matrix_transform.hpp>
@@ -44,6 +47,42 @@ void decompose(const glm::mat4& m, glm::vec3& translation,
 
     eulerDegrees = glm::degrees(glm::eulerAngles(glm::quat_cast(rotation)));
 }
+
+/// A transform field sized by a typical coordinate rather than by its range.
+/// QDoubleSpinBox takes its width from the widest value the range admits --
+/// "-1000000.000" for a position -- and three of those side by side made this
+/// dock wider than the column it opens in, behind a horizontal scroll bar. The
+/// range is kept: a value longer than the field scrolls like any line edit,
+/// and the row's stretch still hands the fields whatever width the dock has.
+class TransformField final : public QDoubleSpinBox {
+public:
+    using QDoubleSpinBox::QDoubleSpinBox;
+
+    [[nodiscard]] QSize sizeHint() const override {
+        const QSize stock = QDoubleSpinBox::sizeHint();   // polishes first
+        return {widthFor(QStringLiteral("-000.000")), stock.height()};
+    }
+
+    [[nodiscard]] QSize minimumSizeHint() const override {
+        const QSize stock = QDoubleSpinBox::minimumSizeHint();
+        return {widthFor(QStringLiteral("-000.000")), stock.height()};
+    }
+
+private:
+    /// QAbstractSpinBox::sizeHint()'s width, for @p text instead of the ends
+    /// of the range. Through the style, so the buttons and frame of whichever
+    /// theme is active are counted rather than guessed.
+    [[nodiscard]] int widthFor(const QString& text) const {
+        QStyleOptionSpinBox option;
+        initStyleOption(&option);
+        // The trailing space and the 2 px for the cursor are Qt's own margins.
+        const int textWidth = fontMetrics().horizontalAdvance(text + QLatin1Char(' ')) + 2;
+        return style()
+            ->sizeFromContents(QStyle::CT_SpinBox, &option,
+                               QSize(textWidth, lineEdit()->sizeHint().height()), this)
+            .width();
+    }
+};
 
 glm::mat4 compose(const glm::vec3& translation, const glm::vec3& eulerDegrees,
                   const glm::vec3& scale) {
@@ -104,7 +143,7 @@ void PropertiesPanel::setupUi() {
         // said nothing about which was which.
         static const char* const kAxisNames[3] = {"X", "Y", "Z"};
         for (int axis = 0; axis < 3; ++axis) {
-            auto* spin = new QDoubleSpinBox();
+            auto* spin = new TransformField();
             spin->setRange(minimum, maximum);
             spin->setSingleStep(step);
             spin->setDecimals(decimals);
