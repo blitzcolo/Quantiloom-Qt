@@ -422,11 +422,27 @@ target_link_libraries(QuantiloomQt PRIVATE
 if(MSVC)
     # UTF-8 source/execution charset
     target_compile_options(QuantiloomQt PRIVATE /utf-8 /W4)
+    # Compile the sources in parallel; `cmake --build -j` alone only runs whole
+    # projects side by side, and this is one project.
+    target_compile_options(QuantiloomQt PRIVATE /MP)
     # Disable specific warnings
     target_compile_options(QuantiloomQt PRIVATE /wd4251)
 else()
     target_compile_options(QuantiloomQt PRIVATE -Wall -Wextra -Wpedantic)
 endif()
+
+# Precompiled header: the Qt widget headers most panels and dialogs include,
+# plus the standard library. Stable third-party headers only -- a project
+# header here would rebuild every file whenever it is touched -- and no
+# Vulkan: QVulkanInstance defines VK_NO_PROTOTYPES before it includes
+# vulkan.h, and a forced include would get there first.
+target_precompile_headers(QuantiloomQt PRIVATE
+    <algorithm> <cmath> <functional> <memory> <utility> <vector>
+    <QApplication> <QCheckBox> <QComboBox> <QCoreApplication> <QDebug>
+    <QDir> <QDoubleSpinBox> <QEvent> <QFileDialog> <QFileInfo> <QFormLayout>
+    <QGroupBox> <QHBoxLayout> <QLabel> <QLineEdit> <QMessageBox>
+    <QPushButton> <QSpinBox> <QString> <QTimer> <QVBoxLayout> <QWidget>
+)
 
 # ============================================================================
 # Windows-specific: Deploy DLLs
