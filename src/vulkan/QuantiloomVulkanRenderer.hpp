@@ -127,6 +127,9 @@ public:
     /// Kept for replay after a context rebuild, like the curves above.
     [[nodiscard]] std::optional<QString> setSolarLutFromSpec(
         const quantiloom::SolarLutSpec& spec, const QString& baseDir);
+    /// Unbind the illuminant -- the "None" choice. Also replayed after a
+    /// context rebuild, which would otherwise restore the document's own.
+    void clearSolarLut();
 
     void setSolarSpectralLUT(const quantiloom::SpectralCurve& sun,
                              const quantiloom::SpectralCurve& sky);
@@ -682,6 +685,9 @@ private:
     /// rebuild replays the same reading rather than the resolved curves.
     std::optional<quantiloom::SolarLutSpec> m_solarLutSpec;
     QString m_solarLutBaseDir;
+    /// The user chose no illuminant this session. A third state beside the two
+    /// above: replaying nothing would leave the one the document names.
+    bool m_solarLutCleared = false;
 
     // Display enhancement (CLAHE)
     quantiloom::DisplayEnhancementParams m_displayParams;

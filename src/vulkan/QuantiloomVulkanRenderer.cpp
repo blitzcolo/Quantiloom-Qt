@@ -678,6 +678,7 @@ bool QuantiloomVulkanRenderer::applyConfigToContext(bool isFreshOpen) {
         m_solarLut.reset();
         m_solarLutSpec.reset();
         m_solarLutBaseDir.clear();
+        m_solarLutCleared = false;
     }
 
     // Whose values win depends on which of the two callers this is, and the
@@ -776,6 +777,8 @@ bool QuantiloomVulkanRenderer::applyConfigToContext(bool isFreshOpen) {
                 *m_solarLutSpec, m_solarLutBaseDir.toStdString());
         } else if (m_solarLut) {
             m_renderContext->SetSolarSpectralLUT(m_solarLut->first, m_solarLut->second);
+        } else if (m_solarLutCleared) {
+            m_renderContext->ClearSolarSpectralLUT();
         }
     }
 
@@ -1095,6 +1098,7 @@ std::optional<QString> QuantiloomVulkanRenderer::setSolarLutFromSpec(
     m_solarLutSpec = spec;
     m_solarLutBaseDir = baseDir;
     m_solarLut.reset();   // superseded; the spec is now the source of truth
+    m_solarLutCleared = false;
 
     if (!m_renderContext) {
         return std::nullopt;   // replayed once there is a context
@@ -1115,9 +1119,23 @@ std::optional<QString> QuantiloomVulkanRenderer::setSolarLutFromSpec(
     return std::nullopt;
 }
 
+void QuantiloomVulkanRenderer::clearSolarLut() {
+    m_solarLut.reset();
+    m_solarLutSpec.reset();
+    m_solarLutBaseDir.clear();
+    m_solarLutCleared = true;
+    if (m_renderContext) {
+        m_renderContext->ClearSolarSpectralLUT();
+        // Same reasoning as setSolarSpectralLUT below: the sun and sky going
+        // out changes every pixel at once.
+        resetAccumulation();
+    }
+}
+
 void QuantiloomVulkanRenderer::setSolarSpectralLUT(const quantiloom::SpectralCurve& sun,
                                                    const quantiloom::SpectralCurve& sky) {
     m_solarLut = std::make_pair(sun, sky);
+    m_solarLutCleared = false;
     if (m_renderContext) {
         m_renderContext->SetSolarSpectralLUT(sun, sky);
         // Unlike the two pools above, this one changes every pixel at once.

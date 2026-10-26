@@ -1229,10 +1229,12 @@ void MainWindow::applyEnvironmentMap(const QString& path, bool enabled) {
 }
 
 void MainWindow::applyIlluminant(const LightingPanel::IlluminantChoice& choice) {
-    // "none" is the RGB fallback: there is nothing to load, and the LUT
-    // already in the context stays until a scene reload clears it. Saying so
-    // is the panel's warning, not an error here.
+    // "none" is no spectrum at all, so the one bound is unbound rather than
+    // left in place: the spectral modes then take no light from the sun or
+    // the sky, as the CLI renders a file naming no solar_lut. RGB reads the
+    // sun and sky as RGB radiance and is unaffected.
     if (choice.kind == QLatin1String("none")) {
+        m_vulkanWindow->clearSolarLut();
         m_illuminant = choice;
         m_lightingPanel->setIlluminant(choice);
         setSceneModified(true);
@@ -5767,6 +5769,19 @@ void MainWindow::collectCurrentConfig(SceneConfig& config) {
         std::memcmp(m_loadedLighting.get(), m_lightingParams.get(),
                     sizeof(quantiloom::LightingParams)) != 0)
         config.lighting = *m_lightingParams;
+
+    // "None" in a spectral mode is the sun and sky switched off, and the
+    // lighting panel shows both at 0. The file says the same, so it renders
+    // in the CLI as it does here: a spectral scene with a non-zero sun or sky
+    // and no solar_lut is one the core refuses. The shell keeps its RGB
+    // values for RGB mode; only the written document says 0.
+    if (config.spectralMode != quantiloom::SpectralMode::RGB &&
+        m_illuminant.kind == QLatin1String("none")) {
+        config.lighting.sunRadiance_rgb = glm::vec3(0.0f);
+        config.lighting.skyRadiance_rgb = glm::vec3(0.0f);
+        config.lighting.sunRadiance_spectral = 0.0f;
+        config.lighting.skyRadiance_spectral = 0.0f;
+    }
 
     // Collect camera settings. The panel keeps the enabled flag inside its
     // CameraConfig in sync with the switch, so the serialized tree carries it.

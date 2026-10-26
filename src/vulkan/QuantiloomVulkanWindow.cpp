@@ -438,6 +438,11 @@ std::optional<QString> QuantiloomVulkanWindow::setSolarLutFromSpec(
     return m_renderer->setSolarLutFromSpec(spec, baseDir);
 }
 
+void QuantiloomVulkanWindow::clearSolarLut() {
+    if (m_renderer)
+        m_renderer->clearSolarLut();
+}
+
 void QuantiloomVulkanWindow::setSolarSpectralLUT(const quantiloom::SpectralCurve& sun,
                                                  const quantiloom::SpectralCurve& sky) {
     if (m_renderer)

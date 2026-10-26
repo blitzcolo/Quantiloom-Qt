@@ -205,6 +205,8 @@ public:
     /// See QuantiloomVulkanRenderer::setSolarLutFromSpec.
     [[nodiscard]] std::optional<QString> setSolarLutFromSpec(
         const quantiloom::SolarLutSpec& spec, const QString& baseDir);
+    /// See QuantiloomVulkanRenderer::clearSolarLut.
+    void clearSolarLut();
 
     void setSolarSpectralLUT(const quantiloom::SpectralCurve& sun,
                              const quantiloom::SpectralCurve& sky);
