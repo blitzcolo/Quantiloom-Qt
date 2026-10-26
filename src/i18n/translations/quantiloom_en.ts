@@ -1082,10 +1082,6 @@ May cause colour shifts.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>This spectral mode needs an illuminant spectrum. Without one the render is black — the renderer will not substitute a standard spectrum, because a scene that acquired one silently would report radiance nobody asked for.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>ASTM G-173 spans %1–%2 nm but this mode renders %3–%4 nm. The spectrum is held flat at its last value across the gap rather than left dark, so the result will look reasonable and mean nothing.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1099,6 +1095,10 @@ May cause colour shifts.</source>
     </message>
     <message>
         <source>This mode multiplies the illuminant&apos;s colour in directly, and un-normalised ASTM G-173 is about %1× the display range — the frame will be white almost everywhere. Normalise it here; the absolute scale only means something in the quantitative spectral modes.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>None — sun and sky off</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1138,19 +1138,11 @@ May cause colour shifts.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Equal energy (CIE E)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>ASTM G-173 (bundled)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>From file...</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>The sun&apos;s spectrum, as distinct from the RGB radiance above. The quantitative spectral modes need one to render anything at all.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1174,6 +1166,14 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
     <message>
         <source>Radiance</source>
         <translation type="vanished">Radiance</translation>
+    </message>
+    <message>
+        <source>Equal energy (CIE E, flat spectrum)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The sun&apos;s spectrum, as distinct from the RGB radiance above. The spectral modes light the scene only through one; there, None switches the sun and sky off, for a scene lit by its own emissive materials.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Sun:</source>
@@ -2208,22 +2208,6 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
     </message>
     <message>
         <source>&amp;Illuminant</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>None — RGB radiance only</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Equal energy (CIE E)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>ASTM G-173 (bundled)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>From file...</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

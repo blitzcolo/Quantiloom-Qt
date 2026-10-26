@@ -686,7 +686,12 @@ void MainWindow::setupMenus() {
         m_envClearAction->setEnabled(m_lightingPanel->hasEnvironmentMap());
         const QString kind = m_lightingPanel->illuminantKind();
         for (QAction* action : m_illuminantGroup->actions()) {
-            action->setChecked(action->data().toString() == kind);
+            const QString actionKind = action->data().toString();
+            // The entries the panel lists for this mode, and no others, under
+            // the panel's labels: "None" reads differently in RGB.
+            action->setVisible(m_lightingPanel->showsIlluminantKind(actionKind));
+            action->setText(m_lightingPanel->illuminantKindText(actionKind));
+            action->setChecked(actionKind == kind);
         }
     });
 
@@ -1089,7 +1094,7 @@ void MainWindow::applySpectralMode(quantiloom::SpectralMode mode) {
     // setter -- this is the *user* switching mode, which may move the setting,
     // and applyConfig's call to the same setter must not.
     if (m_lightingPanel) {
-        m_lightingPanel->repickNormalisation();
+        m_lightingPanel->repickForSpectralMode();
     }
 
     syncSpectralModeUi(mode);
@@ -3313,13 +3318,7 @@ void MainWindow::retranslateUi() {
     m_envEnabledAction->setText(tr("&Light from Environment Map"));
     m_envClearAction->setText(tr("&Clear Environment Map"));
     m_illuminantMenu->setTitle(tr("&Illuminant"));
-    for (QAction* action : m_illuminantGroup->actions()) {
-        const QString kind = action->data().toString();
-        if (kind == QLatin1String("none"))              action->setText(tr("None — RGB radiance only"));
-        else if (kind == QLatin1String("equal_energy")) action->setText(tr("Equal energy (CIE E)"));
-        else if (kind == QLatin1String("astm"))         action->setText(tr("ASTM G-173 (bundled)"));
-        else                                            action->setText(tr("From file..."));
-    }
+    // The entries take the panel's labels when the menu opens; see setupMenus.
     m_cameraSimulationAction->setText(tr("&Camera Simulation"));
     m_cameraSimulationAction->setToolTip(
         tr("Render through the physical camera on the Camera panel"));
@@ -5411,7 +5410,7 @@ void MainWindow::applyConfig(const SceneConfig& config) {
     // The lighting panel needs it too -- every illuminant notice it shows is
     // about the mode. It had no way to know here before, so a configuration
     // opened into a quantitative mode with no spectrum said nothing about the
-    // black frame it was about to render. No repickNormalisation() to go with
+    // black frame it was about to render. No repickForSpectralMode() to go with
     // it: this is the document speaking, and it is not to be argued with.
     m_lightingPanel->setSpectralMode(config.spectralMode);
 

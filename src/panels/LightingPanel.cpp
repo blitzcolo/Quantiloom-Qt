@@ -18,10 +18,12 @@
 #include <QFontMetrics>
 #include <QResizeEvent>
 #include <QLabel>
+#include <QListView>
 #include <QPushButton>
 #include <QSlider>
 #include <QDoubleSpinBox>
 #include <QFormLayout>
+#include <QStandardItemModel>
 #include <algorithm>
 #include <cmath>
 
@@ -264,8 +266,121 @@ constexpr int kAstmDirectLuminance = 142;
 }  // namespace
 
 void LightingPanel::setSpectralMode(quantiloom::SpectralMode mode) {
+    m_previousSpectralMode = m_spectralMode;
     m_spectralMode = mode;
     updateIlluminantWidgets();
+}
+
+void LightingPanel::syncStrengthWidgets() {
+    // "None" in a spectral mode: no spectrum is bound, so the sun and sky emit
+    // nothing whatever their strengths say, and the fields show that rather
+    // than numbers with no effect. They take no input there -- a strength
+    // needs a spectrum to mean anything. The values behind them are left as
+    // they are, because they are the RGB path's: a document's RGB sun comes
+    // back when the mode does.
+    const bool sunOff = m_spectralMode != quantiloom::SpectralMode::RGB &&
+                        m_illuminantCombo->currentData().toString() == QLatin1String("none");
+    const QSignalBlocker sun(m_sunIntensitySpin);
+    const QSignalBlocker sky(m_skyIntensitySpin);
+    m_sunIntensitySpin->setValue(sunOff ? 0.0 : static_cast<double>(m_sunIntensity));
+    m_skyIntensitySpin->setValue(sunOff ? 0.0 : static_cast<double>(m_skyIntensity));
+    m_sunIntensitySpin->setEnabled(!sunOff);
+    m_skyIntensitySpin->setEnabled(!sunOff);
+}
+
+bool LightingPanel::illuminantKindOffered(const QString& kind) const {
+    // The built-in spectra -- ASTM G-173 and the flat CIE E -- are listed only
+    // where a spectrum is rendered. RGB reduces any spectrum to a colour, so
+    // there they would be one more way to tint the sun. "None" and a file are
+    // listed everywhere; "None" means the RGB radiance in RGB and the sun and
+    // sky switched off in the spectral modes (switchSunAndSkyOff).
+    if (kind == QLatin1String("astm") || kind == QLatin1String("equal_energy")) {
+        return m_spectralMode != quantiloom::SpectralMode::RGB;
+    }
+    return true;
+}
+
+bool LightingPanel::sunOrSkyLit() const {
+    return m_sunIntensity > 0.0f || m_skyIntensity > 0.0f;
+}
+
+void LightingPanel::switchSunAndSkyOff() {
+    // "None" chosen in a spectral mode. The fields already read 0
+    // (syncStrengthWidgets); this makes the values behind them agree, so the
+    // sun stays off when the mode changes too -- it is the user turning it
+    // off, not a document that never said. The core requires solar_lut for
+    // any spectral scene whose sun or sky is non-zero, and zeroing both is
+    // its own advice for a scene lit only by emissive materials. The chroma
+    // is kept, so a strength typed later comes back in the colour it had.
+    if (!sunOrSkyLit()) {
+        return;
+    }
+    m_sunIntensity = 0.0f;
+    m_sunRadiance = glm::vec3(0.0f);
+    m_skyIntensity = 0.0f;
+    m_skyRadiance = glm::vec3(0.0f);
+    syncStrengthWidgets();
+    updateEnvironmentDisplay();
+    emitEdit();
+}
+
+bool LightingPanel::showsIlluminantKind(const QString& kind) const {
+    // The entry in force stays listed even where the mode does not offer it.
+    // Only a document can put one there -- env_grassland names ASTM in an RGB
+    // scene -- and loading may not overrule a document, so the list says what
+    // is set rather than pretending it is something else.
+    return illuminantKindOffered(kind) ||
+           kind == m_illuminantCombo->currentData().toString();
+}
+
+void LightingPanel::repickForSpectralMode() {
+    const QString kind = m_illuminantCombo->currentData().toString();
+    const bool rgb = m_spectralMode == quantiloom::SpectralMode::RGB;
+    const bool fromRgb = m_previousSpectralMode == quantiloom::SpectralMode::RGB;
+
+    // RGB normalises a file (recommendedNormalise), which says nothing about
+    // the level it should have in a spectral mode -- that is the file's own
+    // business. So the setting it had is put aside on the way into RGB and
+    // given back on the way out; otherwise a round trip through RGB left an
+    // absolute spectrum normalised, and the spectral frame 142x too dark.
+    if (rgb && !fromRgb) {
+        m_fileNormaliseBeforeRgb.reset();
+        if (kind == QLatin1String("file")) {
+            m_fileNormaliseBeforeRgb =
+                std::make_pair(m_illuminant.path, m_illuminant.normaliseUnitLuminance);
+        }
+    }
+    if (!rgb && fromRgb && kind == QLatin1String("file") && m_fileNormaliseBeforeRgb &&
+        m_fileNormaliseBeforeRgb->first == m_illuminant.path) {
+        const bool restored = m_fileNormaliseBeforeRgb->second;
+        m_fileNormaliseBeforeRgb.reset();
+        setNormalisation(restored);
+        return;
+    }
+
+    if (rgb && !illuminantKindOffered(kind)) {
+        // A built-in spectrum into RGB. The core derives the sun's RGB from
+        // the spectrum it loads, and an absolute ASTM's is about 142x the
+        // display range, so it is normalised first. Then the spectrum is let
+        // go and the colour it gave is kept: "None" is the sun as RGB
+        // radiance, which is all RGB renders anyway.
+        repickNormalisation();
+        m_illuminantCombo->setCurrentIndex(
+            m_illuminantCombo->findData(QStringLiteral("none")));
+        return;
+    }
+    if (!rgb && fromRgb && kind == QLatin1String("none") && sunOrSkyLit()) {
+        // A lit sun with no spectrum -- RGB's "None" -- into a spectral mode,
+        // which lights nothing without one: it gets the bundled sun. A sun
+        // that was already off stays off, which is what "None" means here,
+        // and so does "None" moving between two spectral modes.
+        m_illuminantCombo->setCurrentIndex(
+            m_illuminantCombo->findData(QStringLiteral("astm")));
+        return;
+    }
+    repickNormalisation();
+    // Where setCurrentIndex ran above, onIlluminantKindChanged re-picked the
+    // normalisation for the new illuminant and emitted.
 }
 
 void LightingPanel::repickNormalisation() {
@@ -273,13 +388,19 @@ void LightingPanel::repickNormalisation() {
     // what is set -- a user who overrode the recommendation and changed nothing
     // since keeps their override.
     const std::optional<bool> wanted = recommendedNormalise();
-    if (!wanted.has_value() || *wanted == m_illuminant.normaliseUnitLuminance) {
+    if (wanted.has_value()) {
+        setNormalisation(*wanted);
+    }
+}
+
+void LightingPanel::setNormalisation(bool normalise) {
+    if (normalise == m_illuminant.normaliseUnitLuminance) {
         return;
     }
-    m_illuminant.normaliseUnitLuminance = *wanted;
+    m_illuminant.normaliseUnitLuminance = normalise;
     {
         const QSignalBlocker blocker(m_normaliseCheck);
-        m_normaliseCheck->setChecked(*wanted);
+        m_normaliseCheck->setChecked(normalise);
     }
     updateIlluminantWidgets();
     emit illuminantChanged(m_illuminant);
@@ -303,8 +424,9 @@ bool LightingPanel::spectralModeIsQuantitative() const {
 // it to be a measurement, and which of those is being asked for is exactly what
 // the mode says.
 //
-// Empty wherever the panel cannot know: a user's own file, whose level only the
-// file knows, or an illuminant where the setting does nothing at all.
+// Empty wherever the panel cannot know: a user's own file in a spectral mode,
+// whose level only the file knows, or an illuminant where the setting does
+// nothing at all.
 std::optional<bool> LightingPanel::recommendedNormalise() const {
     const QString kind = m_illuminantCombo->currentData().toString();
 
@@ -317,8 +439,13 @@ std::optional<bool> LightingPanel::recommendedNormalise() const {
     // A file's absolute level is the file's business. It could be a relative
     // reference spectrum, which wants normalising, or a radiometric measurement,
     // which does not, and the panel cannot tell them apart without reading it --
-    // which is the core's job, not this panel's.
+    // which is the core's job, not this panel's. Except in RGB, which keeps
+    // only the colour: there any level but unit luminance scales the frame,
+    // whatever the file meant, and the box that could say otherwise is hidden.
     if (kind == QLatin1String("file")) {
+        if (m_spectralMode == quantiloom::SpectralMode::RGB) {
+            return true;
+        }
         return std::nullopt;
     }
     // ASTM G-173, the one absolute spectrum on offer: keep the scale where the
@@ -331,14 +458,10 @@ QStringList LightingPanel::illuminantNotices() const {
     const bool normalising = m_normaliseCheck->isChecked();
     QStringList notices;
 
-    // The core's own diagnostic, said before the render rather than after:
-    // a spectral mode with no illuminant is the black-frame case.
-    if (spectralModeIsQuantitative() && kind == QLatin1String("none")) {
-        notices << tr("This spectral mode needs an illuminant spectrum. Without one the "
-                      "render is black — the renderer will not substitute a standard "
-                      "spectrum, because a scene that acquired one silently would report "
-                      "radiance nobody asked for.");
-        return notices;   // nothing below applies without a spectrum
+    // "None" in a spectral mode is the sun and sky switched off: no spectrum
+    // is bound, the strengths read 0, and nothing below applies.
+    if (m_spectralMode != quantiloom::SpectralMode::RGB && kind == QLatin1String("none")) {
+        return notices;
     }
 
     // Does the spectrum reach the wavelengths being rendered? The core warns
@@ -421,6 +544,32 @@ void LightingPanel::updateIlluminantWidgets() {
     // decided rather than like it does not apply.
     m_normaliseCheck->setEnabled(kind != QLatin1String("none") &&
                                  kind != QLatin1String("equal_energy"));
+    // RGB is the opposite case: it keeps only the illuminant's colour, so the
+    // level is decided there (recommendedNormalise) and the box is hidden.
+    // ASTM is the exception, and RGB only has it when a document asked for
+    // it: its scale is the document's, and the notice below says to
+    // normalise it here.
+    m_normaliseCheck->setVisible(m_spectralMode != quantiloom::SpectralMode::RGB ||
+                                 kind == QLatin1String("astm"));
+
+    syncStrengthWidgets();
+
+    // "None" is two different things, so it says which one is in force.
+    m_illuminantCombo->setItemText(
+        m_illuminantCombo->findData(QStringLiteral("none")),
+        m_spectralMode == quantiloom::SpectralMode::RGB ? tr("None — RGB radiance only")
+                                                        : tr("None — sun and sky off"));
+
+    // The list follows the mode (illuminantKindOffered). Hidden rows leave the
+    // popup, and disabled ones are skipped by the wheel and the arrow keys,
+    // which would otherwise still step onto a hidden row.
+    auto* view = qobject_cast<QListView*>(m_illuminantCombo->view());
+    auto* model = qobject_cast<QStandardItemModel*>(m_illuminantCombo->model());
+    for (int row = 0; row < m_illuminantCombo->count(); ++row) {
+        const bool shown = showsIlluminantKind(m_illuminantCombo->itemData(row).toString());
+        view->setRowHidden(row, !shown);
+        model->item(row)->setEnabled(shown);
+    }
 
     const QStringList notices = illuminantNotices();
     m_illuminantNotice->setVisible(!notices.isEmpty());
@@ -433,7 +582,7 @@ void LightingPanel::requestEnvironmentEnabled(bool enabled) {
 
 void LightingPanel::requestIlluminantKind(const QString& kind) {
     const int index = m_illuminantCombo->findData(kind);
-    if (index < 0) {
+    if (index < 0 || !showsIlluminantKind(kind)) {
         return;
     }
     if (index == m_illuminantCombo->currentIndex()) {
@@ -470,6 +619,15 @@ void LightingPanel::onIlluminantKindChanged() {
         return;
     }
     emit illuminantChanged(m_illuminant);
+
+    if (m_illuminant.kind == QLatin1String("none") &&
+        m_spectralMode != quantiloom::SpectralMode::RGB) {
+        switchSunAndSkyOff();
+    }
+}
+
+QString LightingPanel::illuminantKindText(const QString& kind) const {
+    return m_illuminantCombo->itemText(m_illuminantCombo->findData(kind));
 }
 
 void LightingPanel::onNormaliseToggled() {
@@ -513,13 +671,15 @@ void LightingPanel::retranslateUi() {
     m_elevationSpin->setToolTip(elevationTip);
 
     m_illuminantGroup->setTitle(tr("Illuminant"));
-    m_illuminantCombo->setItemText(0, tr("None — RGB radiance only"));
-    m_illuminantCombo->setItemText(1, tr("Equal energy (CIE E)"));
+    // Item 0, "None", depends on the mode and is labelled by
+    // updateIlluminantWidgets() below.
+    m_illuminantCombo->setItemText(1, tr("Equal energy (CIE E, flat spectrum)"));
     m_illuminantCombo->setItemText(2, tr("ASTM G-173 (bundled)"));
     m_illuminantCombo->setItemText(3, tr("From file..."));
     m_illuminantCombo->setToolTip(
         tr("The sun's spectrum, as distinct from the RGB radiance above. The "
-           "quantitative spectral modes need one to render anything at all."));
+           "spectral modes light the scene only through one; there, None switches "
+           "the sun and sky off, for a scene lit by its own emissive materials."));
     m_illuminantBrowseButton->setText(tr("Choose Spectrum..."));
     m_normaliseCheck->setText(tr("Normalise to unit luminance"));
     m_normaliseCheck->setToolTip(
@@ -691,14 +851,7 @@ void LightingPanel::setLightingParams(const quantiloom::LightingParams& params) 
         m_envEnabledCheck->setChecked(m_environmentEnabled);
     }
     syncAngleWidgets();
-    {
-        const QSignalBlocker sun(m_sunIntensitySpin);
-        m_sunIntensitySpin->setValue(m_sunIntensity);
-    }
-    {
-        const QSignalBlocker sky(m_skyIntensitySpin);
-        m_skyIntensitySpin->setValue(m_skyIntensity);
-    }
+    syncStrengthWidgets();
 
 
     // Radiance and the enable flag both just changed, and the notice reads both.

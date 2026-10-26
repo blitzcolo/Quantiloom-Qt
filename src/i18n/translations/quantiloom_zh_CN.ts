@@ -1167,7 +1167,7 @@ May cause colour shifts.</source>
     </message>
     <message>
         <source>This spectral mode needs an illuminant spectrum. Without one the render is black — the renderer will not substitute a standard spectrum, because a scene that acquired one silently would report radiance nobody asked for.</source>
-        <translation>该光谱模式需要光源光谱。没有光源则渲染为全黑——渲染器不会自行代入标准光谱，因为悄悄获得光谱的场景会报出无人要求的辐亮度。</translation>
+        <translation type="vanished">该光谱模式需要光源光谱。没有光源则渲染为全黑——渲染器不会自行代入标准光谱，因为悄悄获得光谱的场景会报出无人要求的辐亮度。</translation>
     </message>
     <message>
         <source>ASTM G-173 spans %1–%2 nm but this mode renders %3–%4 nm. The spectrum is held flat at its last value across the gap rather than left dark, so the result will look reasonable and mean nothing.</source>
@@ -1176,6 +1176,10 @@ May cause colour shifts.</source>
     <message>
         <source>Equal energy is defined at unit luminance, so normalising it divides by 1 and changes nothing.</source>
         <translation>等能光源本身就定义在单位亮度上，归一化相当于除以 1，不产生任何变化。</translation>
+    </message>
+    <message>
+        <source>None — sun and sky off</source>
+        <translation>无 — 关闭太阳与天空</translation>
     </message>
     <message>
         <source>Choose an Illuminant Spectrum</source>
@@ -1215,7 +1219,7 @@ May cause colour shifts.</source>
     </message>
     <message>
         <source>Equal energy (CIE E)</source>
-        <translation>等能光源（CIE E）</translation>
+        <translation type="vanished">等能光源（CIE E）</translation>
     </message>
     <message>
         <source>ASTM G-173 (bundled)</source>
@@ -1227,7 +1231,7 @@ May cause colour shifts.</source>
     </message>
     <message>
         <source>The sun&apos;s spectrum, as distinct from the RGB radiance above. The quantitative spectral modes need one to render anything at all.</source>
-        <translation>太阳的光谱，区别于上方的 RGB 辐亮度。量化光谱模式必须有它才能渲染出任何东西。</translation>
+        <translation type="vanished">太阳的光谱，区别于上方的 RGB 辐亮度。量化光谱模式必须有它才能渲染出任何东西。</translation>
     </message>
     <message>
         <source>Choose Spectrum...</source>
@@ -1246,8 +1250,20 @@ May cause colour shifts.</source>
         <translation>ASTM G-173 是绝对光谱——直射 900 W/m²，总辐射 1000 W/m²。归一化会把两条曲线同时除以太阳亮度（%1），丢弃本模式本就要报告的绝对量级。光谱路径的曝光已经与之匹配；若视口偏暗，请改用显示增强。</translation>
     </message>
     <message>
+        <source>This spectral mode has no illuminant spectrum, but the sun or sky strength is not zero. Without a spectrum they light nothing — the renderer will not substitute a standard spectrum, and the command-line renderer refuses the scene. Choose a spectrum to light it, or set both strengths to 0 for a scene lit only by its own emissive materials.</source>
+        <translation type="vanished">该光谱模式没有光源光谱，但太阳或天空强度不为零。没有光谱，它们不会照亮任何东西——渲染器不会自行代入标准光谱，命令行渲染器也会拒绝该场景。请选择一条光谱来照明，或将两者强度都设为 0，让场景只由自身的自发光材质照明。</translation>
+    </message>
+    <message>
         <source>This mode multiplies the illuminant&apos;s colour in directly, and un-normalised ASTM G-173 is about %1× the display range — the frame will be white almost everywhere. Normalise it here; the absolute scale only means something in the quantitative spectral modes.</source>
         <translation>本模式会直接乘上光源颜色，而未归一化的 ASTM G-173 约为显示范围的 %1 倍——画面几乎全白。此处请勾选归一化；绝对量级只在量化光谱模式下才有意义。</translation>
+    </message>
+    <message>
+        <source>Equal energy (CIE E, flat spectrum)</source>
+        <translation>等能光源（CIE E，平坦光谱）</translation>
+    </message>
+    <message>
+        <source>The sun&apos;s spectrum, as distinct from the RGB radiance above. The spectral modes light the scene only through one; there, None switches the sun and sky off, for a scene lit by its own emissive materials.</source>
+        <translation>太阳的光谱，区别于上方的 RGB 辐亮度。光谱模式只通过光谱照明场景；在这些模式下，“无”会关闭太阳与天空，适用于只由自身自发光材质照明的场景。</translation>
     </message>
     <message>
         <source>Published reference spectra are relative, so their absolute level is arbitrary. Both curves scale by the sun&apos;s luminance, which keeps the sun-to-sky ratio the measurement actually recorded.
@@ -2360,19 +2376,19 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
     </message>
     <message>
         <source>None — RGB radiance only</source>
-        <translation>无 — 仅用 RGB 辐亮度</translation>
+        <translation type="vanished">无 — 仅用 RGB 辐亮度</translation>
     </message>
     <message>
         <source>Equal energy (CIE E)</source>
-        <translation>等能光源（CIE E）</translation>
+        <translation type="vanished">等能光源（CIE E）</translation>
     </message>
     <message>
         <source>ASTM G-173 (bundled)</source>
-        <translation>ASTM G-173（内置）</translation>
+        <translation type="vanished">ASTM G-173（内置）</translation>
     </message>
     <message>
         <source>From file...</source>
-        <translation>从文件选择……</translation>
+        <translation type="vanished">从文件选择……</translation>
     </message>
     <message>
         <source>&amp;Camera Simulation</source>

@@ -18,6 +18,7 @@
 #include <glm/glm.hpp>
 
 #include <optional>
+#include <utility>
 
 QT_BEGIN_NAMESPACE
 class QCheckBox;
@@ -90,14 +91,25 @@ public:
     void setSpectralMode(quantiloom::SpectralMode mode);
 
     /**
-     * @brief Re-pick the normalisation for the mode now in force
+     * @brief Re-pick the illuminant for the mode now in force
      *
      * The other half of setSpectralMode, kept separate because only a *user*
      * switching mode may move the setting; a document being loaded may not.
      * The shell calls this from its applySpectralMode dispatcher and nowhere
-     * else. Emits illuminantChanged when it actually moves.
+     * else. A built-in spectrum going into RGB is replaced by "none", and a
+     * lit sun with no spectrum going into a spectral mode by ASTM; otherwise
+     * the normalisation is re-picked. Emits illuminantChanged for each that
+     * actually moves.
      */
-    void repickNormalisation();
+    void repickForSpectralMode();
+
+    /// Whether @p kind is listed now: offered by the mode, or the one in
+    /// force. The Render menu lists the same entries as the panel's combo.
+    [[nodiscard]] bool showsIlluminantKind(const QString& kind) const;
+
+    /// The panel's label for @p kind in the current mode and language, so the
+    /// Render menu names the entries exactly as the combo does.
+    [[nodiscard]] QString illuminantKindText(const QString& kind) const;
 
 signals:
     /// Carries a full LightingParams for convenience, but only the sun, sky and
@@ -161,8 +173,30 @@ private:
     /// already bracketing it.
     void emitEdit();
     void syncAngleWidgets();
-    /// Show or hide the file row, and rebuild the notice from illuminantNotices().
+    /// Show or hide the file row and the list entries, and rebuild the notice
+    /// from illuminantNotices().
     void updateIlluminantWidgets();
+
+    /// The normalisation half of repickForSpectralMode. Emits
+    /// illuminantChanged when it actually moves.
+    void repickNormalisation();
+    /// Set the normalisation and apply it; nothing when it is already so.
+    void setNormalisation(bool normalise);
+
+    /// Whether the mode offers @p kind at all: the built-in spectra ("astm",
+    /// "equal_energy") only the spectral modes, "none" and a file every mode.
+    [[nodiscard]] bool illuminantKindOffered(const QString& kind) const;
+
+    /// Whether the analytic sun or sky has any strength.
+    [[nodiscard]] bool sunOrSkyLit() const;
+
+    /// "None" chosen in a spectral mode: zero the sun and sky strengths, as
+    /// one undoable lighting edit. Nothing if both are already zero.
+    void switchSunAndSkyOff();
+
+    /// Show the strengths, or 0 in fields that take no input where "None"
+    /// has switched the sun and sky off in a spectral mode.
+    void syncStrengthWidgets();
 
     /// What the normalisation should be for the illuminant now chosen, or empty
     /// where the panel cannot know. Applied when the *illuminant* changes, never
@@ -234,6 +268,12 @@ private:
     /// Set by the shell. Drives the notices and the recommended normalisation;
     /// the panel never renders anything itself.
     quantiloom::SpectralMode m_spectralMode = quantiloom::SpectralMode::RGB;
+    /// The mode before the last setSpectralMode, so a switch can tell coming
+    /// out of RGB from moving between two spectral modes.
+    quantiloom::SpectralMode m_previousSpectralMode = quantiloom::SpectralMode::RGB;
+    /// A file's path and the normalisation it had before RGB normalised it,
+    /// given back when the mode leaves RGB with the same file still chosen.
+    std::optional<std::pair<QString, bool>> m_fileNormaliseBeforeRgb;
     QGroupBox* m_illuminantGroup = nullptr;
     QComboBox* m_illuminantCombo = nullptr;
     QLabel* m_illuminantPathLabel = nullptr;
