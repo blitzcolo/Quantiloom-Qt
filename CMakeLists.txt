@@ -5,7 +5,7 @@
 cmake_minimum_required(VERSION 3.21)
 
 project(QuantiloomQt
-    VERSION 0.8.2
+    VERSION 0.8.3
     DESCRIPTION "Qt6 GUI for libQuantiloom"
     LANGUAGES CXX
 )
@@ -91,7 +91,7 @@ message(STATUS "Using Quantiloom SDK: ${QUANTILOOM_SDK_DIR}")
 # Find prebuilt Quantiloom (also finds Vulkan and glm as dependencies)
 # The SDK and Studio ship together: SdkGuard checks the exact binary at start-up,
 # and the minimum here is the release this tree was last built and reviewed against.
-find_package(Quantiloom 0.8.2 REQUIRED)
+find_package(Quantiloom 0.8.3 REQUIRED)
 message(STATUS "Found Quantiloom: ${Quantiloom_VERSION}")
 
 # Use namespaced target from find_package
