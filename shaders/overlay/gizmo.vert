@@ -7,7 +7,8 @@ layout(location = 1) in vec4 inColor;
 
 layout(location = 0) out vec4 vColor;
 
-layout(push_constant) uniform PC {
+// QRhi::clipSpaceCorrMatrix() * projection * view
+layout(std140, binding = 1) uniform PC {
     mat4 viewProj;
 } pc;
 

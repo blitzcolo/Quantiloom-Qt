@@ -3524,7 +3524,15 @@ Pick a node or a material in the scene tree.</source>
     </message>
     <message>
         <source>Qt could not create a Vulkan device. The selected GPU is most likely missing the ray tracing extensions this renderer needs. On a laptop with both an integrated and a discrete GPU, check that Quantiloom is running on the discrete one.</source>
-        <translation>Qt 无法创建 Vulkan 设备。所选 GPU 很可能不支持本渲染器所需的光线追踪扩展。若使用同时具备核显与独显的笔记本，请确认 Quantiloom 运行在独立显卡上。</translation>
+        <translation type="vanished">Qt 无法创建 Vulkan 设备。所选 GPU 很可能不支持本渲染器所需的光线追踪扩展。若使用同时具备核显与独显的笔记本，请确认 Quantiloom 运行在独立显卡上。</translation>
+    </message>
+    <message>
+        <source>No GPU on this machine has what the renderer needs:
+
+%1</source>
+        <translation>这台计算机上没有满足渲染器要求的 GPU：
+
+%1</translation>
     </message>
     <message>
         <source>The renderer could not start:

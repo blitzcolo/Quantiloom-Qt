@@ -1,6 +1,6 @@
 /**
  * @file ViewportRenderer.cpp
- * @brief QVulkanWindowRenderer adapter implementation
+ * @brief The viewport's device, QRhi presentation and SDK render context
  *
  * @author blitzcolo
  */
@@ -20,7 +20,8 @@
 #include <core/Image.hpp>
 #include <core/SpectralData.hpp>
 
-#include <QVulkanFunctions>
+#include <QVulkanInstance>
+#include <rhi/qrhi.h>
 #include <QFile>
 #include <QFileInfo>
 #include <QDir>
@@ -42,124 +43,167 @@ ViewportRenderer::ViewportRenderer(ViewportWindow* window)
     : m_window(window)
     , m_lastFrameTime(std::chrono::high_resolution_clock::now())
 {
-    m_viewportSampleBatch.reset(m_window->concurrentFrameCount());
+    m_viewportSampleBatch.reset(framesInFlight());
 }
 
 ViewportRenderer::~ViewportRenderer() {
-    // Release resources in proper order
-    m_renderContext.reset();
+    releaseGpu();
 }
 
-void ViewportRenderer::initResources() {
-    qDebug() << "ViewportRenderer::initResources() - Vulkan device ready";
-    // Note: Swapchain is not ready yet, full initialization happens in initSwapChainResources()
+int ViewportRenderer::framesInFlight() const {
+    // QRhi's Vulkan backend keeps two; the same before the QRhi exists.
+    return m_rhi ? m_rhi->resourceLimit(QRhi::FramesInFlight) : 2;
 }
 
-void ViewportRenderer::initSwapChainResources() {
-    const QScopedValueRollback inVulkanCallback(m_inVulkanCallback, true);
-    //qDebug() << "ViewportRenderer::initSwapChainResources() - Starting...";
+QSize ViewportRenderer::swapchainSize() const {
+    return m_swapchain ? m_swapchain->currentPixelSize() : QSize();
+}
 
-    QSize swapSize = m_window->swapChainImageSize();
-    //qDebug() << "  Swapchain size:" << swapSize;
-
-    if (swapSize.width() <= 0 || swapSize.height() <= 0) {
-        qWarning() << "Invalid swapchain size, skipping initialization";
-        return;
+void ViewportRenderer::initialize() {
+    // The first scene of the session is usually in the deferred queue; the
+    // loop must not turn while the device and the context are half set up,
+    // so jobs started from here run inline.
+    const QScopedValueRollback inFrameCallback(m_inFrameCallback, true);
+    if (createGpu() && recreateSwapchain()) {
+        createRenderContext();
     }
+}
 
+bool ViewportRenderer::createGpu() {
+    QVulkanInstance* inst = m_window->vulkanInstance();
+    m_getInstanceProcAddr = reinterpret_cast<viewport::GetInstanceProcAddrFn>(
+        inst->getInstanceProcAddr("vkGetInstanceProcAddr"));
+
+    viewport::GpuDeviceRequest request;
+    request.instance = inst->vkInstance();
+    request.getInstanceProcAddr = m_getInstanceProcAddr;
+    request.supportsPresent = [inst, window = m_window](VkPhysicalDevice_T* physicalDevice,
+                                                        uint32_t queueFamily) {
+        return inst->supportsPresent(physicalDevice, queueFamily, window);
+    };
+    request.optionalDeviceExtensions = QRhiVulkanInitParams::preferredExtensionsForImportedDevice();
+    request.requiredHostDeviceExtensions = {QByteArrayLiteral(VK_KHR_SWAPCHAIN_EXTENSION_NAME)};
+
+    viewport::GpuDeviceResult created = viewport::createGpuDevice(request);
+    if (!created.device) {
+        QL_LOG_ERROR("Viewport: no usable GPU: {}", created.error.toStdString());
+        emit m_window->renderContextFailed(
+            QObject::tr("No GPU on this machine has what the renderer needs:\n\n%1")
+                .arg(created.error));
+        return false;
+    }
+    m_device = *created.device;
+
+    // QRhi presents and runs the overlay on the same device and queue the
+    // SDK records into. It never destroys an imported device; releaseGpu()
+    // does, after it.
+    QRhiVulkanInitParams params;
+    params.inst = inst;
+    params.window = m_window;
+    QRhiVulkanNativeHandles imported;
+    imported.physDev = m_device.physicalDevice;
+    imported.dev = m_device.device;
+    imported.gfxQueueFamilyIdx = m_device.queueFamily;
+    imported.gfxQueueIdx = m_device.queueIndex;
+    m_rhi.reset(QRhi::create(QRhi::Vulkan, &params, QRhi::Flags(), &imported));
+    if (!m_rhi) {
+        emit m_window->renderContextFailed(
+            QObject::tr("The renderer could not start:\n\n%1")
+                .arg(QStringLiteral("Qt could not present with the Vulkan device on %1.")
+                         .arg(m_device.name)));
+        viewport::destroyGpuDevice(m_device, inst->vkInstance(), m_getInstanceProcAddr);
+        return false;
+    }
+    QL_LOG_INFO("Viewport: QRhi {} presents on the imported device, {} frames in flight",
+                m_rhi->backendName(), framesInFlight());
+
+    m_swapchain.reset(m_rhi->newSwapChain());
+    m_swapchain->setWindow(m_window);
+    // The frame texture is sRGB and so is this, so the composite samples
+    // linear and the swapchain encodes on write. QRhi keeps a UNORM format
+    // without a word when the surface offers no sRGB one; recreateSwapchain()
+    // repeats its choice and has the composite encode instead.
+    m_swapchain->setFlags(QRhiSwapChain::sRGB);
+    m_swapchainPass.reset(m_swapchain->newCompatibleRenderPassDescriptor());
+    m_swapchain->setRenderPassDescriptor(m_swapchainPass.get());
+    m_swapchainDirty = true;
+    m_viewportSampleBatch.reset(framesInFlight());
+    return true;
+}
+
+bool ViewportRenderer::recreateSwapchain() {
+    if (!m_swapchain || m_swapchain->surfacePixelSize().isEmpty()) {
+        return false;  // hidden or minimized: frames wait for the next expose
+    }
+    const QSize before = m_swapchain->currentPixelSize();
+    // Waits for the device to go idle first. That is why nothing but
+    // renderFrame() and the first-time setup get here: neither runs while a
+    // context job is submitting to the queue.
+    if (!m_swapchain->createOrResize()) {
+        qWarning() << "Viewport: could not build the swapchain at"
+                   << m_swapchain->surfacePixelSize();
+        return false;
+    }
+    m_swapchainDirty = false;
+
+    const bool encode = !viewport::surfaceOffersSrgb(m_window->vulkanInstance(), m_window,
+                                                     m_device.physicalDevice);
+    if (encode != m_encodeSrgb || !m_swapchainFormatLogged) {
+        m_swapchainFormatLogged = true;
+        // Through the core logger, not qDebug: with no console attached
+        // qDebug reaches the debugger and not the log, and a viewport showing
+        // linear radiance uncorrected looks exactly like a correct one.
+        if (encode) {
+            QL_LOG_WARN("Viewport: the surface offers no sRGB format, so the composite "
+                        "pass encodes linear radiance in the shader");
+        } else {
+            QL_LOG_INFO("Viewport: sRGB swapchain; the composite's writes are encoded");
+        }
+    }
+    m_encodeSrgb = encode;
+
+    if (m_swapchain->currentPixelSize() != before) {
+        onSwapchainResized();
+    }
+    return true;
+}
+
+void ViewportRenderer::onSwapchainResized() {
     // A context already exists, so this is a rebuilt swapchain: the viewport
     // changed size -- a splitter, a workspace, the window -- or came back
     // after being hidden. That is a new window onto the render, not a new
     // render. The SDK stays at the extent it is accumulating at, and
-    // startNextFrame() fits that image into the swapchain until something
+    // renderFrame() fits that image into the swapchain until something
     // restarts the accumulation anyway, which is when resetAccumulation()
     // takes the new size up. Resizing here discarded every sample on each
     // step of a splitter drag. With nothing accumulated there is nothing to
     // keep, so the new size is taken at once.
-    if (m_renderContext) {
-        if (m_sampleCount == 0 || !m_renderContext->HasScene()) {
-            adoptSwapchainExtent();
-        }
+    if (m_renderContext && (m_sampleCount == 0 || !m_renderContext->HasScene())) {
+        adoptRenderExtent();
+    }
+}
+
+void ViewportRenderer::createRenderContext() {
+    m_contextAttempted = true;
+    const QSize swapSize = swapchainSize();
+    if (swapSize.isEmpty()) {
+        qWarning() << "Invalid swapchain size, skipping initialization";
+        m_contextAttempted = false;
         return;
     }
 
-    // First time initialization - extract Qt-managed Vulkan handles
-    QVulkanInstance* inst = m_window->vulkanInstance();
-    VkInstance vkInstance = inst->vkInstance();
-    VkDevice device = m_window->device();
-    VkPhysicalDevice physDevice = m_window->physicalDevice();
-
-    qDebug() << "  VkInstance:" << vkInstance;
-    qDebug() << "  VkDevice:" << device;
-    qDebug() << "  VkPhysicalDevice:" << physDevice;
-
-    if (!device) {
-        qCritical() << "Device is NULL! Qt failed to create Vulkan device.";
-        qCritical() << "This usually means required device extensions are not supported.";
+    auto created = viewport::SdkFrameBridge::createContext(m_window->vulkanInstance(), m_device,
+                                                           swapSize);
+    if (!created.context) {
+        qCritical() << "Failed to create ExternalRenderContext:" << created.error;
         emit m_window->renderContextFailed(
-            QObject::tr("Qt could not create a Vulkan device. The selected GPU is most "
-                        "likely missing the ray tracing extensions this renderer needs. "
-                        "On a laptop with both an integrated and a discrete GPU, check "
-                        "that Quantiloom is running on the discrete one."));
-        return;
-    }
-
-    // Get graphics queue using device functions
-    QVulkanDeviceFunctions* df = inst->deviceFunctions(device);
-    VkQueue graphicsQueue;
-    df->vkGetDeviceQueue(device, m_window->graphicsQueueFamilyIndex(), 0, &graphicsQueue);
-
-    qDebug() << "  VkQueue:" << graphicsQueue;
-    qDebug() << "  Queue family:" << m_window->graphicsQueueFamilyIndex();
-
-    // Through the core logger, not qDebug: an sRGB swapchain is what encodes
-    // the SDK's linear output on the presenting blit, and setPreferredColorFormats
-    // only states a preference -- Qt falls back silently if the surface does not
-    // offer one. With no console attached qDebug reaches the debugger and not
-    // the log, so a viewport rendering uncorrected linear radiance would look
-    // exactly like one that is correct.
-    const VkFormat colorFormat = m_window->colorFormat();
-    const bool srgbTarget = colorFormat == VK_FORMAT_B8G8R8A8_SRGB ||
-                            colorFormat == VK_FORMAT_R8G8B8A8_SRGB;
-    if (srgbTarget) {
-        QL_LOG_INFO("Swapchain colour format {} (sRGB): the present blit encodes "
-                    "linear radiance", static_cast<int>(colorFormat));
-    } else {
-        QL_LOG_WARN("Swapchain colour format {} is not sRGB: the present blit "
-                    "cannot encode, so the viewport shows linear radiance "
-                    "uncorrected and reads darker than the CLI's PNG",
-                    static_cast<int>(colorFormat));
-    }
-
-    // Initialize libQuantiloom with external handles
-    quantiloom::ExternalRenderContext::InitParams params{};
-    params.instance = vkInstance;
-    params.physicalDevice = physDevice;
-    params.device = device;
-    params.graphicsQueue = graphicsQueue;
-    params.graphicsQueueFamily = static_cast<quantiloom::u32>(m_window->graphicsQueueFamilyIndex());
-    params.targetColorFormat = m_window->colorFormat();
-    params.width = static_cast<quantiloom::u32>(swapSize.width());
-    params.height = static_cast<quantiloom::u32>(swapSize.height());
-    // Note: pipelineCacheDir uses platform-specific default in ExternalRenderContext:
-    //   Windows: %LOCALAPPDATA%/Quantiloom/cache/
-    //   Linux:   ~/.cache/Quantiloom/
-    //   macOS:   ~/Library/Caches/Quantiloom/
-
-    qDebug() << "Creating ExternalRenderContext...";
-
-    auto result = quantiloom::ExternalRenderContext::Create(params);
-    if (!result) {
-        const QString reason = QString::fromStdString(result.error());
-        qCritical() << "Failed to create ExternalRenderContext:" << reason;
-        emit m_window->renderContextFailed(
-            QObject::tr("The renderer could not start:\n\n%1").arg(reason));
+            QObject::tr("The renderer could not start:\n\n%1").arg(created.error));
         return;
     }
 
     qDebug() << "ExternalRenderContext created successfully!";
 
-    m_renderContext = std::move(result.value());
+    m_renderContext = std::move(created.context);
     m_initialized = true;
     m_targetExtent = swapSize;
 
@@ -180,10 +224,10 @@ void ViewportRenderer::initSwapChainResources() {
     // configuration it was opened with rather than with defaults.
     m_window->applyDeferredSettings();
 
-    // Rebuild the open document. A lost device or a destroyed surface takes the
-    // context with it (a minimize no longer does -- the window keeps its
-    // resources across being hidden), and the fresh one starts at its
-    // constructor defaults -- which for a config document
+    // Rebuild the open document. A lost device takes the context with it (a
+    // minimize does not, and neither does a lost surface: only the swapchain
+    // goes with that), and the fresh one starts at its constructor defaults
+    // -- which for a config document
     // means no solar LUT, no spectral curves, no refractive indices, no
     // temperature backfill and a disabled atmosphere. Re-pushing this class's
     // members never covered any of that, because it holds none of it; replaying
@@ -208,43 +252,166 @@ void ViewportRenderer::initSwapChainResources() {
     }
 }
 
-void ViewportRenderer::releaseSwapChainResources() {
-    // Nothing to do - render context manages its own resources
+void ViewportRenderer::joinContextJob() {
+    if (m_jobThread && m_jobThread->joinable()) {
+        m_jobThread->join();
+    }
 }
 
-void ViewportRenderer::releaseResources() {
+void ViewportRenderer::releaseGpu() {
+    joinContextJob();
+    if (m_rhi) {
+        m_rhi->finish();
+    }
     // Save current scene path for reload when the context is rebuilt
     if (!m_currentScenePath.isEmpty()) {
         m_pendingScenePath = m_currentScenePath;
         qDebug() << "Saved scene path for restore:" << m_pendingScenePath;
     }
-    m_overlay.releaseResources(m_window);
     m_renderContext.reset();
     m_initialized = false;
+    m_contextAttempted = false;
     m_targetExtent = QSize();
     // The next context is a fresh one and knows none of the document.
     m_configAppliedToContext = false;
+
+    m_overlay.releaseResources();
+    releaseFrameTargets();
+    m_swapchain.reset();
+    m_swapchainPass.reset();
+    m_swapchainDirty = true;
+    m_rhi.reset();
+    if (m_device.device) {
+        viewport::destroyGpuDevice(m_device, m_window->vulkanInstance()->vkInstance(),
+                                   m_getInstanceProcAddr);
+    }
 }
 
-void ViewportRenderer::startNextFrame() {
-    const QScopedValueRollback inVulkanCallback(m_inVulkanCallback, true);
-    m_frameCounter++;
+void ViewportRenderer::rebuildAfterDeviceLoss() {
+    QL_LOG_ERROR("Viewport: the Vulkan device was lost; rebuilding it and reopening the "
+                 "document");
+    releaseGpu();
+    initialize();
+    m_window->requestUpdate();
+}
 
-    // A composited capture recorded a few frames ago is complete by now
-    m_overlay.finishCaptureIfReady(m_window);
+void ViewportRenderer::surfaceChanged() {
+    m_swapchainDirty = true;
+}
+
+void ViewportRenderer::releaseSwapchain() {
+    // destroy() waits for the device to go idle, and a context job may be
+    // submitting right now: wait for it first. Blocking, and rare -- a window
+    // close or a native re-creation in the middle of a job.
+    joinContextJob();
+    if (m_swapchain) {
+        m_swapchain->destroy();
+    }
+    m_swapchainDirty = true;
+}
+
+bool ViewportRenderer::ensureFrameTargets(QSize extent) {
+    if (m_frameTexture && m_frameTargetSize == extent) {
+        return true;
+    }
+    m_frameTargetSize = QSize();
+    if (!m_frameTexture) {
+        // RenderTarget for the overlay pass, sRGB so the SDK's blit encodes
+        // and sampling decodes, UsedAsTransferSource for the composited
+        // capture. QRhi gives every Vulkan texture TRANSFER_DST, which is
+        // what the SDK's blit needs.
+        m_frameTexture.reset(m_rhi->newTexture(
+            QRhiTexture::RGBA8, extent, 1,
+            QRhiTexture::RenderTarget | QRhiTexture::sRGB | QRhiTexture::UsedAsTransferSource));
+        // R32_SFLOAT with TRANSFER_DST and SAMPLED: what BlitDepthTo requires.
+        m_depthTexture.reset(m_rhi->newTexture(QRhiTexture::R32F, extent));
+        // Orders overlay geometry against itself only; cleared by every pass.
+        m_overlayDepth.reset(m_rhi->newRenderBuffer(QRhiRenderBuffer::DepthStencil, extent));
+    } else {
+        m_frameTexture->setPixelSize(extent);
+        m_depthTexture->setPixelSize(extent);
+        m_overlayDepth->setPixelSize(extent);
+    }
+    if (!m_frameTexture->create() || !m_depthTexture->create() || !m_overlayDepth->create()) {
+        qWarning() << "Viewport: could not create the frame textures at" << extent;
+        return false;
+    }
+    if (!m_frameTarget) {
+        QRhiTextureRenderTargetDescription description{QRhiColorAttachment(m_frameTexture.get())};
+        description.setDepthStencilBuffer(m_overlayDepth.get());
+        // Load and store the colour: the overlay draws over the SDK's frame.
+        m_frameTarget.reset(m_rhi->newTextureRenderTarget(
+            description, QRhiTextureRenderTarget::PreserveColorContents));
+        m_framePass.reset(m_frameTarget->newCompatibleRenderPassDescriptor());
+        m_frameTarget->setRenderPassDescriptor(m_framePass.get());
+    }
+    if (!m_frameTarget->create()) {
+        qWarning() << "Viewport: could not create the overlay render target at" << extent;
+        return false;
+    }
+    m_frameTargetSize = extent;
+    return true;
+}
+
+void ViewportRenderer::releaseFrameTargets() {
+    m_frameTarget.reset();
+    m_framePass.reset();
+    m_overlayDepth.reset();
+    m_depthTexture.reset();
+    m_frameTexture.reset();
+    m_frameTargetSize = QSize();
+}
+
+void ViewportRenderer::renderFrame() {
+    if (!m_rhi || !m_window->isExposed()) {
+        return;  // no device (renderContextFailed said why), or nothing to show
+    }
+    // Rebuilt here and only here: createOrResize() waits for the device to go
+    // idle, and this function never runs while a context job holds the queue.
+    if (m_swapchainDirty || m_swapchain->currentPixelSize() != m_swapchain->surfacePixelSize()) {
+        if (!recreateSwapchain()) {
+            return;
+        }
+    }
+    if (!m_contextAttempted) {
+        // The first expose found no surface to size the context from.
+        const QScopedValueRollback inFrameCallback(m_inFrameCallback, true);
+        createRenderContext();
+    }
+
+    const QRhi::FrameOpResult begun = m_rhi->beginFrame(m_swapchain.get());
+    if (begun == QRhi::FrameOpSwapChainOutOfDate) {
+        m_swapchainDirty = true;
+        m_window->requestUpdate();
+        return;
+    }
+    if (begun == QRhi::FrameOpDeviceLost) {
+        rebuildAfterDeviceLoss();
+        return;
+    }
+    if (begun != QRhi::FrameOpSuccess) {
+        qWarning() << "Viewport: beginFrame failed:" << begun;
+        return;
+    }
+
+    const QScopedValueRollback inFrameCallback(m_inFrameCallback, true);
+    m_frameCounter++;
 
     auto now = std::chrono::high_resolution_clock::now();
     float deltaTime = std::chrono::duration<float>(now - m_lastFrameTime).count();
     m_lastFrameTime = now;
 
-    // Update camera based on input
+    // Update camera based on input. May reset the accumulation and with it
+    // adopt a new render extent, which drains the queue (QRhi::finish()) and
+    // so replaces the frame's command buffer -- which is why the native
+    // command buffer is not fetched until below.
     updateCamera(deltaTime);
 
     // A frame whose recording failed (an allocation failure, a lost device)
     // leaves the context loaded but not ready, and every later RenderFrame
-    // returns without recording -- without the blit, and without leaving the
-    // swapchain image in the PRESENT_SRC the overlay pass expects. So a context
-    // in that state is drawn like no scene at all, and said so once.
+    // returns without recording -- nothing would be in the frame texture to
+    // composite. So a context in that state is drawn like no scene at all,
+    // and said so once.
     const bool stopped = m_renderContext && m_renderContext->HasScene() &&
                          !m_renderContext->IsReady();
     if (stopped && !m_renderingStoppedReported) {
@@ -254,33 +421,14 @@ void ViewportRenderer::startNextFrame() {
         m_renderingStoppedReported = false;
     }
 
+    QRhiCommandBuffer* cb = m_swapchain->currentFrameCommandBuffer();
+    const QSize swapSize = m_swapchain->currentPixelSize();
+
     if (!m_renderContext || !m_renderContext->HasScene() || stopped) {
-        // No scene loaded: present a cleared frame. Presenting without
-        // recording anything shows a swapchain image whose contents and layout
-        // are undefined. Qt's default render pass clears the attachments and
-        // leaves the image in PRESENT_SRC, which is all this frame needs.
-        {
-            const QSize size = m_window->swapChainImageSize();
-            VkClearValue clearValues[3]{};
-            clearValues[0].color = {{0.0f, 0.0f, 0.0f, 1.0f}};
-            clearValues[1].depthStencil = {1.0f, 0};
-            VkRenderPassBeginInfo passInfo{};
-            passInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-            passInfo.renderPass = m_window->defaultRenderPass();
-            passInfo.framebuffer = m_window->currentFramebuffer();
-            passInfo.renderArea.extent = {static_cast<uint32_t>(size.width()),
-                                          static_cast<uint32_t>(size.height())};
-            // Colour and depth, plus the MSAA resolve target when there is one.
-            passInfo.clearValueCount =
-                m_window->sampleCountFlagBits() > VK_SAMPLE_COUNT_1_BIT ? 3 : 2;
-            passInfo.pClearValues = clearValues;
-            VkCommandBuffer emptyCmd = m_window->currentCommandBuffer();
-            QVulkanDeviceFunctions* df =
-                m_window->vulkanInstance()->deviceFunctions(m_window->device());
-            df->vkCmdBeginRenderPass(emptyCmd, &passInfo, VK_SUBPASS_CONTENTS_INLINE);
-            df->vkCmdEndRenderPass(emptyCmd);
-        }
-        m_window->frameReady();
+        // No scene loaded: present a cleared frame.
+        cb->beginPass(m_swapchain->currentFrameRenderTarget(), Qt::black, {1.0f, 0});
+        cb->endPass();
+        m_rhi->endFrame(m_swapchain.get());
         // Idle rather than spin. With nothing to accumulate, re-requesting a
         // frame forever only burns a core to redraw the same grid; every way
         // the picture can change from here (orbit, pan, zoom, a scene
@@ -298,107 +446,84 @@ void ViewportRenderer::startNextFrame() {
         qDebug() << "Frame" << m_frameCounter << "- samples:" << m_sampleCount;
     }
 
-    VkCommandBuffer cmd = m_window->currentCommandBuffer();
-    const int swapChainIndex = m_window->currentSwapChainImageIndex();
-
-    // What the SDK presents into: the swapchain image, or -- while the render
-    // keeps an extent the viewport no longer has (see initSwapChainResources)
-    // -- an image of that extent, which presentHeldFrame() then fits into the
-    // swapchain image. A resize changes how the render is shown, never what
-    // it holds.
-    bool held = m_targetExtent != m_window->swapChainImageSize();
-    viewport::OverlayRenderer::FrameTarget heldFrame;
-    if (held) {
-        heldFrame = m_overlay.beginHeldFrame(
-            m_window, cmd, static_cast<uint32_t>(m_targetExtent.width()),
-            static_cast<uint32_t>(m_targetExtent.height()));
-        if (heldFrame.image == VK_NULL_HANDLE) {
-            // No memory for the second image: take the viewport's size, at
-            // the cost of the accumulation -- still better than no frame.
-            resetAccumulation();
-            held = false;
-        }
-    }
-    VkImage targetImage =
-        held ? heldFrame.image : m_window->swapChainImage(swapChainIndex);
-    VkImageView targetView =
-        held ? heldFrame.view : m_window->swapChainImageView(swapChainIndex);
-    // Qt doesn't guarantee the swapchain image's layout; the held frame is
-    // where beginHeldFrame() put it.
-    const VkImageLayout targetLayout =
-        held ? VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL : VK_IMAGE_LAYOUT_UNDEFINED;
-
-    // A frame is drawn for two different reasons, and only one of them should
-    // cost a sample. Accumulating is what Start/Resume asked for; redrawing
-    // because the selection or the gizmo changed is the shell's own business,
-    // and charging the user's sample budget for it would make the sample count
-    // of a finished render depend on how often they clicked.
-    //
-    // So past the target, or while paused, the accumulated image is presented
-    // again rather than re-traced. PresentAccumulated returns false when there
-    // is nothing to re-present -- before the first trace, or after a resize --
-    // and then a real frame is the only correct answer.
+    // The SDK writes the frame texture, always at m_targetExtent -- which
+    // while a resize is held is not the swapchain's -- and the composite pass
+    // fits it into the swapchain. A resize changes how the render is shown,
+    // never what it holds.
     const bool accumulating =
         !m_paused && !(m_targetSPP > 0 && m_sampleCount >= m_targetSPP);
-    const auto width = static_cast<quantiloom::u32>(m_targetExtent.width());
-    const auto height = static_cast<quantiloom::u32>(m_targetExtent.height());
-
-    bool presentedWithoutTracing = false;
-    if (!accumulating) {
-        // A pending display reprocess re-runs the sensor chain and CLAHE over
-        // the unchanged accumulation; the plain re-present shows the
-        // post-processed images as they were. Same refusals, same fallback.
-        presentedWithoutTracing = m_reprocessPending
-            ? m_renderContext->ReprocessAccumulated(
-                  cmd, targetImage, targetLayout, width, height)
-            : m_renderContext->PresentAccumulated(
-                  cmd, targetImage, targetLayout, width, height);
+    bool haveImage = false;
+    bool tracedFrame = false;
+    if (ensureFrameTargets(m_targetExtent)) {
+        // Outside any pass, on the primary command buffer: QRhi records what
+        // it has deferred so far, and the SDK's commands follow it.
+        cb->beginExternal();
+        const auto* native =
+            static_cast<const QRhiVulkanCommandBufferNativeHandles*>(cb->nativeHandles());
+        viewport::SdkFrameBridge::FrameRequest request;
+        request.accumulating = accumulating;
+        request.reprocess = m_reprocessPending;
+        // Why paused, moving and physical-camera frames get exactly one
+        // sample is documented on chooseForFrame().
+        request.chooseSampleBatch = [this, accumulating] {
+            return m_viewportSampleBatch.chooseForFrame(m_sampleCount, m_targetSPP, accumulating,
+                                                        m_motionActive, m_cameraConfig.enabled);
+        };
+        const viewport::SdkFrameBridge::FrameResult frame =
+            m_bridge.record(native->commandBuffer, *m_renderContext, m_frameTexture.get(),
+                            m_depthTexture.get(), m_targetExtent, request);
+        cb->endExternal();
+        m_bridge.publishLayouts(m_frameTexture.get(), m_depthTexture.get());
+        haveImage = frame.haveImage;
+        tracedFrame = frame.traced;
     }
     // Consumed on every path: when a real frame is traced instead, RenderFrame
     // re-runs the post-processing chains anyway.
     m_reprocessPending = false;
-    bool tracedFrame = false;
-    if (!presentedWithoutTracing) {
-        // Why paused, moving and physical-camera frames get exactly one
-        // sample is documented on chooseForFrame().
-        const std::uint32_t batch = m_viewportSampleBatch.chooseForFrame(
-            m_sampleCount, m_targetSPP, accumulating, m_motionActive,
-            m_cameraConfig.enabled);
-        m_renderContext->SetViewportSampleBatch(batch);
-        // ExternalRenderContext handles layout transitions and blit to swapchain
-        m_renderContext->RenderFrame(cmd, targetImage, targetLayout, width, height);
-        tracedFrame = true;
-        if (!m_renderContext->IsReady()) {
-            // This frame's recording is the one that failed. Nothing reliable
-            // is in the image to draw over; the next frame reports it.
-            m_window->frameReady();
-            m_window->requestUpdate();
-            return;
-        }
-    }
 
-    // Editor overlay (grid, gizmo) over the blitted frame, same command
-    // buffer. No-op while nothing is visible.
-    const viewport::CameraMatrices overlayCam = overlayCamera();
-    m_gizmoVertices.clear();
-    m_window->buildGizmoDrawList(overlayCam, m_gizmoVertices);
-    m_overlay.record(m_window, m_renderContext.get(), cmd, targetImage, targetView,
-                     width, height, overlayCam, m_gizmoVertices);
-    m_overlay.recordCaptureIfRequested(m_window, cmd, targetImage, width, height);
-    if (held) {
+    QRhiResourceUpdateBatch* updates = m_rhi->nextResourceUpdateBatch();
+    if (haveImage) {
+        // Editor overlay (grid, gizmo) over the SDK's frame. The pass runs
+        // even with nothing to draw: it is the use the frame texture's layout
+        // was left for (SdkFrameBridge.hpp).
+        const viewport::CameraMatrices overlayCam = overlayCamera();
+        m_gizmoVertices.clear();
+        m_window->buildGizmoDrawList(overlayCam, m_gizmoVertices);
+        m_overlay.prepare(m_rhi.get(), updates, m_framePass.get(), m_swapchainPass.get(),
+                          m_frameTexture.get(), m_depthTexture.get(), overlayCam,
+                          m_gizmoVertices, m_encodeSrgb);
+        cb->beginPass(m_frameTarget.get(), Qt::black, {1.0f, 0}, updates);
+        m_overlay.draw(cb, m_targetExtent);
+        cb->endPass(m_overlay.takeCaptureReadback(m_rhi.get(), m_frameTexture.get()));
+        updates = nullptr;
+    }
+    // The composite: black, then the frame in the rectangle it is shown in --
+    // the bars of a held render are what is left of the clear.
+    cb->beginPass(m_swapchain->currentFrameRenderTarget(), Qt::black, {1.0f, 0}, updates);
+    if (haveImage) {
         const QRect shown = presentedRect();
-        m_overlay.presentHeldFrame(
-            m_window, cmd,
-            VkRect2D{{shown.x(), shown.y()},
-                     {static_cast<uint32_t>(shown.width()),
-                      static_cast<uint32_t>(shown.height())}});
+        // QRhi viewports have their origin at the bottom left.
+        m_overlay.composite(
+            cb, QRhiViewport(static_cast<float>(shown.x()),
+                             static_cast<float>(swapSize.height() - shown.y() - shown.height()),
+                             static_cast<float>(shown.width()),
+                             static_cast<float>(shown.height())));
+    }
+    cb->endPass();
+    m_rhi->endFrame(m_swapchain.get());
+
+    if (!haveImage) {
+        // This frame's recording is the one that failed; a cleared frame went
+        // out instead of an undefined one, and the next frame reports it.
+        m_window->requestUpdate();
+        return;
     }
 
     // Update sample count
     m_sampleCount = m_renderContext->GetAccumulatedSamples();
 
     // Two different quantities, and the status bar shows both. This one is the
-    // interval between consecutive callbacks -- the cadence at which frames
+    // interval between consecutive frames -- the cadence at which frames
     // actually reach the screen. Timing from here back to the top of the
     // function instead would measure command recording, which returns long
     // before the GPU has run any of it: microseconds, and a frame rate derived
@@ -415,17 +540,13 @@ void ViewportRenderer::startNextFrame() {
     // Emit frame rendered signal
     emit m_window->frameRendered(m_lastFrameTimeMs, m_sampleCount);
 
-    // Signal frame ready and request next frame. The frame in flight is always
-    // completed -- stopping before the render would present an undefined
-    // swapchain image -- so a pause takes effect from the next frame on.
-    m_window->frameReady();
+    // Request the next frame. A pause takes effect from the next frame on.
     const bool atTarget = m_targetSPP > 0 && m_sampleCount >= m_targetSPP;
     // A pending composited capture keeps the loop alive past the target and
-    // through a pause: it records in one frame and is written when a countdown
-    // of *frames* runs out, so stopping at either left the request recorded,
-    // never saved, and every later request refused as "one at a time". Past the
-    // target or paused these frames re-present the accumulation, so the wait
-    // costs no sample.
+    // through a pause: its readback completes only as later frames begin, so
+    // stopping at either left the request armed, never saved, and every later
+    // request refused as "one at a time". Past the target or paused these
+    // frames re-present the accumulation, so the wait costs no sample.
     if (m_overlay.capturePending() || (!m_paused && !atTarget)) {
         m_window->requestUpdate();
     }
@@ -444,7 +565,7 @@ viewport::CameraMatrices ViewportRenderer::overlayCamera() const {
 }
 
 QRect ViewportRenderer::presentedRect() const {
-    const QSize swapSize = m_window->swapChainImageSize();
+    const QSize swapSize = swapchainSize();
     if (m_targetExtent.isEmpty() || swapSize.isEmpty()) {
         return QRect(QPoint(0, 0), swapSize);
     }
@@ -467,19 +588,17 @@ QPointF ViewportRenderer::swapchainToTarget(const QPointF& swapchainPixel) const
                        shown.height());
 }
 
-void ViewportRenderer::adoptSwapchainExtent() {
-    const QSize swapSize = m_window->swapChainImageSize();
+void ViewportRenderer::adoptRenderExtent() {
+    const QSize swapSize = swapchainSize();
     if (!m_renderContext || swapSize.isEmpty() || swapSize == m_targetExtent) {
         return;
     }
-    // The overlay's depth images and the held frame are sized from this
-    // extent and replaced mid-frame without a wait of their own, so a frame
-    // still in flight must not be reading them. Straight after a swapchain
-    // rebuild the device is idle already; anywhere else this runs once per
-    // resize, not per frame.
-    QVulkanDeviceFunctions* df =
-        m_window->vulkanInstance()->deviceFunctions(m_window->device());
-    df->vkDeviceWaitIdle(m_window->device());
+    // The SDK's Resize replaces images a frame still in flight may be
+    // reading, so the queue is drained first; inside a frame QRhi submits
+    // what is recorded and starts a new command buffer. The frame textures
+    // follow on the next frame without a wait of their own: QRhi releases
+    // the old images once no frame uses them. Once per resize, not per frame.
+    m_rhi->finish();
     m_targetExtent = swapSize;
     m_renderContext->Resize(static_cast<quantiloom::u32>(swapSize.width()),
                             static_cast<quantiloom::u32>(swapSize.height()));
@@ -506,10 +625,10 @@ constexpr int kBusyCardDelayMs = 300;
 void ViewportRenderer::runContextJob(
     const QString& description,
     const std::function<void(quantiloom::ExternalRenderContext&)>& work) {
-    // Inside a QVulkanWindow callback -- a lost context rebuilt during the
-    // swapchain setup, or anything a frame triggers -- the event loop must not
-    // turn: Qt is part way through its own work on this window.
-    if (m_inVulkanCallback) {
+    // Inside a frame or the first-time setup -- a lost device rebuilt and its
+    // document replayed, or anything a frame triggers -- the event loop must
+    // not turn: this window is part way through its own work.
+    if (m_inFrameCallback) {
         work(*m_renderContext);
         return;
     }
@@ -537,6 +656,7 @@ void ViewportRenderer::runContextJob(
             loop.quit();
         }, Qt::QueuedConnection);
     });
+    m_jobThread = &worker;
 
     // Unconnected: it is only there to wake the wait at the deadline.
     QTimer deadline;
@@ -552,7 +672,11 @@ void ViewportRenderer::runContextJob(
         emit m_window->longOperationStarted(description);
         loop.exec();
     }
-    worker.join();
+    // Joined already if the surface went away meanwhile (releaseSwapchain()).
+    if (worker.joinable()) {
+        worker.join();
+    }
+    m_jobThread = nullptr;
 
     m_renderContext = std::move(context);
     m_contextJobActive = false;
@@ -1459,12 +1583,12 @@ void ViewportRenderer::updateCamera(float deltaTime) {
 
 void ViewportRenderer::resetAccumulation() {
     m_sampleCount = 0;
-    m_viewportSampleBatch.reset(m_window->concurrentFrameCount());
+    m_viewportSampleBatch.reset(framesInFlight());
     if (m_renderContext) {
         // A restart is when a size the viewport changed to while the old
         // image was held gets taken up: nothing is lost that is not being
         // discarded anyway.
-        adoptSwapchainExtent();
+        adoptRenderExtent();
         m_renderContext->ResetAccumulation();
     }
     emit m_window->pixelReadbackInvalidated();
@@ -1534,7 +1658,7 @@ void ViewportRenderer::setViewportMotionActive(bool active) {
         return;
     }
     m_motionActive = active;
-    m_viewportSampleBatch.reset(m_window->concurrentFrameCount());
+    m_viewportSampleBatch.reset(framesInFlight());
     if (!m_motionAdaptiveResolution) {
         return;
     }

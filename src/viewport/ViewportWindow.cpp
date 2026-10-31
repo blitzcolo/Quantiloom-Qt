@@ -1,6 +1,6 @@
 /**
  * @file ViewportWindow.cpp
- * @brief QVulkanWindow subclass implementation
+ * @brief The native window the viewport renders into
  *
  * @author blitzcolo
  */
@@ -22,6 +22,9 @@
 #include <QMouseEvent>
 #include <QWheelEvent>
 #include <QHoverEvent>
+#include <QExposeEvent>
+#include <QPlatformSurfaceEvent>
+#include <QResizeEvent>
 #include <QTimer>
 #include <QDebug>
 
@@ -31,153 +34,54 @@
 #include <scene/Scene.hpp>
 
 ViewportWindow::ViewportWindow(QWindow* parent)
-    : QVulkanWindow(parent)
+    : QWindow(parent)
 {
-    // The SDK presents by blitting its linear R32G32B32A32_SFLOAT output straight
-    // into the swapchain image, with no shader in between. A blit applies the
-    // destination format's transfer function, so an sRGB target is what performs
-    // the linear->sRGB encode -- Qt's default UNORM target would display linear
-    // radiance uncorrected, which is the whole viewport a stop and a half too dark
-    // against the CLI's PNG. Qt falls back to its default if neither is supported.
-    setPreferredColorFormats({VK_FORMAT_B8G8R8A8_SRGB, VK_FORMAT_R8G8B8A8_SRGB});
-
-    // Keep the device, and with it the render context, across being hidden.
-    // Qt's default releases everything when the window is unexposed, and a
-    // minimize unexposes it: QWidget hides its children, and the window
-    // container hides this window with them. Restoring then rebuilt the
-    // context and reloaded the whole scene, the accumulation lost with it.
-    setFlags(QVulkanWindow::PersistentResources);
-
-    // Request required device extensions for ray tracing
-    setDeviceExtensions({
-        // Ray tracing core extensions
-        "VK_KHR_acceleration_structure",
-        "VK_KHR_ray_tracing_pipeline",
-        "VK_KHR_ray_query",  // Required if shaders use RayQuery capability
-        "VK_KHR_deferred_host_operations",
-        // Required by ray tracing
-        "VK_KHR_buffer_device_address",
-        "VK_KHR_spirv_1_4",
-        "VK_KHR_shader_float_controls",
-        // Dynamic rendering (Vulkan 1.3 core, but request as extension for compatibility)
-        "VK_KHR_dynamic_rendering",
-        // Synchronization2 (Vulkan 1.3 core)
-        "VK_KHR_synchronization2",
-        // Maintenance extensions often required
-        "VK_KHR_maintenance3",
-        "VK_KHR_maintenance4",
-        // Descriptor indexing for bindless textures
-        "VK_EXT_descriptor_indexing",
-        // Scalar block layout
-        "VK_EXT_scalar_block_layout"
-    });
-
-    // Enable required Vulkan features for ray tracing using Qt 6.7+ API
-    // Reference: https://doc.qt.io/qt-6/qvulkanwindow.html#setEnabledFeaturesModifier
-    setEnabledFeaturesModifier([this](VkPhysicalDeviceFeatures2& features) {
-        qDebug() << "ViewportWindow: Enabling ray tracing device features...";
-
-        // Initialize feature structures with sType
-        m_bufferDeviceAddressFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES;
-        m_bufferDeviceAddressFeatures.bufferDeviceAddress = VK_TRUE;
-
-        m_accelerationStructureFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
-        m_accelerationStructureFeatures.accelerationStructure = VK_TRUE;
-
-        m_rayTracingPipelineFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR;
-        m_rayTracingPipelineFeatures.rayTracingPipeline = VK_TRUE;
-
-        m_rayQueryFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR;
-        m_rayQueryFeatures.rayQuery = VK_TRUE;
-
-        m_dynamicRenderingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES;
-        m_dynamicRenderingFeatures.dynamicRendering = VK_TRUE;
-
-        m_synchronization2Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES;
-        m_synchronization2Features.synchronization2 = VK_TRUE;
-
-        m_descriptorIndexingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES;
-        m_descriptorIndexingFeatures.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
-        m_descriptorIndexingFeatures.runtimeDescriptorArray = VK_TRUE;
-        m_descriptorIndexingFeatures.descriptorBindingVariableDescriptorCount = VK_TRUE;
-        m_descriptorIndexingFeatures.descriptorBindingPartiallyBound = VK_TRUE;
-
-        m_scalarBlockLayoutFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SCALAR_BLOCK_LAYOUT_FEATURES;
-        m_scalarBlockLayoutFeatures.scalarBlockLayout = VK_TRUE;
-
-        // Build pNext chain (matches VulkanContext order):
-        // features -> bufferDeviceAddress -> accelerationStructure -> rayTracingPipeline
-        //          -> rayQuery -> dynamicRendering -> synchronization2
-        //          -> descriptorIndexing -> scalarBlockLayout
-        features.pNext = &m_bufferDeviceAddressFeatures;
-        m_bufferDeviceAddressFeatures.pNext = &m_accelerationStructureFeatures;
-        m_accelerationStructureFeatures.pNext = &m_rayTracingPipelineFeatures;
-        m_rayTracingPipelineFeatures.pNext = &m_rayQueryFeatures;
-        m_rayQueryFeatures.pNext = &m_dynamicRenderingFeatures;
-        m_dynamicRenderingFeatures.pNext = &m_synchronization2Features;
-        m_synchronization2Features.pNext = &m_descriptorIndexingFeatures;
-        m_descriptorIndexingFeatures.pNext = &m_scalarBlockLayoutFeatures;
-        m_scalarBlockLayoutFeatures.pNext = nullptr;
-
-        // Enable required Vulkan 1.0 features
-        features.features.shaderInt64 = VK_TRUE;
-        features.features.samplerAnisotropy = VK_TRUE;
-
-        qDebug() << "  Ray tracing features enabled via pNext chain (including rayQuery, synchronization2)";
-    });
-
-    qDebug() << "ViewportWindow: Requested ray tracing device extensions";
+    // A Vulkan surface for QRhi's swapchain. Nothing here is released when
+    // the window is hidden: a minimize hides it (QWidget hides its children,
+    // and the window container hides this window with them), and rebuilding
+    // the context on every restore reloaded the whole scene and lost the
+    // accumulation. A hidden window only skips frames.
+    setSurfaceType(QSurface::VulkanSurface);
 }
 
-void ViewportWindow::selectRayTracingDevice() {
-    // Qt takes device 0 unless told otherwise. On a laptop that is often the
-    // integrated GPU, which has no ray tracing at all, and the failure lands
-    // much later as a null VkDevice with nothing pointing at the cause.
-    const QList<VkPhysicalDeviceProperties> devices = availablePhysicalDevices();
-    if (devices.size() <= 1) {
-        return;  // No choice to make; leave Qt's default alone.
-    }
-
-    int chosen = -1;
-    for (int i = 0; i < devices.size(); ++i) {
-        qDebug() << "  Vulkan device" << i << ":" << devices[i].deviceName
-                 << "type" << devices[i].deviceType;
-        // First discrete GPU wins. Ray tracing support proper cannot be
-        // queried here -- QVulkanWindow exposes only VkPhysicalDeviceProperties
-        // -- but a discrete GPU is the right guess on every machine where the
-        // two differ, and Qt still validates the extensions when it creates
-        // the device.
-        if (chosen < 0 && devices[i].deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) {
-            chosen = i;
-        }
-    }
-
-    if (chosen >= 0) {
-        qDebug() << "ViewportWindow: selecting discrete GPU"
-                 << devices[chosen].deviceName;
-        setPhysicalDeviceIndex(chosen);
-    }
+ViewportWindow::~ViewportWindow() {
+    // First, while every member the teardown might touch still exists: the
+    // renderer drains the queue and destroys the device it created.
+    m_renderer.reset();
 }
 
-ViewportWindow::~ViewportWindow() = default;
+void ViewportWindow::exposeEvent(QExposeEvent* event) {
+    Q_UNUSED(event);
+    if (!isExposed()) {
+        return;  // hidden or minimized: frames are skipped, nothing released
+    }
+    if (!m_renderer) {
+        // The queued settings are *not* replayed here: the renderer calls
+        // applyDeferredSettings() once it has a render context.
+        m_renderer = std::make_unique<ViewportRenderer>(this);
+        m_renderer->initialize();
+    } else {
+        m_renderer->surfaceChanged();
+    }
+    requestUpdate();
+}
 
-QVulkanWindowRenderer* ViewportWindow::createRenderer() {
-    m_renderer = new ViewportRenderer(this);
-
-    // The queued settings are *not* replayed here: there is no render context
-    // yet. The renderer calls applyDeferredSettings() once there is one.
-
-    return m_renderer;
+void ViewportWindow::resizeEvent(QResizeEvent* event) {
+    Q_UNUSED(event);
+    if (m_renderer) {
+        m_renderer->surfaceChanged();
+    }
+    requestUpdate();
 }
 
 void ViewportWindow::applyDeferredSettings() {
     if (!m_renderer || m_deferredCalls.empty() || m_deferredReplayQueued) {
         return;
     }
-    // From the event loop, not from here: this is called inside Qt's swapchain
-    // setup, where the loop must not turn, and the queue usually holds the
-    // first scene of the session -- the load most worth running off the GUI
-    // thread (ViewportRenderer::runContextJob).
+    // From the event loop, not from here: this is called inside the
+    // renderer's first-time setup, where the loop must not turn, and the
+    // queue usually holds the first scene of the session -- the load most
+    // worth running off the GUI thread (ViewportRenderer::runContextJob).
     m_deferredReplayQueued = true;
     QMetaObject::invokeMethod(this, [this]() {
         m_deferredReplayQueued = false;
@@ -894,7 +798,7 @@ void ViewportWindow::keyPressEvent(QKeyEvent* event) {
             if (m_gizmo) m_gizmo->setFineControl(true);
             break;
         default:
-            QVulkanWindow::keyPressEvent(event);
+            QWindow::keyPressEvent(event);
             return;
     }
 
@@ -918,7 +822,7 @@ void ViewportWindow::keyReleaseEvent(QKeyEvent* event) {
             if (m_gizmo) m_gizmo->setFineControl(false);
             break;
         default:
-            QVulkanWindow::keyReleaseEvent(event);
+            QWindow::keyReleaseEvent(event);
             return;
     }
 
@@ -958,7 +862,7 @@ void ViewportWindow::mousePressEvent(QMouseEvent* event) {
         noteViewportMotion();
         event->accept();
     } else {
-        QVulkanWindow::mousePressEvent(event);
+        QWindow::mousePressEvent(event);
     }
 }
 
@@ -1169,7 +1073,7 @@ void ViewportWindow::mouseReleaseEvent(QMouseEvent* event) {
         noteViewportMotion();
         event->accept();
     } else {
-        QVulkanWindow::mouseReleaseEvent(event);
+        QWindow::mouseReleaseEvent(event);
     }
 }
 
@@ -1206,7 +1110,7 @@ void ViewportWindow::mouseMoveEvent(QMouseEvent* event) {
 
         event->accept();
     } else {
-        QVulkanWindow::mouseMoveEvent(event);
+        QWindow::mouseMoveEvent(event);
     }
 }
 
@@ -1219,15 +1123,39 @@ void ViewportWindow::wheelEvent(QWheelEvent* event) {
         noteViewportMotion();
         event->accept();
     } else {
-        QVulkanWindow::wheelEvent(event);
+        QWindow::wheelEvent(event);
     }
 }
 
 bool ViewportWindow::event(QEvent* event) {
-    // QVulkanWindow starts a frame on this event, and nowhere else; the
-    // renderer asks for one when it takes its context back.
-    if (event->type() == QEvent::UpdateRequest && m_framesHeld) {
+    switch (event->type()) {
+    case QEvent::UpdateRequest:
+        // The one place a frame starts. While a context job holds the queue
+        // the request is swallowed -- a frame would submit to the queue the
+        // worker is using -- and the renderer asks for one when it takes its
+        // context back.
+        if (!m_framesHeld && m_renderer) {
+            m_renderer->renderFrame();
+        }
         return true;
+    case QEvent::Paint:
+        // A window system repaint is a frame like any other, and is held the
+        // same way.
+        if (!m_framesHeld) {
+            requestUpdate();
+        }
+        return true;
+    case QEvent::PlatformSurface:
+        if (static_cast<QPlatformSurfaceEvent*>(event)->surfaceEventType() ==
+                QPlatformSurfaceEvent::SurfaceAboutToBeDestroyed &&
+            m_renderer) {
+            // Only the swapchain goes with the surface; the device, the
+            // context and the accumulation survive a native re-creation.
+            m_renderer->releaseSwapchain();
+        }
+        break;
+    default:
+        break;
     }
     if (event->type() == QEvent::HoverMove) {
         auto* hoverEvent = static_cast<QHoverEvent*>(event);
@@ -1261,5 +1189,5 @@ bool ViewportWindow::event(QEvent* event) {
             requestOverlayRedraw();
         }
     }
-    return QVulkanWindow::event(event);
+    return QWindow::event(event);
 }

@@ -10,6 +10,10 @@
 // same normalized ray, so no reprojection is involved. -1 in the AOV means
 // the sky, where the grid is always visible.
 //
+// Clip y points down on Vulkan and up on Metal; pc.ndc.x says which
+// (QRhi::isYUpInNDC), so the ray and the depth lookup come out the same on
+// both.
+//
 // Colors are linear; the sRGB attachment encodes on write. Grid and axis
 // colors are viewport content (world-axis semantics shared with the gizmo),
 // not UI chrome, so the theme system deliberately does not drive them.
@@ -19,11 +23,12 @@ layout(location = 0) out vec4 outColor;
 
 layout(binding = 0) uniform sampler2D sceneDepth;
 
-layout(push_constant) uniform PC {
+layout(std140, binding = 1) uniform PC {
     vec4 camPosFov;      // xyz camera position, w tan(fovY/2)
     vec4 forwardAspect;  // xyz forward, w aspect
     vec4 rightAlpha;     // xyz right, w overall grid alpha
     vec4 upPad;          // xyz up, w orthographic film height (0 = perspective)
+    vec4 ndc;            // x: +1 when clip y points up, -1 when down
 } pc;
 
 // LINEAR values (the sRGB attachment encodes on write): the linear form of
@@ -56,8 +61,8 @@ void main() {
     vec3 up = pc.upPad.xyz;
     float orthoHeight = pc.upPad.w;
 
-    // Vulkan clip y grows downward; raygen's NDC y grows upward
-    vec2 ndc = vec2(vClip.x, -vClip.y);
+    // Raygen's NDC y grows upward
+    vec2 ndc = vec2(vClip.x, pc.ndc.x * vClip.y);
 
     // The same two projections raygen generates. A perspective grid drawn
     // over an orthographic render converges to a vanishing point the scene
@@ -86,7 +91,7 @@ void main() {
 
     // Scene occlusion: same metric (distance along the normalized primary
     // ray), tolerance grows with distance to avoid grazing-angle z-fighting
-    vec2 uv = vClip * 0.5 + 0.5;
+    vec2 uv = vec2(ndc.x * 0.5 + 0.5, 0.5 - ndc.y * 0.5);
     float sceneT = texture(sceneDepth, uv).r;
     if (sceneT >= 0.0 && t > sceneT + max(0.001, 0.002 * t)) {
         discard;

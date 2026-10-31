@@ -3308,7 +3308,9 @@ Pick a node or a material in the scene tree.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Qt could not create a Vulkan device. The selected GPU is most likely missing the ray tracing extensions this renderer needs. On a laptop with both an integrated and a discrete GPU, check that Quantiloom is running on the discrete one.</source>
+        <source>No GPU on this machine has what the renderer needs:
+
+%1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

@@ -10,8 +10,13 @@
  *
  * Conventions, matching raygen.rgen:
  *  - fovScale = tan(fovY / 2), aspect multiplies the x term separately
- *  - NDC y is flipped (screen y grows downward, camera up points up)
+ *  - pixel y grows downward while camera up points up, so a pixel's NDC y is
+ *    flipped (rayThroughPixel)
  *  - ray directions are normalized, so a hit distance is Euclidean
+ *
+ * The projection is OpenGL's convention (y up, depth -1..1); a backend's
+ * own comes from QRhi::clipSpaceCorrMatrix() in front of it, which on Vulkan
+ * is the y flip and the 0..1 depth this used to hard-code.
  *
  * @author blitzcolo
  */
@@ -47,11 +52,10 @@ public:
     /// recomputed, so it cannot drift from what the SDK resolved.
     [[nodiscard]] glm::mat4 view() const;
 
-    /// Vulkan convention (zero-to-one depth, y flipped), perspective or
-    /// orthographic to match the camera it came from.
-    [[nodiscard]] glm::mat4 proj() const;
-
-    [[nodiscard]] glm::mat4 viewProj() const { return proj() * view(); }
+    /// OpenGL convention (y up, depth -1..1), perspective or orthographic to
+    /// match the camera it came from. Draw with
+    /// QRhi::clipSpaceCorrMatrix() * projGL() * view().
+    [[nodiscard]] glm::mat4 projGL() const;
 
     /// The raygen shader's primary ray through a pixel (pixel center, no
     /// jitter). Input in the same device-pixel space the SDK renders at.

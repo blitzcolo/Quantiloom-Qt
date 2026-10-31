@@ -34,10 +34,12 @@ glm::mat4 CameraMatrices::view() const {
     return v;
 }
 
-glm::mat4 CameraMatrices::proj() const {
-    // Zero-to-one depth, then the Vulkan y flip. Near/far only order the
-    // overlay against itself (the scene is depth-tested in the grid shader
-    // against the SDK's depth AOV, not against this projection).
+glm::mat4 CameraMatrices::projGL() const {
+    // OpenGL's convention: y up, depth -1..1. QRhi's clip-space correction
+    // turns it into the backend's; on Vulkan the product is exactly the
+    // y-flipped, zero-to-one matrix this used to build. Near/far only order
+    // the overlay against itself (the scene is depth-tested in the grid
+    // shader against the SDK's depth AOV, not against this projection).
     constexpr float kNear = 0.05f;
     constexpr float kFar = 200000.0f;
 
@@ -49,9 +51,9 @@ glm::mat4 CameraMatrices::proj() const {
         const float halfW = halfH * m_aspect;
         glm::mat4 p(1.0f);
         p[0][0] = 1.0f / halfW;
-        p[1][1] = -1.0f / halfH;   // Vulkan: NDC y grows downward
-        p[2][2] = 1.0f / (kNear - kFar);
-        p[3][2] = kNear / (kNear - kFar);
+        p[1][1] = 1.0f / halfH;
+        p[2][2] = -2.0f / (kFar - kNear);
+        p[3][2] = -(kFar + kNear) / (kFar - kNear);
         return p;
     }
 
@@ -59,10 +61,10 @@ glm::mat4 CameraMatrices::proj() const {
 
     glm::mat4 p(0.0f);
     p[0][0] = f / m_aspect;
-    p[1][1] = -f;  // Vulkan: NDC y grows downward
-    p[2][2] = kFar / (kNear - kFar);
+    p[1][1] = f;
+    p[2][2] = -(kFar + kNear) / (kFar - kNear);
     p[2][3] = -1.0f;
-    p[3][2] = (kNear * kFar) / (kNear - kFar);
+    p[3][2] = -(2.0f * kFar * kNear) / (kFar - kNear);
     return p;
 }
 

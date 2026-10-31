@@ -311,9 +311,9 @@ void MainWindow::applyScreenAwareGeometry() {
 void MainWindow::setupUi() {
     // Create Vulkan window
     m_viewport = new ViewportWindow();
+    // The window's surface and QRhi come from this instance. The device is the
+    // viewport's own, chosen on first exposure by what the GPUs can do.
     m_viewport->setVulkanInstance(m_vulkanInstance);
-    // Before the window is shown, which is when Qt commits to a device.
-    m_viewport->selectRayTracingDevice();
 
     // Wrap in QWidget container for use as central widget
     m_viewportContainer = QWidget::createWindowContainer(m_viewport);

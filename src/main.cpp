@@ -18,6 +18,7 @@
 #include <QVulkanInstance>
 #include <QLoggingCategory>
 #include <QMessageBox>
+#include <rhi/qrhi.h>
 
 #include <core/Log.hpp>  // libQuantiloom logging
 
@@ -90,10 +91,16 @@ int main(int argc, char* argv[]) {
     QLoggingCategory::setFilterRules("qt.vulkan=true");
 #endif
 
-    // Required extensions for ray tracing
-    vulkanInstance.setExtensions({
-        VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME
-    });
+    // Required extensions for ray tracing, plus what QRhi presents best with
+    // (the swapchain colour-space extension among them). Extensions the
+    // implementation does not have are ignored by QVulkanInstance.
+    QByteArrayList instanceExtensions{VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME};
+    for (const QByteArray& extension : QRhiVulkanInitParams::preferredInstanceExtensions()) {
+        if (!instanceExtensions.contains(extension)) {
+            instanceExtensions.append(extension);
+        }
+    }
+    vulkanInstance.setExtensions(instanceExtensions);
 
     if (!vulkanInstance.create()) {
         qFatal("Failed to create Vulkan instance: %d", vulkanInstance.errorCode());

@@ -1,19 +1,18 @@
 /**
  * @file ViewportWindow.hpp
- * @brief QVulkanWindow subclass for Quantiloom rendering
+ * @brief The native window the viewport renders into
  *
  * @author blitzcolo
  */
 
 #pragma once
 
-#include <QVulkanWindow>
+#include <QWindow>
 #include <QString>
 #include <functional>
 #include <memory>
 #include <optional>
 #include <vector>
-#include <vulkan/vulkan.h>
 
 #include <glm/glm.hpp>
 #include <core/SpectralData.hpp>
@@ -49,23 +48,19 @@ class UndoStack;
 
 /**
  * @class ViewportWindow
- * @brief Custom Vulkan window that hosts Quantiloom rendering
+ * @brief The window that hosts Quantiloom rendering
  *
- * This class manages the Vulkan surface and coordinates with
- * ViewportRenderer for actual rendering operations.
+ * A plain QWindow with a Vulkan surface, embedded in the shell through
+ * QWidget::createWindowContainer. It owns the input handling and the setters;
+ * ViewportRenderer owns the device, the QRhi that presents and the SDK's
+ * render context, all created on the first expose.
  */
-class ViewportWindow : public QVulkanWindow {
+class ViewportWindow : public QWindow {
     Q_OBJECT
 
 public:
     explicit ViewportWindow(QWindow* parent = nullptr);
     ~ViewportWindow() override;
-
-    /**
-     * @brief Create the Vulkan renderer
-     * @return New QVulkanWindowRenderer instance
-     */
-    QVulkanWindowRenderer* createRenderer() override;
 
     /**
      * @brief Load a scene from file
@@ -88,18 +83,17 @@ public:
      * @brief Replay the settings queued before the render context existed
      *
      * Called by the renderer once its ExternalRenderContext is up. It cannot
-     * be done when the renderer object is constructed: QVulkanWindow calls
-     * createRenderer() before initResources()/initSwapChainResources(), so at
-     * that point the renderer has no context and anything needing one -- the
-     * environment map above all -- would fail all over again.
+     * be done when the renderer object is constructed: the renderer is created
+     * before its device and context, so at that point anything needing one --
+     * the environment map above all -- would fail all over again.
      */
     void applyDeferredSettings();
 
     /**
      * @brief Whether the renderer exists yet
      *
-     * QVulkanWindow builds it on first exposure, so there is a window in which
-     * this class exists and the renderer does not. Settings applied during it
+     * It is built on first exposure, so there is a window in which this class
+     * exists and the renderer does not. Settings applied during it
      * are queued, not lost -- see withRenderer().
      */
     [[nodiscard]] bool hasRenderer() const { return m_renderer != nullptr; }
@@ -226,15 +220,6 @@ public:
      */
     void resetAccumulation();
 
-    /**
-     * @brief Get current sample count
-     */
-    /// Prefer a discrete GPU when the machine has more than one device. Call
-    /// after setVulkanInstance() and before the window is shown; Qt otherwise
-    /// takes device 0, which on a hybrid laptop is the integrated GPU and has
-    /// no ray tracing.
-    void selectRayTracingDevice();
-
     /// See ViewportRenderer::frameBounds.
     void frameBounds(const glm::vec3& min, const glm::vec3& max);
 
@@ -250,7 +235,7 @@ public:
      * @brief Draw one more frame because the overlay changed
      *
      * The grid, the gizmo and the selection box are rebuilt inside
-     * startNextFrame(), so they only appear when a frame is drawn. Everything
+     * renderFrame(), so they only appear when a frame is drawn. Everything
      * that changes the *scene* resets accumulation, which asks for one; the
      * things that change only what is composited on top -- selecting an
      * object, hovering a handle, switching gizmo mode, toggling the grid --
@@ -677,7 +662,10 @@ protected:
     void mouseReleaseEvent(QMouseEvent* event) override;
     void mouseMoveEvent(QMouseEvent* event) override;
     void wheelEvent(QWheelEvent* event) override;
-    bool event(QEvent* event) override;  // For hover events
+    /// Hover, and the frame gate: see the definition.
+    bool event(QEvent* event) override;
+    void exposeEvent(QExposeEvent* event) override;
+    void resizeEvent(QResizeEvent* event) override;
 
 private:
     friend class ViewportRenderer;
@@ -719,7 +707,7 @@ private:
     /**
      * @brief Apply a setting now, or record it until the renderer exists
      *
-     * QVulkanWindow creates the renderer on first exposure. Every setter here
+     * The renderer is created on first exposure. Every setter here
      * used to be `if (m_renderer) ...`, which meant that a configuration
      * applied before that moment was silently discarded -- the first scene
      * opened after launch rendered with default lighting, no sensor model and
@@ -747,7 +735,7 @@ private:
      * timer too, so that a click-drag-click sequence does not flap the render
      * extent -- and each flap costs a device wait and the accumulation.
      *
-     * Deliberately not driven from startNextFrame(): the render loop stops
+     * Deliberately not driven from renderFrame(): the render loop stops
      * when the accumulation reaches its target, which is often the moment the
      * user stopped moving, so a check there would never run.
      */
@@ -757,13 +745,14 @@ private:
     /// is not over however quiet it has been.
     [[nodiscard]] bool viewportMotionHeld() const;
 
-    ViewportRenderer* m_renderer = nullptr;
+    std::unique_ptr<ViewportRenderer> m_renderer;
     std::vector<std::function<void(ViewportRenderer&)>> m_deferredCalls;
     /// applyDeferredSettings() has posted the replay and it has not run yet.
     /// Calls made meanwhile join the queue, so they keep their order.
     bool m_deferredReplayQueued = false;
     /// Set by the renderer while its context is out on a worker thread: no
-    /// frame may be started, because it would submit to the queue in use.
+    /// frame may be started and the swapchain may not be rebuilt, because
+    /// either would use the queue the worker is submitting to.
     bool m_framesHeld = false;
 
     // Camera control state
@@ -793,16 +782,6 @@ private:
     /// Created lazily because this window outlives no event loop of its own.
     QTimer* m_motionDecayTimer = nullptr;
     bool m_motionActive = false;
-
-    // Vulkan feature structures (must persist during device creation)
-    VkPhysicalDeviceBufferDeviceAddressFeatures m_bufferDeviceAddressFeatures{};
-    VkPhysicalDeviceRayTracingPipelineFeaturesKHR m_rayTracingPipelineFeatures{};
-    VkPhysicalDeviceAccelerationStructureFeaturesKHR m_accelerationStructureFeatures{};
-    VkPhysicalDeviceDynamicRenderingFeatures m_dynamicRenderingFeatures{};
-    VkPhysicalDeviceDescriptorIndexingFeatures m_descriptorIndexingFeatures{};
-    VkPhysicalDeviceScalarBlockLayoutFeatures m_scalarBlockLayoutFeatures{};
-    VkPhysicalDeviceRayQueryFeaturesKHR m_rayQueryFeatures{};
-    VkPhysicalDeviceSynchronization2Features m_synchronization2Features{};
 
     // Editing components (owned by MainWindow)
     SelectionManager* m_selection = nullptr;

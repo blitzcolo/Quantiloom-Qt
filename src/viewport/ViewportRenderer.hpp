@@ -1,13 +1,12 @@
 /**
  * @file ViewportRenderer.hpp
- * @brief QVulkanWindowRenderer adapter for libQuantiloom integration
+ * @brief The viewport's device, QRhi presentation and SDK render context
  *
  * @author blitzcolo
  */
 
 #pragma once
 
-#include <QVulkanWindowRenderer>
 #include <QCoreApplication>
 #include <QString>
 #include <QPointF>
@@ -18,6 +17,7 @@
 #include <memory>
 #include <chrono>
 #include <optional>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -34,7 +34,9 @@
 // incomplete type, unlike the unique_ptr<ExternalRenderContext> beside it).
 #include <renderer/ExternalRenderContext.hpp>
 
+#include "GpuDevice.hpp"
 #include "OverlayRenderer.hpp"
+#include "SdkFrameBridge.hpp"
 #include "ViewportSampleBatchScheduler.hpp"
 
 namespace quantiloom {
@@ -42,6 +44,12 @@ struct ComplexRefractiveIndex;
 }
 
 class ViewportWindow;
+class QRhi;
+class QRhiRenderBuffer;
+class QRhiRenderPassDescriptor;
+class QRhiSwapChain;
+class QRhiTexture;
+class QRhiTextureRenderTarget;
 
 namespace quantiloom {
 class Config;
@@ -54,27 +62,45 @@ struct ConfigApplyReport;
 
 /**
  * @class ViewportRenderer
- * @brief Adapter layer connecting Qt's Vulkan infrastructure with libQuantiloom
+ * @brief The viewport's GPU side: device, QRhi, frame loop and render context
  *
- * This class implements QVulkanWindowRenderer and uses libQuantiloom's
- * ExternalRenderContext to perform actual ray tracing rendering.
- * It bridges Qt-managed Vulkan handles with the library's rendering pipeline.
+ * Creates the Vulkan device the SDK needs (GpuDevice), imports it into an
+ * application-owned QRhi that presents into the window through a
+ * QRhiSwapChain, and drives libQuantiloom's ExternalRenderContext on it. Each
+ * frame the SDK writes a frame texture (SdkFrameBridge), the overlay pass
+ * draws the grid and the gizmo onto it, and the composite pass fits it into
+ * the swapchain image (OverlayRenderer).
  */
-class ViewportRenderer : public QVulkanWindowRenderer {
+class ViewportRenderer {
     // Not a QObject, but it still produces a few user-visible strings; this
     // gives them a translation context lupdate can see.
     Q_DECLARE_TR_FUNCTIONS(ViewportRenderer)
 
 public:
     explicit ViewportRenderer(ViewportWindow* window);
-    ~ViewportRenderer() override;
+    ~ViewportRenderer();
 
-    // QVulkanWindowRenderer interface
-    void initResources() override;
-    void initSwapChainResources() override;
-    void releaseSwapChainResources() override;
-    void releaseResources() override;
-    void startNextFrame() override;
+    ViewportRenderer(const ViewportRenderer&) = delete;
+    ViewportRenderer& operator=(const ViewportRenderer&) = delete;
+
+    /// First exposure: the device, the QRhi on it, the swapchain and the
+    /// render context, then the replay of everything queued before them.
+    /// Reports a failure through renderContextFailed().
+    void initialize();
+
+    /// One frame, from the window's UpdateRequest. Never called while a
+    /// context job holds the queue (the window swallows the request).
+    void renderFrame();
+
+    /// The window was resized or exposed again. Only marks the swapchain:
+    /// rebuilding it waits for the device to go idle, which must not happen
+    /// while a context job is submitting, so renderFrame() does it.
+    void surfaceChanged();
+
+    /// The native surface is about to go. The swapchain goes with it; the
+    /// device, the QRhi, the context and the accumulation stay, and the
+    /// swapchain is rebuilt on the next expose.
+    void releaseSwapchain();
 
     // Scene management
     /// @param adoptSceneCamera Take the camera the scene file carries. True for
@@ -280,7 +306,7 @@ public:
     /// The extent the SDK renders to, and the space every pixel coordinate it
     /// takes -- Pick, ReadPixelValue, overlayCamera() rays -- is in. The
     /// swapchain's extent unless a resize is being held; see
-    /// initSwapChainResources().
+    /// onSwapchainResized().
     [[nodiscard]] QSize targetExtent() const { return m_targetExtent; }
 
     /// A swapchain pixel position as a position in targetExtent(): the
@@ -541,16 +567,66 @@ private:
     /// Make the swapchain's extent the one the SDK renders at. Costs the
     /// accumulation when it changes anything, so it runs only where that is
     /// lost anyway: resetAccumulation(), or a rebuild with nothing accumulated.
-    void adoptSwapchainExtent();
+    void adoptRenderExtent();
 
     /// Where the image at m_targetExtent is drawn in the swapchain image:
     /// all of it when the two agree, else fitted with its aspect kept.
     [[nodiscard]] QRect presentedRect() const;
 
+    /// The device, the QRhi that imports it and the swapchain object; false
+    /// (and renderContextFailed() emitted) when there is no usable GPU.
+    bool createGpu();
+    /// Everything createGpu() and createRenderContext() made, in the order
+    /// their lifetimes require: job joined, queue drained, context, QRhi
+    /// resources, swapchain, QRhi, device.
+    void releaseGpu();
+    /// The render context on the device, and the replay of the document.
+    void createRenderContext();
+    /// beginFrame() reported a lost device: rebuild everything and replay.
+    void rebuildAfterDeviceLoss();
+    /// createOrResize(), which waits for the device to go idle -- so only
+    /// from renderFrame() or the first-time setup, never during a job.
+    bool recreateSwapchain();
+    /// A rebuilt swapchain is a new window onto the render, not a new render.
+    void onSwapchainResized();
+    /// The frame texture, the depth texture and the overlay's render target
+    /// at @p extent. Resized in place; QRhi defers releasing the old images
+    /// until no frame in flight uses them.
+    bool ensureFrameTargets(QSize extent);
+    void releaseFrameTargets();
+    /// Wait for runContextJob()'s worker, if one is running.
+    void joinContextJob();
+
+    [[nodiscard]] QSize swapchainSize() const;
+    [[nodiscard]] int framesInFlight() const;
+
     ViewportWindow* m_window;
 
+    // The GPU side. Created on the first expose, rebuilt after a lost device.
+    viewport::GpuDevice m_device;
+    viewport::GetInstanceProcAddrFn m_getInstanceProcAddr = nullptr;
+    std::unique_ptr<QRhi> m_rhi;
+    std::unique_ptr<QRhiSwapChain> m_swapchain;
+    std::unique_ptr<QRhiRenderPassDescriptor> m_swapchainPass;
+    /// Set by a resize, an expose or a lost surface; renderFrame() rebuilds.
+    bool m_swapchainDirty = true;
+    /// The surface offers no sRGB format, so the composite pass encodes.
+    bool m_encodeSrgb = false;
+    bool m_swapchainFormatLogged = false;
+    /// createRenderContext() ran on the current device.
+    bool m_contextAttempted = false;
+    viewport::SdkFrameBridge m_bridge;
+
+    // What the SDK writes and the overlay draws on, at m_targetExtent
+    std::unique_ptr<QRhiTexture> m_frameTexture;   // RGBA8 sRGB
+    std::unique_ptr<QRhiTexture> m_depthTexture;   // R32F, the depth AOV
+    std::unique_ptr<QRhiRenderBuffer> m_overlayDepth;
+    std::unique_ptr<QRhiTextureRenderTarget> m_frameTarget;
+    std::unique_ptr<QRhiRenderPassDescriptor> m_framePass;
+    QSize m_frameTargetSize;
+
     /// What every frame hands the SDK as the target extent. It follows the
-    /// swapchain only through adoptSwapchainExtent(), so a viewport resize
+    /// swapchain only through adoptRenderExtent(), so a viewport resize
     /// alone leaves the accumulation as it is. Empty while there is no
     /// context.
     QSize m_targetExtent;
@@ -558,7 +634,7 @@ private:
     // libQuantiloom render context
     std::unique_ptr<quantiloom::ExternalRenderContext> m_renderContext;
 
-    // Editor overlay pass (grid, gizmo), drawn after RenderFrame's blit
+    // Editor overlay (grid, gizmo) and the composite into the swapchain
     viewport::OverlayRenderer m_overlay;
     std::vector<editing::GizmoVertex> m_gizmoVertices;  // rebuilt per frame
 
@@ -577,7 +653,7 @@ private:
     /// One-shot: the next non-accumulating frame goes through
     /// ReprocessAccumulated rather than PresentAccumulated, so a display-stage
     /// change (sensor, CLAHE) shows without costing a sample. Set by
-    /// requestDisplayReprocess(), consumed by startNextFrame().
+    /// requestDisplayReprocess(), consumed by renderFrame().
     bool m_reprocessPending = false;
     viewport::ViewportSampleBatchScheduler m_viewportSampleBatch;
 
@@ -701,12 +777,15 @@ private:
     /// keeps its event loop turning, and return when it is done. Past a short
     /// delay longOperationStarted(@p description) puts up the busy card, and
     /// longOperationFinished() takes it down. Called with the context present;
-    /// runs @p work inline instead inside a QVulkanWindow callback.
+    /// runs @p work inline instead inside a frame or the first-time setup.
     void runContextJob(const QString& description,
                        const std::function<void(quantiloom::ExternalRenderContext&)>& work);
     bool m_contextJobActive = false;
-    /// Set for the duration of initSwapChainResources() and startNextFrame().
-    bool m_inVulkanCallback = false;
+    /// The worker of the job in progress, so a surface about to be destroyed
+    /// can wait for it. Null outside runContextJob().
+    std::thread* m_jobThread = nullptr;
+    /// Set for the duration of renderFrame() and of the first-time setup.
+    bool m_inFrameCallback = false;
 
     // Initialization state
     bool m_initialized = false;

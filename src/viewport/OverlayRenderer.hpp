@@ -1,25 +1,26 @@
 /**
  * @file OverlayRenderer.hpp
- * @brief Editor overlay pass drawn on top of the SDK's rendered frame
+ * @brief The editor overlay and the composite, drawn with QRhi
  *
- * The SDK blits its path-traced image straight into the swapchain image and
- * leaves it in PRESENT_SRC -- or, while the render keeps an extent the
- * viewport no longer has, into the held frame owned here, which is drawn
- * over and then fitted into the swapchain image. This pass runs after it in the same command
- * buffer: it transitions the image back to a color attachment, draws the
- * viewport grid (and, later, the transform gizmo) with dynamic rendering and
- * LOAD_OP_LOAD, and returns the image to PRESENT_SRC. It never touches
- * QVulkanWindow::defaultRenderPass(), which clears.
+ * Two passes a frame, both QRhi's. The overlay pass draws onto the frame
+ * texture the SDK has just written: the viewport grid, then the transform
+ * gizmo and the selection box, with LOAD/STORE so the render underneath is
+ * kept. It runs on every frame with an image, even with nothing to draw,
+ * because it is the use QRhi's layout tracking expects next (see
+ * SdkFrameBridge.hpp). The composite pass then clears the swapchain image and
+ * draws the frame texture into the rectangle it is shown in -- all of it when
+ * the render extent is the viewport's, fitted with its aspect kept while a
+ * resize is held, which is where the bars come from.
  *
- * Scene occlusion comes from the SDK's primary-hit depth AOV: BlitDepthTo
- * copies it into an image owned here, and the grid fragment shader compares
- * its own ray-plane distance against it (both are distances along the same
- * normalized primary rays). A separate D32 attachment, cleared every frame,
- * orders overlay geometry against itself only -- which is what keeps the
- * gizmo always on top of the scene, Blender-style.
+ * Scene occlusion comes from the SDK's primary-hit depth AOV, blitted into
+ * the depth texture every frame: the grid fragment shader compares its own
+ * ray-plane distance against it (both are distances along the same
+ * normalized primary rays). A depth render buffer, cleared by each overlay
+ * pass, orders overlay geometry against itself only -- which is what keeps
+ * the gizmo always on top of the scene, Blender-style.
  *
- * All colors written by the overlay shaders are linear; the sRGB swapchain
- * format encodes on write and blends in linear, so no shader does gamma.
+ * All colors written by the overlay shaders are linear; the sRGB frame
+ * texture encodes on write and blends in linear, so no shader does gamma.
  *
  * @author blitzcolo
  */
@@ -29,25 +30,31 @@
 #include "CameraMatrices.hpp"
 #include "../editing/GizmoModel.hpp"
 
-#include <vulkan/vulkan.h>
-
+#include <QSize>
 #include <QString>
+#include <QtGlobal>
 
-#include <cstdint>
+#include <memory>
 #include <vector>
 
-class QVulkanWindow;
-
-namespace quantiloom {
-class ExternalRenderContext;
-}
+class QRhi;
+class QRhiBuffer;
+class QRhiCommandBuffer;
+class QRhiGraphicsPipeline;
+class QRhiRenderPassDescriptor;
+class QRhiResourceUpdateBatch;
+class QRhiSampler;
+class QRhiShaderResourceBindings;
+class QRhiTexture;
+class QRhiViewport;
+struct QRhiReadbackResult;
 
 namespace viewport {
 
 class OverlayRenderer {
 public:
-    OverlayRenderer() = default;
-    ~OverlayRenderer() = default;
+    OverlayRenderer();
+    ~OverlayRenderer();
 
     OverlayRenderer(const OverlayRenderer&) = delete;
     OverlayRenderer& operator=(const OverlayRenderer&) = delete;
@@ -57,141 +64,80 @@ public:
     void setGridVisible(bool visible) { m_gridVisible = visible; }
     [[nodiscard]] bool gridVisible() const { return m_gridVisible; }
 
-    /// Record the overlay after ExternalRenderContext::RenderFrame in the
-    /// same command buffer. A no-op while nothing is visible.
-    /// `targetImage`/`targetView` are the image RenderFrame presented into --
-    /// the swapchain image, or the held frame while the swapchain has another
-    /// size -- left in PRESENT_SRC, and `width`/`height` its extent.
-    /// `gizmoVertices` is this frame's gizmo triangle list (world space,
-    /// empty = no gizmo); it is copied into a per-frame vertex buffer.
-    void record(QVulkanWindow* window,
-                quantiloom::ExternalRenderContext* ctx,
-                VkCommandBuffer cmd,
-                VkImage targetImage, VkImageView targetView,
-                uint32_t width, uint32_t height,
-                const CameraMatrices& camera,
-                const std::vector<editing::GizmoVertex>& gizmoVertices);
+    /// Ready this frame's drawing: build what is missing, and put the grid
+    /// and gizmo uniforms, this frame's gizmo triangles and the composite's
+    /// parameters into @p updates. @p overlayPass is the frame render
+    /// target's pass descriptor, @p compositePass the swapchain's.
+    /// @p encodeSrgb is set when the swapchain is not sRGB, so the composite
+    /// has to encode by hand.
+    void prepare(QRhi* rhi, QRhiResourceUpdateBatch* updates,
+                 QRhiRenderPassDescriptor* overlayPass,
+                 QRhiRenderPassDescriptor* compositePass, QRhiTexture* frameTexture,
+                 QRhiTexture* depthTexture, const CameraMatrices& camera,
+                 const std::vector<editing::GizmoVertex>& gizmoVertices, bool encodeSrgb);
 
-    /// Destroy everything. Call from releaseResources() (device still valid).
-    void releaseResources(QVulkanWindow* window);
+    /// Inside the overlay pass: the grid, then the gizmo, over @p extent.
+    void draw(QRhiCommandBuffer* cb, QSize extent);
+
+    /// Inside the composite pass: the frame texture into @p shown.
+    void composite(QRhiCommandBuffer* cb, const QRhiViewport& shown);
+
+    /// Destroy every QRhi object. Call before the QRhi goes.
+    void releaseResources();
 
     // ========================================================================
     // Composited capture (what-you-see screenshots for agents/debugging)
     // ========================================================================
 
-    /// Queue a one-shot PNG capture of the composited frame -- the
-    /// SDK's frame WITH the grid and gizmo composited over it, which the
-    /// SDK-side captures cannot show. Saved a few frames later (the copy has
-    /// to clear the frames in flight); poll the file.
+    /// Queue a one-shot PNG capture of the composited frame -- the SDK's
+    /// frame WITH the grid and gizmo composited over it, which the SDK-side
+    /// captures cannot show, at the render extent and without the bars.
+    /// Saved a few frames later, once the readback has cleared the frames in
+    /// flight; poll the file.
     void requestCompositedCapture(const QString& path);
 
-    /// Record the copy for a pending capture. Call after record(), with the
-    /// image record() drew into, while it is back in PRESENT_SRC.
-    void recordCaptureIfRequested(QVulkanWindow* window, VkCommandBuffer cmd,
-                                  VkImage sourceImage,
-                                  uint32_t width, uint32_t height);
+    /// For the overlay pass's endPass(): a batch reading the frame texture
+    /// back when a capture is waiting for one, else null.
+    [[nodiscard]] QRhiResourceUpdateBatch* takeCaptureReadback(QRhi* rhi,
+                                                               QRhiTexture* frameTexture);
 
-    /// Save a recorded capture once its frame is provably complete. Call at
-    /// the top of each startNextFrame.
-    void finishCaptureIfReady(QVulkanWindow* window);
-
-    /// A capture is requested or recorded but not yet written. The frame loop
-    /// has to keep running while this is true: a capture needs one frame to
-    /// record and a few more to clear the frames in flight, and the loop now
-    /// stops on its own at the target sample count.
+    /// A capture is requested or read back but not yet written. The frame
+    /// loop has to keep running while this is true: the readback completes
+    /// only as later frames are begun, and the loop stops on its own at the
+    /// target sample count.
     [[nodiscard]] bool capturePending() const { return !m_capturePath.isEmpty(); }
 
-    // ========================================================================
-    // Held frame: the render at an extent the swapchain no longer has
-    // ========================================================================
-
-    struct FrameTarget {
-        VkImage image = VK_NULL_HANDLE;
-        VkImageView view = VK_NULL_HANDLE;
-    };
-
-    /// The image the SDK presents into, and the overlay draws over, while the
-    /// render keeps an extent the swapchain does not have. Sized here to
-    /// width x height in the swapchain's format, and recorded into
-    /// TRANSFER_DST behind a barrier on everything submitted before it, which
-    /// is what keeps this frame's write off the previous frame's read. Null
-    /// handles when it cannot be created.
-    ///
-    /// Recreated without a wait of its own when the extent changes, so the
-    /// caller must have drained the queue since the old extent was last used
-    /// -- the same contract ensureSizedResources() relies on.
-    FrameTarget beginHeldFrame(QVulkanWindow* window, VkCommandBuffer cmd,
-                               uint32_t width, uint32_t height);
-
-    /// Draw the held frame into the current swapchain image at `dst`, the
-    /// rest of the image cleared, and leave the swapchain image in
-    /// PRESENT_SRC. Call last, after record() and the capture.
-    void presentHeldFrame(QVulkanWindow* window, VkCommandBuffer cmd,
-                          const VkRect2D& dst);
-
 private:
-    struct OwnedImage {
-        VkImage image = VK_NULL_HANDLE;
-        VkDeviceMemory memory = VK_NULL_HANDLE;
-        VkImageView view = VK_NULL_HANDLE;
-        uint32_t width = 0;
-        uint32_t height = 0;
-    };
-
-    struct FrameVertexBuffer {
-        VkBuffer buffer = VK_NULL_HANDLE;
-        VkDeviceMemory memory = VK_NULL_HANDLE;
-        void* mapped = nullptr;
-        VkDeviceSize capacity = 0;
-    };
-
-    void ensureStaticResources(QVulkanWindow* window);
-    void ensureSizedResources(QVulkanWindow* window, VkCommandBuffer cmd,
-                              uint32_t width, uint32_t height);
-    OwnedImage createImage(QVulkanWindow* window, uint32_t width, uint32_t height,
-                           VkFormat format, VkImageUsageFlags usage,
-                           VkImageAspectFlags aspect);
-    void destroyImage(VkDevice device, OwnedImage& img);
-    void createGridPipeline(QVulkanWindow* window, VkFormat colorFormat);
-    void createGizmoPipeline(QVulkanWindow* window, VkFormat colorFormat);
-    void ensureGizmoBuffers(QVulkanWindow* window);
-    void destroyGizmoBuffers(VkDevice device);
+    void ensureResources(QRhi* rhi, QRhiRenderPassDescriptor* overlayPass,
+                         QRhiRenderPassDescriptor* compositePass, QRhiTexture* frameTexture,
+                         QRhiTexture* depthTexture);
+    void saveCapture();
 
     bool m_gridVisible = false;
 
-    // Static (device-lifetime) resources
-    bool m_staticReady = false;
-    VkFormat m_pipelineColorFormat = VK_FORMAT_UNDEFINED;
-    VkSampler m_nearestSampler = VK_NULL_HANDLE;
-    VkDescriptorSetLayout m_descriptorSetLayout = VK_NULL_HANDLE;
-    VkDescriptorPool m_descriptorPool = VK_NULL_HANDLE;
-    VkDescriptorSet m_descriptorSet = VK_NULL_HANDLE;
-    VkPipelineLayout m_gridPipelineLayout = VK_NULL_HANDLE;
-    VkPipeline m_gridPipeline = VK_NULL_HANDLE;
-    VkPipelineLayout m_gizmoPipelineLayout = VK_NULL_HANDLE;
-    VkPipeline m_gizmoPipeline = VK_NULL_HANDLE;
-    std::vector<FrameVertexBuffer> m_gizmoVertexBuffers;  // one per frame in flight
-    PFN_vkCmdBeginRenderingKHR m_vkCmdBeginRendering = nullptr;
-    PFN_vkCmdEndRenderingKHR m_vkCmdEndRendering = nullptr;
-
-    // Size-dependent resources
-    OwnedImage m_depthAov;      // R32_SFLOAT, written by BlitDepthTo, sampled by grid
-    OwnedImage m_overlayDepth;  // D32_SFLOAT, cleared per pass, overlay self-occlusion
-    VkImageLayout m_depthAovLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    OwnedImage m_heldFrame;     // swapchain format; see beginHeldFrame()
-    bool m_heldFrameLinear = false;  // the format can be blitted with LINEAR
+    std::unique_ptr<QRhiSampler> m_nearestSampler;  // depth, never interpolated
+    std::unique_ptr<QRhiSampler> m_linearSampler;   // the fitted frame
+    std::unique_ptr<QRhiBuffer> m_gridUniforms;
+    std::unique_ptr<QRhiBuffer> m_gizmoUniforms;
+    std::unique_ptr<QRhiBuffer> m_compositeUniforms;
+    std::unique_ptr<QRhiBuffer> m_gizmoVertices;
+    std::unique_ptr<QRhiShaderResourceBindings> m_gridBindings;
+    std::unique_ptr<QRhiShaderResourceBindings> m_gizmoBindings;
+    std::unique_ptr<QRhiShaderResourceBindings> m_compositeBindings;
+    std::unique_ptr<QRhiGraphicsPipeline> m_gridPipeline;
+    std::unique_ptr<QRhiGraphicsPipeline> m_gizmoPipeline;
+    std::unique_ptr<QRhiGraphicsPipeline> m_compositePipeline;
+    /// What the bindings were built against. The textures are resized in
+    /// place, which QRhi follows on its own; a different object means a
+    /// rebuilt device.
+    QRhiTexture* m_boundFrame = nullptr;
+    QRhiTexture* m_boundDepth = nullptr;
+    quint32 m_gizmoVertexCount = 0;
 
     // Composited-capture state (one shot at a time)
-    QString m_capturePath;             // non-empty = capture requested
-    bool m_captureRecorded = false;
-    int m_captureCountdown = 0;        // frames until the copy is provably done
-    VkBuffer m_captureBuffer = VK_NULL_HANDLE;
-    VkDeviceMemory m_captureMemory = VK_NULL_HANDLE;
-    void* m_captureMapped = nullptr;
-    uint32_t m_captureWidth = 0;
-    uint32_t m_captureHeight = 0;
-    VkFormat m_captureFormat = VK_FORMAT_UNDEFINED;
-    void destroyCaptureBuffer(VkDevice device);
+    QString m_capturePath;      // non-empty = capture requested
+    bool m_captureArmed = false;  // the readback is on its way
+    std::unique_ptr<QRhiReadbackResult> m_readback;
 };
 
 }  // namespace viewport
