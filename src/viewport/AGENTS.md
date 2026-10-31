@@ -1,9 +1,31 @@
 # src/viewport/
 
-`ViewportWindow` (a `QVulkanWindow`) owns `ViewportRenderer`, which is
-the **only** place this repo talks to the SDK — everything goes through
-`quantiloom::ExternalRenderContext`. Qt creates the Vulkan device and the SDK is handed
-the existing handles rather than making its own.
+`ViewportWindow` (a plain `QWindow` with a Vulkan surface) owns
+`ViewportRenderer`, which is the **only** place this repo talks to the SDK —
+everything goes through `quantiloom::ExternalRenderContext`. Studio creates
+the device itself (`GpuDevice`) and imports it into an application-owned
+`QRhi`; the SDK is handed the same handles rather than making its own.
+
+The pieces, and which one to touch:
+
+| File | Owns |
+|---|---|
+| `GpuDevice` | GPU suitability and device creation. QRhi cannot do this: it has no way to enable the ray tracing feature structs |
+| `ViewportRenderer` | The QRhi, the swapchain, the frame textures, the frame loop, the context jobs, the camera and every setter |
+| `SdkFrameBridge` | **Every Vulkan-typed SDK call** (`Create`/`InitParams`, the three frame calls, `BlitDepthTo`) and every `VkImageLayout`. Nowhere else in src/ has either |
+| `OverlayRenderer` | The grid, the gizmo and the selection box as QRhi pipelines, the composite pass, the composited-capture readback |
+| `CameraMatrices` | The SDK's camera as matrices and pixel rays. The projection is OpenGL's convention; a backend's comes from `clipSpaceCorrMatrix()` in front of it |
+
+One frame: `beginFrame`, the SDK records into the frame texture between
+`beginExternal()`/`endExternal()` outside any pass, the overlay pass draws
+onto that texture (always, even with nothing visible), and the composite pass
+clears the swapchain and fits the frame into it. The SDK never writes a
+swapchain image — QRhi swapchains have no `TRANSFER_DST`, which the blit this
+replaced needed.
+
+QRhi is a **limited-compatibility** API and CMake pins Qt to 6.10.x for that
+reason. Keep every QRhi type inside this directory, and re-check a different
+minor against Qt's `qrhivulkan.cpp` before widening the pin.
 
 ## Long SDK calls run off the GUI thread
 
@@ -14,15 +36,20 @@ worker thread and keeps the GUI thread's event loop turning, so a 20 s thermal
 scene no longer has Windows mark the window "Not Responding"; past 300 ms
 `longOperationStarted` puts up the shell's modal `BusyOverlay`.
 
-The SDK has no locking, so nothing may reach it while a job runs, and three
+The SDK has no locking, so nothing may reach it while a job runs, and four
 things make sure of that. `m_renderContext` is *moved out* to the worker, so
 every path that checks for a context finds none; the window swallows
-`UpdateRequest`, so no frame is started; and the shell's timers and the MCP pump
-ask `isRendererBusy()` and stand down. A new caller that pokes the SDK from a
-timer must do the same. Inside a QVulkanWindow callback (`initSwapChainResources`,
-`startNextFrame`) the loop must not turn, so the job runs inline there — which is
-why `applyDeferredSettings()` posts its replay instead of running it: the queue
-usually holds the session's first scene.
+`UpdateRequest` **and `Paint`**, so no frame is started and no queue is
+submitted to; resize and expose only *mark* the swapchain instead of rebuilding
+it (see below); and the shell's timers and the MCP pump ask `isRendererBusy()`
+and stand down. A new caller that pokes the SDK from a timer must do the same.
+Inside a frame or the first-time setup the loop must not turn, so the job runs
+inline there — which is why `applyDeferredSettings()` posts its replay instead
+of running it: the queue usually holds the session's first scene.
+
+A surface about to be destroyed first *joins* the worker: tearing the swapchain
+down waits for the device to go idle, which would otherwise race the worker's
+submissions.
 
 ## Every setter has the same shape
 
@@ -52,7 +79,7 @@ accumulation holds must go through `resetAccumulation()` rather than call the SD
 Display-stage setters are the deliberate exception. CLAHE changes how the
 accumulation is *shown*, not what it holds, so `setDisplayEnhancement` calls
 `requestDisplayReprocess()` instead: it arms a one-shot flag and asks for a frame, and
-`startNextFrame()` routes that frame through the SDK's `ReprocessAccumulated()` —
+`renderFrame()` routes that frame through the SDK's `ReprocessAccumulated()` —
 post-processing re-run over the unchanged accumulation, no sample added. Turning the
 camera *off* is display-stage the same way. The physical camera has three tiers:
 `reprocessCameraDisplay()` (`UpdateCameraDisplayConfig`) re-runs the display half of
@@ -70,22 +97,56 @@ frame.
 ## The viewport's size is not the render's
 
 `m_targetExtent` is what every frame hands the SDK as its target extent, and
-it follows the swapchain only through `adoptSwapchainExtent()` — called from
+it follows the swapchain only through `adoptRenderExtent()` — called from
 `resetAccumulation()`, and from a swapchain rebuild when nothing is
 accumulated. A rebuilt swapchain alone (a splitter, a workspace switch, a
-window resize) leaves the accumulation alone: `startNextFrame()` routes the
-frame through the overlay's held frame at `m_targetExtent` and fits it into
-the swapchain, aspect kept, bars cleared. Calling `Resize()` from
-`initSwapChainResources()` is the bug this replaced — every step of a splitter
-drag restarted the render at zero.
+window resize) leaves the accumulation alone: `renderFrame()` composites the
+frame texture at `m_targetExtent` into the swapchain, aspect kept, bars
+cleared. Calling `Resize()` from the swapchain rebuild is the bug this
+replaced — every step of a splitter drag restarted the render at zero.
 
 Two consequences. Anything that turns a pointer into a pixel goes through the
 window's `toTargetPixels()`, never `devicePixelRatio()` alone, because the
-image on screen may be scaled and offset; and anything sized from the target
-extent may be replaced mid-frame only because `adoptSwapchainExtent()` drains
-the queue first. The window also sets `PersistentResources`: Qt's default
-releases the device when the window is hidden, and a minimize hides it, which
-rebuilt the context and reloaded the scene on every restore.
+image on screen may be scaled and offset — `presentedRect()` feeds both the
+composite's viewport and `swapchainToTarget()`, so drawing and hit-testing
+cannot drift. And `adoptRenderExtent()` drains the queue (`m_rhi->finish()`)
+before the SDK's `Resize()`, because that replaces images a frame in flight
+may still be reading; the frame textures themselves are resized in place and
+QRhi releases the old ones once no frame uses them. Note that `finish()` inside
+a frame submits and restarts the command buffer, so the native command buffer
+is only ever fetched *after* the camera update that can trigger this.
+
+Nothing is released when the window is hidden or minimized: a hidden window
+just skips frames, and a lost surface costs only the swapchain. The old
+`QVulkanWindow` released the device on unexpose and rebuilt the context — and
+the scene, and the accumulation — on every restore.
+
+## Two trackers, one image
+
+QRhi generates barriers from its own record of each texture's
+`{layout, access, stage}`, and `setNativeLayout()` updates **only the
+layout**. Nothing public sets the other two, so after the SDK writes a texture
+QRhi's next barrier on it would have a stale source scope. The rule:
+
+> External writes end with a barrier whose destination scope is
+> `ALL_COMMANDS` / `MEMORY_READ | MEMORY_WRITE`, into exactly the layout
+> QRhi's next use requests. That use must come next, so QRhi's barrier is a
+> same-layout one rather than a transition ordered from a scope it never saw.
+
+For the frame texture that next use is the overlay pass, which is why the pass
+runs even when there is no grid and no gizmo. For the depth texture the SDK's
+own barriers already do this, so the bridge adds none. The two barriers live in
+`SdkFrameBridge.cpp`, as separate functions, because the backend-neutral SDK
+API takes the final layout over and deletes them.
+
+## Swapchain rebuilds are deferred
+
+`QRhiSwapChain::createOrResize()` waits for the device to go idle, and
+`QRhi::finish()` waits for the queue. Neither may run on the GUI thread while
+a context job is submitting — the result is intermittent device loss, not a
+clean error. So a resize or an expose only sets `m_swapchainDirty`, and
+`renderFrame()` (which the window never calls while frames are held) is the
+only place that rebuilds.
 
 ## Camera angles are radians
 

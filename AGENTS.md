@@ -88,7 +88,7 @@ exported symbols). `src/libQuantiloom/AGENTS.md` over there has the rule.
 | `src/ui/` | Shell infrastructure: `PanelBase`, the debug/spectral `ModeCatalog`, workspaces, the viewport frame, shared styling |
 | `src/ui/theme/` | The ten themes as data (`Theme`) and the runtime switcher (`ThemeManager`). A theme is a style key, a palette, a few accent colours and an optional style sheet — adding one is a function returning a `Theme`, not code |
 | `src/dialogs/` | Preferences, the generated help pages, the hyperspectral cube export (three formats: ENVI, spectral EXR, TIFF), the sequence render dialog, whose Timeline mode drives one `OfflineRenderer` across the clock, and the fusion dataset export (`FusionExportDialog` — a rig of cameras exported through the SDK's `dataset::FusionExportJob`). The three offline dialogs share `OfflineExport` — renderer init, and camera-product writing under the CLI's file names |
-| `src/viewport/` | Qt↔SDK render bridge and orbit camera; the only `ExternalRenderContext` caller |
+| `src/viewport/` | Qt↔SDK render bridge and orbit camera; the only `ExternalRenderContext` caller. Presents through an application-owned `QRhi` on a Vulkan device Studio creates and imports; its shaders are baked by `qsb`, so no `glslangValidator` is needed. Pinned to Qt 6.10.x because QRhi is a limited-compatibility API |
 | `src/config/` | TOML load/save (`ConfigManager`) |
 | `src/editing/` | Selection, undo stack, transform gizmo |
 | `src/i18n/` | Qt Linguist `.ts` (en + zh_CN) and the runtime `LanguageManager` |
