@@ -38,8 +38,10 @@ message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 # Find Qt6
 # ============================================================================
 # GuiPrivate is the QRhi API (<rhi/qrhi.h>) the viewport presents through, and
-# ShaderTools is qsb, which bakes its shaders. OpenGL and OpenGLWidgets were
-# found and deployed without a single use.
+# ShaderTools is qsb, which bakes its shaders. OpenGL and OpenGLWidgets are
+# deliberately not linked -- the viewport renders through QRhi on Vulkan --
+# but Qt6Charts loads Qt6OpenGLWidgets and Qt6OpenGL at run time, so the
+# Windows deploy step below still copies those two DLLs beside the exe.
 #
 # QRhi is a limited-compatibility API: it may change between Qt minor
 # releases, which is what Qt's private-module warning says on every configure.
@@ -457,6 +459,16 @@ target_precompile_headers(QuantiloomQt PRIVATE
 # Windows-specific: Deploy DLLs
 # ============================================================================
 if(WIN32)
+    # Qt6Charts depends on Qt6OpenGLWidgets and Qt6OpenGL at load time (dumpbin
+    # shows the imports even though QuantiloomQt.exe itself does not). Studio
+    # never links these -- the viewport renders through QRhi on Vulkan -- but a
+    # fresh build tree without the copies below refuses to start the exe. These
+    # targets exist only so the copy list can name the real DLLs (debug-suffixed
+    # in Debug, same as the other entries); they are a runtime dependency of
+    # QtCharts, not something Studio links. Kept inside WIN32: macOS and Linux
+    # deploy through macdeployqt / rpath and must not gain this requirement.
+    find_package(Qt6 REQUIRED COMPONENTS OpenGL OpenGLWidgets)
+
     # Copy Qt DLLs to output directory (for running from build dir)
     add_custom_command(TARGET QuantiloomQt POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
@@ -464,6 +476,8 @@ if(WIN32)
             $<TARGET_FILE:Qt6::Widgets>
             $<TARGET_FILE:Qt6::Gui>
             $<TARGET_FILE:Qt6::Charts>
+            $<TARGET_FILE:Qt6::OpenGLWidgets>
+            $<TARGET_FILE:Qt6::OpenGL>
             $<TARGET_FILE_DIR:QuantiloomQt>
         COMMENT "Copying Qt6 DLLs..."
     )
