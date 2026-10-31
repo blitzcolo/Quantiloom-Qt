@@ -37,15 +37,31 @@ message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 # ============================================================================
 # Find Qt6
 # ============================================================================
+# GuiPrivate is the QRhi API (<rhi/qrhi.h>) the viewport presents through, and
+# ShaderTools is qsb, which bakes its shaders. OpenGL and OpenGLWidgets were
+# found and deployed without a single use.
+#
+# QRhi is a limited-compatibility API: it may change between Qt minor
+# releases, which is what Qt's private-module warning says on every configure.
+# The answer is the pin below, so the warning is acknowledged here once.
+set(QT_NO_PRIVATE_MODULE_WARNING ON)
 find_package(Qt6 REQUIRED COMPONENTS
     Core
     Widgets
     Gui
+    GuiPrivate
     Charts
-    OpenGL
-    OpenGLWidgets
+    ShaderTools
     LinguistTools
 )
+
+# The viewport imports its own Vulkan device into QRhi and records SDK work
+# between beginExternal() and endExternal(); both were written against 6.10.
+# Check a different minor against src/viewport/AGENTS.md before widening this.
+if(Qt6_VERSION VERSION_LESS 6.10 OR Qt6_VERSION VERSION_GREATER_EQUAL 6.11)
+    message(FATAL_ERROR
+        "Qt ${Qt6_VERSION} found; the viewport's QRhi code is pinned to Qt 6.10.x.")
+endif()
 
 message(STATUS "Qt6 version: ${Qt6_VERSION}")
 message(STATUS "Qt6 path: ${Qt6_DIR}")
@@ -60,7 +76,7 @@ message(STATUS "Vulkan SDK: ${Vulkan_VERSION}")
 # libQuantiloom SDK Integration
 # ============================================================================
 # Uses prebuilt libQuantiloom from SDK directory.
-# SDK path auto-detected based on platform (Windows/Linux).
+# SDK path auto-detected based on platform (Windows/Linux/macOS).
 # ============================================================================
 
 set(QUANTILOOM_SDK_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../Quantiloom-SDK"
@@ -69,10 +85,12 @@ set(QUANTILOOM_SDK_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../Quantiloom-SDK"
 # Auto-detect platform-specific SDK path
 if(WIN32)
     set(QUANTILOOM_SDK_DIR "${QUANTILOOM_SDK_ROOT}/windows_amd64")
-elseif(UNIX AND NOT APPLE)
+elseif(APPLE)
+    set(QUANTILOOM_SDK_DIR "${QUANTILOOM_SDK_ROOT}/macos_arm64")
+elseif(UNIX)
     set(QUANTILOOM_SDK_DIR "${QUANTILOOM_SDK_ROOT}/linux_amd64")
 else()
-    message(FATAL_ERROR "Unsupported platform. Only Windows and Linux are supported.")
+    message(FATAL_ERROR "Unsupported platform. Windows, Linux and macOS are supported.")
 endif()
 
 if(NOT EXISTS "${QUANTILOOM_SDK_DIR}/lib/cmake/Quantiloom/QuantiloomConfig.cmake")
@@ -383,6 +401,27 @@ add_executable(QuantiloomQt
     ${OVERLAY_SHADER_HEADERS}
 )
 
+# ============================================================================
+# Viewport shaders (QRhi)
+# ============================================================================
+# Baked by qsb into .qsb packages and embedded as resources, named
+# :/shaders/<path under shaders/>.qsb -- :/shaders/overlay/composite.frag.qsb.
+# SPIR-V for Vulkan is always generated; MSL 1.2 (qsb's default) is kept for
+# the Metal track, GLSL and HLSL are not needed.
+qt_add_shaders(QuantiloomQt "viewport_shaders"
+    PREFIX "/shaders"
+    BASE "shaders"
+    NOGLSL
+    NOHLSL
+    FILES
+        shaders/overlay/grid.vert
+        shaders/overlay/grid.frag
+        shaders/overlay/gizmo.vert
+        shaders/overlay/gizmo.frag
+        shaders/overlay/composite.vert
+        shaders/overlay/composite.frag
+)
+
 # Platform definition for libQuantiloom headers
 if(QUANTILOOM_PLATFORM_WINDOWS)
     target_compile_definitions(QuantiloomQt PRIVATE QUANTILOOM_PLATFORM_WINDOWS)
@@ -410,6 +449,7 @@ target_link_libraries(QuantiloomQt PRIVATE
     Qt6::Core
     Qt6::Widgets
     Qt6::Gui
+    Qt6::GuiPrivate
     Qt6::Charts
     Vulkan::Vulkan
     ${QUANTILOOM_LIBRARIES}
@@ -455,8 +495,6 @@ if(WIN32)
             $<TARGET_FILE:Qt6::Widgets>
             $<TARGET_FILE:Qt6::Gui>
             $<TARGET_FILE:Qt6::Charts>
-            $<TARGET_FILE:Qt6::OpenGL>
-            $<TARGET_FILE:Qt6::OpenGLWidgets>
             $<TARGET_FILE_DIR:QuantiloomQt>
         COMMENT "Copying Qt6 DLLs..."
     )
