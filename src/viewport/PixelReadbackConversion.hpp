@@ -12,7 +12,7 @@
 
 #include <optional>
 
-namespace vkview {
+namespace viewport {
 
 /// Convert the raw accumulation channel carried by an IR fused mode through
 /// the same SDK thermography inversion as explicit pixel measurements.
@@ -30,4 +30,4 @@ inline std::optional<double> apparentTemperatureK(
         static_cast<double>(band->lambdaMaxNm), thermography);
 }
 
-} // namespace vkview
+} // namespace viewport

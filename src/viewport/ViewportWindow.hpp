@@ -1,5 +1,5 @@
 /**
- * @file QuantiloomVulkanWindow.hpp
+ * @file ViewportWindow.hpp
  * @brief QVulkanWindow subclass for Quantiloom rendering
  *
  * @author blitzcolo
@@ -42,24 +42,24 @@ struct SolarLutSpec;
 
 class QTimer;
 
-class QuantiloomVulkanRenderer;
+class ViewportRenderer;
 class SelectionManager;
 class TransformGizmo;
 class UndoStack;
 
 /**
- * @class QuantiloomVulkanWindow
+ * @class ViewportWindow
  * @brief Custom Vulkan window that hosts Quantiloom rendering
  *
  * This class manages the Vulkan surface and coordinates with
- * QuantiloomVulkanRenderer for actual rendering operations.
+ * ViewportRenderer for actual rendering operations.
  */
-class QuantiloomVulkanWindow : public QVulkanWindow {
+class ViewportWindow : public QVulkanWindow {
     Q_OBJECT
 
 public:
-    explicit QuantiloomVulkanWindow(QWindow* parent = nullptr);
-    ~QuantiloomVulkanWindow() override;
+    explicit ViewportWindow(QWindow* parent = nullptr);
+    ~ViewportWindow() override;
 
     /**
      * @brief Create the Vulkan renderer
@@ -212,10 +212,10 @@ public:
     [[nodiscard]] quantiloom::Result<std::vector<std::string>, std::string>
     setMaterialEmissionSpectrum(uint32_t materialIndex, const std::string& sourceOrEmpty,
                                 const std::string& scale, const QString& baseDir);
-    /// See QuantiloomVulkanRenderer::setSolarLutFromSpec.
+    /// See ViewportRenderer::setSolarLutFromSpec.
     [[nodiscard]] std::optional<QString> setSolarLutFromSpec(
         const quantiloom::SolarLutSpec& spec, const QString& baseDir);
-    /// See QuantiloomVulkanRenderer::clearSolarLut.
+    /// See ViewportRenderer::clearSolarLut.
     void clearSolarLut();
 
     void setSolarSpectralLUT(const quantiloom::SpectralCurve& sun,
@@ -235,13 +235,13 @@ public:
     /// no ray tracing.
     void selectRayTracingDevice();
 
-    /// See QuantiloomVulkanRenderer::frameBounds.
+    /// See ViewportRenderer::frameBounds.
     void frameBounds(const glm::vec3& min, const glm::vec3& max);
 
-    /// See QuantiloomVulkanRenderer::setSceneScale.
+    /// See ViewportRenderer::setSceneScale.
     void setSceneScale(float radius);
 
-    /// See QuantiloomVulkanRenderer::setCameraProjection.
+    /// See ViewportRenderer::setCameraProjection.
     void setCameraProjection(bool orthographic, float orthoHeight);
     [[nodiscard]] bool cameraIsOrthographic() const;
     [[nodiscard]] float cameraOrthoHeight() const;
@@ -553,7 +553,7 @@ public:
      * constant scale) is the same one the hover and grab hit-tests use, so
      * what is drawn is exactly what is grabbable.
      */
-    bool buildGizmoDrawList(const vkview::CameraMatrices& camera,
+    bool buildGizmoDrawList(const viewport::CameraMatrices& camera,
                             std::vector<editing::GizmoVertex>& out);
 
     /**
@@ -680,7 +680,7 @@ protected:
     bool event(QEvent* event) override;  // For hover events
 
 private:
-    friend class QuantiloomVulkanRenderer;
+    friend class ViewportRenderer;
 
     /**
      * @brief Convert a Qt pointer position to a pixel of the rendered image
@@ -714,7 +714,7 @@ private:
     /// The gizmo's placement for the current camera: selection center,
     /// world/local axes, screen-constant scale
     [[nodiscard]] editing::GizmoFrame currentGizmoFrame(
-        const vkview::CameraMatrices& camera) const;
+        const viewport::CameraMatrices& camera) const;
 
     /**
      * @brief Apply a setting now, or record it until the renderer exists
@@ -732,7 +732,7 @@ private:
      * is idempotent, so replaying a value that was later overwritten is
      * harmless.
      */
-    void withRenderer(std::function<void(QuantiloomVulkanRenderer&)> call);
+    void withRenderer(std::function<void(ViewportRenderer&)> call);
 
     /**
      * @brief Report that the user is moving the view or an object right now
@@ -757,8 +757,8 @@ private:
     /// is not over however quiet it has been.
     [[nodiscard]] bool viewportMotionHeld() const;
 
-    QuantiloomVulkanRenderer* m_renderer = nullptr;
-    std::vector<std::function<void(QuantiloomVulkanRenderer&)>> m_deferredCalls;
+    ViewportRenderer* m_renderer = nullptr;
+    std::vector<std::function<void(ViewportRenderer&)>> m_deferredCalls;
     /// applyDeferredSettings() has posted the replay and it has not run yet.
     /// Calls made meanwhile join the queue, so they keep their order.
     bool m_deferredReplayQueued = false;

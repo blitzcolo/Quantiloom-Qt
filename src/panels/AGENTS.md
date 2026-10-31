@@ -3,7 +3,7 @@
 `PanelBase` subclasses, one per dock. Each owns its widgets, keeps its values in plain
 members, and reports changes by signal. Panels never touch the renderer or the SDK —
 `MainWindow` connects them. `SpectralMaterialGenPanel` used to be the exception, holding
-a `QuantiloomVulkanWindow*`; it is handed the scene like everyone else now and asks the
+a `ViewportWindow*`; it is handed the scene like everyone else now and asks the
 shell to upload its (n,k) curves.
 
 ## What PanelBase requires

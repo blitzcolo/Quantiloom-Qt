@@ -38,7 +38,7 @@
 #include "panels/SensorPanel.hpp"
 #include "panels/SpectralConfigPanel.hpp"
 #include "ui/ModeCatalog.hpp"
-#include "vulkan/QuantiloomVulkanWindow.hpp"
+#include "viewport/ViewportWindow.hpp"
 
 #include <QCoreApplication>
 #include <QElapsedTimer>
@@ -393,23 +393,23 @@ void MainWindow::registerMcpTools() {
         tool.readOnly = true;
         tool.handler = [this](const quantiloom::String&) {
             QJsonObject out;
-            out["has_scene"] = m_vulkanWindow->getScene() != nullptr;
+            out["has_scene"] = m_viewport->getScene() != nullptr;
             out["scene_file"] = m_currentSceneFile;
             out["config_file"] = m_currentConfigFile;
             out["unsaved_changes"] = documentModified();
             out["accumulated_samples"] =
-                static_cast<qint64>(m_vulkanWindow->currentSampleCount());
-            out["target_samples"] = static_cast<qint64>(m_vulkanWindow->targetSPP());
-            out["render_paused"] = m_vulkanWindow->isRenderPaused();
-            out["spectral_mode"] = catalog::spectralModeId(m_vulkanWindow->spectralMode());
-            out["wavelength_nm"] = m_vulkanWindow->wavelength();
-            out["debug_mode"] = catalog::debugModeId(m_vulkanWindow->debugMode());
+                static_cast<qint64>(m_viewport->currentSampleCount());
+            out["target_samples"] = static_cast<qint64>(m_viewport->targetSPP());
+            out["render_paused"] = m_viewport->isRenderPaused();
+            out["spectral_mode"] = catalog::spectralModeId(m_viewport->spectralMode());
+            out["wavelength_nm"] = m_viewport->wavelength();
+            out["debug_mode"] = catalog::debugModeId(m_viewport->debugMode());
             out["display_enhancement"] = m_displayParams.enabled;
             // The extent being traced, which is below the viewport's while a
             // camera or gizmo gesture is in progress. A capture taken then is
             // this size, not the viewport's.
-            const QSize renderSize = m_vulkanWindow->currentRenderSize();
-            out["render_scale"] = m_vulkanWindow->currentRenderScale();
+            const QSize renderSize = m_viewport->currentRenderSize();
+            out["render_scale"] = m_viewport->currentRenderScale();
             out["render_width"] = renderSize.width();
             out["render_height"] = renderSize.height();
             out["motion_adaptive_resolution"] = m_motionAdaptiveResolution;
@@ -450,7 +450,7 @@ void MainWindow::registerMcpTools() {
                 args.value(QStringLiteral("response_format")).toString(QStringLiteral("concise")) ==
                 QLatin1String("detailed");
 
-            const quantiloom::Scene* scene = m_vulkanWindow->getScene();
+            const quantiloom::Scene* scene = m_viewport->getScene();
             if (!scene) {
                 return mcp::ToolResult::Error(
                     "No scene is loaded. Open one with ql_apply_config first.");
@@ -601,7 +601,7 @@ void MainWindow::registerMcpTools() {
             if (!ParseArgs(argumentsJson, args, error)) {
                 return error;
             }
-            if (!m_vulkanWindow->getScene()) {
+            if (!m_viewport->getScene()) {
                 return mcp::ToolResult::Error("No scene is loaded, so there is nothing to capture.");
             }
             if (sinceLastCapture.isValid() && sinceLastCapture.elapsed() < kMinCaptureIntervalMs) {
@@ -615,7 +615,7 @@ void MainWindow::registerMcpTools() {
                 args.value(QStringLiteral("view")).toString(QStringLiteral("display")) ==
                 QLatin1String("raw");
             std::unique_ptr<quantiloom::Image> image =
-                raw ? m_vulkanWindow->captureScreenshot() : m_vulkanWindow->captureDisplayImage();
+                raw ? m_viewport->captureScreenshot() : m_viewport->captureDisplayImage();
             if (!image) {
                 return NoContext();
             }
@@ -627,7 +627,7 @@ void MainWindow::registerMcpTools() {
             out["height"] = static_cast<qint64>(image->height);
             out["view"] = raw ? QStringLiteral("raw") : QStringLiteral("display");
             out["accumulated_samples"] =
-                static_cast<qint64>(m_vulkanWindow->currentSampleCount());
+                static_cast<qint64>(m_viewport->currentSampleCount());
 
             const QString savePath = args.value(QStringLiteral("save_path")).toString();
             if (!savePath.isEmpty()) {
@@ -684,7 +684,7 @@ void MainWindow::registerMcpTools() {
             const int x = args.value(QStringLiteral("x")).toInt();
             const int y = args.value(QStringLiteral("y")).toInt();
             glm::vec4 value(0.0f);
-            if (!m_vulkanWindow->readDebugPixel(x, y, value)) {
+            if (!m_viewport->readDebugPixel(x, y, value)) {
                 return mcp::ToolResult::Error(
                     "Could not read that pixel. It may be outside the viewport, or no scene is "
                     "loaded.");
@@ -694,8 +694,8 @@ void MainWindow::registerMcpTools() {
             out["x"] = x;
             out["y"] = y;
             out["raw"] = QJsonArray{value.r, value.g, value.b, value.a};
-            out["reading"] = m_vulkanWindow->formatDebugValue(value);
-            out["debug_mode"] = catalog::debugModeId(m_vulkanWindow->debugMode());
+            out["reading"] = m_viewport->formatDebugValue(value);
+            out["debug_mode"] = catalog::debugModeId(m_viewport->debugMode());
             return Json(out);
         };
         add(tool);
@@ -799,9 +799,9 @@ void MainWindow::registerMcpTools() {
                 connect(&deadline, &QTimer::timeout, &wait, &QEventLoop::quit);
                 // Connected after MainWindow's own sceneLoaded handler, so the
                 // report is recorded by the time this quits.
-                connect(m_vulkanWindow, &QuantiloomVulkanWindow::sceneLoaded, &wait,
+                connect(m_viewport, &ViewportWindow::sceneLoaded, &wait,
                         &QEventLoop::quit);
-                connect(m_vulkanWindow, &QuantiloomVulkanWindow::renderContextFailed, &wait,
+                connect(m_viewport, &ViewportWindow::renderContextFailed, &wait,
                         &QEventLoop::quit);
                 deadline.start(kOpenTimeoutMs - 10000);
                 wait.exec();
@@ -836,13 +836,13 @@ void MainWindow::registerMcpTools() {
 
             QJsonObject out;
             out["opened"] = path;
-            out["has_scene"] = m_vulkanWindow->getScene() != nullptr;
+            out["has_scene"] = m_viewport->getScene() != nullptr;
             out["accumulated_samples"] =
-                static_cast<qint64>(m_vulkanWindow->currentSampleCount());
+                static_cast<qint64>(m_viewport->currentSampleCount());
 
             mcp::ToolResult result;
             result.text = Dump(out);
-            result.isError = m_vulkanWindow->getScene() == nullptr;
+            result.isError = m_viewport->getScene() == nullptr;
             return result;
         };
         add(tool);
@@ -879,7 +879,7 @@ void MainWindow::registerMcpTools() {
             glm::vec3 target;
             glm::vec3 up;
             float fovY = 45.0f;
-            m_vulkanWindow->getCameraState(position, target, up, fovY);
+            m_viewport->getCameraState(position, target, up, fovY);
 
             glm::vec3 newPosition = position;
             glm::vec3 newTarget = target;
@@ -895,7 +895,7 @@ void MainWindow::registerMcpTools() {
                 applyCameraFov(static_cast<float>(args.value(QStringLiteral("fov_y")).toDouble()));
             }
 
-            m_vulkanWindow->getCameraState(position, target, up, fovY);
+            m_viewport->getCameraState(position, target, up, fovY);
             QJsonObject out;
             out["position"] = WriteVec3(position);
             out["target"] = WriteVec3(target);
@@ -1136,7 +1136,7 @@ void MainWindow::registerMcpTools() {
 
             return Json(ThermalStatusJson(m_thermalEnabled, m_thermalTimeH,
                                           currentThermalParams(),
-                                          m_vulkanWindow->thermalSolveStatus()));
+                                          m_viewport->thermalSolveStatus()));
         };
         add(tool);
     }
@@ -1162,7 +1162,7 @@ void MainWindow::registerMcpTools() {
         tool.handler = [this](const quantiloom::String&) {
             return Json(ThermalStatusJson(m_thermalEnabled, m_thermalTimeH,
                                           currentThermalParams(),
-                                          m_vulkanWindow->thermalSolveStatus()));
+                                          m_viewport->thermalSolveStatus()));
         };
         add(tool);
     }
@@ -1187,7 +1187,7 @@ void MainWindow::registerMcpTools() {
         tool.inputSchemaJson = R"({"type":"object","properties":{}})";
         tool.readOnly = true;
         tool.handler = [this](const quantiloom::String&) {
-            return Json(TimelineJson(m_vulkanWindow->timelineInfo()));
+            return Json(TimelineJson(m_viewport->timelineInfo()));
         };
         add(tool);
     }
@@ -1222,7 +1222,7 @@ void MainWindow::registerMcpTools() {
                 return error;
             }
 
-            const quantiloom::TimelineInfo info = m_vulkanWindow->timelineInfo();
+            const quantiloom::TimelineInfo info = m_viewport->timelineInfo();
             if (!info.present) {
                 return Json(TimelineJson(info));
             }
@@ -1240,7 +1240,7 @@ void MainWindow::registerMcpTools() {
             // moving the clock is deliberately not an edit, and playback would
             // otherwise push twenty commands a second onto the stack.
             applyTimelineTime(target);
-            return Json(TimelineJson(m_vulkanWindow->timelineInfo()));
+            return Json(TimelineJson(m_viewport->timelineInfo()));
         };
         add(tool);
     }
@@ -1288,7 +1288,7 @@ void MainWindow::registerMcpTools() {
                     return mcp::ToolResult::Error("Not a spectral mode: " + id);
                 }
                 pushSettingCommand(CommandId::ModifySpectralMode, tr("Spectral mode"),
-                                   m_vulkanWindow->spectralMode(), parsed.value(),
+                                   m_viewport->spectralMode(), parsed.value(),
                                    [this](const quantiloom::SpectralMode& v) {
                                        applySpectralMode(v);
                                    });
@@ -1303,7 +1303,7 @@ void MainWindow::registerMcpTools() {
                 applyTargetSpp(static_cast<uint32_t>(std::max(1, spp)));
             }
             if (args.contains(QStringLiteral("seed"))) {
-                m_vulkanWindow->setSamplingSeed(
+                m_viewport->setSamplingSeed(
                     static_cast<uint32_t>(args.value(QStringLiteral("seed")).toInt()));
                 setSceneModified(true);
             }
@@ -1327,15 +1327,15 @@ void MainWindow::registerMcpTools() {
             }
 
             QJsonObject out;
-            out["mode"] = catalog::spectralModeId(m_vulkanWindow->spectralMode());
-            out["wavelength_nm"] = m_vulkanWindow->wavelength();
-            out["target_samples"] = static_cast<qint64>(m_vulkanWindow->targetSPP());
-            out["seed"] = static_cast<qint64>(m_vulkanWindow->samplingSeed());
+            out["mode"] = catalog::spectralModeId(m_viewport->spectralMode());
+            out["wavelength_nm"] = m_viewport->wavelength();
+            out["target_samples"] = static_cast<qint64>(m_viewport->targetSPP());
+            out["seed"] = static_cast<qint64>(m_viewport->samplingSeed());
             out["lambda_min_nm"] = m_spectralConfigPanel->lambdaMin();
             out["lambda_max_nm"] = m_spectralConfigPanel->lambdaMax();
             out["delta_lambda_nm"] = m_spectralConfigPanel->deltaLambda();
             out["accumulated_samples"] =
-                static_cast<qint64>(m_vulkanWindow->currentSampleCount());
+                static_cast<qint64>(m_viewport->currentSampleCount());
             return Json(out);
         };
         add(tool);
@@ -1381,8 +1381,8 @@ void MainWindow::registerMcpTools() {
             applyDebugMode(parsed.value());
 
             QJsonObject out;
-            out["mode"] = catalog::debugModeId(m_vulkanWindow->debugMode());
-            out["shows"] = catalog::debugModeDescription(m_vulkanWindow->debugMode());
+            out["mode"] = catalog::debugModeId(m_viewport->debugMode());
+            out["shows"] = catalog::debugModeDescription(m_viewport->debugMode());
             out["session_only"] = true;
             return Json(out);
         };
@@ -1422,7 +1422,7 @@ void MainWindow::registerMcpTools() {
             if (!ParseArgs(argumentsJson, args, error)) {
                 return error;
             }
-            const quantiloom::Scene* scene = m_vulkanWindow->getScene();
+            const quantiloom::Scene* scene = m_viewport->getScene();
             if (!scene) {
                 return mcp::ToolResult::Error("No scene is loaded.");
             }
@@ -1489,7 +1489,7 @@ void MainWindow::registerMcpTools() {
             // Read back rather than echoed: binding a spectrum replaces the
             // emissive triple with the colour that spectrum integrates to, and
             // reporting the requested value would hide that.
-            if (const auto* refreshed = m_vulkanWindow->getScene();
+            if (const auto* refreshed = m_viewport->getScene();
                 refreshed && index >= 0 &&
                 static_cast<size_t>(index) < refreshed->materials.size()) {
                 const auto& applied = refreshed->materials[static_cast<size_t>(index)];
@@ -1535,7 +1535,7 @@ void MainWindow::registerMcpTools() {
             if (!ParseArgs(argumentsJson, args, error)) {
                 return error;
             }
-            const quantiloom::Scene* scene = m_vulkanWindow->getScene();
+            const quantiloom::Scene* scene = m_viewport->getScene();
             if (!scene) {
                 return mcp::ToolResult::Error("No scene is loaded.");
             }
@@ -1750,14 +1750,14 @@ void MainWindow::registerMcpTools() {
             if (!ParseArgs(argumentsJson, args, error)) {
                 return error;
             }
-            m_vulkanWindow->overrideRenderScale(
+            m_viewport->overrideRenderScale(
                 static_cast<float>(args.value(QStringLiteral("scale")).toDouble(1.0)));
 
             // Deliberately no extent here: it changes on the next frame, and
             // reading it now would report the extent being replaced. Poll
             // ql_get_status for render_width and render_height.
             QJsonObject out;
-            out["render_scale"] = m_vulkanWindow->currentRenderScale();
+            out["render_scale"] = m_viewport->currentRenderScale();
             out["session_only"] = true;
             return Json(out);
         };
@@ -1846,7 +1846,7 @@ void MainWindow::registerMcpTools() {
             // nothing is found. Refusing earlier would refuse configurations
             // that path would have served.
             pushSettingCommand(CommandId::ModifyAtmosphere, tr("Atmosphere"),
-                               m_vulkanWindow->atmosphericConfig(), config,
+                               m_viewport->atmosphericConfig(), config,
                                [this](const quantiloom::AtmosphereNNConfig& v) {
                                    applyAtmosphere(v);
                                });
@@ -1954,14 +1954,14 @@ void MainWindow::registerMcpTools() {
             setB("enable_fpn", camera.photon.enableFpn);
 
             pushSettingCommand(CommandId::ModifyCamera, tr("Camera parameters"),
-                               m_vulkanWindow->cameraConfig(), camera,
+                               m_viewport->cameraConfig(), camera,
                                [this](const quantiloom::camera::CameraConfig& v) {
                                    applyCameraConfig(v);
                                });
             if (args.contains(QStringLiteral("enabled"))) {
                 const bool enabled = args.value(QStringLiteral("enabled")).toBool();
                 pushSettingCommand(CommandId::ModifySensor, tr("Camera simulation"),
-                                   m_vulkanWindow->sensorEnabled(), enabled,
+                                   m_viewport->sensorEnabled(), enabled,
                                    [this](const bool& v) { applySensorEnabled(v); });
             }
 
@@ -2047,7 +2047,7 @@ void MainWindow::registerMcpTools() {
             onResetAccumulation();
             QJsonObject out;
             out["accumulated_samples"] =
-                static_cast<qint64>(m_vulkanWindow->currentSampleCount());
+                static_cast<qint64>(m_viewport->currentSampleCount());
             return Json(out);
         };
         add(tool);
@@ -2146,7 +2146,7 @@ void MainWindow::registerMcpTools() {
             if (!ParseArgs(argumentsJson, args, error)) {
                 return error;
             }
-            const auto* scene = m_vulkanWindow->getScene();
+            const auto* scene = m_viewport->getScene();
             if (!scene) {
                 return mcp::ToolResult::Error("No scene is loaded.");
             }
@@ -2199,7 +2199,7 @@ void MainWindow::registerMcpTools() {
             "first with ql_select. Returns the new node indices.";
         tool.inputSchemaJson = R"({"type": "object", "properties": {}})";
         tool.handler = [this](const quantiloom::String&) {
-            if (!m_vulkanWindow->getScene()) {
+            if (!m_viewport->getScene()) {
                 return mcp::ToolResult::Error("No scene is loaded.");
             }
             if (!m_selectionManager->hasSelection()) {
@@ -2226,7 +2226,7 @@ void MainWindow::registerMcpTools() {
             "undoable as one step. Refuses to empty the scene.";
         tool.inputSchemaJson = R"({"type": "object", "properties": {}})";
         tool.handler = [this](const quantiloom::String&) {
-            const auto* scene = m_vulkanWindow->getScene();
+            const auto* scene = m_viewport->getScene();
             if (!scene) {
                 return mcp::ToolResult::Error("No scene is loaded.");
             }
@@ -2269,7 +2269,7 @@ void MainWindow::registerMcpTools() {
             if (!ParseArgs(argumentsJson, args, error)) {
                 return error;
             }
-            if (!m_vulkanWindow->getScene()) {
+            if (!m_viewport->getScene()) {
                 return mcp::ToolResult::Error("No scene is loaded.");
             }
             const QString path = args.value(QStringLiteral("save_path")).toString();
@@ -2320,11 +2320,11 @@ void MainWindow::registerMcpTools() {
             if (savePath.isEmpty()) {
                 return mcp::ToolResult::Error("save_path is required.");
             }
-            if (!m_vulkanWindow->hasRenderer()) {
+            if (!m_viewport->hasRenderer()) {
                 return mcp::ToolResult::Error("The viewport is not rendering yet.");
             }
-            m_vulkanWindow->requestCompositedCapture(savePath);
-            m_vulkanWindow->requestUpdate();
+            m_viewport->requestCompositedCapture(savePath);
+            m_viewport->requestUpdate();
 
             QJsonObject out;
             out["scheduled"] = true;

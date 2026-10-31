@@ -1,5 +1,5 @@
 /**
- * @file QuantiloomVulkanRenderer.hpp
+ * @file ViewportRenderer.hpp
  * @brief QVulkanWindowRenderer adapter for libQuantiloom integration
  *
  * @author blitzcolo
@@ -41,7 +41,7 @@ namespace quantiloom {
 struct ComplexRefractiveIndex;
 }
 
-class QuantiloomVulkanWindow;
+class ViewportWindow;
 
 namespace quantiloom {
 class Config;
@@ -53,21 +53,21 @@ struct ConfigApplyReport;
 }
 
 /**
- * @class QuantiloomVulkanRenderer
+ * @class ViewportRenderer
  * @brief Adapter layer connecting Qt's Vulkan infrastructure with libQuantiloom
  *
  * This class implements QVulkanWindowRenderer and uses libQuantiloom's
  * ExternalRenderContext to perform actual ray tracing rendering.
  * It bridges Qt-managed Vulkan handles with the library's rendering pipeline.
  */
-class QuantiloomVulkanRenderer : public QVulkanWindowRenderer {
+class ViewportRenderer : public QVulkanWindowRenderer {
     // Not a QObject, but it still produces a few user-visible strings; this
     // gives them a translation context lupdate can see.
-    Q_DECLARE_TR_FUNCTIONS(QuantiloomVulkanRenderer)
+    Q_DECLARE_TR_FUNCTIONS(ViewportRenderer)
 
 public:
-    explicit QuantiloomVulkanRenderer(QuantiloomVulkanWindow* window);
-    ~QuantiloomVulkanRenderer() override;
+    explicit ViewportRenderer(ViewportWindow* window);
+    ~ViewportRenderer() override;
 
     // QVulkanWindowRenderer interface
     void initResources() override;
@@ -102,7 +102,7 @@ public:
     [[nodiscard]] bool hasConfig() const { return m_currentConfig != nullptr; }
 
     /// True while runContextJob() has the context out on its worker thread.
-    /// Nothing may reach the SDK meanwhile; see src/vulkan/AGENTS.md.
+    /// Nothing may reach the SDK meanwhile; see src/viewport/AGENTS.md.
     [[nodiscard]] bool contextBusy() const { return m_contextJobActive; }
 
     void resetCamera();
@@ -275,7 +275,7 @@ public:
 
     /// The camera the frame on screen was rendered with, as matrices and
     /// pixel rays. Only valid while a scene is loaded.
-    [[nodiscard]] vkview::CameraMatrices overlayCamera() const;
+    [[nodiscard]] viewport::CameraMatrices overlayCamera() const;
 
     /// The extent the SDK renders to, and the space every pixel coordinate it
     /// takes -- Pick, ReadPixelValue, overlayCamera() rays -- is in. The
@@ -547,7 +547,7 @@ private:
     /// all of it when the two agree, else fitted with its aspect kept.
     [[nodiscard]] QRect presentedRect() const;
 
-    QuantiloomVulkanWindow* m_window;
+    ViewportWindow* m_window;
 
     /// What every frame hands the SDK as the target extent. It follows the
     /// swapchain only through adoptSwapchainExtent(), so a viewport resize
@@ -559,7 +559,7 @@ private:
     std::unique_ptr<quantiloom::ExternalRenderContext> m_renderContext;
 
     // Editor overlay pass (grid, gizmo), drawn after RenderFrame's blit
-    vkview::OverlayRenderer m_overlay;
+    viewport::OverlayRenderer m_overlay;
     std::vector<editing::GizmoVertex> m_gizmoVertices;  // rebuilt per frame
 
     // Frame timing. Two figures, deliberately: wall clock around the whole
@@ -579,7 +579,7 @@ private:
     /// change (sensor, CLAHE) shows without costing a sample. Set by
     /// requestDisplayReprocess(), consumed by startNextFrame().
     bool m_reprocessPending = false;
-    vkview::ViewportSampleBatchScheduler m_viewportSampleBatch;
+    viewport::ViewportSampleBatchScheduler m_viewportSampleBatch;
 
     // Motion-adaptive resolution. m_motionActive is the window's gesture
     // state; m_motionScale is what was chosen on its rising edge and holds for

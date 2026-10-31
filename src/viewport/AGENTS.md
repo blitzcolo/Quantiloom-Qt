@@ -1,6 +1,6 @@
-# src/vulkan/
+# src/viewport/
 
-`QuantiloomVulkanWindow` (a `QVulkanWindow`) owns `QuantiloomVulkanRenderer`, which is
+`ViewportWindow` (a `QVulkanWindow`) owns `ViewportRenderer`, which is
 the **only** place this repo talks to the SDK — everything goes through
 `quantiloom::ExternalRenderContext`. Qt creates the Vulkan device and the SDK is handed
 the existing handles rather than making its own.
@@ -27,7 +27,7 @@ usually holds the session's first scene.
 ## Every setter has the same shape
 
 ```cpp
-void QuantiloomVulkanRenderer::setX(T x) {
+void ViewportRenderer::setX(T x) {
     m_x = x;                       // kept so the value survives a scene reload
     if (m_renderContext) {
         m_renderContext->SetX(x);

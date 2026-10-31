@@ -6,7 +6,7 @@
  */
 
 #include "MainWindow.hpp"
-#include "vulkan/QuantiloomVulkanWindow.hpp"
+#include "viewport/ViewportWindow.hpp"
 #include "panels/SceneTreePanel.hpp"
 #include "panels/MaterialEditorPanel.hpp"
 #include "panels/LightingPanel.hpp"
@@ -310,21 +310,21 @@ void MainWindow::applyScreenAwareGeometry() {
 
 void MainWindow::setupUi() {
     // Create Vulkan window
-    m_vulkanWindow = new QuantiloomVulkanWindow();
-    m_vulkanWindow->setVulkanInstance(m_vulkanInstance);
+    m_viewport = new ViewportWindow();
+    m_viewport->setVulkanInstance(m_vulkanInstance);
     // Before the window is shown, which is when Qt commits to a device.
-    m_vulkanWindow->selectRayTracingDevice();
+    m_viewport->selectRayTracingDevice();
 
     // Wrap in QWidget container for use as central widget
-    m_vulkanContainer = QWidget::createWindowContainer(m_vulkanWindow);
-    m_vulkanContainer->setMinimumSize(320, 240);
-    m_vulkanContainer->setFocusPolicy(Qt::StrongFocus);
-    m_vulkanContainer->setMouseTracking(true);
+    m_viewportContainer = QWidget::createWindowContainer(m_viewport);
+    m_viewportContainer->setMinimumSize(320, 240);
+    m_viewportContainer->setFocusPolicy(Qt::StrongFocus);
+    m_viewportContainer->setMouseTracking(true);
 
     // The transform keys are QActions now; this filter is what lets them keep
     // working while the native render surface has focus, without the viewport
     // owning a second copy of the logic.
-    m_vulkanWindow->installEventFilter(this);
+    m_viewport->installEventFilter(this);
 
     // Visible boundaries between the docked regions; without this the docks,
     // the viewport and the window background are all the same colour with a
@@ -341,14 +341,14 @@ void MainWindow::setupUi() {
             return (c <= 0.04045f) ? (c / 12.92f)
                                    : std::pow((c + 0.055f) / 1.055f, 2.4f);
         };
-        m_vulkanWindow->setSelectionBoxColor(glm::vec4(
+        m_viewport->setSelectionBoxColor(glm::vec4(
             toLinear(static_cast<float>(accent.redF())),
             toLinear(static_cast<float>(accent.greenF())),
             toLinear(static_cast<float>(accent.blueF())),
             0.85f));
     });
 
-    m_viewportFrame = new ViewportFrame(m_vulkanContainer, this);
+    m_viewportFrame = new ViewportFrame(m_viewportContainer, this);
     connect(m_viewportFrame, &ViewportFrame::openSceneRequested,
             this, &MainWindow::onOpenScene);
     connect(m_viewportFrame, &ViewportFrame::openRecentRequested,
@@ -358,7 +358,7 @@ void MainWindow::setupUi() {
 }
 
 bool MainWindow::eventFilter(QObject* watched, QEvent* event) {
-    if (watched != m_vulkanWindow || event->type() != QEvent::KeyPress) {
+    if (watched != m_viewport || event->type() != QEvent::KeyPress) {
         return QMainWindow::eventFilter(watched, event);
     }
 
@@ -702,7 +702,7 @@ void MainWindow::setupMenus() {
     m_cameraSimulationAction->setCheckable(true);
     connect(m_cameraSimulationAction, &QAction::triggered, this, [this](bool enabled) {
         pushSettingCommand(CommandId::ModifySensor, tr("Camera simulation"),
-                           m_vulkanWindow->sensorEnabled(), enabled,
+                           m_viewport->sensorEnabled(), enabled,
                            [this](const bool& v) { applySensorEnabled(v); });
     });
     m_thermalSolveAction = m_renderMenu->addAction(QString());
@@ -714,7 +714,7 @@ void MainWindow::setupMenus() {
     connect(m_autoExportAction, &QAction::triggered, this,
             [this](bool enabled) { applyAutoExport(enabled); });
     connect(m_renderMenu, &QMenu::aboutToShow, this, [this]() {
-        m_cameraSimulationAction->setChecked(m_vulkanWindow->sensorEnabled());
+        m_cameraSimulationAction->setChecked(m_viewport->sensorEnabled());
         m_thermalSolveAction->setChecked(m_thermalEnabled);
         m_autoExportAction->setChecked(m_renderSettingsPanel->autoExportOnComplete());
         m_removeEndmemberAction->setEnabled(m_currentMaterialIndex >= 0 &&
@@ -858,7 +858,7 @@ void MainWindow::buildCameraMenu(QMenu* menu) {
         action->setData(QString::fromLatin1(preset.id));
         const glm::vec3 direction = preset.direction;
         connect(action, &QAction::triggered, this, [this, direction]() {
-            m_vulkanWindow->setViewDirection(direction);
+            m_viewport->setViewDirection(direction);
         });
         m_viewPresetActions.append(action);
     }
@@ -1064,7 +1064,7 @@ void MainWindow::setupToolBar() {
 // ============================================================================
 
 void MainWindow::applyDebugMode(quantiloom::DebugVisualizationMode mode) {
-    m_vulkanWindow->setDebugMode(mode);
+    m_viewport->setDebugMode(mode);
 
     if (QAction* action = m_debugActions.value(static_cast<int>(mode), nullptr)) {
         action->setChecked(true);
@@ -1087,7 +1087,7 @@ void MainWindow::applySpectralMode(quantiloom::SpectralMode mode) {
     if (m_lightingPanel) {
         m_lightingPanel->setSpectralMode(mode);
     }
-    m_vulkanWindow->setSpectralMode(mode);
+    m_viewport->setSpectralMode(mode);
 
     // After the mode is in force, not before: re-picking loads the spectrum
     // again, and the core writes its coverage diagnostic against whatever mode
@@ -1109,13 +1109,13 @@ void MainWindow::requestSpectralMode(quantiloom::SpectralMode mode) {
     // mode change is undoable whichever of them made it. It used to be from
     // the panel only.
     pushSettingCommand(CommandId::ModifySpectralMode, tr("Spectral mode"),
-                       m_vulkanWindow->spectralMode(), mode,
+                       m_viewport->spectralMode(), mode,
                        [this](const quantiloom::SpectralMode& v) { applySpectralMode(v); });
 }
 
 void MainWindow::requestTargetSpp(uint32_t spp) {
     pushSettingCommand(CommandId::ModifyTargetSamples, tr("Target samples"),
-                       m_vulkanWindow->targetSPP(), spp,
+                       m_viewport->targetSPP(), spp,
                        [this](const uint32_t& v) { applyTargetSpp(v); });
 }
 
@@ -1123,7 +1123,7 @@ void MainWindow::requestWavelength(float wavelength_nm) {
     // Recorded like the mode and the sample target above, so the panel and
     // ql_set_spectral share one undoable route.
     pushSettingCommand(CommandId::ModifyWavelength, tr("Wavelength"),
-                       m_vulkanWindow->wavelength(), wavelength_nm,
+                       m_viewport->wavelength(), wavelength_nm,
                        [this](const float& v) { applyWavelength(v); });
 }
 
@@ -1143,7 +1143,7 @@ void MainWindow::syncSpectralModeUi(quantiloom::SpectralMode mode) {
 }
 
 void MainWindow::applyTargetSpp(uint32_t spp) {
-    m_vulkanWindow->setSPP(spp);
+    m_viewport->setSPP(spp);
     m_renderSettingsPanel->setTargetSPP(spp);
 
     if (m_qualityGroup) {
@@ -1159,10 +1159,10 @@ void MainWindow::applyTargetSpp(uint32_t spp) {
     // accumulated (setSPP does not reset), so this is the start of a new run
     // as far as the completion message and the ETA are concerned. Without
     // this, a render that reported "complete" at 16 reached 64 in silence.
-    const uint32_t current = m_vulkanWindow->currentSampleCount();
+    const uint32_t current = m_viewport->currentSampleCount();
     if (spp == 0 || current < spp) {
         beginRenderTiming();
-        setRenderActionsRunning(!m_vulkanWindow->isRenderPaused());
+        setRenderActionsRunning(!m_viewport->isRenderPaused());
     }
 
     if (spp == 0)
@@ -1172,7 +1172,7 @@ void MainWindow::applyTargetSpp(uint32_t spp) {
 }
 
 void MainWindow::applyWavelength(float wavelength_nm) {
-    m_vulkanWindow->setWavelength(wavelength_nm);
+    m_viewport->setWavelength(wavelength_nm);
     m_spectralConfigPanel->setWavelength(wavelength_nm);
 
     setSceneModified(true);
@@ -1206,7 +1206,7 @@ void MainWindow::applyEnvironmentMap(const QString& path, bool enabled) {
     // loaded yet. Turning one off does not unload it -- the flag stops the
     // shader sampling it, and keeping it resident makes the checkbox instant.
     if (enabled && !path.isEmpty()) {
-        if (!m_vulkanWindow->loadEnvironmentMap(path)) {
+        if (!m_viewport->loadEnvironmentMap(path)) {
             showStatusMessage(tr("Failed to load environment map: %1")
                                   .arg(QFileInfo(path).fileName()));
         }
@@ -1235,7 +1235,7 @@ void MainWindow::applyIlluminant(const LightingPanel::IlluminantChoice& choice) 
     // the sky, as the CLI renders a file naming no solar_lut. RGB reads the
     // sun and sky as RGB radiance and is unaffected.
     if (choice.kind == QLatin1String("none")) {
-        m_vulkanWindow->clearSolarLut();
+        m_viewport->clearSolarLut();
         m_illuminant = choice;
         m_lightingPanel->setIlluminant(choice);
         setSceneModified(true);
@@ -1279,7 +1279,7 @@ void MainWindow::applyIlluminant(const LightingPanel::IlluminantChoice& choice) 
         }
     }
 
-    if (const auto error = m_vulkanWindow->setSolarLutFromSpec(spec, baseDir)) {
+    if (const auto error = m_viewport->setSolarLutFromSpec(spec, baseDir)) {
         QMessageBox::warning(this, tr("Illuminant Failed"),
             tr("Could not load the illuminant:\n%1").arg(*error));
         return;
@@ -1290,7 +1290,7 @@ void MainWindow::applyIlluminant(const LightingPanel::IlluminantChoice& choice) 
     // The core derived sun and sky RGB from the spectrum so that both halves
     // of the renderer describe one sun; take that back into the shell's copy
     // and the panel, or they would keep showing the values it replaced.
-    *m_lightingParams = m_vulkanWindow->lightingParams();
+    *m_lightingParams = m_viewport->lightingParams();
     m_lightingPanel->setLightingParams(*m_lightingParams);
 
     setSceneModified(true);
@@ -1304,7 +1304,7 @@ QString MainWindow::resolveBundledIlluminant() {
 
 void MainWindow::applyAtmosphere(const quantiloom::AtmosphereNNConfig& config) {
     const double skyBefore = derivedSkyTemperatureK(m_thermalPanel->params().airTemperature_K);
-    m_vulkanWindow->setAtmosphericConfig(config);
+    m_viewport->setAtmosphericConfig(config);
     m_atmosphericPanel->setAtmosphericConfig(config);
     // A clear network sky is the sky the surfaces radiate against too, so a
     // change to it is a change to the solve.
@@ -1319,7 +1319,7 @@ void MainWindow::applyAtmosphere(const quantiloom::AtmosphereNNConfig& config) {
 
 void MainWindow::applySensorEnabled(bool enabled) {
     resetHoverReadback();
-    m_vulkanWindow->setSensorEnabled(enabled);
+    m_viewport->setSensorEnabled(enabled);
     m_sensorPanel->setCameraEnabled(enabled);
     setSceneModified(true);
     showStatusMessage(enabled ? tr("Camera simulation enabled")
@@ -1328,12 +1328,12 @@ void MainWindow::applySensorEnabled(bool enabled) {
 
 void MainWindow::applyCameraConfig(const quantiloom::camera::CameraConfig& config) {
     resetHoverReadback();
-    const bool wasAnimated = !m_vulkanWindow->cameraConfig().motion.keys.empty();
+    const bool wasAnimated = !m_viewport->cameraConfig().motion.keys.empty();
     const bool willAnimate = !config.motion.keys.empty();
-    const auto applied = m_vulkanWindow->setCameraConfig(config);
+    const auto applied = m_viewport->setCameraConfig(config);
     if (!applied) {
-        m_sensorPanel->setCameraConfig(m_vulkanWindow->cameraConfig());
-        m_cameraPanel->setMotion(m_vulkanWindow->cameraConfig().motion);
+        m_sensorPanel->setCameraConfig(m_viewport->cameraConfig());
+        m_cameraPanel->setMotion(m_viewport->cameraConfig().motion);
         showStatusMessage(tr("Camera configuration failed: %1")
                               .arg(QString::fromStdString(applied.error())));
         return;
@@ -1343,8 +1343,8 @@ void MainWindow::applyCameraConfig(const quantiloom::camera::CameraConfig& confi
         // authored. Preserve its static baseline before the first seek.
         glm::vec3 position, target, up;
         float fov = 45.0f;
-        m_vulkanWindow->getCameraState(position, target, up, fov);
-        const glm::vec3 viewUp = m_vulkanWindow->viewUp();
+        m_viewport->getCameraState(position, target, up, fov);
+        const glm::vec3 viewUp = m_viewport->viewUp();
         for (int axis = 0; axis < 3; ++axis) {
             m_lastConfig->cameraPosition[axis] = position[axis];
             m_lastConfig->cameraLookAt[axis] = target[axis];
@@ -1358,7 +1358,7 @@ void MainWindow::applyCameraConfig(const quantiloom::camera::CameraConfig& confi
     if (willAnimate) {
         applyTimelineTime(m_timelineTimeS);
     } else if (wasAnimated && m_lastConfig) {
-        m_vulkanWindow->setCamera(
+        m_viewport->setCamera(
             glm::vec3(m_lastConfig->cameraPosition[0],
                       m_lastConfig->cameraPosition[1],
                       m_lastConfig->cameraPosition[2]),
@@ -1382,9 +1382,9 @@ void MainWindow::applyCameraDisplay(const quantiloom::camera::CameraConfig& conf
     // Display-only tier: the SDK re-runs the display half of the ISP over the
     // last completed acquisition. No ray is retraced and the acquisition
     // history never advances.
-    const auto applied = m_vulkanWindow->reprocessCameraDisplay(config);
+    const auto applied = m_viewport->reprocessCameraDisplay(config);
     if (!applied) {
-        m_sensorPanel->setCameraConfig(m_vulkanWindow->cameraConfig());
+        m_sensorPanel->setCameraConfig(m_viewport->cameraConfig());
         showStatusMessage(tr("Camera display reprocess failed: %1")
                               .arg(QString::fromStdString(applied.error())));
     } else {
@@ -1399,7 +1399,7 @@ void MainWindow::applyThermographyParams(bool enabled,
     resetHoverReadback();
     m_thermographyEnabled = enabled;
     m_thermographyParams = params;
-    m_vulkanWindow->setThermographyParams(params);
+    m_viewport->setThermographyParams(params);
     setSceneModified(true);
 }
 
@@ -1521,15 +1521,15 @@ void MainWindow::requestThermalEnabled(bool enabled) {
 
 void MainWindow::applyThermalEnabled(bool enabled) {
     m_thermalEnabled = enabled;
-    m_vulkanWindow->setThermalSolveEnabled(enabled);
+    m_viewport->setThermalSolveEnabled(enabled);
     if (enabled) {
-        m_vulkanWindow->setThermalTime(m_thermalTimeH);
+        m_viewport->setThermalTime(m_thermalTimeH);
     }
     {
         const QSignalBlocker block(m_thermalPanel);
         m_thermalPanel->setSolveEnabled(enabled);
     }
-    m_thermalPanel->updateStatus(m_vulkanWindow->thermalSolveStatus());
+    m_thermalPanel->updateStatus(m_viewport->thermalSolveStatus());
     // A probe of a solve that is off is a chart of nothing. Cleared rather
     // than left standing, because a stale curve beside a switched-off solve is
     // the kind of thing a reader believes.
@@ -1575,15 +1575,15 @@ void MainWindow::applyThermalParams(const quantiloom::ThermalSolveParams& incomi
     m_thermalCheckpointStrideH = params.checkpointStride_h;
     m_thermalForcingFile = QString::fromStdString(params.forcingFile);
 
-    m_vulkanWindow->setThermalSolveParams(params);
+    m_viewport->setThermalSolveParams(params);
     {
         const QSignalBlocker block(m_thermalPanel);
         m_thermalPanel->setParams(params);
     }
     if (m_thermalEnabled) {
-        m_vulkanWindow->setThermalTime(m_thermalTimeH);
+        m_viewport->setThermalTime(m_thermalTimeH);
     }
-    m_thermalPanel->updateStatus(m_vulkanWindow->thermalSolveStatus());
+    m_thermalPanel->updateStatus(m_viewport->thermalSolveStatus());
     setSceneModified(true);
 }
 
@@ -1621,7 +1621,7 @@ void MainWindow::applyThermalWhatIf(
         applyThermalParams(currentThermalParams());
     }
 
-    const auto applied = m_vulkanWindow->setThermalWhatIf(parameter, step);
+    const auto applied = m_viewport->setThermalWhatIf(parameter, step);
     if (!applied.has_value()) {
         showStatusMessage(QString::fromStdString(applied.error()));
     }
@@ -1634,19 +1634,19 @@ void MainWindow::applyThermalTime(double time_h) {
     // means the hour at the timeline's START, and where the render is comes
     // from the transport. Setting the mapping and re-applying the current
     // second is the same operation said the right way round.
-    const quantiloom::TimelineInfo info = m_vulkanWindow->timelineInfo();
+    const quantiloom::TimelineInfo info = m_viewport->timelineInfo();
     if (info.present) {
-        m_vulkanWindow->setTimelineThermalMapping(time_h, info.thermalTimeScale);
+        m_viewport->setTimelineThermalMapping(time_h, info.thermalTimeScale);
         applyTimelineTime(m_timelineTimeS);
     } else if (m_thermalEnabled) {
-        m_vulkanWindow->setThermalTime(time_h);
+        m_viewport->setThermalTime(time_h);
     }
 
     {
         const QSignalBlocker block(m_thermalPanel);
         m_thermalPanel->setTime(time_h);
     }
-    m_thermalPanel->updateStatus(m_vulkanWindow->thermalSolveStatus());
+    m_thermalPanel->updateStatus(m_viewport->thermalSolveStatus());
     setSceneModified(true);
 }
 
@@ -1654,23 +1654,23 @@ void MainWindow::applyTimelineTime(double time_s) {
     // A playback tick while the renderer is busy: dropped, and the next one
     // after it moves the clock. Applied, it would read back a timeline the
     // renderer cannot report and stop the transport.
-    if (m_vulkanWindow->isRendererBusy()) {
+    if (m_viewport->isRendererBusy()) {
         return;
     }
     m_timelineTimeS = time_s;
-    m_vulkanWindow->setTimelineTime(time_s);
-    if (m_vulkanWindow->cameraHistoryStatus().historyReset)
+    m_viewport->setTimelineTime(time_s);
+    if (m_viewport->cameraHistoryStatus().historyReset)
         showStatusMessage(tr("Camera history will reset on the next frame"));
     refreshTimelineInfo();
-    const auto info = m_vulkanWindow->timelineInfo();
+    const auto info = m_viewport->timelineInfo();
     m_cameraPanel->setCurrentTime(info.present ? info.TimeOfTick(info.TickOf(time_s)) : time_s);
-    const auto& motion = m_vulkanWindow->cameraConfig().motion;
+    const auto& motion = m_viewport->cameraConfig().motion;
     if (!motion.keys.empty()) {
         const auto pose = quantiloom::camera::CameraPoseAt(motion, time_s);
         if (pose) {
             glm::vec3 staticPosition, staticTarget, up;
             float fov = 45.0f;
-            m_vulkanWindow->getCameraState(staticPosition, staticTarget, up, fov);
+            m_viewport->getCameraState(staticPosition, staticTarget, up, fov);
             const auto& key = pose.value();
             // The document's view_up, as the CLI's keyed poses carry it, so a
             // key that looks straight down faces the same way in both.
@@ -1678,7 +1678,7 @@ void MainWindow::applyTimelineTime(double time_s) {
                 ? glm::vec3(m_lastConfig->cameraViewUp[0], m_lastConfig->cameraViewUp[1],
                             m_lastConfig->cameraViewUp[2])
                 : glm::vec3(0.0f);
-            m_vulkanWindow->setCamera(
+            m_viewport->setCamera(
                 glm::vec3(key.position[0], key.position[1], key.position[2]),
                 glm::vec3(key.lookAt[0], key.lookAt[1], key.lookAt[2]), up, fov, viewUp);
         }
@@ -1690,8 +1690,8 @@ void MainWindow::applyTimelineTime(double time_s) {
 }
 
 void MainWindow::createDefaultTimeline() {
-    if (!m_vulkanWindow->getScene()) return;
-    if (m_vulkanWindow->timelineInfo().present) return;
+    if (!m_viewport->getScene()) return;
+    if (m_viewport->timelineInfo().present) return;
     // The body is what the TimelinePanel button's label advertises: "0-10 s,
     // 20 ticks/s". It is written into the document and parsed back through the
     // same path a file takes, so the renderer and the ConfigManager end up
@@ -1713,14 +1713,14 @@ void MainWindow::createDefaultTimeline() {
     m_timelineTimeS = 0.0;
     auto document = std::make_shared<quantiloom::Config>(std::move(parsed.value()));
     m_configManager->adoptRawConfig(document);
-    m_vulkanWindow->applyConfig(document, config.baseDir);
+    m_viewport->applyConfig(document, config.baseDir);
     setSceneModified(true);
 }
 
 void MainWindow::refreshTimelineInfo() {
-    const quantiloom::TimelineInfo info = m_vulkanWindow->timelineInfo();
+    const quantiloom::TimelineInfo info = m_viewport->timelineInfo();
     if (m_timelineCreateAction)
-        m_timelineCreateAction->setEnabled(!info.present && m_vulkanWindow->getScene());
+        m_timelineCreateAction->setEnabled(!info.present && m_viewport->getScene());
     m_cameraPanel->setCurrentTime(
         info.present ? info.TimeOfTick(info.TickOf(info.current_s)) : info.current_s);
     {
@@ -1734,7 +1734,7 @@ void MainWindow::refreshTimelineInfo() {
                                       ? std::optional<double>(info.currentThermalHour)
                                       : std::nullopt);
     if (info.present) {
-        m_thermalPanel->updateStatus(m_vulkanWindow->thermalSolveStatus());
+        m_thermalPanel->updateStatus(m_viewport->thermalSolveStatus());
     }
     for (QAction* action : {m_timelinePlayAction, m_timelineNextAction, m_timelinePrevAction,
                             m_timelineStartAction, m_timelineEndAction, m_timelineLoopAction}) {
@@ -1763,14 +1763,14 @@ void MainWindow::applyThermalMaterial(const QString& name,
     mp.interiorAmbient = props.interiorBoundary == QLatin1String("ambient");
     mp.interiorTemperature_K = props.interiorTemperature;
     mp.interiorConvection_W_m2K = props.interiorConvection;
-    m_vulkanWindow->setThermalMaterial(name, mp);
+    m_viewport->setThermalMaterial(name, mp);
 
     // The trajectory is rebuilt from the new properties, so the viewport has to
     // be replayed to the hour it is showing. A material edit is a rare enough
     // gesture to pay for that.
     if (m_thermalEnabled) {
-        m_vulkanWindow->setThermalTime(m_thermalTimeH);
-        m_thermalPanel->updateStatus(m_vulkanWindow->thermalSolveStatus());
+        m_viewport->setThermalTime(m_thermalTimeH);
+        m_thermalPanel->updateStatus(m_viewport->thermalSolveStatus());
     }
 }
 
@@ -1778,7 +1778,7 @@ void MainWindow::applyDisplayEnhancement(
     const quantiloom::DisplayEnhancementParams& params) {
     m_displayParams = params;
 
-    m_vulkanWindow->setDisplayEnhancement(params);
+    m_viewport->setDisplayEnhancement(params);
     m_displayEnhancementPanel->setParams(params);
 
     if (m_displayEnhancementAction) {
@@ -1818,30 +1818,30 @@ void MainWindow::applyCameraPose(const glm::vec3& position, const glm::vec3& tar
     glm::vec3 currentTarget;
     glm::vec3 up;
     float fovY = 45.0f;
-    m_vulkanWindow->getCameraState(currentPosition, currentTarget, up, fovY);
+    m_viewport->getCameraState(currentPosition, currentTarget, up, fovY);
     // The up on screen as the hint, so moving to a straight-down pose keeps
     // the heading the view had instead of turning to the SDK's fallback.
-    m_vulkanWindow->setCamera(position, target, up, fovY, m_vulkanWindow->viewUp());
+    m_viewport->setCamera(position, target, up, fovY, m_viewport->viewUp());
     // No write-back: the renderer emits cameraChanged() when it adopts a pose,
     // and onCameraChanged() is the single point that shows it.
-    if (m_vulkanWindow->cameraConfig().motion.keys.empty())
+    if (m_viewport->cameraConfig().motion.keys.empty())
         setSceneModified(true);
 }
 
 void MainWindow::applyCameraFov(float fovYDegrees) {
-    m_vulkanWindow->setCameraFovY(fovYDegrees);
+    m_viewport->setCameraFovY(fovYDegrees);
     // An undo arrives here too, and the panel has to show what it set.
     glm::vec3 position;
     glm::vec3 target;
     glm::vec3 up;
     float fovY = fovYDegrees;
-    m_vulkanWindow->getCameraState(position, target, up, fovY);
+    m_viewport->getCameraState(position, target, up, fovY);
     m_cameraPanel->setCameraState(position, target, fovYDegrees);
     setSceneModified(true);
 }
 
 bool MainWindow::bindEmissionSpectrum(int index, const std::string& source) {
-    const auto* scene = m_vulkanWindow->getScene();
+    const auto* scene = m_viewport->getScene();
     if (!scene || index < 0 || static_cast<size_t>(index) >= scene->materials.size()) {
         return false;
     }
@@ -1853,7 +1853,7 @@ bool MainWindow::bindEmissionSpectrum(int index, const std::string& source) {
     const QString baseDir =
         m_currentConfigFile.isEmpty() ? QString()
                                       : QFileInfo(m_currentConfigFile).absolutePath();
-    auto bound = m_vulkanWindow->setMaterialEmissionSpectrum(
+    auto bound = m_viewport->setMaterialEmissionSpectrum(
         static_cast<uint32_t>(index), source, level.toStdString(), baseDir);
     if (!bound) {
         QMessageBox::warning(
@@ -1874,7 +1874,7 @@ bool MainWindow::bindEmissionSpectrum(int index, const std::string& source) {
 }
 
 void MainWindow::applyMaterial(int index, const quantiloom::Material& material) {
-    const auto* scene = m_vulkanWindow->getScene();
+    const auto* scene = m_viewport->getScene();
     if (!scene || index < 0 || static_cast<size_t>(index) >= scene->materials.size()) {
         return;
     }
@@ -1901,7 +1901,7 @@ void MainWindow::applyMaterial(int index, const quantiloom::Material& material) 
         // spectrum and assigned the curve index, and the undo entry has to
         // record that rather than the half-set material the panel emitted --
         // otherwise undo restores a lamp with a colour that never existed.
-        if (const auto* refreshed = m_vulkanWindow->getScene()) {
+        if (const auto* refreshed = m_viewport->getScene()) {
             applied = refreshed->materials[static_cast<size_t>(index)];
         }
     }
@@ -1911,7 +1911,7 @@ void MainWindow::applyMaterial(int index, const quantiloom::Material& material) 
     // history -- Ctrl+Z after changing a colour undid whatever move came
     // before it instead.
     auto command = std::make_unique<ModifyMaterialCommand>(
-        m_vulkanWindow, index, previous, applied);
+        m_viewport, index, previous, applied);
     m_undoStack->push(std::move(command));
 
     m_editedMaterials.insert(index);
@@ -1933,7 +1933,7 @@ void MainWindow::applyMaterial(int index, const quantiloom::Material& material) 
 }
 
 void MainWindow::applyNodeTransform(int nodeIndex, const glm::mat4& transform) {
-    const auto* scene = m_vulkanWindow->getScene();
+    const auto* scene = m_viewport->getScene();
     if (!scene || nodeIndex < 0 || static_cast<size_t>(nodeIndex) >= scene->nodes.size()) {
         return;
     }
@@ -1946,7 +1946,7 @@ void MainWindow::applyNodeTransform(int nodeIndex, const glm::mat4& transform) {
     // Same command the gizmo pushes, so the undo history does not care which
     // way the node was moved.
     auto command = std::make_unique<TransformNodeCommand>(
-        m_vulkanWindow, nodeIndex, previous, transform);
+        m_viewport, nodeIndex, previous, transform);
     m_undoStack->push(std::move(command));
 
     m_editedNodes.insert(nodeIndex);
@@ -2060,7 +2060,7 @@ void MainWindow::startMcpServerFromCommandLine(quint16 port) {
 }
 
 void MainWindow::pumpMcp() {
-    if (!m_mcpServer || m_mcpPumping || m_vulkanWindow->isRendererBusy()) {
+    if (!m_mcpServer || m_mcpPumping || m_viewport->isRendererBusy()) {
         return;
     }
     m_mcpPumping = true;
@@ -2123,7 +2123,7 @@ void MainWindow::restyleUi() {
 void MainWindow::applyGridVisible(bool visible) {
     // Single application point for the grid overlay. Display-only: the scene
     // is unchanged, only what is composited over the frame -- so this is the
-    // deliberate exception to src/vulkan/AGENTS.md's "every setter resets
+    // deliberate exception to src/viewport/AGENTS.md's "every setter resets
     // accumulation" rule, and toggling it must not restart convergence.
     //
     // What the renderer shows is the preference gated by the workspace: the
@@ -2132,7 +2132,7 @@ void MainWindow::applyGridVisible(bool visible) {
     m_gridUserVisible = visible;
     const bool layoutActive =
         m_workspaces && m_workspaces->currentWorkspace() == QLatin1String("layout");
-    m_vulkanWindow->setGridVisible(visible && layoutActive);
+    m_viewport->setGridVisible(visible && layoutActive);
     if (m_showGridAction) {
         const QSignalBlocker blocker(m_showGridAction);
         m_showGridAction->setChecked(visible);
@@ -2148,7 +2148,7 @@ void MainWindow::applyMotionAdaptiveResolution(bool enabled) {
     // duration -- so it is display-side, like the grid, and its own setter
     // deals with restoring full scale when it is turned off mid-gesture.
     m_motionAdaptiveResolution = enabled;
-    m_vulkanWindow->setMotionAdaptiveResolution(enabled);
+    m_viewport->setMotionAdaptiveResolution(enabled);
     if (m_motionAdaptiveResolutionAction) {
         const QSignalBlocker blocker(m_motionAdaptiveResolutionAction);
         m_motionAdaptiveResolutionAction->setChecked(enabled);
@@ -2167,8 +2167,8 @@ void MainWindow::applyWorkspaceEditingScope(const QString& workspaceId) {
     // its debug values is not a scene edit.
     const bool layout = workspaceId == QLatin1String("layout");
 
-    m_vulkanWindow->setEditingToolsEnabled(layout);
-    m_vulkanWindow->setGridVisible(m_gridUserVisible && layout);
+    m_viewport->setEditingToolsEnabled(layout);
+    m_viewport->setGridVisible(m_gridUserVisible && layout);
 
     // The grid entry leaves the menu entirely outside Layout (and its
     // shortcut with it): showing a toggle that could not take effect would
@@ -2347,19 +2347,19 @@ void MainWindow::setupDockWidgets() {
         glm::vec3 target;
         glm::vec3 up;
         float current = fovYDegrees;
-        m_vulkanWindow->getCameraState(position, target, up, current);
+        m_viewport->getCameraState(position, target, up, current);
         pushSettingCommand(CommandId::ModifyCameraFov, tr("Field of view"), current,
                            fovYDegrees, [this](const float& v) { applyCameraFov(v); });
     });
     connect(m_cameraPanel, &CameraPanel::resetRequested, this, &MainWindow::onResetCamera);
     connect(m_cameraPanel, &CameraPanel::viewDirectionRequested,
             this, [this](const glm::vec3& direction) {
-                m_vulkanWindow->setViewDirection(direction);
+                m_viewport->setViewDirection(direction);
             });
     connect(m_cameraPanel, &CameraPanel::captureRequested, this, [this] {
         glm::vec3 position, target, up;
         float fov = 45.0f;
-        m_vulkanWindow->getCameraState(position, target, up, fov);
+        m_viewport->getCameraState(position, target, up, fov);
         m_cameraPanel->capturePose(position, target);
     });
     connect(m_timelinePanel, &TimelinePanel::createTimelineRequested,
@@ -2370,15 +2370,15 @@ void MainWindow::setupDockWidgets() {
             [this](const quantiloom::camera::CameraMotionConfig& motion) {
         m_timelinePanel->setPlaying(false);
         if (const auto valid = quantiloom::camera::ValidateCameraMotion(motion); !valid) {
-            m_cameraPanel->setMotion(m_vulkanWindow->cameraConfig().motion);
+            m_cameraPanel->setMotion(m_viewport->cameraConfig().motion);
             QMessageBox::warning(this, tr("Camera trajectory"),
                                  QString::fromStdString(valid.error()));
             return;
         }
-        auto next = m_vulkanWindow->cameraConfig();
+        auto next = m_viewport->cameraConfig();
         next.motion = motion;
         pushSettingCommand(CommandId::ModifyCamera, tr("Camera keyframe"),
-                           m_vulkanWindow->cameraConfig(), next,
+                           m_viewport->cameraConfig(), next,
                            [this](const quantiloom::camera::CameraConfig& value) {
                                applyCameraConfig(value);
                            });
@@ -2443,7 +2443,7 @@ void MainWindow::setupDockWidgets() {
                 requestWavelength(wavelength_nm);
             });
     connect(m_spectralConfigPanel, &SpectralConfigPanel::wavelengthGestureStarted,
-            this, [this] { m_wavelengthBeforeGesture = m_vulkanWindow->wavelength(); });
+            this, [this] { m_wavelengthBeforeGesture = m_viewport->wavelength(); });
     connect(m_spectralConfigPanel, &SpectralConfigPanel::wavelengthGestureFinished,
             this, [this] {
                 if (!m_wavelengthBeforeGesture) {
@@ -2452,7 +2452,7 @@ void MainWindow::setupDockWidgets() {
                 const float before = *m_wavelengthBeforeGesture;
                 m_wavelengthBeforeGesture.reset();
                 pushSettingCommand(CommandId::ModifyWavelength, tr("Wavelength"), before,
-                                   m_vulkanWindow->wavelength(),
+                                   m_viewport->wavelength(),
                                    [this](const float& v) { applyWavelength(v); });
             });
 
@@ -2476,7 +2476,7 @@ void MainWindow::setupDockWidgets() {
                 // No dispatcher and no history entry: this selects which of a
                 // debug view's numbers to look at, which is a way of looking
                 // rather than a change to the document.
-                m_vulkanWindow->setDebugParameter(value);
+                m_viewport->setDebugParameter(value);
             });
     connect(m_debugVisualizationPanel, &DebugVisualizationPanel::debugModeChanged,
             this, &MainWindow::onDebugModeChanged);
@@ -2490,7 +2490,7 @@ void MainWindow::setupDockWidgets() {
     connect(m_atmosphericPanel, &AtmosphericPanel::configChanged,
             this, [this](const quantiloom::AtmosphereNNConfig& config) {
                 pushSettingCommand(CommandId::ModifyAtmosphere, tr("Atmosphere"),
-                                   m_vulkanWindow->atmosphericConfig(), config,
+                                   m_viewport->atmosphericConfig(), config,
                                    [this](const quantiloom::AtmosphereNNConfig& v) {
                                        applyAtmosphere(v);
                                    });
@@ -2528,13 +2528,13 @@ void MainWindow::setupDockWidgets() {
     connect(m_sensorPanel, &SensorPanel::enabledChanged,
             this, [this](bool enabled) {
                 pushSettingCommand(CommandId::ModifySensor, tr("Camera simulation"),
-                                   m_vulkanWindow->sensorEnabled(), enabled,
+                                   m_viewport->sensorEnabled(), enabled,
                                    [this](const bool& v) { applySensorEnabled(v); });
             });
     connect(m_sensorPanel, &SensorPanel::cameraConfigChanged,
             this, [this](const quantiloom::camera::CameraConfig& config) {
                 pushSettingCommand(CommandId::ModifyCamera, tr("Camera configuration"),
-                                   m_vulkanWindow->cameraConfig(), config,
+                                   m_viewport->cameraConfig(), config,
                                    [this](const quantiloom::camera::CameraConfig& v) {
                                        applyCameraConfig(v);
                                    });
@@ -2542,7 +2542,7 @@ void MainWindow::setupDockWidgets() {
     connect(m_sensorPanel, &SensorPanel::cameraDisplayChanged,
             this, [this](const quantiloom::camera::CameraConfig& config) {
                 pushSettingCommand(CommandId::ModifyCamera, tr("Camera display"),
-                                   m_vulkanWindow->cameraConfig(), config,
+                                   m_viewport->cameraConfig(), config,
                                    [this](const quantiloom::camera::CameraConfig& v) {
                                        applyCameraDisplay(v);
                                    });
@@ -2559,7 +2559,7 @@ void MainWindow::setupDockWidgets() {
     // written into the config on save, and pushed into the running solve.
     connect(m_materialEditorPanel, &MaterialEditorPanel::thermalPropertiesChanged,
             this, [this](int index, const MaterialThermalProps& props) {
-                const auto* scene = m_vulkanWindow->getScene();
+                const auto* scene = m_viewport->getScene();
                 if (!scene || index < 0 ||
                     static_cast<size_t>(index) >= scene->materials.size()) {
                     return;
@@ -2574,7 +2574,7 @@ void MainWindow::setupDockWidgets() {
     // The emissive "Level" is held the same way: by name, written on save.
     connect(m_materialEditorPanel, &MaterialEditorPanel::emissiveScaleChanged,
             this, [this](int index, const QString& scale) {
-                const auto* scene = m_vulkanWindow->getScene();
+                const auto* scene = m_viewport->getScene();
                 if (!scene || index < 0 ||
                     static_cast<size_t>(index) >= scene->materials.size()) {
                     return;
@@ -2608,7 +2608,7 @@ void MainWindow::setupDockWidgets() {
                     // spectrum; the editor has to show it, or its next edit
                     // would write the stale colour back.
                     if (m_materialEditorPanel->currentMaterialIndex() == index) {
-                        if (const auto* refreshed = m_vulkanWindow->getScene()) {
+                        if (const auto* refreshed = m_viewport->getScene()) {
                             m_materialEditorPanel->setMaterial(
                                 index, &refreshed->materials[static_cast<size_t>(index)]);
                             m_materialEditorPanel->setThermalProperties(
@@ -2658,7 +2658,7 @@ void MainWindow::setupDockWidgets() {
     // to: a path-traced image is still moving while it accumulates, and
     // statistics against a moving image are statistics about the noise.
     connect(m_comparisonPanel, &ComparisonPanel::frameRequested, this, [this] {
-        auto frame = m_vulkanWindow->captureScreenshot();
+        auto frame = m_viewport->captureScreenshot();
         if (!frame) {
             showStatusMessage(tr("Could not read the current frame."));
             return;
@@ -2813,8 +2813,8 @@ void MainWindow::showStatusMessage(const QString& message, int timeoutMs) {
 }
 
 void MainWindow::updateRenderProgress() {
-    const uint32_t target = m_vulkanWindow ? m_vulkanWindow->targetSPP() : 0;
-    const uint32_t samples = m_vulkanWindow ? m_vulkanWindow->currentSampleCount() : 0;
+    const uint32_t target = m_viewport ? m_viewport->targetSPP() : 0;
+    const uint32_t samples = m_viewport ? m_viewport->currentSampleCount() : 0;
     if (target == 0) {
         // Infinite mode: pulsing indeterminate bar while accumulating.
         m_renderProgress->setRange(0, 0);
@@ -2866,19 +2866,19 @@ void MainWindow::setupConnections() {
     }
 
     // Connect Vulkan window signals
-    connect(m_vulkanWindow, &QuantiloomVulkanWindow::frameRendered,
+    connect(m_viewport, &ViewportWindow::frameRendered,
             this, &MainWindow::onFrameRendered);
 
     // Connect scene loaded signal to update panels
     // Queued for the same reason the sceneLoaded failure branch below is: it
     // is emitted from inside initResources(), and a modal dialog there would
     // run a nested event loop in the middle of Qt creating device resources.
-    connect(m_vulkanWindow, &QuantiloomVulkanWindow::renderContextFailed,
+    connect(m_viewport, &ViewportWindow::renderContextFailed,
             this, [this](const QString& message) {
                 showStatusMessage(tr("The renderer failed to start"));
                 QMessageBox::critical(this, tr("Renderer Unavailable"), message);
             }, Qt::QueuedConnection);
-    connect(m_vulkanWindow, &QuantiloomVulkanWindow::renderingStopped,
+    connect(m_viewport, &ViewportWindow::renderingStopped,
             this, [this] {
                 showStatusMessage(tr("Rendering stopped"));
                 QMessageBox::warning(
@@ -2888,7 +2888,7 @@ void MainWindow::setupConnections() {
                        "render it again."));
             }, Qt::QueuedConnection);
 
-    connect(m_vulkanWindow, &QuantiloomVulkanWindow::sceneLoaded,
+    connect(m_viewport, &ViewportWindow::sceneLoaded,
             this, [this](bool success, const QString& message) {
                 resetHoverReadback();
                 m_lastSceneLoadSucceeded = success;
@@ -2993,26 +2993,26 @@ void MainWindow::setupConnections() {
             });
 
     // Connect viewport click for selection
-    connect(m_vulkanWindow, &QuantiloomVulkanWindow::viewportClicked,
+    connect(m_viewport, &ViewportWindow::viewportClicked,
             this, &MainWindow::onViewportClicked);
 
     // Connect viewport hover for debug value display
-    connect(m_vulkanWindow, &QuantiloomVulkanWindow::mouseHovered,
+    connect(m_viewport, &ViewportWindow::mouseHovered,
             this, &MainWindow::onViewportHovered);
-    connect(m_vulkanWindow, &QuantiloomVulkanWindow::mouseHoverLeft,
+    connect(m_viewport, &ViewportWindow::mouseHoverLeft,
             this, &MainWindow::resetHoverReadback);
-    connect(m_vulkanWindow, &QuantiloomVulkanWindow::pixelReadbackInvalidated,
+    connect(m_viewport, &ViewportWindow::pixelReadbackInvalidated,
             this, &MainWindow::resetHoverReadback);
 
     // Keep the camera panel in step with orbit, pan, zoom and fly.
-    connect(m_vulkanWindow, &QuantiloomVulkanWindow::cameraChanged,
+    connect(m_viewport, &ViewportWindow::cameraChanged,
             this, &MainWindow::onCameraChanged);
 
     // A scene opening, a pipeline building, a thermal solve: the renderer runs
     // them on a worker and keeps this thread's event loop turning, and says so
     // once one has outlasted a moment. The card is modal because nothing on
     // the window can reach the renderer until it is done.
-    connect(m_vulkanWindow, &QuantiloomVulkanWindow::longOperationStarted,
+    connect(m_viewport, &ViewportWindow::longOperationStarted,
             this, [this](const QString& description) {
                 if (!m_busyOverlay) {
                     m_busyOverlay = new BusyOverlay(m_viewportFrame);
@@ -3023,7 +3023,7 @@ void MainWindow::setupConnections() {
                 }
                 showStatusMessage(description, 0);
             });
-    connect(m_vulkanWindow, &QuantiloomVulkanWindow::longOperationFinished,
+    connect(m_viewport, &ViewportWindow::longOperationFinished,
             this, [this]() {
                 if (m_busyOverlay) {
                     m_busyOverlay->finish();
@@ -3035,7 +3035,7 @@ void MainWindow::setupConnections() {
     // is usually on the renderer's worker -- then the card shows the count.
     // When it is not, the event loop is not turning: the label is painted by
     // hand or not until the build is over, when it stops being useful.
-    connect(m_vulkanWindow, &QuantiloomVulkanWindow::thermalEpochBuilding,
+    connect(m_viewport, &ViewportWindow::thermalEpochBuilding,
             this, [this](int epoch, int count) {
                 const QString progress =
                     tr("Building thermal epoch %1 of %2\u2026").arg(epoch + 1).arg(count);
@@ -3049,7 +3049,7 @@ void MainWindow::setupConnections() {
 
 void MainWindow::setupEditingSystem() {
     // Pass to Vulkan window
-    m_vulkanWindow->setEditingComponents(m_selectionManager, m_transformGizmo, m_undoStack);
+    m_viewport->setEditingComponents(m_selectionManager, m_transformGizmo, m_undoStack);
 
     // Connect undo/redo actions
     connect(m_undoAction, &QAction::triggered, m_undoStack, &UndoStack::undo);
@@ -3375,7 +3375,7 @@ void MainWindow::retranslateUi() {
     // the figure back.
     refreshSampleRateLabel();
     m_sampleCountLabel->setText(tr("Samples: %1").arg(
-        m_vulkanWindow ? m_vulkanWindow->currentSampleCount() : 0));
+        m_viewport ? m_viewport->currentSampleCount() : 0));
     m_debugValueLabel->setText(tr("Hover the viewport to inspect"));
     // From the gizmo's mode, not "if empty": a language switch otherwise left
     // the chip in the old language until the next mode change.
@@ -3738,8 +3738,8 @@ bool MainWindow::openPath(const QString& filePath) {
     // sceneLoaded handler replaces this with the outcome.
     showStatusMessage(tr("Loading %1...").arg(QFileInfo(filePath).fileName()));
     const HistorySuppressor noHistory(m_suppressHistory);
-    if (raw) m_vulkanWindow->applyConfig(raw, m_pendingDocumentConfig->baseDir);
-    else m_vulkanWindow->loadScene(filePath);
+    if (raw) m_viewport->applyConfig(raw, m_pendingDocumentConfig->baseDir);
+    else m_viewport->loadScene(filePath);
     return true;
 }
 
@@ -3783,7 +3783,7 @@ bool MainWindow::writeConfig(const QString& filePath) {
 }
 
 void MainWindow::onExportFusionDataset() {
-    if (!m_vulkanWindow->getScene()) {
+    if (!m_viewport->getScene()) {
         QMessageBox::information(this, tr("No Scene"),
             tr("Open a scene before exporting a fusion dataset."));
         return;
@@ -3809,13 +3809,13 @@ void MainWindow::onExportFusionDataset() {
         if (!camera) {
             return;
         }
-        const auto applied = m_vulkanWindow->setCameraConfig(sensor);
+        const auto applied = m_viewport->setCameraConfig(sensor);
         if (!applied) {
             QMessageBox::warning(this, tr("Camera"),
                                  QString::fromStdString(applied.error()));
             return;
         }
-        m_vulkanWindow->setCamera(camera.value().GetPosition(),
+        m_viewport->setCamera(camera.value().GetPosition(),
                                   camera.value().GetLookAt(),
                                   camera.value().GetUpReference(),
                                   camera.value().GetFovY(),
@@ -3825,12 +3825,12 @@ void MainWindow::onExportFusionDataset() {
     // The dialog's previews moved the viewport camera; put the document's
     // own back and say so if the renderer refuses, rather than leaving the
     // viewport holding a rig camera the document never described.
-    if (const auto restored = m_vulkanWindow->setCameraConfig(config.cameraConfig);
+    if (const auto restored = m_viewport->setCameraConfig(config.cameraConfig);
         !restored) {
         showStatusMessage(tr("Could not restore the viewport camera: %1")
                               .arg(QString::fromStdString(restored.error())));
     }
-    m_vulkanWindow->setCamera(
+    m_viewport->setCamera(
         {config.cameraPosition[0], config.cameraPosition[1], config.cameraPosition[2]},
         {config.cameraLookAt[0], config.cameraLookAt[1], config.cameraLookAt[2]},
         {config.cameraUp[0], config.cameraUp[1], config.cameraUp[2]},
@@ -3839,7 +3839,7 @@ void MainWindow::onExportFusionDataset() {
 }
 
 void MainWindow::onExportHyperspectralCube() {
-    if (!m_vulkanWindow->getScene()) {
+    if (!m_viewport->getScene()) {
         QMessageBox::information(this, tr("No Scene"),
             tr("Open a scene before rendering a cube."));
         return;
@@ -3873,7 +3873,7 @@ void MainWindow::onRenderSequence() {
         m_sequenceDialog->activateWindow();
         return;
     }
-    const auto* scene = m_vulkanWindow->getScene();
+    const auto* scene = m_viewport->getScene();
     if (!scene) {
         QMessageBox::information(this, tr("No Scene"),
             tr("Open a scene before rendering a sequence."));
@@ -3895,7 +3895,7 @@ void MainWindow::onRenderSequence() {
     // Modeless, for the cube's reason: a sequence runs for as long as its
     // frames take, and the viewport has no reason to wait for it.
     auto* dialog = new SequenceRenderDialog(config, materialNames,
-                                            m_vulkanWindow->timelineInfo(), this);
+                                            m_viewport->timelineInfo(), this);
     dialog->setAttribute(Qt::WA_DeleteOnClose);
     dialog->documentProvider = [this] {
         SceneConfig current;
@@ -3928,7 +3928,7 @@ void MainWindow::onDumpThermalElements() {
         return;
     }
 
-    const auto written = m_vulkanWindow->dumpThermalElements(fileName);
+    const auto written = m_viewport->dumpThermalElements(fileName);
     if (!written) {
         QMessageBox::warning(this, tr("Export Failed"),
             tr("Could not write the thermal elements:\n\n%1")
@@ -3941,12 +3941,12 @@ void MainWindow::onDumpThermalElements() {
 }
 
 void MainWindow::onExportCameraProducts() {
-    if (!m_vulkanWindow->getScene()) {
+    if (!m_viewport->getScene()) {
         QMessageBox::information(this, tr("No Scene"),
             tr("Open a scene before exporting camera products."));
         return;
     }
-    if (!m_vulkanWindow->sensorEnabled()) {
+    if (!m_viewport->sensorEnabled()) {
         QMessageBox::information(this, tr("Camera Disabled"),
             tr("Turn the camera simulation on before exporting its products: "
                "the products are what the device measured, and with the camera "
@@ -3967,7 +3967,7 @@ void MainWindow::onExportCameraProducts() {
     // The product request is export intent, not document state: widen it on
     // the renderer for this capture only, so saving the scene afterwards does
     // not start claiming every product on every render.
-    const quantiloom::camera::CameraConfig original = m_vulkanWindow->cameraConfig();
+    const quantiloom::camera::CameraConfig original = m_viewport->cameraConfig();
     quantiloom::camera::CameraConfig camera = original;
     camera.products.rawDn = true;
     camera.products.correctedDeviceSignal = true;
@@ -3978,7 +3978,7 @@ void MainWindow::onExportCameraProducts() {
     camera.products.cieLinearSrgb =
         camera.device.detector == quantiloom::camera::DetectorKind::Photon &&
         camera.device.cfa != quantiloom::camera::CfaPattern::Mono;
-    if (auto applied = m_vulkanWindow->setCameraConfig(camera); !applied) {
+    if (auto applied = m_viewport->setCameraConfig(camera); !applied) {
         QMessageBox::warning(this, tr("Export Failed"),
             tr("Could not update the camera product request:\n%1")
                 .arg(QString::fromStdString(applied.error())));
@@ -3987,16 +3987,16 @@ void MainWindow::onExportCameraProducts() {
 
     // The acquisition time: the clock's current tick when the scene has one,
     // else the only instant an unanimated scene has.
-    const quantiloom::TimelineInfo timeline = m_vulkanWindow->timelineInfo();
+    const quantiloom::TimelineInfo timeline = m_viewport->timelineInfo();
     const double timeSeconds = timeline.present ? timeline.current_s : 0.0;
 
-    auto captured = m_vulkanWindow->captureCameraProducts(timeSeconds);
+    auto captured = m_viewport->captureCameraProducts(timeSeconds);
 
     // The widened request belonged to the capture alone: put the document's
     // own back whether it succeeded or not. Left in place it would make every
     // later frame produce every product, and the next camera edit's undo
     // snapshot -- taken from cameraConfig() -- would restore the widening.
-    if (const auto restored = m_vulkanWindow->setCameraConfig(original); !restored) {
+    if (const auto restored = m_viewport->setCameraConfig(original); !restored) {
         showStatusMessage(tr("Could not restore the camera product request: %1")
                               .arg(QString::fromStdString(restored.error())));
     }
@@ -4036,7 +4036,7 @@ void MainWindow::onExportCameraProducts() {
 void MainWindow::onExportImage() {
     // Checked before the file dialog, like every other export: asking for a
     // name and then saying there is nothing to write wastes the question.
-    if (!m_vulkanWindow->getScene()) {
+    if (!m_viewport->getScene()) {
         QMessageBox::information(this, tr("No Scene"),
             tr("Open a scene before exporting an image."));
         return;
@@ -4052,7 +4052,7 @@ void MainWindow::onExportImage() {
     // The accumulated render, without display enhancement: an export is meant
     // to carry physical values, and CLAHE is a viewing aid. Screenshots take
     // the other path and say so in their menu entry.
-    auto image = m_vulkanWindow->captureScreenshot();
+    auto image = m_viewport->captureScreenshot();
     if (!image) {
         QMessageBox::warning(this, tr("Export Failed"),
             tr("Failed to capture the image. Make sure a scene is loaded."));
@@ -4083,11 +4083,11 @@ void MainWindow::onExportImage() {
 }
 
 void MainWindow::onStartRender() {
-    m_vulkanWindow->setRenderPaused(false);
-    m_vulkanWindow->resetAccumulation();
+    m_viewport->setRenderPaused(false);
+    m_viewport->resetAccumulation();
     beginRenderTiming();
     setRenderActionsRunning(true);
-    const uint32_t spp = m_vulkanWindow->targetSPP();
+    const uint32_t spp = m_viewport->targetSPP();
     if (spp == 0)
         showStatusMessage(tr("Rendering (infinite)"));
     else
@@ -4097,11 +4097,11 @@ void MainWindow::onStartRender() {
 void MainWindow::onResumeRender() {
     // Start's twin without the reset: the samples already accumulated are
     // kept and the render carries on from them.
-    const uint32_t already = m_vulkanWindow->currentSampleCount();
-    m_vulkanWindow->setRenderPaused(false);
+    const uint32_t already = m_viewport->currentSampleCount();
+    m_viewport->setRenderPaused(false);
     beginRenderTiming();
     setRenderActionsRunning(true);
-    const uint32_t spp = m_vulkanWindow->targetSPP();
+    const uint32_t spp = m_viewport->targetSPP();
     if (spp == 0)
         showStatusMessage(tr("Resuming from %1 samples (infinite)").arg(already));
     else
@@ -4109,10 +4109,10 @@ void MainWindow::onResumeRender() {
 }
 
 void MainWindow::onStopRender() {
-    m_vulkanWindow->setRenderPaused(true);
+    m_viewport->setRenderPaused(true);
     setRenderActionsRunning(false);
     showStatusMessage(tr("Rendering stopped at %1 samples")
-                          .arg(m_vulkanWindow->currentSampleCount()));
+                          .arg(m_viewport->currentSampleCount()));
 }
 
 void MainWindow::setRenderActionsRunning(bool running) {
@@ -4120,7 +4120,7 @@ void MainWindow::setRenderActionsRunning(bool running) {
     m_stopRenderAction->setEnabled(running);
     // Resuming is only meaningful when stopped with something to resume from;
     // at zero samples Start says the same thing without the qualification.
-    m_resumeRenderAction->setEnabled(!running && m_vulkanWindow->currentSampleCount() > 0);
+    m_resumeRenderAction->setEnabled(!running && m_viewport->currentSampleCount() > 0);
 }
 
 void MainWindow::beginRenderTiming() {
@@ -4128,7 +4128,7 @@ void MainWindow::beginRenderTiming() {
     // sample takes depends on the scene, the mode and the window size, and
     // only this run knows.
     m_renderStartedAt = QDateTime::currentMSecsSinceEpoch();
-    m_renderStartSamples = m_vulkanWindow->currentSampleCount();
+    m_renderStartSamples = m_viewport->currentSampleCount();
     m_msPerSample = 0.0;
     m_renderCompleteReported = false;
 }
@@ -4137,7 +4137,7 @@ void MainWindow::autoExportRender(uint32_t sampleCount) {
     // The raw accumulation, matching what Export Image writes rather than
     // what Save Screenshot does: an automatic export is for the physical
     // values, and display enhancement is a viewing aid.
-    auto image = m_vulkanWindow->captureScreenshot();
+    auto image = m_viewport->captureScreenshot();
     if (!image) {
         showStatusMessage(tr("Render complete, but the image could not be captured"));
         return;
@@ -4181,12 +4181,12 @@ void MainWindow::autoExportRender(uint32_t sampleCount) {
 }
 
 void MainWindow::onResetCamera() {
-    m_vulkanWindow->resetCamera();
+    m_viewport->resetCamera();
     showStatusMessage(tr("Camera reset"));
 }
 
 void MainWindow::applyCameraProjection(bool orthographic) {
-    m_vulkanWindow->setCameraProjection(orthographic, 0.0f);
+    m_viewport->setCameraProjection(orthographic, 0.0f);
     {
         const QSignalBlocker blocker(m_orthographicAction);
         m_orthographicAction->setChecked(orthographic);
@@ -4197,7 +4197,7 @@ void MainWindow::applyCameraProjection(bool orthographic) {
 }
 
 void MainWindow::onFrameSelected() {
-    const quantiloom::Scene* scene = m_vulkanWindow->getScene();
+    const quantiloom::Scene* scene = m_viewport->getScene();
     if (!scene) {
         return;
     }
@@ -4210,12 +4210,12 @@ void MainWindow::onFrameSelected() {
 
     glm::vec3 min, max;
     m_selectionManager->computeSelectionBounds(scene, min, max);
-    m_vulkanWindow->frameBounds(min, max);
+    m_viewport->frameBounds(min, max);
     showStatusMessage(tr("Framed %n object(s)", "", m_selectionManager->selectedNodes().size()));
 }
 
 bool MainWindow::computeSceneBounds(glm::vec3& outMin, glm::vec3& outMax) const {
-    const quantiloom::Scene* scene = m_vulkanWindow->getScene();
+    const quantiloom::Scene* scene = m_viewport->getScene();
     if (!scene) {
         return false;
     }
@@ -4252,7 +4252,7 @@ void MainWindow::onFrameAll() {
     if (!computeSceneBounds(min, max)) {
         return;
     }
-    m_vulkanWindow->frameBounds(min, max);
+    m_viewport->frameBounds(min, max);
     showStatusMessage(tr("Framed the scene"));
 }
 
@@ -4263,7 +4263,7 @@ void MainWindow::updateSceneScale() {
     glm::vec3 min, max;
     const float radius = computeSceneBounds(min, max)
         ? glm::length(max - min) * 0.5f : 0.0f;
-    m_vulkanWindow->setSceneScale(radius);
+    m_viewport->setSceneScale(radius);
 }
 
 void MainWindow::onResetLayout() {
@@ -4277,7 +4277,7 @@ void MainWindow::onResetLayout() {
 
 void MainWindow::onTakeScreenshot() {
     // The image as displayed, display enhancement included.
-    auto image = m_vulkanWindow->captureDisplayImage();
+    auto image = m_viewport->captureDisplayImage();
     if (!image) {
         QMessageBox::warning(this, tr("Screenshot Failed"),
             tr("Failed to capture the screenshot. Make sure a scene is loaded."));
@@ -4397,7 +4397,7 @@ void MainWindow::onPreferences() {
 }
 
 void MainWindow::onSelectAll() {
-    const auto* scene = m_vulkanWindow->getScene();
+    const auto* scene = m_viewport->getScene();
     if (!scene || scene->nodes.empty()) {
         return;
     }
@@ -4410,7 +4410,7 @@ void MainWindow::onSelectAll() {
 }
 
 void MainWindow::onInvertSelection() {
-    const auto* scene = m_vulkanWindow->getScene();
+    const auto* scene = m_viewport->getScene();
     if (!scene || scene->nodes.empty()) {
         return;
     }
@@ -4442,7 +4442,7 @@ QString MainWindow::makeUniqueNodeName(const QString& base, QSet<QString>& taken
         }
     }
 
-    const auto* scene = m_vulkanWindow->getScene();
+    const auto* scene = m_viewport->getScene();
     if (scene) {
         for (const auto& node : scene->nodes) {
             taken.insert(QString::fromStdString(node.name));
@@ -4462,7 +4462,7 @@ QString MainWindow::makeUniqueNodeName(const QString& base, QSet<QString>& taken
 }
 
 void MainWindow::refreshAfterTopologyChange() {
-    const auto* scene = m_vulkanWindow->getScene();
+    const auto* scene = m_viewport->getScene();
 
     m_sceneTreePanel->refresh();
     // Pasting or deleting can change the scene's extent, and the navigation
@@ -4496,7 +4496,7 @@ void MainWindow::refreshAfterTopologyChange() {
 }
 
 void MainWindow::refreshTopologyIfChanged() {
-    const auto* scene = m_vulkanWindow->getScene();
+    const auto* scene = m_viewport->getScene();
     int active = 0;
     if (scene) {
         for (const auto& node : scene->nodes) {
@@ -4512,7 +4512,7 @@ void MainWindow::refreshTopologyIfChanged() {
 }
 
 void MainWindow::onCopyNodes() {
-    const auto* scene = m_vulkanWindow->getScene();
+    const auto* scene = m_viewport->getScene();
     if (!scene || !m_selectionManager->hasSelection()) {
         showStatusMessage(tr("Nothing selected to copy"));
         return;
@@ -4574,10 +4574,10 @@ glm::vec3 MainWindow::pasteOffset(
     center /= static_cast<float>(specs.size());
 
     glm::vec3 camPos, forward, right, up;
-    m_vulkanWindow->getCameraInfo(camPos, forward, right, up);
+    m_viewport->getCameraInfo(camPos, forward, right, up);
     glm::vec3 statePos, stateTarget, stateUp;
     float fovY = 45.0f;
-    m_vulkanWindow->getCameraState(statePos, stateTarget, stateUp, fovY);
+    m_viewport->getCameraState(statePos, stateTarget, stateUp, fovY);
 
     // distance * tan(fovY/2) is half the vertical extent the camera sees at
     // the sources' depth, so the nudge is the same fraction of the screen at
@@ -4598,14 +4598,14 @@ void MainWindow::executePaste(const std::vector<PasteNodesCommand::Spec>& specs,
         spec.transform[3] += glm::vec4(nudge, 0.0f);
     }
 
-    auto command = std::make_unique<PasteNodesCommand>(m_vulkanWindow, placed);
+    auto command = std::make_unique<PasteNodesCommand>(m_viewport, placed);
     auto* pasted = command.get();
     m_undoStack->push(std::move(command));
     const QVector<int> created = pasted->createdIndices();
 
     // Register each copy for [[duplicates]] persistence, matched through its
     // unique name so a partial paste cannot misalign the mapping
-    const auto* scene = m_vulkanWindow->getScene();
+    const auto* scene = m_viewport->getScene();
     QSet<int> newSelection;
     for (const int index : created) {
         newSelection.insert(index);
@@ -4628,7 +4628,7 @@ void MainWindow::executePaste(const std::vector<PasteNodesCommand::Spec>& specs,
 }
 
 void MainWindow::onPasteNodes() {
-    const auto* scene = m_vulkanWindow->getScene();
+    const auto* scene = m_viewport->getScene();
     if (!scene) {
         return;
     }
@@ -4690,7 +4690,7 @@ void MainWindow::onPasteNodes() {
 }
 
 void MainWindow::onDuplicateNodes() {
-    const auto* scene = m_vulkanWindow->getScene();
+    const auto* scene = m_viewport->getScene();
     if (!scene || !m_selectionManager->hasSelection()) {
         showStatusMessage(tr("Nothing selected to duplicate"));
         return;
@@ -4721,7 +4721,7 @@ void MainWindow::onDuplicateNodes() {
 }
 
 void MainWindow::onDeleteNodes() {
-    const auto* scene = m_vulkanWindow->getScene();
+    const auto* scene = m_viewport->getScene();
     if (!scene || !m_selectionManager->hasSelection()) {
         showStatusMessage(tr("Nothing selected to delete"));
         return;
@@ -4752,7 +4752,7 @@ void MainWindow::onDeleteNodes() {
     }
     std::sort(indices.begin(), indices.end());
 
-    auto command = std::make_unique<RemoveNodesCommand>(m_vulkanWindow, indices);
+    auto command = std::make_unique<RemoveNodesCommand>(m_viewport, indices);
     m_undoStack->push(std::move(command));
 
     refreshAfterTopologyChange();
@@ -4761,7 +4761,7 @@ void MainWindow::onDeleteNodes() {
 }
 
 void MainWindow::onFrameRendered(float frameTimeMs, uint32_t sampleCount) {
-    const auto cameraHistory = m_vulkanWindow->cameraHistoryStatus();
+    const auto cameraHistory = m_viewport->cameraHistoryStatus();
     if (cameraHistory.epoch > m_lastCameraHistoryEpoch) {
         showStatusMessage(tr("Camera history reset"));
     }
@@ -4798,7 +4798,7 @@ void MainWindow::onFrameRendered(float frameTimeMs, uint32_t sampleCount) {
     m_renderSettingsPanel->setSampleCount(sampleCount);
     updateRenderProgress();
 
-    const uint32_t target = m_vulkanWindow->targetSPP();
+    const uint32_t target = m_viewport->targetSPP();
 
     // Milliseconds per accumulated sample, measured over this run's wall
     // clock. frameTimeMs is not a substitute: it times one frame, and a frame
@@ -4856,7 +4856,7 @@ void MainWindow::refreshSampleRateLabel() {
     // the image those samples are landing in, and a rate quoted against a
     // quarter of the pixels without saying so would read as free speed -- so
     // the scale goes next to it while it is down.
-    const float renderScale = m_vulkanWindow ? m_vulkanWindow->currentRenderScale() : 1.0f;
+    const float renderScale = m_viewport ? m_viewport->currentRenderScale() : 1.0f;
     const QString rate = m_sampleRateWindow.empty()
         ? tr("-- spp/s")
         : tr("%1 spp/s").arg(samplesPerSecond, 0, 'f', samplesPerSecond < 10.0 ? 2 : 1);
@@ -4868,7 +4868,7 @@ void MainWindow::refreshSampleRateLabel() {
     // Frame timing in the tooltip rather than the label: it answers a
     // different question -- is the viewport responsive, and is the scene
     // expensive -- and only when asked.
-    const float gpuMs = m_vulkanWindow ? m_vulkanWindow->lastGpuFrameTimeMs() : 0.0f;
+    const float gpuMs = m_viewport ? m_viewport->lastGpuFrameTimeMs() : 0.0f;
     QString tip;
     if (m_smoothedFrameTimeMs <= 0.0f) {
         tip = tr("Samples accumulated per second of wall clock");
@@ -4887,7 +4887,7 @@ void MainWindow::refreshSampleRateLabel() {
     // every frame of every session would be noise around the one case that
     // needs explaining: why the viewport just went soft.
     if (renderScale < 1.0f) {
-        const QSize renderSize = m_vulkanWindow->currentRenderSize();
+        const QSize renderSize = m_viewport->currentRenderSize();
         tip += QLatin1Char('\n');
         tip += tr("Tracing at %1x%2 while the view is moving.")
                    .arg(renderSize.width())
@@ -4903,7 +4903,7 @@ void MainWindow::updateRenderEta(uint32_t sampleCount, uint32_t target) {
     // Nothing to estimate against in infinite mode, before the first sample
     // lands, or once the target is met.
     const bool estimable = target > 0 && sampleCount < target &&
-                           m_msPerSample > 0.0 && !m_vulkanWindow->isRenderPaused();
+                           m_msPerSample > 0.0 && !m_viewport->isRenderPaused();
     m_etaLabel->setVisible(estimable);
     if (!estimable) {
         return;
@@ -4944,7 +4944,7 @@ void MainWindow::onRenderReachedTarget(uint32_t sampleCount) {
 // ============================================================================
 
 void MainWindow::onMaterialSelected(int materialIndex) {
-    const quantiloom::Scene* scene = m_vulkanWindow->getScene();
+    const quantiloom::Scene* scene = m_viewport->getScene();
     if (scene && materialIndex >= 0 &&
         static_cast<size_t>(materialIndex) < scene->materials.size()) {
         const auto& material = scene->materials[static_cast<size_t>(materialIndex)];
@@ -4994,7 +4994,7 @@ void MainWindow::onEnvironmentMapChanged(const QString& path, bool enabled) {
 }
 
 void MainWindow::pushLightingParams() {
-    m_vulkanWindow->setLightingParams(*m_lightingParams);
+    m_viewport->setLightingParams(*m_lightingParams);
     setSceneModified(true);
 }
 
@@ -5004,7 +5004,7 @@ void MainWindow::onNodeTransformEdited(int nodeIndex, const glm::mat4& transform
 
 void MainWindow::onMaterialWithCriChanged(int index, const quantiloom::Material& material,
                                           const quantiloom::ComplexRefractiveIndex& cri) {
-    const auto* scene = m_vulkanWindow->getScene();
+    const auto* scene = m_viewport->getScene();
     if (!scene || index < 0 || static_cast<size_t>(index) >= scene->materials.size()) {
         showStatusMessage(tr("Material %1 does not exist in this scene").arg(index));
         return;
@@ -5027,7 +5027,7 @@ void MainWindow::onMaterialWithCriChanged(int index, const quantiloom::Material&
         m_lastCri->k == cri.k) {
         updated.complexRefractiveIndexIndex = m_lastCriIndex;
     } else {
-        const int criIndex = m_vulkanWindow->addComplexRefractiveIndex(cri);
+        const int criIndex = m_viewport->addComplexRefractiveIndex(cri);
         if (criIndex >= 0) {
             updated.complexRefractiveIndexIndex = criIndex;
             m_lastCriIndex = criIndex;
@@ -5105,7 +5105,7 @@ void MainWindow::onSpectralEndmemberRemoved(int slot) {
 }
 
 QStringList MainWindow::currentSpectralRefs() const {
-    const quantiloom::Scene* scene = m_vulkanWindow->getScene();
+    const quantiloom::Scene* scene = m_viewport->getScene();
     if (!scene || m_currentMaterialIndex < 0 ||
         static_cast<size_t>(m_currentMaterialIndex) >= scene->materials.size()) {
         return {};
@@ -5122,7 +5122,7 @@ QStringList MainWindow::currentSpectralRefs() const {
 }
 
 QString MainWindow::currentSpectralDatabaseId() const {
-    const quantiloom::Scene* scene = m_vulkanWindow->getScene();
+    const quantiloom::Scene* scene = m_viewport->getScene();
     if (!scene || m_currentMaterialIndex < 0 ||
         static_cast<size_t>(m_currentMaterialIndex) >= scene->materials.size()) {
         return {};
@@ -5135,7 +5135,7 @@ QString MainWindow::currentSpectralDatabaseId() const {
 
 void MainWindow::applySpectralEndmembers(int materialIndex, const QString& databaseId,
                                          const QStringList& refs) {
-    const quantiloom::Scene* scene = m_vulkanWindow->getScene();
+    const quantiloom::Scene* scene = m_viewport->getScene();
     if (!scene || materialIndex < 0 ||
         static_cast<size_t>(materialIndex) >= scene->materials.size()) {
         showStatusMessage(tr("Select a material in the scene first"));
@@ -5173,7 +5173,7 @@ void MainWindow::applySpectralEndmembers(int materialIndex, const QString& datab
 
     // The band the viewport is actually rendering, so what appears is what was
     // previewed.
-    const QString band = catalog::spectralLibraryBand(m_vulkanWindow->spectralMode());
+    const QString band = catalog::spectralLibraryBand(m_viewport->spectralMode());
 
     const int wanted = std::min<int>(refs.size(), quantiloom::Material::MAX_ENDMEMBERS);
     std::vector<int> curveIndices;
@@ -5189,7 +5189,7 @@ void MainWindow::applySpectralEndmembers(int materialIndex, const QString& datab
                     .arg(refs.at(i), band, QString::fromStdString(curve.error())));
             return;
         }
-        const int curveIndex = m_vulkanWindow->addSpectralCurve(curve.value());
+        const int curveIndex = m_viewport->addSpectralCurve(curve.value());
         if (curveIndex < 0) {
             QMessageBox::warning(this, tr("Assign Failed"),
                 tr("Could not upload the spectrum for '%1'.").arg(refs.at(i)));
@@ -5229,7 +5229,7 @@ void MainWindow::applySpectralEndmembers(int materialIndex, const QString& datab
     // flat, which is what a bound material did before mixing existed -- so say
     // what happened and carry on rather than refusing the assignment.
     updated.weightTextureIndex = -1;
-    auto weights = m_vulkanWindow->buildEndmemberWeightTexture(
+    auto weights = m_viewport->buildEndmemberWeightTexture(
         static_cast<uint32_t>(materialIndex), colours);
     if (weights.has_value()) {
         updated.weightTextureIndex = weights.value();
@@ -5268,7 +5268,7 @@ void MainWindow::updateSpectralMenuState() {
 }
 
 void MainWindow::refreshSpectralLibraryTarget() {
-    const quantiloom::Scene* scene = m_vulkanWindow->getScene();
+    const quantiloom::Scene* scene = m_viewport->getScene();
     if (!scene || m_currentMaterialIndex < 0 ||
         static_cast<size_t>(m_currentMaterialIndex) >= scene->materials.size()) {
         m_spectralLibraryPanel->setTargetMaterial(-1, QString());
@@ -5285,7 +5285,7 @@ void MainWindow::onCameraChanged() {
     glm::vec3 target;
     glm::vec3 up;
     float fovY = 45.0f;
-    m_vulkanWindow->getCameraState(position, target, up, fovY);
+    m_viewport->getCameraState(position, target, up, fovY);
     m_cameraPanel->setCameraState(position, target, fovY);
 }
 
@@ -5308,18 +5308,18 @@ void MainWindow::onDebugModeChanged(quantiloom::DebugVisualizationMode mode) {
 }
 
 void MainWindow::onResetAccumulation() {
-    m_vulkanWindow->resetAccumulation();
+    m_viewport->resetAccumulation();
     // A fresh run: the target has to be reached again to be announced again,
     // and the ETA's measurement restarts from zero samples.
     beginRenderTiming();
     m_renderCompleteReported = false;
-    setRenderActionsRunning(!m_vulkanWindow->isRenderPaused());
+    setRenderActionsRunning(!m_viewport->isRenderPaused());
     updateRenderProgress();
     showStatusMessage(tr("Accumulation reset"));
 }
 
 void MainWindow::updatePanelsFromScene() {
-    const quantiloom::Scene* scene = m_vulkanWindow->getScene();
+    const quantiloom::Scene* scene = m_viewport->getScene();
 
     m_sceneTreePanel->setScene(scene);
     m_spectralMaterialGenPanel->setScene(scene);
@@ -5354,7 +5354,7 @@ void MainWindow::seedPastedNodesFromDocument() {
     // Only from the sceneLoaded path -- NOT from updatePanelsFromScene, which
     // the MCP undo/redo tools reuse as a panel refresh. Clearing here on
     // every undo silently dropped the session's pastes from the next save.
-    const auto* scene = m_vulkanWindow->getScene();
+    const auto* scene = m_viewport->getScene();
 
     m_pastedNodes.clear();
     int activeCount = 0;
@@ -5530,13 +5530,13 @@ void MainWindow::applyConfig(const SceneConfig& config) {
         m_thermalPanel->setParams(tp);
         m_thermalPanel->setTime(config.thermalTimeH);
         m_thermalPanel->setSolveEnabled(config.thermalEnabled);
-        m_thermalPanel->updateStatus(m_vulkanWindow->thermalSolveStatus());
+        m_thermalPanel->updateStatus(m_viewport->thermalSolveStatus());
     }
 
     m_thermographyEnabled = config.thermographyEnabled;
     m_thermographyParams = config.thermography;
     m_sensorPanel->setThermography(config.thermographyEnabled, config.thermography);
-    m_vulkanWindow->setThermographyParams(config.thermography);
+    m_viewport->setThermographyParams(config.thermography);
 
     // The scene is loaded by ApplyConfig, but the shell still needs to know
     // which file it was and to show the viewport instead of the guidance page.
@@ -5573,7 +5573,7 @@ void MainWindow::syncPanelsFromRenderer() {
     // config's reading happens in the core, and a panel showing this repo's
     // idea of a key rather than the renderer's is exactly the disagreement the
     // whole change is about.
-    const quantiloom::LightingParams lighting = m_vulkanWindow->lightingParams();
+    const quantiloom::LightingParams lighting = m_viewport->lightingParams();
     *m_lightingParams = lighting;
     m_lightingPanel->setLightingParams(lighting);
     m_atmosphericPanel->setAnalyticSky(lighting.skyEmissivityClear > 0.0f,
@@ -5584,30 +5584,30 @@ void MainWindow::syncPanelsFromRenderer() {
         m_lastConfig ? m_lastConfig->environmentMap : QString(),
         lighting.enableEnvironmentMap != 0);
 
-    const auto mode = m_vulkanWindow->spectralMode();
+    const auto mode = m_viewport->spectralMode();
     syncSpectralModeUi(mode);
     { const QSignalBlocker blocker(m_orthographicAction);
-      m_orthographicAction->setChecked(m_vulkanWindow->cameraIsOrthographic()); }
-    m_renderSettingsPanel->setTargetSPP(m_vulkanWindow->targetSPP());
+      m_orthographicAction->setChecked(m_viewport->cameraIsOrthographic()); }
+    m_renderSettingsPanel->setTargetSPP(m_viewport->targetSPP());
     for (auto* action : m_qualityGroup->actions())
-        action->setChecked(action->data().toUInt() == m_vulkanWindow->targetSPP());
-    m_spectralConfigPanel->setWavelength(m_vulkanWindow->wavelength());
-    m_lightingPanel->setSpectralMode(m_vulkanWindow->spectralMode());
-    m_atmosphericPanel->setAtmosphericConfig(m_vulkanWindow->atmosphericConfig());
+        action->setChecked(action->data().toUInt() == m_viewport->targetSPP());
+    m_spectralConfigPanel->setWavelength(m_viewport->wavelength());
+    m_lightingPanel->setSpectralMode(m_viewport->spectralMode());
+    m_atmosphericPanel->setAtmosphericConfig(m_viewport->atmosphericConfig());
 
     // The clock, read back rather than taken from the file, for the same
     // reason as everything above it: the SDK resolved what `end_s = "36h"` and
     // a fractional tick rate mean, and the panel shows what it decided.
-    m_timelineTimeS = m_vulkanWindow->timelineInfo().current_s;
-    m_lastCameraHistoryEpoch = m_vulkanWindow->cameraHistoryStatus().epoch;
+    m_timelineTimeS = m_viewport->timelineInfo().current_s;
+    m_lastCameraHistoryEpoch = m_viewport->cameraHistoryStatus().epoch;
     refreshTimelineInfo();
-    m_cameraPanel->setMotion(m_vulkanWindow->cameraConfig().motion);
-    if (!m_vulkanWindow->cameraConfig().motion.keys.empty()) {
+    m_cameraPanel->setMotion(m_viewport->cameraConfig().motion);
+    if (!m_viewport->cameraConfig().motion.keys.empty()) {
         // sceneLoaded can fire while the SDK's ApplyConfig is still on its
         // stack. Seeking from here would re-enter that half-built context.
         const double initialTime = m_timelineTimeS;
         QTimer::singleShot(0, this, [this, initialTime] {
-            if (m_vulkanWindow->getScene()) applyTimelineTime(initialTime);
+            if (m_viewport->getScene()) applyTimelineTime(initialTime);
         });
     }
 
@@ -5639,7 +5639,7 @@ void MainWindow::collectCurrentConfig(SceneConfig& config) {
     // From the renderer, not from m_lastConfig: no widget shows the seed, so
     // the carried-forward copy is the only other source and it goes stale the
     // moment anything sets a new one.
-    config.samplingSeed = m_vulkanWindow->samplingSeed();
+    config.samplingSeed = m_viewport->samplingSeed();
 
     // Where the transport stands. The rest of [timeline] is carried verbatim
     // in config.timeline.body, which nothing here edits.
@@ -5647,8 +5647,8 @@ void MainWindow::collectCurrentConfig(SceneConfig& config) {
         config.timeline.timeS = m_timelineTimeS;
     }
 
-    config.cameraOrthographic = m_vulkanWindow->cameraIsOrthographic();
-    config.cameraOrthoHeight = m_vulkanWindow->cameraOrthoHeight();
+    config.cameraOrthographic = m_viewport->cameraIsOrthographic();
+    config.cameraOrthoHeight = m_viewport->cameraOrthoHeight();
 
     // The illuminant, as the core's own keys. The panel holds a choice; these
     // are what a scene file says, and what ResolveSolarLut reads back.
@@ -5736,13 +5736,13 @@ void MainWindow::collectCurrentConfig(SceneConfig& config) {
         glm::vec3 target;
         glm::vec3 up;
         float fovY = 45.0f;
-        m_vulkanWindow->getCameraState(position, target, up, fovY);
-        const bool motionEnabled = !m_vulkanWindow->cameraConfig().motion.keys.empty();
+        m_viewport->getCameraState(position, target, up, fovY);
+        const bool motionEnabled = !m_viewport->cameraConfig().motion.keys.empty();
         // The up the view is shown with, as camera.view_up: `up` cannot say
         // which way a straight-down view faces, and without it the file
         // reopens facing the SDK's fallback axis. It belongs to the pose, so
         // under motion the static baseline's is kept along with the pose.
-        const glm::vec3 viewUp = m_vulkanWindow->viewUp();
+        const glm::vec3 viewUp = m_viewport->viewUp();
         for (int axis = 0; axis < 3; ++axis) {
             if (!motionEnabled || !m_lastConfig) {
                 config.cameraPosition[axis] = position[axis];
@@ -5844,7 +5844,7 @@ void MainWindow::collectCurrentConfig(SceneConfig& config) {
     // cannot be written down -- an honest limit of the schema rather than
     // something to paper over with an index that the next export of the model
     // would invalidate.
-    const quantiloom::Scene* scene = m_vulkanWindow->getScene();
+    const quantiloom::Scene* scene = m_viewport->getScene();
     if (!scene) {
         return;
     }
@@ -5910,7 +5910,7 @@ void MainWindow::collectCurrentConfig(SceneConfig& config) {
         // document can record, because it would be wrong at every other tick.
         // The SDK solves the composition for it; a node with no trajectory
         // gets the same matrix either way.
-        nodeConfig.transform = m_vulkanWindow->nodeRestTransform(nodeIndex);
+        nodeConfig.transform = m_viewport->nodeRestTransform(nodeIndex);
 
         // Replace an entry the file already carried for this node rather than
         // adding a second one the core would apply in file order.
@@ -6020,7 +6020,7 @@ void MainWindow::onViewportClicked(const QPointF& screenPos, Qt::KeyboardModifie
     const bool additive = modifiers.testFlag(Qt::ControlModifier) ||
                           modifiers.testFlag(Qt::ShiftModifier);
 
-    const auto hit = m_vulkanWindow->pickScene(screenPos);
+    const auto hit = m_viewport->pickScene(screenPos);
     if (hit && hit->hit) {
         const int nodeIndex = static_cast<int>(hit->nodeIndex);
         if (additive) {
@@ -6050,7 +6050,7 @@ void MainWindow::updateThermalProbe(const std::optional<quantiloom::PickResult>&
         return;
     }
 
-    const auto element = m_vulkanWindow->thermalElementAt(*hit);
+    const auto element = m_viewport->thermalElementAt(*hit);
     if (!element.has_value()) {
         m_thermalPanel->clearProbe(QString::fromStdString(element.error()));
         return;
@@ -6060,7 +6060,7 @@ void MainWindow::updateThermalProbe(const std::optional<quantiloom::PickResult>&
     // shape of the curve, and one point of it is what the viewport already
     // shows. Sampled every quarter hour, which is finer than any forcing file
     // this reads and cheap enough to redo on every click.
-    const auto trajectory = m_vulkanWindow->elementTrajectory(element.value(), 0.0, 24.0, 97);
+    const auto trajectory = m_viewport->elementTrajectory(element.value(), 0.0, 24.0, 97);
     if (!trajectory.has_value()) {
         m_thermalPanel->clearProbe(QString::fromStdString(trajectory.error()));
         return;
@@ -6075,7 +6075,7 @@ void MainWindow::onSelectionChanged(const QSet<int>& selectedNodes) {
         return;
     }
 
-    const auto* scene = m_vulkanWindow->getScene();
+    const auto* scene = m_viewport->getScene();
     if (selectedNodes.size() == 1) {
         const int nodeIndex = *selectedNodes.constBegin();
 
@@ -6131,7 +6131,7 @@ void MainWindow::onSelectionChanged(const QSet<int>& selectedNodes) {
 }
 
 void MainWindow::refreshSelectionPanels() {
-    const auto* scene = m_vulkanWindow->getScene();
+    const auto* scene = m_viewport->getScene();
     if (!scene) {
         return;
     }
@@ -6150,7 +6150,7 @@ void MainWindow::onGizmoDragStarted() {
     // Snapshot at PRESS time, not selection time: a transform typed into the
     // properties panel between selecting and dragging would otherwise be
     // silently reverted by the first gizmo move.
-    const auto* scene = m_vulkanWindow->getScene();
+    const auto* scene = m_viewport->getScene();
     if (!scene) {
         return;
     }
@@ -6171,13 +6171,13 @@ void MainWindow::onGizmoDragCancelled() {
     // record -- no undo entry, no edited-nodes registration, no signal to the
     // document. One full rebuild restores full trace quality.
     for (const auto& state : m_transformStartStates) {
-        m_vulkanWindow->setNodeTransformInteractive(state.nodeIndex,
+        m_viewport->setNodeTransformInteractive(state.nodeIndex,
                                                     state.originalTransform);
         if (m_transformStartStates.size() == 1) {
             m_propertiesPanel->updateNodeTransform(state.originalTransform);
         }
     }
-    m_vulkanWindow->finalizeInteractiveEdit();
+    m_viewport->finalizeInteractiveEdit();
 }
 
 void MainWindow::onGizmoTransformChanged(const glm::vec3& translation,
@@ -6187,7 +6187,7 @@ void MainWindow::onGizmoTransformChanged(const glm::vec3& translation,
     Q_UNUSED(rotation);
     Q_UNUSED(scale);
 
-    const auto* scene = m_vulkanWindow->getScene();
+    const auto* scene = m_viewport->getScene();
     if (!scene || m_transformStartStates.empty()) {
         return;
     }
@@ -6197,18 +6197,18 @@ void MainWindow::onGizmoTransformChanged(const glm::vec3& translation,
     // path did a full teardown-and-rebuild per node per mouse move).
     for (const auto& state : m_transformStartStates) {
         glm::mat4 newTransform = m_transformGizmo->applyDelta(state.originalTransform);
-        m_vulkanWindow->setNodeTransformInteractive(state.nodeIndex, newTransform);
+        m_viewport->setNodeTransformInteractive(state.nodeIndex, newTransform);
         if (m_transformStartStates.size() == 1) {
             m_propertiesPanel->updateNodeTransform(newTransform);
         }
     }
-    m_vulkanWindow->refitAfterInteractiveEdit();
+    m_viewport->refitAfterInteractiveEdit();
 
     setSceneModified(true);
 }
 
 void MainWindow::onGizmoTransformFinished() {
-    const auto* scene = m_vulkanWindow->getScene();
+    const auto* scene = m_viewport->getScene();
     if (!scene || m_transformStartStates.empty()) {
         return;
     }
@@ -6219,7 +6219,7 @@ void MainWindow::onGizmoTransformFinished() {
             glm::mat4 newTransform = scene->nodes[static_cast<size_t>(state.nodeIndex)].transform;
             if (newTransform != state.originalTransform) {
                 auto cmd = std::make_unique<TransformNodeCommand>(
-                    m_vulkanWindow, state.nodeIndex, state.originalTransform, newTransform);
+                    m_viewport, state.nodeIndex, state.originalTransform, newTransform);
                 cmd->setMergeGesture(m_transformGestureId);
                 m_undoStack->push(std::move(cmd));
                 // The gizmo bypasses applyNodeTransform -- it applied the
@@ -6240,7 +6240,7 @@ void MainWindow::onGizmoTransformFinished() {
             }
         }
         if (!transforms.empty()) {
-            auto cmd = std::make_unique<MultiTransformCommand>(m_vulkanWindow, transforms);
+            auto cmd = std::make_unique<MultiTransformCommand>(m_viewport, transforms);
             cmd->setMergeGesture(m_transformGestureId);
             m_undoStack->push(std::move(cmd));
             for (const auto& moved : transforms) {
@@ -6302,7 +6302,7 @@ void MainWindow::processHoverReadback() {
     }
     // Kept pending: whatever the renderer is doing ends in a reset, and that
     // invalidates the read.
-    if (m_vulkanWindow->isRendererBusy()) {
+    if (m_viewport->isRendererBusy()) {
         return;
     }
 
@@ -6310,7 +6310,7 @@ void MainWindow::processHoverReadback() {
     const int y = m_hoverReadback.y();
     auto failCurrent = [this, x, y] {
         m_hoverReadback.markFailed();
-        if (m_vulkanWindow->getDebugMode() == quantiloom::DebugVisualizationMode::None) {
+        if (m_viewport->getDebugMode() == quantiloom::DebugVisualizationMode::None) {
             m_debugValueLabel->setText(tr("Select a debug mode to inspect pixels"));
         } else {
             m_debugValueLabel->setText(tr("(%1,%2) read failed").arg(x).arg(y));
@@ -6318,17 +6318,17 @@ void MainWindow::processHoverReadback() {
         }
     };
 
-    auto polled = m_vulkanWindow->pollPixelValue();
+    auto polled = m_viewport->pollPixelValue();
     if (!polled.has_value()) {
         failCurrent();
     } else if (polled.value().has_value()) {
         const auto& reading = *polled.value();
         if (m_hoverReadback.accepts(reading)) {
             m_hoverReadback.markComplete();
-            const auto debugMode = m_vulkanWindow->getDebugMode();
+            const auto debugMode = m_viewport->getDebugMode();
             if (debugMode == quantiloom::DebugVisualizationMode::None) {
                 double kelvin = 0.0;
-                if (m_vulkanWindow->apparentTemperatureFromPixel(reading.value, kelvin)) {
+                if (m_viewport->apparentTemperatureFromPixel(reading.value, kelvin)) {
                     m_debugValueLabel->setText(
                         tr("(%1,%2) %3 K").arg(x).arg(y).arg(kelvin, 0, 'f', 1));
                 } else {
@@ -6338,7 +6338,7 @@ void MainWindow::processHoverReadback() {
             } else {
                 const QString formatted = tr("%1 %2")
                     .arg(catalog::debugModeName(debugMode),
-                         m_vulkanWindow->formatDebugValue(reading.value));
+                         m_viewport->formatDebugValue(reading.value));
                 m_debugValueLabel->setText(
                     tr("(%1,%2) %3").arg(x).arg(y).arg(formatted));
                 m_debugVisualizationPanel->setPixelReading(x, y, formatted);
@@ -6347,7 +6347,7 @@ void MainWindow::processHoverReadback() {
     }
 
     if (m_hoverReadback.needsSubmit()) {
-        auto requested = m_vulkanWindow->requestPixelValue(
+        auto requested = m_viewport->requestPixelValue(
             static_cast<quantiloom::u32>(x), static_cast<quantiloom::u32>(y),
             m_hoverReadback.requestId());
         if (!requested.has_value()) {

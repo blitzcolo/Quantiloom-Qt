@@ -142,7 +142,7 @@ void appendRing(std::vector<GizmoVertex>& out, const GizmoFrame& frame, int axis
 
 /// Closest-approach parameters between a ray and an infinite line.
 /// Returns false when they are near parallel.
-bool rayLineClosest(const vkview::CameraRay& ray, const glm::vec3& lineOrigin,
+bool rayLineClosest(const viewport::CameraRay& ray, const glm::vec3& lineOrigin,
                     const glm::vec3& lineDir, float& tRay, float& tLine) {
     const glm::vec3 w0 = ray.origin - lineOrigin;
     const float b = glm::dot(ray.direction, lineDir);
@@ -157,7 +157,7 @@ bool rayLineClosest(const vkview::CameraRay& ray, const glm::vec3& lineOrigin,
     return true;
 }
 
-bool rayPlane(const vkview::CameraRay& ray, const glm::vec3& planeOrigin,
+bool rayPlane(const viewport::CameraRay& ray, const glm::vec3& planeOrigin,
               const glm::vec3& normal, float& t) {
     const float denom = glm::dot(ray.direction, normal);
     if (std::abs(denom) < 1e-7f) {
@@ -180,7 +180,7 @@ void consider(HitCandidate& best, GizmoHandle handle, int priority, float t) {
     }
 }
 
-void hitAxisShaft(HitCandidate& best, const vkview::CameraRay& ray,
+void hitAxisShaft(HitCandidate& best, const viewport::CameraRay& ray,
                   const GizmoFrame& frame, int axisIndex, GizmoHandle handle,
                   float maxParam) {
     const glm::vec3 dir = frame.axes[axisIndex];
@@ -340,7 +340,7 @@ void buildGizmoGeometry(TransformGizmo::Mode mode, const GizmoFrame& frame,
     }
 }
 
-GizmoHandle hitTestGizmo(const vkview::CameraRay& ray, const GizmoFrame& frame,
+GizmoHandle hitTestGizmo(const viewport::CameraRay& ray, const GizmoFrame& frame,
                          TransformGizmo::Mode mode) {
     HitCandidate best;
 

@@ -30,7 +30,7 @@ float snapTo(float value, float step) {
 /// Closest-approach parameters between a ray and an infinite line.
 /// Returns false when they are near parallel (the drag freezes rather than
 /// shooting the object to infinity).
-bool rayLineClosest(const vkview::CameraRay& ray, const glm::vec3& lineOrigin,
+bool rayLineClosest(const viewport::CameraRay& ray, const glm::vec3& lineOrigin,
                     const glm::vec3& lineDir, float& tLine) {
     const glm::vec3 w0 = ray.origin - lineOrigin;
     const float b = glm::dot(ray.direction, lineDir);
@@ -44,7 +44,7 @@ bool rayLineClosest(const vkview::CameraRay& ray, const glm::vec3& lineOrigin,
     return true;
 }
 
-bool rayPlane(const vkview::CameraRay& ray, const glm::vec3& planeOrigin,
+bool rayPlane(const viewport::CameraRay& ray, const glm::vec3& planeOrigin,
               const glm::vec3& normal, glm::vec3& point) {
     const float denom = glm::dot(ray.direction, normal);
     if (std::abs(denom) < 1e-6f) {
@@ -116,7 +116,7 @@ void TransformGizmo::resetDeltas() {
 }
 
 void TransformGizmo::beginHandleDrag(editing::GizmoHandle handle,
-                                     const vkview::CameraRay& pressRay,
+                                     const viewport::CameraRay& pressRay,
                                      const editing::GizmoFrame& frame) {
     m_activeHandleValue = static_cast<int>(handle);
     m_frameOrigin = frame.origin;
@@ -183,7 +183,7 @@ void TransformGizmo::beginHandleDrag(editing::GizmoHandle handle,
     emit dragStarted();
 }
 
-void TransformGizmo::updateHandleDrag(const vkview::CameraRay& ray, bool snap) {
+void TransformGizmo::updateHandleDrag(const viewport::CameraRay& ray, bool snap) {
     if (!m_isDragging) {
         return;
     }

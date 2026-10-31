@@ -218,16 +218,16 @@ set(GUI_SOURCES
     # Runtime language switching
     src/i18n/LanguageManager.cpp
     src/i18n/LanguageManager.hpp
-    src/vulkan/QuantiloomVulkanWindow.cpp
-    src/vulkan/QuantiloomVulkanWindow.hpp
-    src/vulkan/QuantiloomVulkanRenderer.cpp
-    src/vulkan/QuantiloomVulkanRenderer.hpp
-    src/vulkan/PixelReadbackConversion.hpp
-    src/vulkan/ViewportSampleBatchScheduler.hpp
-    src/vulkan/CameraMatrices.cpp
-    src/vulkan/CameraMatrices.hpp
-    src/vulkan/OverlayRenderer.cpp
-    src/vulkan/OverlayRenderer.hpp
+    src/viewport/ViewportWindow.cpp
+    src/viewport/ViewportWindow.hpp
+    src/viewport/ViewportRenderer.cpp
+    src/viewport/ViewportRenderer.hpp
+    src/viewport/PixelReadbackConversion.hpp
+    src/viewport/ViewportSampleBatchScheduler.hpp
+    src/viewport/CameraMatrices.cpp
+    src/viewport/CameraMatrices.hpp
+    src/viewport/OverlayRenderer.cpp
+    src/viewport/OverlayRenderer.hpp
     # Parameter panels
     src/panels/SceneTreePanel.cpp
     src/panels/SceneTreePanel.hpp

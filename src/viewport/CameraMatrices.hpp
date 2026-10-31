@@ -24,7 +24,7 @@ namespace quantiloom {
 class Camera;
 }
 
-namespace vkview {
+namespace viewport {
 
 struct CameraRay {
     glm::vec3 origin{0.0f};
@@ -81,4 +81,4 @@ private:
     float m_orthoHeight = 2.0f;
 };
 
-}  // namespace vkview
+}  // namespace viewport

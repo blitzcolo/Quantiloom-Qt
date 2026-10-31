@@ -10,7 +10,7 @@
 #include <cstdint>
 #include <limits>
 
-namespace vkview {
+namespace viewport {
 
 /**
  * Keeps one viewport submission near an interactive GPU-time budget.
@@ -91,4 +91,4 @@ private:
     float m_smoothedMs = 0.0f;
 };
 
-} // namespace vkview
+} // namespace viewport

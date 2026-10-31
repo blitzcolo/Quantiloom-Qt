@@ -3350,45 +3350,6 @@ Pick a node or a material in the scene tree.</source>
     </message>
 </context>
 <context>
-    <name>QuantiloomVulkanRenderer</name>
-    <message>
-        <source>Loading scene…</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Switching spectral mode…</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Switching debug visualization…</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>scale %1, bias %2</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>fractional part only — original value not recoverable</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>hashed — original value not recoverable</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>colour-mapped — read against the colour bar</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Solving the thermal field…</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Replaying this surface&apos;s thermal day…</source>
-        <translation type="unfinished"></translation>
-    </message>
-</context>
-<context>
     <name>RenderSettingsPanel</name>
     <message>
         <source>Status</source>
@@ -5509,6 +5470,45 @@ Right-drag orbits the camera, middle-drag pans, the wheel zooms; G/R/T switch tr
     </message>
     <message>
         <source>Recent scenes</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>ViewportRenderer</name>
+    <message>
+        <source>Loading scene…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Switching spectral mode…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Switching debug visualization…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>scale %1, bias %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>fractional part only — original value not recoverable</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>hashed — original value not recoverable</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>colour-mapped — read against the colour bar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Solving the thermal field…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Replaying this surface&apos;s thermal day…</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

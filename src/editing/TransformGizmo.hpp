@@ -32,7 +32,7 @@ namespace quantiloom {
 class Scene;
 }
 
-namespace vkview {
+namespace viewport {
 struct CameraRay;
 }
 
@@ -88,12 +88,12 @@ public:
     /// drawn with, so the press reference lands exactly where the cursor is.
     /// Emits dragStarted() -- the shell snapshots start transforms on it.
     void beginHandleDrag(editing::GizmoHandle handle,
-                         const vkview::CameraRay& pressRay,
+                         const viewport::CameraRay& pressRay,
                          const editing::GizmoFrame& frame);
 
     /// Recompute the total delta from the press reference for the current
     /// mouse ray. `snap` (Ctrl) quantizes the total, not the increment.
-    void updateHandleDrag(const vkview::CameraRay& ray, bool snap);
+    void updateHandleDrag(const viewport::CameraRay& ray, bool snap);
 
     /// Commit: emits transformFinished() (the shell pushes the undo command).
     void endDrag();

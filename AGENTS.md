@@ -88,7 +88,7 @@ exported symbols). `src/libQuantiloom/AGENTS.md` over there has the rule.
 | `src/ui/` | Shell infrastructure: `PanelBase`, the debug/spectral `ModeCatalog`, workspaces, the viewport frame, shared styling |
 | `src/ui/theme/` | The ten themes as data (`Theme`) and the runtime switcher (`ThemeManager`). A theme is a style key, a palette, a few accent colours and an optional style sheet — adding one is a function returning a `Theme`, not code |
 | `src/dialogs/` | Preferences, the generated help pages, the hyperspectral cube export (three formats: ENVI, spectral EXR, TIFF), the sequence render dialog, whose Timeline mode drives one `OfflineRenderer` across the clock, and the fusion dataset export (`FusionExportDialog` — a rig of cameras exported through the SDK's `dataset::FusionExportJob`). The three offline dialogs share `OfflineExport` — renderer init, and camera-product writing under the CLI's file names |
-| `src/vulkan/` | Qt↔SDK render bridge and orbit camera; the only `ExternalRenderContext` caller |
+| `src/viewport/` | Qt↔SDK render bridge and orbit camera; the only `ExternalRenderContext` caller |
 | `src/config/` | TOML load/save (`ConfigManager`) |
 | `src/editing/` | Selection, undo stack, transform gizmo |
 | `src/i18n/` | Qt Linguist `.ts` (en + zh_CN) and the runtime `LanguageManager` |
@@ -98,7 +98,7 @@ exported symbols). `src/libQuantiloom/AGENTS.md` over there has the rule.
 | `assets/configs/` | Hand-written TOML scene configs; also the core CLI's input format |
 | `assets/spectral/` | Baked copies from Quantiloom-dev. CMake warns at configure time when they drift; `scripts/sync_spectral_assets.sh --sync` re-copies and re-pins |
 
-`src/panels/`, `src/vulkan/`, `src/config/` and `src/i18n/` each have their own
+`src/panels/`, `src/viewport/`, `src/config/` and `src/i18n/` each have their own
 `AGENTS.md` with the constraints that apply there.
 
 ## What a thermal scene can be asked here

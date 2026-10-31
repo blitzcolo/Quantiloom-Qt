@@ -69,7 +69,7 @@ struct Material;
 struct ComplexRefractiveIndex;
 }
 
-class QuantiloomVulkanWindow;
+class ViewportWindow;
 class PanelBase;
 class PropertiesPanel;
 class CameraPanel;
@@ -106,7 +106,7 @@ struct MaterialThermalProps;
  * @brief Main application window with 3D viewport and parameter panels
  *
  * Layout:
- * - Center: Vulkan 3D viewport (QuantiloomVulkanWindow)
+ * - Center: Vulkan 3D viewport (ViewportWindow)
  * - Left: Parameter panels in tabbed dock widget
  * - Bottom: Status bar with render info
  *
@@ -537,8 +537,8 @@ private:
 
     // Vulkan viewport, wrapped in the frame that carries the mode strip, the
     // empty state and the non-modal progress line.
-    QuantiloomVulkanWindow* m_vulkanWindow = nullptr;
-    QWidget* m_vulkanContainer = nullptr;
+    ViewportWindow* m_viewport = nullptr;
+    QWidget* m_viewportContainer = nullptr;
     ViewportFrame* m_viewportFrame = nullptr;
 
     // Workspaces: one preset dock arrangement per stage of the work.

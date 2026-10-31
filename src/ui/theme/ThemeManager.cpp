@@ -179,7 +179,7 @@ theming::Theme classic() {
 //
 // Mica is deliberately not applied. The signature Windows 11 backdrop needs
 // Qt::WA_TranslucentBackground, which Qt 6 only honours on a frameless window,
-// and this application's centre is an opaque Vulkan swapchain
+// and this application's centre is an opaque native render window
 // (MainWindow.cpp: createWindowContainer) that no backdrop can show through.
 // Rewriting the shell as frameless to blur a strip around a solid viewport is
 // not a trade worth making.
@@ -403,7 +403,7 @@ QProgressBar::chunk {
 // The glass is absent and will stay absent. DwmEnableBlurBehindWindow has been
 // a no-op since Windows 8, the replacement is undocumented, Qt 6 only honours
 // WA_TranslucentBackground on a frameless window, and the centre of this one is
-// an opaque Vulkan swapchain no backdrop shows through. Same wall the Windows
+// an opaque native render window no backdrop shows through. Same wall the Windows
 // 11 theme hit with Mica.
 theming::Theme windows7() {
     theming::Theme t;

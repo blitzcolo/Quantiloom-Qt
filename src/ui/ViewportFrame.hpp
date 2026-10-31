@@ -38,7 +38,7 @@ class ViewportFrame : public QWidget {
     Q_OBJECT
 
 public:
-    /// @param viewport the window container wrapping QuantiloomVulkanWindow
+    /// @param viewport the window container wrapping ViewportWindow
     explicit ViewportFrame(QWidget* viewport, QWidget* parent = nullptr);
 
     void setSpectralMode(quantiloom::SpectralMode mode);

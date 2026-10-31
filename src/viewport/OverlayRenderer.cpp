@@ -17,7 +17,7 @@
 #include "overlay_shaders/gizmo_vert.h"
 #include "overlay_shaders/gizmo_frag.h"
 
-namespace vkview {
+namespace viewport {
 
 namespace {
 
@@ -585,7 +585,7 @@ void OverlayRenderer::ensureSizedResources(QVulkanWindow* window, VkCommandBuffe
     // Both images below are destroyed here, in the middle of recording a frame,
     // with no wait of our own. That is safe only because width and height are
     // the renderer's target extent, which while frames are in flight changes
-    // only in QuantiloomVulkanRenderer::adoptSwapchainExtent(), and that drains
+    // only in ViewportRenderer::adoptSwapchainExtent(), and that drains
     // the queue first -- so no earlier frame can still be reading the old images. Sizing
     // these from anything that can change without that wait would break it,
     // and would need a wait here.
@@ -1022,4 +1022,4 @@ void OverlayRenderer::releaseResources(QVulkanWindow* window) {
     m_vkCmdEndRendering = nullptr;
 }
 
-}  // namespace vkview
+}  // namespace viewport

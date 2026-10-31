@@ -42,7 +42,7 @@ namespace quantiloom {
 class ExternalRenderContext;
 }
 
-namespace vkview {
+namespace viewport {
 
 class OverlayRenderer {
 public:
@@ -194,4 +194,4 @@ private:
     void destroyCaptureBuffer(VkDevice device);
 };
 
-}  // namespace vkview
+}  // namespace viewport

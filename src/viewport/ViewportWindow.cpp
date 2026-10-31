@@ -1,12 +1,12 @@
 /**
- * @file QuantiloomVulkanWindow.cpp
+ * @file ViewportWindow.cpp
  * @brief QVulkanWindow subclass implementation
  *
  * @author blitzcolo
  */
 
-#include "QuantiloomVulkanWindow.hpp"
-#include "QuantiloomVulkanRenderer.hpp"
+#include "ViewportWindow.hpp"
+#include "ViewportRenderer.hpp"
 
 #include <postprocess/Thermography.hpp>
 #include "../editing/SelectionManager.hpp"
@@ -30,7 +30,7 @@
 #include <scene/Material.hpp>
 #include <scene/Scene.hpp>
 
-QuantiloomVulkanWindow::QuantiloomVulkanWindow(QWindow* parent)
+ViewportWindow::ViewportWindow(QWindow* parent)
     : QVulkanWindow(parent)
 {
     // The SDK presents by blitting its linear R32G32B32A32_SFLOAT output straight
@@ -75,7 +75,7 @@ QuantiloomVulkanWindow::QuantiloomVulkanWindow(QWindow* parent)
     // Enable required Vulkan features for ray tracing using Qt 6.7+ API
     // Reference: https://doc.qt.io/qt-6/qvulkanwindow.html#setEnabledFeaturesModifier
     setEnabledFeaturesModifier([this](VkPhysicalDeviceFeatures2& features) {
-        qDebug() << "QuantiloomVulkanWindow: Enabling ray tracing device features...";
+        qDebug() << "ViewportWindow: Enabling ray tracing device features...";
 
         // Initialize feature structures with sType
         m_bufferDeviceAddressFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES;
@@ -126,10 +126,10 @@ QuantiloomVulkanWindow::QuantiloomVulkanWindow(QWindow* parent)
         qDebug() << "  Ray tracing features enabled via pNext chain (including rayQuery, synchronization2)";
     });
 
-    qDebug() << "QuantiloomVulkanWindow: Requested ray tracing device extensions";
+    qDebug() << "ViewportWindow: Requested ray tracing device extensions";
 }
 
-void QuantiloomVulkanWindow::selectRayTracingDevice() {
+void ViewportWindow::selectRayTracingDevice() {
     // Qt takes device 0 unless told otherwise. On a laptop that is often the
     // integrated GPU, which has no ray tracing at all, and the failure lands
     // much later as a null VkDevice with nothing pointing at the cause.
@@ -153,16 +153,16 @@ void QuantiloomVulkanWindow::selectRayTracingDevice() {
     }
 
     if (chosen >= 0) {
-        qDebug() << "QuantiloomVulkanWindow: selecting discrete GPU"
+        qDebug() << "ViewportWindow: selecting discrete GPU"
                  << devices[chosen].deviceName;
         setPhysicalDeviceIndex(chosen);
     }
 }
 
-QuantiloomVulkanWindow::~QuantiloomVulkanWindow() = default;
+ViewportWindow::~ViewportWindow() = default;
 
-QVulkanWindowRenderer* QuantiloomVulkanWindow::createRenderer() {
-    m_renderer = new QuantiloomVulkanRenderer(this);
+QVulkanWindowRenderer* ViewportWindow::createRenderer() {
+    m_renderer = new ViewportRenderer(this);
 
     // The queued settings are *not* replayed here: there is no render context
     // yet. The renderer calls applyDeferredSettings() once there is one.
@@ -170,14 +170,14 @@ QVulkanWindowRenderer* QuantiloomVulkanWindow::createRenderer() {
     return m_renderer;
 }
 
-void QuantiloomVulkanWindow::applyDeferredSettings() {
+void ViewportWindow::applyDeferredSettings() {
     if (!m_renderer || m_deferredCalls.empty() || m_deferredReplayQueued) {
         return;
     }
     // From the event loop, not from here: this is called inside Qt's swapchain
     // setup, where the loop must not turn, and the queue usually holds the
     // first scene of the session -- the load most worth running off the GUI
-    // thread (QuantiloomVulkanRenderer::runContextJob).
+    // thread (ViewportRenderer::runContextJob).
     m_deferredReplayQueued = true;
     QMetaObject::invokeMethod(this, [this]() {
         m_deferredReplayQueued = false;
@@ -192,7 +192,7 @@ void QuantiloomVulkanWindow::applyDeferredSettings() {
     }, Qt::QueuedConnection);
 }
 
-void QuantiloomVulkanWindow::withRenderer(std::function<void(QuantiloomVulkanRenderer&)> call) {
+void ViewportWindow::withRenderer(std::function<void(ViewportRenderer&)> call) {
     if (m_renderer && !m_deferredReplayQueued) {
         call(*m_renderer);
         return;
@@ -200,43 +200,43 @@ void QuantiloomVulkanWindow::withRenderer(std::function<void(QuantiloomVulkanRen
     m_deferredCalls.push_back(std::move(call));
 }
 
-bool QuantiloomVulkanWindow::isRendererBusy() const {
+bool ViewportWindow::isRendererBusy() const {
     return m_renderer && m_renderer->contextBusy();
 }
 
-void QuantiloomVulkanWindow::loadScene(const QString& filePath) {
+void ViewportWindow::loadScene(const QString& filePath) {
     // Queued like a config before the renderer exists, so that the first model
     // of a session loads from the event loop too.
-    withRenderer([filePath](QuantiloomVulkanRenderer& renderer) { renderer.loadScene(filePath); });
+    withRenderer([filePath](ViewportRenderer& renderer) { renderer.loadScene(filePath); });
 }
 
-void QuantiloomVulkanWindow::applyConfig(std::shared_ptr<const quantiloom::Config> config,
+void ViewportWindow::applyConfig(std::shared_ptr<const quantiloom::Config> config,
                                          const QString& baseDir) {
     // Through withRenderer() rather than a second pending-path member: the
     // renderer holds the config either way and replays it once it has a
     // context, so there is nothing for this class to remember.
-    withRenderer([config = std::move(config), baseDir](QuantiloomVulkanRenderer& renderer) {
+    withRenderer([config = std::move(config), baseDir](ViewportRenderer& renderer) {
         renderer.applyConfig(config, baseDir);
     });
 }
 
-void QuantiloomVulkanWindow::resetCamera() {
-    withRenderer([](QuantiloomVulkanRenderer& r) { r.resetCamera(); });
+void ViewportWindow::resetCamera() {
+    withRenderer([](ViewportRenderer& r) { r.resetCamera(); });
 }
 
-void QuantiloomVulkanWindow::setCamera(const glm::vec3& position, const glm::vec3& lookAt,
+void ViewportWindow::setCamera(const glm::vec3& position, const glm::vec3& lookAt,
                                         const glm::vec3& up, float fovY,
                                         const glm::vec3& viewUpHint) {
-    withRenderer([position, lookAt, up, fovY, viewUpHint](QuantiloomVulkanRenderer& r) {
+    withRenderer([position, lookAt, up, fovY, viewUpHint](ViewportRenderer& r) {
         r.setCamera(position, lookAt, up, fovY, viewUpHint);
     });
 }
 
-glm::vec3 QuantiloomVulkanWindow::viewUp() const {
+glm::vec3 ViewportWindow::viewUp() const {
     return m_renderer ? m_renderer->viewUp() : glm::vec3(0.0f);
 }
 
-void QuantiloomVulkanWindow::getCameraState(glm::vec3& position, glm::vec3& target,
+void ViewportWindow::getCameraState(glm::vec3& position, glm::vec3& target,
                                             glm::vec3& up, float& fovY) const {
     if (m_renderer) {
         m_renderer->getCameraState(position, target, up, fovY);
@@ -248,108 +248,108 @@ void QuantiloomVulkanWindow::getCameraState(glm::vec3& position, glm::vec3& targ
     }
 }
 
-void QuantiloomVulkanWindow::setCameraFovY(float fovY) {
-    withRenderer([fovY](QuantiloomVulkanRenderer& r) { r.setCameraFovY(fovY); });
+void ViewportWindow::setCameraFovY(float fovY) {
+    withRenderer([fovY](ViewportRenderer& r) { r.setCameraFovY(fovY); });
 }
 
-void QuantiloomVulkanWindow::setViewDirection(const glm::vec3& direction) {
-    withRenderer([direction](QuantiloomVulkanRenderer& r) { r.setViewDirection(direction); });
+void ViewportWindow::setViewDirection(const glm::vec3& direction) {
+    withRenderer([direction](ViewportRenderer& r) { r.setViewDirection(direction); });
 }
 
-void QuantiloomVulkanWindow::setSPP(uint32_t spp) {
-    withRenderer([spp](QuantiloomVulkanRenderer& r) { r.setSPP(spp); });
+void ViewportWindow::setSPP(uint32_t spp) {
+    withRenderer([spp](ViewportRenderer& r) { r.setSPP(spp); });
 }
 
-void QuantiloomVulkanWindow::setSamplingSeed(uint32_t seed) {
-    withRenderer([seed](QuantiloomVulkanRenderer& r) { r.setSamplingSeed(seed); });
+void ViewportWindow::setSamplingSeed(uint32_t seed) {
+    withRenderer([seed](ViewportRenderer& r) { r.setSamplingSeed(seed); });
 }
 
-void QuantiloomVulkanWindow::setWavelength(float wavelength_nm) {
-    withRenderer([wavelength_nm](QuantiloomVulkanRenderer& r) { r.setWavelength(wavelength_nm); });
+void ViewportWindow::setWavelength(float wavelength_nm) {
+    withRenderer([wavelength_nm](ViewportRenderer& r) { r.setWavelength(wavelength_nm); });
 }
 
-uint32_t QuantiloomVulkanWindow::currentSampleCount() const {
+uint32_t ViewportWindow::currentSampleCount() const {
     return m_renderer ? m_renderer->currentSampleCount() : 0;
 }
 
-void QuantiloomVulkanWindow::frameBounds(const glm::vec3& min, const glm::vec3& max) {
+void ViewportWindow::frameBounds(const glm::vec3& min, const glm::vec3& max) {
     if (m_renderer) {
         m_renderer->frameBounds(min, max);
     }
 }
 
-bool QuantiloomVulkanWindow::sensorEnabled() const {
+bool ViewportWindow::sensorEnabled() const {
     return m_renderer && m_renderer->isSensorEnabled();
 }
 
-void QuantiloomVulkanWindow::setCameraProjection(bool orthographic, float orthoHeight) {
+void ViewportWindow::setCameraProjection(bool orthographic, float orthoHeight) {
     if (m_renderer) {
         m_renderer->setCameraProjection(orthographic, orthoHeight);
     }
 }
 
-bool QuantiloomVulkanWindow::cameraIsOrthographic() const {
+bool ViewportWindow::cameraIsOrthographic() const {
     return m_renderer && m_renderer->cameraIsOrthographic();
 }
 
-float QuantiloomVulkanWindow::cameraOrthoHeight() const {
+float ViewportWindow::cameraOrthoHeight() const {
     return m_renderer ? m_renderer->cameraOrthoHeight() : 2.0f;
 }
 
-void QuantiloomVulkanWindow::setSceneScale(float radius) {
+void ViewportWindow::setSceneScale(float radius) {
     if (m_renderer) {
         m_renderer->setSceneScale(radius);
     }
 }
 
-float QuantiloomVulkanWindow::lastGpuFrameTimeMs() const {
+float ViewportWindow::lastGpuFrameTimeMs() const {
     return m_renderer ? m_renderer->lastGpuFrameTimeMs() : 0.0f;
 }
 
-quantiloom::LightingParams QuantiloomVulkanWindow::lightingParams() const {
+quantiloom::LightingParams ViewportWindow::lightingParams() const {
     return m_renderer ? m_renderer->lightingParams()
                       : quantiloom::CreateDefaultLightingParams();
 }
 
-quantiloom::SpectralMode QuantiloomVulkanWindow::spectralMode() const {
+quantiloom::SpectralMode ViewportWindow::spectralMode() const {
     return m_renderer ? m_renderer->spectralMode() : quantiloom::SpectralMode::RGB;
 }
 
-float QuantiloomVulkanWindow::wavelength() const {
+float ViewportWindow::wavelength() const {
     return m_renderer ? m_renderer->wavelength() : 550.0f;
 }
 
-quantiloom::AtmosphereNNConfig QuantiloomVulkanWindow::atmosphericConfig() const {
+quantiloom::AtmosphereNNConfig ViewportWindow::atmosphericConfig() const {
     return m_renderer ? m_renderer->atmosphericConfig() : quantiloom::AtmosphereNNConfig{};
 }
 
-quantiloom::DebugVisualizationMode QuantiloomVulkanWindow::debugMode() const {
+quantiloom::DebugVisualizationMode ViewportWindow::debugMode() const {
     return m_renderer ? m_renderer->getDebugMode() : quantiloom::DebugVisualizationMode::None;
 }
 
-uint32_t QuantiloomVulkanWindow::targetSPP() const {
+uint32_t ViewportWindow::targetSPP() const {
     return m_renderer ? m_renderer->targetSPP() : 0;
 }
 
-uint32_t QuantiloomVulkanWindow::samplingSeed() const {
+uint32_t ViewportWindow::samplingSeed() const {
     return m_renderer ? m_renderer->samplingSeed() : quantiloom::constants::DEFAULT_SAMPLING_SEED;
 }
 
-void QuantiloomVulkanWindow::setRenderPaused(bool paused) {
-    withRenderer([paused](QuantiloomVulkanRenderer& r) { r.setPaused(paused); });
+void ViewportWindow::setRenderPaused(bool paused) {
+    withRenderer([paused](ViewportRenderer& r) { r.setPaused(paused); });
 }
 
-bool QuantiloomVulkanWindow::isRenderPaused() const {
+bool ViewportWindow::isRenderPaused() const {
     return m_renderer && m_renderer->isPaused();
 }
 
-QPointF QuantiloomVulkanWindow::toTargetPixels(const QPointF& logical) const {
+QPointF ViewportWindow::toTargetPixels(const QPointF& logical) const {
     const qreal ratio = devicePixelRatio();
     const QPointF device(logical.x() * ratio, logical.y() * ratio);
     return m_renderer ? m_renderer->swapchainToTarget(device) : device;
 }
 
-void QuantiloomVulkanWindow::reportHover(const QPointF& pixel) {
+void ViewportWindow::reportHover(const QPointF& pixel) {
     // Over the bars around a held render there is no pixel to read, which is
     // what leaving the viewport already means to the readout.
     const QSize extent = m_renderer ? m_renderer->targetExtent() : QSize();
@@ -361,38 +361,38 @@ void QuantiloomVulkanWindow::reportHover(const QPointF& pixel) {
     emit mouseHovered(static_cast<int>(pixel.x()), static_cast<int>(pixel.y()));
 }
 
-void QuantiloomVulkanWindow::setSpectralMode(quantiloom::SpectralMode mode) {
-    withRenderer([mode](QuantiloomVulkanRenderer& r) { r.setSpectralMode(mode); });
+void ViewportWindow::setSpectralMode(quantiloom::SpectralMode mode) {
+    withRenderer([mode](ViewportRenderer& r) { r.setSpectralMode(mode); });
 }
 
-void QuantiloomVulkanWindow::setDebugMode(quantiloom::DebugVisualizationMode mode) {
-    withRenderer([mode](QuantiloomVulkanRenderer& r) { r.setDebugMode(mode); });
+void ViewportWindow::setDebugMode(quantiloom::DebugVisualizationMode mode) {
+    withRenderer([mode](ViewportRenderer& r) { r.setDebugMode(mode); });
 }
 
-void QuantiloomVulkanWindow::setLightingParams(const quantiloom::LightingParams& params) {
-    withRenderer([params](QuantiloomVulkanRenderer& r) { r.setLightingParams(params); });
+void ViewportWindow::setLightingParams(const quantiloom::LightingParams& params) {
+    withRenderer([params](ViewportRenderer& r) { r.setLightingParams(params); });
 }
 
-void QuantiloomVulkanWindow::updateMaterial(int index, const quantiloom::Material& material) {
+void ViewportWindow::updateMaterial(int index, const quantiloom::Material& material) {
     if (m_renderer) {
         m_renderer->updateMaterial(index, material);
     }
 }
 
-int QuantiloomVulkanWindow::addComplexRefractiveIndex(const quantiloom::ComplexRefractiveIndex& cri) {
+int ViewportWindow::addComplexRefractiveIndex(const quantiloom::ComplexRefractiveIndex& cri) {
     if (m_renderer)
         return m_renderer->addComplexRefractiveIndex(cri);
     return -1;
 }
 
-int QuantiloomVulkanWindow::addSpectralCurve(const quantiloom::SpectralCurve& curve) {
+int ViewportWindow::addSpectralCurve(const quantiloom::SpectralCurve& curve) {
     if (m_renderer)
         return m_renderer->addSpectralCurve(curve);
     return -1;
 }
 
 quantiloom::Result<std::vector<std::string>, std::string>
-QuantiloomVulkanWindow::setMaterialEmissionSpectrum(uint32_t materialIndex,
+ViewportWindow::setMaterialEmissionSpectrum(uint32_t materialIndex,
                                                     const std::string& sourceOrEmpty,
                                                     const std::string& scale,
                                                     const QString& baseDir) {
@@ -413,7 +413,7 @@ QuantiloomVulkanWindow::setMaterialEmissionSpectrum(uint32_t materialIndex,
 }
 
 quantiloom::Result<std::string, std::string>
-QuantiloomVulkanWindow::dumpThermalElements(const QString& pathOrEmpty) {
+ViewportWindow::dumpThermalElements(const QString& pathOrEmpty) {
     using Res = quantiloom::Result<std::string, std::string>;
     if (!m_renderer) {
         return Res(Res::Err{"no renderer"});
@@ -425,7 +425,7 @@ QuantiloomVulkanWindow::dumpThermalElements(const QString& pathOrEmpty) {
     return ctx->DumpThermalElements(pathOrEmpty.toStdString());
 }
 
-quantiloom::Result<int, std::string> QuantiloomVulkanWindow::buildEndmemberWeightTexture(
+quantiloom::Result<int, std::string> ViewportWindow::buildEndmemberWeightTexture(
     uint32_t materialIndex, const std::vector<glm::vec3>& endmemberColors) {
     if (!m_renderer) {
         return quantiloom::Result<int, std::string>::Err("The renderer is not ready yet.");
@@ -433,7 +433,7 @@ quantiloom::Result<int, std::string> QuantiloomVulkanWindow::buildEndmemberWeigh
     return m_renderer->buildEndmemberWeightTexture(materialIndex, endmemberColors);
 }
 
-std::optional<QString> QuantiloomVulkanWindow::setSolarLutFromSpec(
+std::optional<QString> ViewportWindow::setSolarLutFromSpec(
     const quantiloom::SolarLutSpec& spec, const QString& baseDir) {
     if (!m_renderer) {
         return QObject::tr("The renderer is not ready yet.");
@@ -441,32 +441,32 @@ std::optional<QString> QuantiloomVulkanWindow::setSolarLutFromSpec(
     return m_renderer->setSolarLutFromSpec(spec, baseDir);
 }
 
-void QuantiloomVulkanWindow::clearSolarLut() {
+void ViewportWindow::clearSolarLut() {
     if (m_renderer)
         m_renderer->clearSolarLut();
 }
 
-void QuantiloomVulkanWindow::setSolarSpectralLUT(const quantiloom::SpectralCurve& sun,
+void ViewportWindow::setSolarSpectralLUT(const quantiloom::SpectralCurve& sun,
                                                  const quantiloom::SpectralCurve& sky) {
     if (m_renderer)
         m_renderer->setSolarSpectralLUT(sun, sky);
 }
 
-void QuantiloomVulkanWindow::resetAccumulation() {
+void ViewportWindow::resetAccumulation() {
     if (m_renderer) {
         m_renderer->resetAccumulation();
     }
 }
 
-const quantiloom::Scene* QuantiloomVulkanWindow::getScene() const {
+const quantiloom::Scene* ViewportWindow::getScene() const {
     return m_renderer ? m_renderer->getScene() : nullptr;
 }
 
-bool QuantiloomVulkanWindow::readDebugPixel(int x, int y, glm::vec4& outValue) {
+bool ViewportWindow::readDebugPixel(int x, int y, glm::vec4& outValue) {
     return m_renderer ? m_renderer->readDebugPixel(x, y, outValue) : false;
 }
 
-quantiloom::Result<bool, quantiloom::String> QuantiloomVulkanWindow::requestPixelValue(
+quantiloom::Result<bool, quantiloom::String> ViewportWindow::requestPixelValue(
     quantiloom::u32 x, quantiloom::u32 y, quantiloom::u64 requestId) {
     if (!m_renderer) {
         return quantiloom::Result<bool, quantiloom::String>::Err("no renderer");
@@ -475,7 +475,7 @@ quantiloom::Result<bool, quantiloom::String> QuantiloomVulkanWindow::requestPixe
 }
 
 quantiloom::Result<quantiloom::Optional<quantiloom::PixelReading>, quantiloom::String>
-QuantiloomVulkanWindow::pollPixelValue() {
+ViewportWindow::pollPixelValue() {
     using Result = quantiloom::Result<quantiloom::Optional<quantiloom::PixelReading>,
                                       quantiloom::String>;
     if (!m_renderer) {
@@ -484,19 +484,19 @@ QuantiloomVulkanWindow::pollPixelValue() {
     return m_renderer->pollPixelValue();
 }
 
-QString QuantiloomVulkanWindow::formatDebugValue(const glm::vec4& pixel) const {
+QString ViewportWindow::formatDebugValue(const glm::vec4& pixel) const {
     return m_renderer ? m_renderer->formatDebugValue(pixel) : QString("--");
 }
 
-quantiloom::DebugVisualizationMode QuantiloomVulkanWindow::getDebugMode() const {
+quantiloom::DebugVisualizationMode ViewportWindow::getDebugMode() const {
     return m_renderer ? m_renderer->getDebugMode() : quantiloom::DebugVisualizationMode::None;
 }
 
-std::unique_ptr<quantiloom::Image> QuantiloomVulkanWindow::captureScreenshot() {
+std::unique_ptr<quantiloom::Image> ViewportWindow::captureScreenshot() {
     return m_renderer ? m_renderer->captureScreenshot() : nullptr;
 }
 
-std::unique_ptr<quantiloom::Image> QuantiloomVulkanWindow::captureDisplayImage() {
+std::unique_ptr<quantiloom::Image> ViewportWindow::captureDisplayImage() {
     return m_renderer ? m_renderer->captureDisplayImage() : nullptr;
 }
 
@@ -504,19 +504,19 @@ std::unique_ptr<quantiloom::Image> QuantiloomVulkanWindow::captureDisplayImage()
 // Atmospheric Configuration
 // ============================================================================
 
-void QuantiloomVulkanWindow::setAtmosphericConfig(const quantiloom::AtmosphereNNConfig& config) {
-    withRenderer([config](QuantiloomVulkanRenderer& r) { r.setAtmosphericConfig(config); });
+void ViewportWindow::setAtmosphericConfig(const quantiloom::AtmosphereNNConfig& config) {
+    withRenderer([config](ViewportRenderer& r) { r.setAtmosphericConfig(config); });
 }
 
 // ============================================================================
 // Environment Map (IBL)
 // ============================================================================
 
-bool QuantiloomVulkanWindow::loadEnvironmentMap(const QString& hdrPath) {
+bool ViewportWindow::loadEnvironmentMap(const QString& hdrPath) {
     if (!m_renderer) {
         // Queued rather than refused. Reporting false here would have the
         // caller log a failure for a map that does load moments later.
-        withRenderer([hdrPath](QuantiloomVulkanRenderer& r) { r.loadEnvironmentMap(hdrPath); });
+        withRenderer([hdrPath](ViewportRenderer& r) { r.loadEnvironmentMap(hdrPath); });
         return true;
     }
     return m_renderer->loadEnvironmentMap(hdrPath);
@@ -526,21 +526,21 @@ bool QuantiloomVulkanWindow::loadEnvironmentMap(const QString& hdrPath) {
 // Sensor Simulation
 // ============================================================================
 
-void QuantiloomVulkanWindow::setSensorEnabled(bool enabled) {
-    withRenderer([enabled](QuantiloomVulkanRenderer& r) { r.setSensorEnabled(enabled); });
+void ViewportWindow::setSensorEnabled(bool enabled) {
+    withRenderer([enabled](ViewportRenderer& r) { r.setSensorEnabled(enabled); });
 }
 
-bool QuantiloomVulkanWindow::apparentTemperatureFromPixel(
+bool ViewportWindow::apparentTemperatureFromPixel(
     const glm::vec4& pixel, double& outKelvin) const {
     return m_renderer && m_renderer->apparentTemperatureFromPixel(pixel, outKelvin);
 }
 
-void QuantiloomVulkanWindow::setThermographyParams(
+void ViewportWindow::setThermographyParams(
     const quantiloom::ThermographyParams& params) {
-    withRenderer([params](QuantiloomVulkanRenderer& r) { r.setThermographyParams(params); });
+    withRenderer([params](ViewportRenderer& r) { r.setThermographyParams(params); });
 }
 
-quantiloom::Result<void, quantiloom::String> QuantiloomVulkanWindow::setCameraConfig(
+quantiloom::Result<void, quantiloom::String> ViewportWindow::setCameraConfig(
     const quantiloom::camera::CameraConfig& config) {
     if (!m_renderer) {
         return quantiloom::Result<void, quantiloom::String>::Err("no renderer");
@@ -549,7 +549,7 @@ quantiloom::Result<void, quantiloom::String> QuantiloomVulkanWindow::setCameraCo
 }
 
 quantiloom::Result<void, quantiloom::String>
-QuantiloomVulkanWindow::reprocessCameraDisplay(
+ViewportWindow::reprocessCameraDisplay(
     const quantiloom::camera::CameraConfig& config) {
     if (!m_renderer) {
         return quantiloom::Result<void, quantiloom::String>::Err("no renderer");
@@ -557,13 +557,13 @@ QuantiloomVulkanWindow::reprocessCameraDisplay(
     return m_renderer->reprocessCameraDisplay(config);
 }
 
-quantiloom::CameraHistoryStatus QuantiloomVulkanWindow::cameraHistoryStatus() const {
+quantiloom::CameraHistoryStatus ViewportWindow::cameraHistoryStatus() const {
     return m_renderer ? m_renderer->cameraHistoryStatus()
                       : quantiloom::CameraHistoryStatus{};
 }
 
 quantiloom::Result<quantiloom::camera::CameraOutput, quantiloom::String>
-QuantiloomVulkanWindow::captureCameraProducts(double timeSeconds) {
+ViewportWindow::captureCameraProducts(double timeSeconds) {
     if (!m_renderer) {
         return quantiloom::Result<quantiloom::camera::CameraOutput,
                                   quantiloom::String>::Err("no renderer");
@@ -571,69 +571,69 @@ QuantiloomVulkanWindow::captureCameraProducts(double timeSeconds) {
     return m_renderer->captureCameraProducts(timeSeconds);
 }
 
-const quantiloom::camera::CameraConfig& QuantiloomVulkanWindow::cameraConfig() const {
+const quantiloom::camera::CameraConfig& ViewportWindow::cameraConfig() const {
     static const quantiloom::camera::CameraConfig kEmpty;
     return m_renderer ? m_renderer->cameraConfig() : kEmpty;
 }
 
-void QuantiloomVulkanWindow::setDisplayEnhancement(
+void ViewportWindow::setDisplayEnhancement(
     const quantiloom::DisplayEnhancementParams& params) {
-    withRenderer([&params](QuantiloomVulkanRenderer& r) { r.setDisplayEnhancement(params); });
+    withRenderer([&params](ViewportRenderer& r) { r.setDisplayEnhancement(params); });
 }
 
 // ============================================================================
 // Thermal Solve
 // ============================================================================
 
-void QuantiloomVulkanWindow::setThermalSolveParams(
+void ViewportWindow::setThermalSolveParams(
     const quantiloom::ThermalSolveParams& params) {
-    withRenderer([params](QuantiloomVulkanRenderer& r) { r.setThermalSolveParams(params); });
+    withRenderer([params](ViewportRenderer& r) { r.setThermalSolveParams(params); });
 }
 
-void QuantiloomVulkanWindow::setThermalMaterial(
+void ViewportWindow::setThermalMaterial(
     const QString& name, const quantiloom::ThermalMaterialParams& params) {
-    withRenderer([name, params](QuantiloomVulkanRenderer& r) {
+    withRenderer([name, params](ViewportRenderer& r) {
         r.setThermalMaterial(name, params);
     });
 }
 
-void QuantiloomVulkanWindow::clearThermalMaterials() {
-    withRenderer([](QuantiloomVulkanRenderer& r) { r.clearThermalMaterials(); });
+void ViewportWindow::clearThermalMaterials() {
+    withRenderer([](ViewportRenderer& r) { r.clearThermalMaterials(); });
 }
 
-void QuantiloomVulkanWindow::setThermalSolveEnabled(bool enabled) {
-    withRenderer([enabled](QuantiloomVulkanRenderer& r) { r.setThermalSolveEnabled(enabled); });
+void ViewportWindow::setThermalSolveEnabled(bool enabled) {
+    withRenderer([enabled](ViewportRenderer& r) { r.setThermalSolveEnabled(enabled); });
 }
 
-void QuantiloomVulkanWindow::setThermalTime(double time_h) {
-    withRenderer([time_h](QuantiloomVulkanRenderer& r) { r.setThermalTime(time_h); });
+void ViewportWindow::setThermalTime(double time_h) {
+    withRenderer([time_h](ViewportRenderer& r) { r.setThermalTime(time_h); });
 }
 
-quantiloom::ThermalSolveStatus QuantiloomVulkanWindow::thermalSolveStatus() const {
+quantiloom::ThermalSolveStatus ViewportWindow::thermalSolveStatus() const {
     if (m_renderer) {
         return m_renderer->thermalSolveStatus();
     }
     return {};
 }
 
-void QuantiloomVulkanWindow::setTimelineTime(double time_s) {
-    withRenderer([time_s](QuantiloomVulkanRenderer& r) { r.setTimelineTime(time_s); });
+void ViewportWindow::setTimelineTime(double time_s) {
+    withRenderer([time_s](ViewportRenderer& r) { r.setTimelineTime(time_s); });
 }
 
-quantiloom::TimelineInfo QuantiloomVulkanWindow::timelineInfo() const {
+quantiloom::TimelineInfo ViewportWindow::timelineInfo() const {
     if (m_renderer) {
         return m_renderer->timelineInfo();
     }
     return {};
 }
 
-void QuantiloomVulkanWindow::setTimelineThermalMapping(double hourAtStart_h, double scale) {
-    withRenderer([hourAtStart_h, scale](QuantiloomVulkanRenderer& r) {
+void ViewportWindow::setTimelineThermalMapping(double hourAtStart_h, double scale) {
+    withRenderer([hourAtStart_h, scale](ViewportRenderer& r) {
         r.setTimelineThermalMapping(hourAtStart_h, scale);
     });
 }
 
-glm::mat4 QuantiloomVulkanWindow::nodeRestTransform(int nodeIndex) const {
+glm::mat4 ViewportWindow::nodeRestTransform(int nodeIndex) const {
     if (m_renderer) {
         return m_renderer->nodeRestTransform(nodeIndex);
     }
@@ -641,18 +641,18 @@ glm::mat4 QuantiloomVulkanWindow::nodeRestTransform(int nodeIndex) const {
 }
 
 quantiloom::Result<quantiloom::u32, quantiloom::String>
-QuantiloomVulkanWindow::thermalElementAt(const quantiloom::PickResult& pick) const {
+ViewportWindow::thermalElementAt(const quantiloom::PickResult& pick) const {
     if (!m_renderer) {
         return quantiloom::Result<quantiloom::u32, quantiloom::String>::Err("no renderer");
     }
     return m_renderer->thermalElementAt(pick);
 }
 
-void QuantiloomVulkanWindow::setDebugParameter(const quantiloom::u32 value) {
-    withRenderer([value](QuantiloomVulkanRenderer& r) { r.setDebugParameter(value); });
+void ViewportWindow::setDebugParameter(const quantiloom::u32 value) {
+    withRenderer([value](ViewportRenderer& r) { r.setDebugParameter(value); });
 }
 
-quantiloom::Result<void, quantiloom::String> QuantiloomVulkanWindow::setThermalWhatIf(
+quantiloom::Result<void, quantiloom::String> ViewportWindow::setThermalWhatIf(
     const quantiloom::ThermalSensitivityParameter parameter, const double step) {
     if (!m_renderer) {
         return quantiloom::Result<void, quantiloom::String>::Err("no renderer");
@@ -661,7 +661,7 @@ quantiloom::Result<void, quantiloom::String> QuantiloomVulkanWindow::setThermalW
 }
 
 quantiloom::Result<quantiloom::ThermalElementTrajectory, quantiloom::String>
-QuantiloomVulkanWindow::elementTrajectory(const quantiloom::u32 element,
+ViewportWindow::elementTrajectory(const quantiloom::u32 element,
                                           const double fromHour, const double toHour,
                                           const quantiloom::u32 samples) {
     if (!m_renderer) {
@@ -675,35 +675,35 @@ QuantiloomVulkanWindow::elementTrajectory(const quantiloom::u32 element,
 // Viewport Overlay
 // ============================================================================
 
-void QuantiloomVulkanWindow::setGridVisible(bool visible) {
-    withRenderer([visible](QuantiloomVulkanRenderer& r) { r.setGridVisible(visible); });
+void ViewportWindow::setGridVisible(bool visible) {
+    withRenderer([visible](ViewportRenderer& r) { r.setGridVisible(visible); });
     requestOverlayRedraw();
 }
 
-bool QuantiloomVulkanWindow::isGridVisible() const {
+bool ViewportWindow::isGridVisible() const {
     return m_renderer && m_renderer->isGridVisible();
 }
 
-void QuantiloomVulkanWindow::setMotionAdaptiveResolution(bool enabled) {
-    withRenderer([enabled](QuantiloomVulkanRenderer& r) {
+void ViewportWindow::setMotionAdaptiveResolution(bool enabled) {
+    withRenderer([enabled](ViewportRenderer& r) {
         r.setMotionAdaptiveResolution(enabled);
     });
 }
 
-bool QuantiloomVulkanWindow::motionAdaptiveResolution() const {
+bool ViewportWindow::motionAdaptiveResolution() const {
     return m_renderer && m_renderer->motionAdaptiveResolution();
 }
 
-float QuantiloomVulkanWindow::currentRenderScale() const {
+float ViewportWindow::currentRenderScale() const {
     return m_renderer ? m_renderer->currentRenderScale() : 1.0f;
 }
 
-QSize QuantiloomVulkanWindow::currentRenderSize() const {
+QSize ViewportWindow::currentRenderSize() const {
     return m_renderer ? m_renderer->currentRenderSize() : QSize(0, 0);
 }
 
-void QuantiloomVulkanWindow::overrideRenderScale(float scale) {
-    withRenderer([scale](QuantiloomVulkanRenderer& r) {
+void ViewportWindow::overrideRenderScale(float scale) {
+    withRenderer([scale](ViewportRenderer& r) {
         r.overrideRenderScale(scale);
     });
 }
@@ -712,7 +712,7 @@ void QuantiloomVulkanWindow::overrideRenderScale(float scale) {
 // Scene Editing
 // ============================================================================
 
-void QuantiloomVulkanWindow::setEditingComponents(SelectionManager* selection,
+void ViewportWindow::setEditingComponents(SelectionManager* selection,
                                                    TransformGizmo* gizmo,
                                                    UndoStack* undoStack) {
     m_selection = selection;
@@ -737,7 +737,7 @@ void QuantiloomVulkanWindow::setEditingComponents(SelectionManager* selection,
     }
 }
 
-void QuantiloomVulkanWindow::setNodeTransform(int nodeIndex, const glm::mat4& transform) {
+void ViewportWindow::setNodeTransform(int nodeIndex, const glm::mat4& transform) {
     if (!m_renderer) return;
 
     auto* ctx = m_renderer->getRenderContext();
@@ -748,7 +748,7 @@ void QuantiloomVulkanWindow::setNodeTransform(int nodeIndex, const glm::mat4& tr
     }
 }
 
-void QuantiloomVulkanWindow::setNodeTransformInteractive(int nodeIndex,
+void ViewportWindow::setNodeTransformInteractive(int nodeIndex,
                                                          const glm::mat4& transform) {
     if (!m_renderer) return;
     auto* ctx = m_renderer->getRenderContext();
@@ -759,7 +759,7 @@ void QuantiloomVulkanWindow::setNodeTransformInteractive(int nodeIndex,
     }
 }
 
-void QuantiloomVulkanWindow::refitAfterInteractiveEdit() {
+void ViewportWindow::refitAfterInteractiveEdit() {
     if (!m_renderer) return;
     auto* ctx = m_renderer->getRenderContext();
     if (ctx) {
@@ -770,7 +770,7 @@ void QuantiloomVulkanWindow::refitAfterInteractiveEdit() {
     }
 }
 
-int QuantiloomVulkanWindow::duplicateNode(int sourceIndex, const QString& newName) {
+int ViewportWindow::duplicateNode(int sourceIndex, const QString& newName) {
     if (!m_renderer || sourceIndex < 0) return -1;
     auto* ctx = m_renderer->getRenderContext();
     if (!ctx) return -1;
@@ -784,19 +784,19 @@ int QuantiloomVulkanWindow::duplicateNode(int sourceIndex, const QString& newNam
     return static_cast<int>(result.value());
 }
 
-bool QuantiloomVulkanWindow::removeNode(int nodeIndex) {
+bool ViewportWindow::removeNode(int nodeIndex) {
     if (!m_renderer || nodeIndex < 0) return false;
     auto* ctx = m_renderer->getRenderContext();
     return ctx && ctx->RemoveNode(static_cast<quantiloom::u32>(nodeIndex));
 }
 
-bool QuantiloomVulkanWindow::restoreNode(int nodeIndex) {
+bool ViewportWindow::restoreNode(int nodeIndex) {
     if (!m_renderer || nodeIndex < 0) return false;
     auto* ctx = m_renderer->getRenderContext();
     return ctx && ctx->RestoreNode(static_cast<quantiloom::u32>(nodeIndex));
 }
 
-void QuantiloomVulkanWindow::rebuildSceneTopology() {
+void ViewportWindow::rebuildSceneTopology() {
     if (!m_renderer) return;
     auto* ctx = m_renderer->getRenderContext();
     if (ctx) {
@@ -807,7 +807,7 @@ void QuantiloomVulkanWindow::rebuildSceneTopology() {
     }
 }
 
-void QuantiloomVulkanWindow::finalizeInteractiveEdit() {
+void ViewportWindow::finalizeInteractiveEdit() {
     if (!m_renderer) return;
     auto* ctx = m_renderer->getRenderContext();
     if (ctx) {
@@ -818,7 +818,7 @@ void QuantiloomVulkanWindow::finalizeInteractiveEdit() {
     }
 }
 
-void QuantiloomVulkanWindow::getCameraInfo(glm::vec3& position, glm::vec3& forward,
+void ViewportWindow::getCameraInfo(glm::vec3& position, glm::vec3& forward,
                                             glm::vec3& right, glm::vec3& up) const {
     if (m_renderer) {
         m_renderer->getCameraInfo(position, forward, right, up);
@@ -830,7 +830,7 @@ void QuantiloomVulkanWindow::getCameraInfo(glm::vec3& position, glm::vec3& forwa
     }
 }
 
-void QuantiloomVulkanWindow::setEditMode(bool edit) {
+void ViewportWindow::setEditMode(bool edit) {
     if (m_editMode != edit) {
         m_editMode = edit;
         emit editModeChanged(edit);
@@ -841,7 +841,7 @@ void QuantiloomVulkanWindow::setEditMode(bool edit) {
 // Input Event Handlers
 // ============================================================================
 
-void QuantiloomVulkanWindow::keyPressEvent(QKeyEvent* event) {
+void ViewportWindow::keyPressEvent(QKeyEvent* event) {
     // G/R/T, the axis constraints and world/local space used to be decoded
     // here, in parallel with nothing: they existed in no menu at all. They are
     // QActions now, owned by MainWindow, which both puts them in the Edit menu
@@ -905,7 +905,7 @@ void QuantiloomVulkanWindow::keyPressEvent(QKeyEvent* event) {
     }
 }
 
-void QuantiloomVulkanWindow::keyReleaseEvent(QKeyEvent* event) {
+void ViewportWindow::keyReleaseEvent(QKeyEvent* event) {
     switch (event->key()) {
         case Qt::Key_W: m_keyW = false; break;
         case Qt::Key_A: m_keyA = false; break;
@@ -929,7 +929,7 @@ void QuantiloomVulkanWindow::keyReleaseEvent(QKeyEvent* event) {
     }
 }
 
-void QuantiloomVulkanWindow::mousePressEvent(QMouseEvent* event) {
+void ViewportWindow::mousePressEvent(QMouseEvent* event) {
     if (event->button() == Qt::LeftButton) {
         // Always emit for debug value display (regardless of edit mode)
         const QPointF device = toTargetPixels(event->position());
@@ -962,11 +962,11 @@ void QuantiloomVulkanWindow::mousePressEvent(QMouseEvent* event) {
     }
 }
 
-void QuantiloomVulkanWindow::requestCompositedCapture(const QString& path) {
-    withRenderer([path](QuantiloomVulkanRenderer& r) { r.requestCompositedCapture(path); });
+void ViewportWindow::requestCompositedCapture(const QString& path) {
+    withRenderer([path](ViewportRenderer& r) { r.requestCompositedCapture(path); });
 }
 
-void QuantiloomVulkanWindow::setEditingToolsEnabled(bool enabled) {
+void ViewportWindow::setEditingToolsEnabled(bool enabled) {
     m_editingToolsEnabled = enabled;
     // Switching workspace mid-drag (Ctrl+2 with the mouse held) aborts the
     // drag the same way Escape does: transforms restored, no undo entry
@@ -983,14 +983,14 @@ void QuantiloomVulkanWindow::setEditingToolsEnabled(bool enabled) {
     requestOverlayRedraw();
 }
 
-bool QuantiloomVulkanWindow::gizmoOnScreen() const {
+bool ViewportWindow::gizmoOnScreen() const {
     return m_editingToolsEnabled && m_editMode && m_selection &&
            m_selection->hasSelection() && m_gizmo && m_renderer &&
            getScene() != nullptr;
 }
 
-editing::GizmoFrame QuantiloomVulkanWindow::currentGizmoFrame(
-    const vkview::CameraMatrices& camera) const {
+editing::GizmoFrame ViewportWindow::currentGizmoFrame(
+    const viewport::CameraMatrices& camera) const {
     editing::GizmoFrame frame;
     const auto* scene = getScene();
     if (!scene || !m_selection) {
@@ -1022,8 +1022,8 @@ editing::GizmoFrame QuantiloomVulkanWindow::currentGizmoFrame(
     return frame;
 }
 
-bool QuantiloomVulkanWindow::buildGizmoDrawList(
-    const vkview::CameraMatrices& camera, std::vector<editing::GizmoVertex>& out) {
+bool ViewportWindow::buildGizmoDrawList(
+    const viewport::CameraMatrices& camera, std::vector<editing::GizmoVertex>& out) {
     if (!gizmoOnScreen()) {
         return false;
     }
@@ -1047,23 +1047,23 @@ bool QuantiloomVulkanWindow::buildGizmoDrawList(
     return !out.empty();
 }
 
-void QuantiloomVulkanWindow::requestOverlayRedraw() {
+void ViewportWindow::requestOverlayRedraw() {
     // Unconditional: a paused or finished render still has to show the user
     // what they just selected, and one frame is what that costs.
     requestUpdate();
 }
 
-void QuantiloomVulkanWindow::setSelectionBoxColor(const glm::vec4& color) {
+void ViewportWindow::setSelectionBoxColor(const glm::vec4& color) {
     m_selectionBoxColor = color;
     requestOverlayRedraw();
 }
 
-bool QuantiloomVulkanWindow::viewportMotionHeld() const {
+bool ViewportWindow::viewportMotionHeld() const {
     return m_mousePressed || m_transformDragging ||
            m_keyW || m_keyA || m_keyS || m_keyD || m_keyQ || m_keyE;
 }
 
-void QuantiloomVulkanWindow::noteViewportMotion() {
+void ViewportWindow::noteViewportMotion() {
     if (!m_motionDecayTimer) {
         m_motionDecayTimer = new QTimer(this);
         m_motionDecayTimer->setSingleShot(true);
@@ -1079,7 +1079,7 @@ void QuantiloomVulkanWindow::noteViewportMotion() {
                 return;
             }
             m_motionActive = false;
-            withRenderer([](QuantiloomVulkanRenderer& r) {
+            withRenderer([](ViewportRenderer& r) {
                 r.setViewportMotionActive(false);
             });
         });
@@ -1090,18 +1090,18 @@ void QuantiloomVulkanWindow::noteViewportMotion() {
         return;
     }
     m_motionActive = true;
-    withRenderer([](QuantiloomVulkanRenderer& r) {
+    withRenderer([](ViewportRenderer& r) {
         r.setViewportMotionActive(true);
     });
 }
 
-bool QuantiloomVulkanWindow::beginGizmoDragAt(const QPointF& devicePos) {
+bool ViewportWindow::beginGizmoDragAt(const QPointF& devicePos) {
     if (!gizmoOnScreen()) {
         return false;
     }
-    const vkview::CameraMatrices camera = m_renderer->overlayCamera();
+    const viewport::CameraMatrices camera = m_renderer->overlayCamera();
     const editing::GizmoFrame frame = currentGizmoFrame(camera);
-    const vkview::CameraRay ray = camera.rayThroughPixel(
+    const viewport::CameraRay ray = camera.rayThroughPixel(
         static_cast<float>(devicePos.x()), static_cast<float>(devicePos.y()));
 
     const editing::GizmoHandle handle =
@@ -1121,7 +1121,7 @@ bool QuantiloomVulkanWindow::beginGizmoDragAt(const QPointF& devicePos) {
     return true;
 }
 
-std::optional<quantiloom::PickResult> QuantiloomVulkanWindow::pickScene(
+std::optional<quantiloom::PickResult> ViewportWindow::pickScene(
     const QPointF& devicePos) {
     if (!m_renderer) {
         return std::nullopt;
@@ -1149,7 +1149,7 @@ std::optional<quantiloom::PickResult> QuantiloomVulkanWindow::pickScene(
     return result.value();
 }
 
-void QuantiloomVulkanWindow::mouseReleaseEvent(QMouseEvent* event) {
+void ViewportWindow::mouseReleaseEvent(QMouseEvent* event) {
     if (event->button() == Qt::LeftButton && m_transformDragging) {
         m_transformDragging = false;
         m_activeHandle = editing::GizmoHandle::None;
@@ -1173,11 +1173,11 @@ void QuantiloomVulkanWindow::mouseReleaseEvent(QMouseEvent* event) {
     }
 }
 
-void QuantiloomVulkanWindow::mouseMoveEvent(QMouseEvent* event) {
+void ViewportWindow::mouseMoveEvent(QMouseEvent* event) {
     // Transform dragging has priority
     if (m_transformDragging && m_gizmo && m_gizmo->isDragging() && m_renderer) {
         const QPointF device = toTargetPixels(event->position());
-        const vkview::CameraRay ray = m_renderer->overlayCamera().rayThroughPixel(
+        const viewport::CameraRay ray = m_renderer->overlayCamera().rayThroughPixel(
             static_cast<float>(device.x()), static_cast<float>(device.y()));
         // Ctrl snaps the TOTAL delta to increments, Blender-style
         m_gizmo->updateHandleDrag(ray, event->modifiers().testFlag(Qt::ControlModifier));
@@ -1210,7 +1210,7 @@ void QuantiloomVulkanWindow::mouseMoveEvent(QMouseEvent* event) {
     }
 }
 
-void QuantiloomVulkanWindow::wheelEvent(QWheelEvent* event) {
+void ViewportWindow::wheelEvent(QWheelEvent* event) {
     if (m_renderer) {
         float delta = event->angleDelta().y() / 120.0f;
         m_renderer->zoomCamera(delta);
@@ -1223,7 +1223,7 @@ void QuantiloomVulkanWindow::wheelEvent(QWheelEvent* event) {
     }
 }
 
-bool QuantiloomVulkanWindow::event(QEvent* event) {
+bool ViewportWindow::event(QEvent* event) {
     // QVulkanWindow starts a frame on this event, and nowhere else; the
     // renderer asks for one when it takes its context back.
     if (event->type() == QEvent::UpdateRequest && m_framesHeld) {
@@ -1242,9 +1242,9 @@ bool QuantiloomVulkanWindow::event(QEvent* event) {
         if (!m_transformDragging) {
             editing::GizmoHandle hovered = editing::GizmoHandle::None;
             if (gizmoOnScreen()) {
-                const vkview::CameraMatrices camera = m_renderer->overlayCamera();
+                const viewport::CameraMatrices camera = m_renderer->overlayCamera();
                 const editing::GizmoFrame frame = currentGizmoFrame(camera);
-                const vkview::CameraRay ray = camera.rayThroughPixel(
+                const viewport::CameraRay ray = camera.rayThroughPixel(
                     static_cast<float>(device.x()), static_cast<float>(device.y()));
                 hovered = editing::hitTestGizmo(ray, frame, m_gizmo->mode());
             }

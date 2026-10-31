@@ -1,13 +1,13 @@
 /**
- * @file QuantiloomVulkanRenderer.cpp
+ * @file ViewportRenderer.cpp
  * @brief QVulkanWindowRenderer adapter implementation
  *
  * @author blitzcolo
  */
 
-#include "QuantiloomVulkanRenderer.hpp"
+#include "ViewportRenderer.hpp"
 #include "PixelReadbackConversion.hpp"
-#include "QuantiloomVulkanWindow.hpp"
+#include "ViewportWindow.hpp"
 #include "../AssetPaths.hpp"
 
 #include <renderer/ExternalRenderContext.hpp>
@@ -38,26 +38,26 @@
 
 #include <glm/gtc/matrix_transform.hpp>
 
-QuantiloomVulkanRenderer::QuantiloomVulkanRenderer(QuantiloomVulkanWindow* window)
+ViewportRenderer::ViewportRenderer(ViewportWindow* window)
     : m_window(window)
     , m_lastFrameTime(std::chrono::high_resolution_clock::now())
 {
     m_viewportSampleBatch.reset(m_window->concurrentFrameCount());
 }
 
-QuantiloomVulkanRenderer::~QuantiloomVulkanRenderer() {
+ViewportRenderer::~ViewportRenderer() {
     // Release resources in proper order
     m_renderContext.reset();
 }
 
-void QuantiloomVulkanRenderer::initResources() {
-    qDebug() << "QuantiloomVulkanRenderer::initResources() - Vulkan device ready";
+void ViewportRenderer::initResources() {
+    qDebug() << "ViewportRenderer::initResources() - Vulkan device ready";
     // Note: Swapchain is not ready yet, full initialization happens in initSwapChainResources()
 }
 
-void QuantiloomVulkanRenderer::initSwapChainResources() {
+void ViewportRenderer::initSwapChainResources() {
     const QScopedValueRollback inVulkanCallback(m_inVulkanCallback, true);
-    //qDebug() << "QuantiloomVulkanRenderer::initSwapChainResources() - Starting...";
+    //qDebug() << "ViewportRenderer::initSwapChainResources() - Starting...";
 
     QSize swapSize = m_window->swapChainImageSize();
     //qDebug() << "  Swapchain size:" << swapSize;
@@ -208,11 +208,11 @@ void QuantiloomVulkanRenderer::initSwapChainResources() {
     }
 }
 
-void QuantiloomVulkanRenderer::releaseSwapChainResources() {
+void ViewportRenderer::releaseSwapChainResources() {
     // Nothing to do - render context manages its own resources
 }
 
-void QuantiloomVulkanRenderer::releaseResources() {
+void ViewportRenderer::releaseResources() {
     // Save current scene path for reload when the context is rebuilt
     if (!m_currentScenePath.isEmpty()) {
         m_pendingScenePath = m_currentScenePath;
@@ -226,7 +226,7 @@ void QuantiloomVulkanRenderer::releaseResources() {
     m_configAppliedToContext = false;
 }
 
-void QuantiloomVulkanRenderer::startNextFrame() {
+void ViewportRenderer::startNextFrame() {
     const QScopedValueRollback inVulkanCallback(m_inVulkanCallback, true);
     m_frameCounter++;
 
@@ -307,7 +307,7 @@ void QuantiloomVulkanRenderer::startNextFrame() {
     // swapchain image. A resize changes how the render is shown, never what
     // it holds.
     bool held = m_targetExtent != m_window->swapChainImageSize();
-    vkview::OverlayRenderer::FrameTarget heldFrame;
+    viewport::OverlayRenderer::FrameTarget heldFrame;
     if (held) {
         heldFrame = m_overlay.beginHeldFrame(
             m_window, cmd, static_cast<uint32_t>(m_targetExtent.width()),
@@ -379,7 +379,7 @@ void QuantiloomVulkanRenderer::startNextFrame() {
 
     // Editor overlay (grid, gizmo) over the blitted frame, same command
     // buffer. No-op while nothing is visible.
-    const vkview::CameraMatrices overlayCam = overlayCamera();
+    const viewport::CameraMatrices overlayCam = overlayCamera();
     m_gizmoVertices.clear();
     m_window->buildGizmoDrawList(overlayCam, m_gizmoVertices);
     m_overlay.record(m_window, m_renderContext.get(), cmd, targetImage, targetView,
@@ -431,11 +431,11 @@ void QuantiloomVulkanRenderer::startNextFrame() {
     }
 }
 
-vkview::CameraMatrices QuantiloomVulkanRenderer::overlayCamera() const {
+viewport::CameraMatrices ViewportRenderer::overlayCamera() const {
     if (m_renderContext) {
         // The extent the frame is rendered at, which is not the swapchain's
         // while a resize is being held.
-        return vkview::CameraMatrices::fromCamera(
+        return viewport::CameraMatrices::fromCamera(
             m_renderContext->GetCamera(),
             static_cast<float>(m_targetExtent.width()),
             static_cast<float>(m_targetExtent.height()));
@@ -443,7 +443,7 @@ vkview::CameraMatrices QuantiloomVulkanRenderer::overlayCamera() const {
     return {};
 }
 
-QRect QuantiloomVulkanRenderer::presentedRect() const {
+QRect ViewportRenderer::presentedRect() const {
     const QSize swapSize = m_window->swapChainImageSize();
     if (m_targetExtent.isEmpty() || swapSize.isEmpty()) {
         return QRect(QPoint(0, 0), swapSize);
@@ -457,7 +457,7 @@ QRect QuantiloomVulkanRenderer::presentedRect() const {
                  fitted);
 }
 
-QPointF QuantiloomVulkanRenderer::swapchainToTarget(const QPointF& swapchainPixel) const {
+QPointF ViewportRenderer::swapchainToTarget(const QPointF& swapchainPixel) const {
     const QRect shown = presentedRect();
     if (m_targetExtent.isEmpty() || shown.size() == m_targetExtent) {
         return swapchainPixel;
@@ -467,7 +467,7 @@ QPointF QuantiloomVulkanRenderer::swapchainToTarget(const QPointF& swapchainPixe
                        shown.height());
 }
 
-void QuantiloomVulkanRenderer::adoptSwapchainExtent() {
+void ViewportRenderer::adoptSwapchainExtent() {
     const QSize swapSize = m_window->swapChainImageSize();
     if (!m_renderContext || swapSize.isEmpty() || swapSize == m_targetExtent) {
         return;
@@ -485,7 +485,7 @@ void QuantiloomVulkanRenderer::adoptSwapchainExtent() {
                             static_cast<quantiloom::u32>(swapSize.height()));
 }
 
-void QuantiloomVulkanRenderer::setPaused(bool paused) {
+void ViewportRenderer::setPaused(bool paused) {
     if (m_paused == paused) {
         return;
     }
@@ -503,7 +503,7 @@ namespace {
 constexpr int kBusyCardDelayMs = 300;
 }  // namespace
 
-void QuantiloomVulkanRenderer::runContextJob(
+void ViewportRenderer::runContextJob(
     const QString& description,
     const std::function<void(quantiloom::ExternalRenderContext&)>& work) {
     // Inside a QVulkanWindow callback -- a lost context rebuilt during the
@@ -568,8 +568,8 @@ void QuantiloomVulkanRenderer::runContextJob(
     }
 }
 
-void QuantiloomVulkanRenderer::loadScene(const QString& filePath, bool adoptSceneCamera) {
-    qDebug() << "QuantiloomVulkanRenderer::loadScene() - Path:" << filePath;
+void ViewportRenderer::loadScene(const QString& filePath, bool adoptSceneCamera) {
+    qDebug() << "ViewportRenderer::loadScene() - Path:" << filePath;
 
     if (!m_initialized) {
         qDebug() << "  Not initialized, saving as pending...";
@@ -660,7 +660,7 @@ void QuantiloomVulkanRenderer::loadScene(const QString& filePath, bool adoptScen
             m_cameraUp = sceneCamera.GetUpReference();
             m_cameraFovY = sceneCamera.GetFovY();
 
-            // Orbit state is derived, and in radians -- see src/vulkan/AGENTS.md.
+            // Orbit state is derived, and in radians -- see src/viewport/AGENTS.md.
             // GetUp() is the resolved film up, which is what says which way a
             // straight-down scene camera faces.
             const glm::vec3 offset = m_cameraPosition - m_cameraTarget;
@@ -680,7 +680,7 @@ void QuantiloomVulkanRenderer::loadScene(const QString& filePath, bool adoptScen
     }
 }
 
-void QuantiloomVulkanRenderer::applyConfig(std::shared_ptr<const quantiloom::Config> config,
+void ViewportRenderer::applyConfig(std::shared_ptr<const quantiloom::Config> config,
                                            const QString& baseDir) {
     if (!config) {
         return;
@@ -704,7 +704,7 @@ void QuantiloomVulkanRenderer::applyConfig(std::shared_ptr<const quantiloom::Con
     }
 }
 
-bool QuantiloomVulkanRenderer::applyConfigToContext(bool isFreshOpen) {
+bool ViewportRenderer::applyConfigToContext(bool isFreshOpen) {
     if (!m_renderContext || !m_currentConfig) {
         return false;
     }
@@ -793,7 +793,7 @@ bool QuantiloomVulkanRenderer::applyConfigToContext(bool isFreshOpen) {
             camera.GetProjection() == quantiloom::Camera::Projection::Orthographic;
         m_orthoHeight = camera.GetOrthoHeight();
 
-        // Radians -- see src/vulkan/AGENTS.md.
+        // Radians -- see src/viewport/AGENTS.md.
         const glm::vec3 offset = m_cameraPosition - m_cameraTarget;
         m_orbitDistance = glm::length(offset);
         if (m_orbitDistance > 1e-6f) {
@@ -887,7 +887,7 @@ bool QuantiloomVulkanRenderer::applyConfigToContext(bool isFreshOpen) {
     return true;
 }
 
-void QuantiloomVulkanRenderer::setCameraProjection(bool orthographic, float orthoHeight) {
+void ViewportRenderer::setCameraProjection(bool orthographic, float orthoHeight) {
     m_orthographic = orthographic;
     if (orthoHeight > 0.0f) {
         m_orthoHeight = orthoHeight;
@@ -907,28 +907,28 @@ void QuantiloomVulkanRenderer::setCameraProjection(bool orthographic, float orth
     emit m_window->cameraChanged();
 }
 
-void QuantiloomVulkanRenderer::setSceneScale(float radius) {
+void ViewportRenderer::setSceneScale(float radius) {
     // One number from the scene's bounding sphere drives every navigation
     // constant. Guarded because an empty or degenerate scene has no radius,
     // and the old fixed values are a reasonable stand-in for "unknown".
     m_sceneRadius = (radius > 1e-4f && std::isfinite(radius)) ? radius : 0.0f;
 }
 
-float QuantiloomVulkanRenderer::minOrbitDistance() const {
+float ViewportRenderer::minOrbitDistance() const {
     return (m_sceneRadius > 0.0f) ? m_sceneRadius * 0.01f : 0.1f;
 }
 
-float QuantiloomVulkanRenderer::maxOrbitDistance() const {
+float ViewportRenderer::maxOrbitDistance() const {
     return (m_sceneRadius > 0.0f) ? m_sceneRadius * 100.0f : 1000.0f;
 }
 
-float QuantiloomVulkanRenderer::cameraBaseSpeed() const {
+float ViewportRenderer::cameraBaseSpeed() const {
     // Cross the scene in roughly two seconds at walking pace, which reads the
     // same whether the scene is a coin or a carrier.
     return (m_sceneRadius > 0.0f) ? m_sceneRadius : 5.0f;
 }
 
-void QuantiloomVulkanRenderer::frameBounds(const glm::vec3& min, const glm::vec3& max) {
+void ViewportRenderer::frameBounds(const glm::vec3& min, const glm::vec3& max) {
     const glm::vec3 centre = (min + max) * 0.5f;
     const glm::vec3 extent = max - min;
     const float radius = glm::length(extent) * 0.5f;
@@ -959,7 +959,7 @@ void QuantiloomVulkanRenderer::frameBounds(const glm::vec3& min, const glm::vec3
     m_cameraPosition = centre + direction * distance;
     m_orbitDistance = distance;
 
-    // Radians -- see src/vulkan/AGENTS.md. Derived from the new offset rather
+    // Radians -- see src/viewport/AGENTS.md. Derived from the new offset rather
     // than left alone, or the first drag afterwards snaps back. The direction
     // is unchanged, so on the pole the heading it is shown with is too.
     setOrbitAnglesFromView(direction, orbitViewUp());
@@ -971,7 +971,7 @@ void QuantiloomVulkanRenderer::frameBounds(const glm::vec3& min, const glm::vec3
     emit m_window->cameraChanged();
 }
 
-void QuantiloomVulkanRenderer::resetCamera() {
+void ViewportRenderer::resetCamera() {
     m_cameraPosition = glm::vec3(0.0f, 1.0f, 5.0f);
     m_cameraTarget = glm::vec3(0.0f, 0.0f, 0.0f);
     m_cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
@@ -991,7 +991,7 @@ void QuantiloomVulkanRenderer::resetCamera() {
     emit m_window->cameraChanged();
 }
 
-void QuantiloomVulkanRenderer::setCamera(const glm::vec3& position, const glm::vec3& lookAt,
+void ViewportRenderer::setCamera(const glm::vec3& position, const glm::vec3& lookAt,
                                           const glm::vec3& up, float fovY,
                                           const glm::vec3& viewUpHint) {
     m_cameraPosition = position;
@@ -1034,7 +1034,7 @@ void QuantiloomVulkanRenderer::setCamera(const glm::vec3& position, const glm::v
     emit m_window->cameraChanged();
 }
 
-void QuantiloomVulkanRenderer::getCameraState(glm::vec3& position, glm::vec3& target,
+void ViewportRenderer::getCameraState(glm::vec3& position, glm::vec3& target,
                                               glm::vec3& up, float& fovY) const {
     position = m_cameraPosition;
     target = m_cameraTarget;
@@ -1042,7 +1042,7 @@ void QuantiloomVulkanRenderer::getCameraState(glm::vec3& position, glm::vec3& ta
     fovY = m_cameraFovY;
 }
 
-void QuantiloomVulkanRenderer::setCameraFovY(float fovY) {
+void ViewportRenderer::setCameraFovY(float fovY) {
     m_cameraFovY = fovY;
     if (m_renderContext) {
         m_renderContext->SetCameraFOV(fovY);
@@ -1051,7 +1051,7 @@ void QuantiloomVulkanRenderer::setCameraFovY(float fovY) {
     emit m_window->cameraChanged();
 }
 
-void QuantiloomVulkanRenderer::setViewDirection(const glm::vec3& direction) {
+void ViewportRenderer::setViewDirection(const glm::vec3& direction) {
     const float length = glm::length(direction);
     if (length < 1e-6f) {
         return;
@@ -1073,7 +1073,7 @@ void QuantiloomVulkanRenderer::setViewDirection(const glm::vec3& direction) {
     emit m_window->cameraChanged();
 }
 
-void QuantiloomVulkanRenderer::setSPP(uint32_t spp) {
+void ViewportRenderer::setSPP(uint32_t spp) {
     m_targetSPP = spp;
     if (m_renderContext) {
         // 0 means "infinite" in the UI; the SDK still needs a positive count.
@@ -1085,7 +1085,7 @@ void QuantiloomVulkanRenderer::setSPP(uint32_t spp) {
     }
 }
 
-void QuantiloomVulkanRenderer::setSamplingSeed(uint32_t seed) {
+void ViewportRenderer::setSamplingSeed(uint32_t seed) {
     m_samplingSeed = seed;
     if (m_renderContext) {
         // SetSamplingSeed resets accumulation itself, so the next pass starts
@@ -1097,7 +1097,7 @@ void QuantiloomVulkanRenderer::setSamplingSeed(uint32_t seed) {
     }
 }
 
-void QuantiloomVulkanRenderer::setWavelength(float wavelength_nm) {
+void ViewportRenderer::setWavelength(float wavelength_nm) {
     m_wavelength = wavelength_nm;
     if (m_renderContext) {
         m_renderContext->SetWavelength(wavelength_nm);
@@ -1105,7 +1105,7 @@ void QuantiloomVulkanRenderer::setWavelength(float wavelength_nm) {
     }
 }
 
-void QuantiloomVulkanRenderer::setSpectralMode(quantiloom::SpectralMode mode) {
+void ViewportRenderer::setSpectralMode(quantiloom::SpectralMode mode) {
     m_spectralMode = mode;  // Store for restore
     if (m_renderContext) {
         // The first switch to a mode since the scene loaded builds its pipeline
@@ -1118,7 +1118,7 @@ void QuantiloomVulkanRenderer::setSpectralMode(quantiloom::SpectralMode mode) {
     }
 }
 
-void QuantiloomVulkanRenderer::setDebugMode(quantiloom::DebugVisualizationMode mode) {
+void ViewportRenderer::setDebugMode(quantiloom::DebugVisualizationMode mode) {
     m_debugMode = mode;  // Store for restore
     if (m_renderContext) {
         // Same variant cache as the spectral mode: debug on and off are two.
@@ -1130,7 +1130,7 @@ void QuantiloomVulkanRenderer::setDebugMode(quantiloom::DebugVisualizationMode m
     }
 }
 
-void QuantiloomVulkanRenderer::setLightingParams(const quantiloom::LightingParams& params) {
+void ViewportRenderer::setLightingParams(const quantiloom::LightingParams& params) {
     m_lightingParams = params;  // Store for restore
     m_hasLightingParams = true;
     if (m_renderContext) {
@@ -1139,7 +1139,7 @@ void QuantiloomVulkanRenderer::setLightingParams(const quantiloom::LightingParam
     }
 }
 
-void QuantiloomVulkanRenderer::updateMaterial(int index, const quantiloom::Material& material) {
+void ViewportRenderer::updateMaterial(int index, const quantiloom::Material& material) {
     if (m_renderContext && index >= 0) {
         m_renderContext->UpdateMaterial(static_cast<quantiloom::u32>(index), material);
         resetAccumulation();
@@ -1154,21 +1154,21 @@ void QuantiloomVulkanRenderer::updateMaterial(int index, const quantiloom::Mater
 // Order matters: replay appends in the same order, so the indices handed out
 // the first time stay valid.
 
-int QuantiloomVulkanRenderer::addComplexRefractiveIndex(const quantiloom::ComplexRefractiveIndex& cri) {
+int ViewportRenderer::addComplexRefractiveIndex(const quantiloom::ComplexRefractiveIndex& cri) {
     m_runtimeRefractiveIndices.push_back(cri);
     if (m_renderContext)
         return m_renderContext->AddComplexRefractiveIndex(cri);
     return -1;
 }
 
-int QuantiloomVulkanRenderer::addSpectralCurve(const quantiloom::SpectralCurve& curve) {
+int ViewportRenderer::addSpectralCurve(const quantiloom::SpectralCurve& curve) {
     m_runtimeSpectralCurves.push_back(curve);
     if (m_renderContext)
         return m_renderContext->AddSpectralCurve(curve);
     return -1;
 }
 
-quantiloom::Result<int, std::string> QuantiloomVulkanRenderer::buildEndmemberWeightTexture(
+quantiloom::Result<int, std::string> ViewportRenderer::buildEndmemberWeightTexture(
     uint32_t materialIndex, const std::vector<glm::vec3>& endmemberColors) {
     if (!m_renderContext) {
         return quantiloom::Result<int, std::string>::Err("The render context is not ready yet.");
@@ -1176,7 +1176,7 @@ quantiloom::Result<int, std::string> QuantiloomVulkanRenderer::buildEndmemberWei
     return m_renderContext->BuildEndmemberWeightTexture(materialIndex, endmemberColors);
 }
 
-std::optional<QString> QuantiloomVulkanRenderer::setSolarLutFromSpec(
+std::optional<QString> ViewportRenderer::setSolarLutFromSpec(
     const quantiloom::SolarLutSpec& spec, const QString& baseDir) {
     // The declaration is kept, not the curves: a rebuild replays the same
     // reading rather than a snapshot of what it once produced.
@@ -1204,7 +1204,7 @@ std::optional<QString> QuantiloomVulkanRenderer::setSolarLutFromSpec(
     return std::nullopt;
 }
 
-void QuantiloomVulkanRenderer::clearSolarLut() {
+void ViewportRenderer::clearSolarLut() {
     m_solarLut.reset();
     m_solarLutSpec.reset();
     m_solarLutBaseDir.clear();
@@ -1217,7 +1217,7 @@ void QuantiloomVulkanRenderer::clearSolarLut() {
     }
 }
 
-void QuantiloomVulkanRenderer::setSolarSpectralLUT(const quantiloom::SpectralCurve& sun,
+void ViewportRenderer::setSolarSpectralLUT(const quantiloom::SpectralCurve& sun,
                                                    const quantiloom::SpectralCurve& sky) {
     m_solarLut = std::make_pair(sun, sky);
     m_solarLutCleared = false;
@@ -1228,18 +1228,18 @@ void QuantiloomVulkanRenderer::setSolarSpectralLUT(const quantiloom::SpectralCur
     }
 }
 
-const quantiloom::Scene* QuantiloomVulkanRenderer::getScene() const {
+const quantiloom::Scene* ViewportRenderer::getScene() const {
     return m_renderContext ? m_renderContext->GetScene() : nullptr;
 }
 
-void QuantiloomVulkanRenderer::getCameraInfo(glm::vec3& position, glm::vec3& forward,
+void ViewportRenderer::getCameraInfo(glm::vec3& position, glm::vec3& forward,
                                               glm::vec3& right, glm::vec3& up) const {
     position = m_cameraPosition;
     forward = glm::normalize(m_cameraTarget - m_cameraPosition);
     viewBasis(right, up);
 }
 
-glm::vec3 QuantiloomVulkanRenderer::orbitViewUp() const {
+glm::vec3 ViewportRenderer::orbitViewUp() const {
     // d/dpitch of the orbit offset (cos p sin y, sin p, cos p cos y). Away from
     // the poles this is exactly the up a +Y reference resolves to, so passing
     // it changes nothing there; at a pole it is horizontal and turns with yaw.
@@ -1248,7 +1248,7 @@ glm::vec3 QuantiloomVulkanRenderer::orbitViewUp() const {
                      -std::sin(m_orbitPitch) * std::cos(m_orbitYaw));
 }
 
-void QuantiloomVulkanRenderer::setOrbitAnglesFromView(const glm::vec3& dir,
+void ViewportRenderer::setOrbitAnglesFromView(const glm::vec3& dir,
                                                       const glm::vec3& shownUp) {
     m_orbitPitch = std::asin(glm::clamp(dir.y, -1.0f, 1.0f));
 
@@ -1272,14 +1272,14 @@ void QuantiloomVulkanRenderer::setOrbitAnglesFromView(const glm::vec3& dir,
     // Otherwise nothing says which way the view faces; keep the heading.
 }
 
-glm::vec3 QuantiloomVulkanRenderer::viewUp() const {
+glm::vec3 ViewportRenderer::viewUp() const {
     glm::vec3 right;
     glm::vec3 up;
     viewBasis(right, up);
     return up;
 }
 
-void QuantiloomVulkanRenderer::viewBasis(glm::vec3& right, glm::vec3& up) const {
+void ViewportRenderer::viewBasis(glm::vec3& right, glm::vec3& up) const {
     // The basis the frame on screen was rendered with, when there is one --
     // the same source CameraMatrices reads, and well defined straight down,
     // where cross(forward, m_cameraUp) is zero or rounding noise.
@@ -1293,7 +1293,7 @@ void QuantiloomVulkanRenderer::viewBasis(glm::vec3& right, glm::vec3& up) const 
     up = orbitViewUp();
 }
 
-void QuantiloomVulkanRenderer::pushCameraLookAt() {
+void ViewportRenderer::pushCameraLookAt() {
     // m_cameraUp stays the reference -- what a save writes and what motion
     // poses are built from. The orbit's own up only rides along as the hint
     // the SDK consults when the view is parallel to it: without it every
@@ -1303,7 +1303,7 @@ void QuantiloomVulkanRenderer::pushCameraLookAt() {
                                      orbitViewUp());
 }
 
-void QuantiloomVulkanRenderer::updateCameraMovement(
+void ViewportRenderer::updateCameraMovement(
     bool forward, bool backward, bool left, bool right,
     bool up, bool down, bool fast)
 {
@@ -1322,12 +1322,12 @@ void QuantiloomVulkanRenderer::updateCameraMovement(
     }
 }
 
-bool QuantiloomVulkanRenderer::isCameraMoving() const {
+bool ViewportRenderer::isCameraMoving() const {
     return m_moveForward || m_moveBackward || m_moveLeft ||
            m_moveRight || m_moveUp || m_moveDown;
 }
 
-void QuantiloomVulkanRenderer::orbitCamera(float deltaX, float deltaY) {
+void ViewportRenderer::orbitCamera(float deltaX, float deltaY) {
     const float sensitivity = 0.005f;
 
     m_orbitYaw -= deltaX * sensitivity;
@@ -1356,7 +1356,7 @@ void QuantiloomVulkanRenderer::orbitCamera(float deltaX, float deltaY) {
     emit m_window->cameraChanged();
 }
 
-void QuantiloomVulkanRenderer::panCamera(float deltaX, float deltaY) {
+void ViewportRenderer::panCamera(float deltaX, float deltaY) {
     // How far one pixel of drag moves the world, derived rather than tuned. The
     // 0.01 world units per pixel that used to be here was a constant, so it was
     // only ever right at one distance: framing a 0.2-unit part of a model threw
@@ -1365,7 +1365,7 @@ void QuantiloomVulkanRenderer::panCamera(float deltaX, float deltaY) {
     // drag across the viewport pan exactly one viewport, at every distance and
     // every field of view -- the object stays under the cursor.
     //
-    // deltaX/deltaY arrive in logical pixels (QuantiloomVulkanWindow::
+    // deltaX/deltaY arrive in logical pixels (ViewportWindow::
     // m_lastMousePos), so the height must be logical too: QWindow::height(),
     // not swapChainImageSize(), which is device pixels and would divide the
     // scale factor back out of the result.
@@ -1396,7 +1396,7 @@ void QuantiloomVulkanRenderer::panCamera(float deltaX, float deltaY) {
     emit m_window->cameraChanged();
 }
 
-void QuantiloomVulkanRenderer::zoomCamera(float delta) {
+void ViewportRenderer::zoomCamera(float delta) {
     const float zoomSpeed = 0.5f;
 
     m_orbitDistance *= (1.0f - delta * zoomSpeed * 0.1f);
@@ -1421,7 +1421,7 @@ void QuantiloomVulkanRenderer::zoomCamera(float delta) {
     emit m_window->cameraChanged();
 }
 
-void QuantiloomVulkanRenderer::updateCamera(float deltaTime) {
+void ViewportRenderer::updateCamera(float deltaTime) {
     if (!isCameraMoving()) {
         return;
     }
@@ -1457,7 +1457,7 @@ void QuantiloomVulkanRenderer::updateCamera(float deltaTime) {
     }
 }
 
-void QuantiloomVulkanRenderer::resetAccumulation() {
+void ViewportRenderer::resetAccumulation() {
     m_sampleCount = 0;
     m_viewportSampleBatch.reset(m_window->concurrentFrameCount());
     if (m_renderContext) {
@@ -1490,7 +1490,7 @@ constexpr float kMotionScaleSteps[] = {0.75f, 0.5f, 0.375f, 0.25f};
 
 }  // namespace
 
-float QuantiloomVulkanRenderer::chooseMotionScale() const {
+float ViewportRenderer::chooseMotionScale() const {
     // The SDK's trace timing lags a frame or two, which is exactly right here:
     // read on the rising edge of a gesture it describes the steady state just
     // before it, not the transient the gesture is about to cause. Zero before
@@ -1511,7 +1511,7 @@ float QuantiloomVulkanRenderer::chooseMotionScale() const {
     return kMotionScaleSteps[std::size(kMotionScaleSteps) - 1];
 }
 
-void QuantiloomVulkanRenderer::applyRenderScale(float scale) {
+void ViewportRenderer::applyRenderScale(float scale) {
     if (!m_renderContext || scale == m_renderContext->GetRenderScale()) {
         return;
     }
@@ -1529,7 +1529,7 @@ void QuantiloomVulkanRenderer::applyRenderScale(float scale) {
     }
 }
 
-void QuantiloomVulkanRenderer::setViewportMotionActive(bool active) {
+void ViewportRenderer::setViewportMotionActive(bool active) {
     if (active == m_motionActive) {
         return;
     }
@@ -1545,7 +1545,7 @@ void QuantiloomVulkanRenderer::setViewportMotionActive(bool active) {
     applyRenderScale(m_motionScale);
 }
 
-void QuantiloomVulkanRenderer::setMotionAdaptiveResolution(bool enabled) {
+void ViewportRenderer::setMotionAdaptiveResolution(bool enabled) {
     m_motionAdaptiveResolution = enabled;
     if (!enabled) {
         m_motionScale = 1.0f;
@@ -1556,11 +1556,11 @@ void QuantiloomVulkanRenderer::setMotionAdaptiveResolution(bool enabled) {
     }
 }
 
-float QuantiloomVulkanRenderer::currentRenderScale() const {
+float ViewportRenderer::currentRenderScale() const {
     return m_renderContext ? m_renderContext->GetRenderScale() : 1.0f;
 }
 
-QSize QuantiloomVulkanRenderer::currentRenderSize() const {
+QSize ViewportRenderer::currentRenderSize() const {
     if (!m_renderContext) {
         // Explicitly 0x0, not a default-constructed QSize: that one is -1x-1,
         // which reaches the status tool as a resolution of minus one pixel.
@@ -1570,12 +1570,12 @@ QSize QuantiloomVulkanRenderer::currentRenderSize() const {
             static_cast<int>(m_renderContext->GetRenderHeight())};
 }
 
-void QuantiloomVulkanRenderer::overrideRenderScale(float scale) {
+void ViewportRenderer::overrideRenderScale(float scale) {
     m_motionScale = scale;
     applyRenderScale(scale);
 }
 
-void QuantiloomVulkanRenderer::requestDisplayReprocess() {
+void ViewportRenderer::requestDisplayReprocess() {
     m_reprocessPending = true;
     // Unlike resetAccumulation(), pause is no reason to hold the frame: the
     // reprocess branch draws once without adding a sample and the loop stops
@@ -1587,7 +1587,7 @@ void QuantiloomVulkanRenderer::requestDisplayReprocess() {
     }
 }
 
-void QuantiloomVulkanRenderer::setGridVisible(bool visible) {
+void ViewportRenderer::setGridVisible(bool visible) {
     m_overlay.setGridVisible(visible);
     // One redraw so the toggle shows after the loop stopped at its target.
     // Past-target frames re-present the accumulation, so this costs no
@@ -1597,7 +1597,7 @@ void QuantiloomVulkanRenderer::setGridVisible(bool visible) {
     }
 }
 
-bool QuantiloomVulkanRenderer::isFirstRun() const {
+bool ViewportRenderer::isFirstRun() const {
     // No cache file means no pipeline has ever been compiled on this machine,
     // so the next load pays for all of them.
     //
@@ -1615,7 +1615,7 @@ bool QuantiloomVulkanRenderer::isFirstRun() const {
     return !QFileInfo::exists(QString::fromStdString(m_renderContext->GetPipelineCachePath()));
 }
 
-bool QuantiloomVulkanRenderer::readDebugPixel(int x, int y, glm::vec4& outValue) {
+bool ViewportRenderer::readDebugPixel(int x, int y, glm::vec4& outValue) {
     if (!m_renderContext) {
         return false;
     }
@@ -1634,7 +1634,7 @@ bool QuantiloomVulkanRenderer::readDebugPixel(int x, int y, glm::vec4& outValue)
 }
 
 quantiloom::Result<bool, quantiloom::String>
-QuantiloomVulkanRenderer::requestPixelValue(quantiloom::u32 x, quantiloom::u32 y,
+ViewportRenderer::requestPixelValue(quantiloom::u32 x, quantiloom::u32 y,
                                             quantiloom::u64 requestId) {
     if (!m_renderContext) {
         return quantiloom::Result<bool, quantiloom::String>::Err("no render context");
@@ -1643,7 +1643,7 @@ QuantiloomVulkanRenderer::requestPixelValue(quantiloom::u32 x, quantiloom::u32 y
 }
 
 quantiloom::Result<quantiloom::Optional<quantiloom::PixelReading>, quantiloom::String>
-QuantiloomVulkanRenderer::pollPixelValue() {
+ViewportRenderer::pollPixelValue() {
     using Result = quantiloom::Result<quantiloom::Optional<quantiloom::PixelReading>,
                                       quantiloom::String>;
     if (!m_renderContext) {
@@ -1652,16 +1652,16 @@ QuantiloomVulkanRenderer::pollPixelValue() {
     return m_renderContext->PollPixelValue();
 }
 
-bool QuantiloomVulkanRenderer::apparentTemperatureFromPixel(
+bool ViewportRenderer::apparentTemperatureFromPixel(
     const glm::vec4& pixel, double& outKelvin) const {
-    const auto temperature = vkview::apparentTemperatureK(
+    const auto temperature = viewport::apparentTemperatureK(
         m_spectralMode, pixel, m_thermography);
     if (!temperature) return false;
     outKelvin = *temperature;
     return true;
 }
 
-QString QuantiloomVulkanRenderer::formatDebugValue(const glm::vec4& v) const {
+QString ViewportRenderer::formatDebugValue(const glm::vec4& v) const {
     using quantiloom::DebugVisualizationMode;
 
     // Numbers only. The label used to be baked in here -- "Metallic: 0.42",
@@ -1738,7 +1738,7 @@ QString QuantiloomVulkanRenderer::formatDebugValue(const glm::vec4& v) const {
     }
 }
 
-std::unique_ptr<quantiloom::Image> QuantiloomVulkanRenderer::captureScreenshot() {
+std::unique_ptr<quantiloom::Image> ViewportRenderer::captureScreenshot() {
     if (!m_renderContext) {
         return nullptr;
     }
@@ -1760,7 +1760,7 @@ std::unique_ptr<quantiloom::Image> QuantiloomVulkanRenderer::captureScreenshot()
     return image;
 }
 
-std::unique_ptr<quantiloom::Image> QuantiloomVulkanRenderer::captureDisplayImage() {
+std::unique_ptr<quantiloom::Image> ViewportRenderer::captureDisplayImage() {
     if (!m_renderContext) {
         return nullptr;
     }
@@ -1786,7 +1786,7 @@ std::unique_ptr<quantiloom::Image> QuantiloomVulkanRenderer::captureDisplayImage
 // Atmospheric Configuration
 // ============================================================================
 
-void QuantiloomVulkanRenderer::setAtmosphericConfig(const quantiloom::AtmosphereNNConfig& config) {
+void ViewportRenderer::setAtmosphericConfig(const quantiloom::AtmosphereNNConfig& config) {
     m_atmosphericConfig = config;
     applyAtmosphereToContext();
     // SetAtmosphere resets accumulation on the SDK side when the config
@@ -1797,13 +1797,13 @@ void QuantiloomVulkanRenderer::setAtmosphericConfig(const quantiloom::Atmosphere
     }
 }
 
-std::string QuantiloomVulkanRenderer::resolveDefaultModelPackDir() {
+std::string ViewportRenderer::resolveDefaultModelPackDir() {
     // Same three candidates in the same order as the core CLI:
     // assetpaths::atmosphereModelPackDir.
     return assetpaths::atmosphereModelPackDir().toStdString();
 }
 
-void QuantiloomVulkanRenderer::applyAtmosphereToContext() {
+void ViewportRenderer::applyAtmosphereToContext() {
     if (!m_renderContext) {
         return;
     }
@@ -1839,7 +1839,7 @@ void QuantiloomVulkanRenderer::applyAtmosphereToContext() {
 // Environment Map (IBL)
 // ============================================================================
 
-bool QuantiloomVulkanRenderer::loadEnvironmentMap(const QString& hdrPath) {
+bool ViewportRenderer::loadEnvironmentMap(const QString& hdrPath) {
     if (!m_renderContext) {
         qWarning() << "Cannot load environment map: render context not initialized";
         return false;
@@ -1863,7 +1863,7 @@ bool QuantiloomVulkanRenderer::loadEnvironmentMap(const QString& hdrPath) {
     return true;
 }
 
-bool QuantiloomVulkanRenderer::hasEnvironmentMap() const {
+bool ViewportRenderer::hasEnvironmentMap() const {
     return m_renderContext && m_renderContext->HasEnvironmentMap();
 }
 
@@ -1871,7 +1871,7 @@ bool QuantiloomVulkanRenderer::hasEnvironmentMap() const {
 // Thermal Solve
 // ============================================================================
 
-void QuantiloomVulkanRenderer::setThermalSolveParams(
+void ViewportRenderer::setThermalSolveParams(
     const quantiloom::ThermalSolveParams& params) {
     if (m_renderContext) {
         m_renderContext->SetThermalSolveParams(params);
@@ -1879,27 +1879,27 @@ void QuantiloomVulkanRenderer::setThermalSolveParams(
     }
 }
 
-void QuantiloomVulkanRenderer::setThermalMaterial(
+void ViewportRenderer::setThermalMaterial(
     const QString& name, const quantiloom::ThermalMaterialParams& params) {
     if (m_renderContext) {
         m_renderContext->SetThermalMaterial(name.toStdString(), params);
     }
 }
 
-void QuantiloomVulkanRenderer::clearThermalMaterials() {
+void ViewportRenderer::clearThermalMaterials() {
     if (m_renderContext) {
         m_renderContext->ClearThermalMaterials();
     }
 }
 
-void QuantiloomVulkanRenderer::setThermalSolveEnabled(bool enabled) {
+void ViewportRenderer::setThermalSolveEnabled(bool enabled) {
     if (m_renderContext) {
         m_renderContext->SetThermalSolveEnabled(enabled);
         resetAccumulation();
     }
 }
 
-void QuantiloomVulkanRenderer::setThermalTime(double time_h) {
+void ViewportRenderer::setThermalTime(double time_h) {
     if (m_renderContext) {
         // Along a day already solved this is a replay from a checkpoint; the
         // first hour asked for after the solve's inputs changed is the solve.
@@ -1916,14 +1916,14 @@ void QuantiloomVulkanRenderer::setThermalTime(double time_h) {
     }
 }
 
-quantiloom::ThermalSolveStatus QuantiloomVulkanRenderer::thermalSolveStatus() const {
+quantiloom::ThermalSolveStatus ViewportRenderer::thermalSolveStatus() const {
     if (m_renderContext) {
         return m_renderContext->GetThermalSolveStatus();
     }
     return {};
 }
 
-void QuantiloomVulkanRenderer::setTimelineTime(double time_s) {
+void ViewportRenderer::setTimelineTime(double time_s) {
     if (!m_renderContext) {
         return;
     }
@@ -1937,14 +1937,14 @@ void QuantiloomVulkanRenderer::setTimelineTime(double time_s) {
     resetAccumulation();
 }
 
-quantiloom::TimelineInfo QuantiloomVulkanRenderer::timelineInfo() const {
+quantiloom::TimelineInfo ViewportRenderer::timelineInfo() const {
     if (m_renderContext) {
         return m_renderContext->GetTimelineInfo();
     }
     return {};
 }
 
-void QuantiloomVulkanRenderer::setTimelineThermalMapping(double hourAtStart_h, double scale) {
+void ViewportRenderer::setTimelineThermalMapping(double hourAtStart_h, double scale) {
     if (!m_renderContext) {
         return;
     }
@@ -1957,7 +1957,7 @@ void QuantiloomVulkanRenderer::setTimelineThermalMapping(double hourAtStart_h, d
     resetAccumulation();
 }
 
-glm::mat4 QuantiloomVulkanRenderer::nodeRestTransform(int nodeIndex) const {
+glm::mat4 ViewportRenderer::nodeRestTransform(int nodeIndex) const {
     if (!m_renderContext || nodeIndex < 0) {
         return glm::mat4(1.0f);
     }
@@ -1965,21 +1965,21 @@ glm::mat4 QuantiloomVulkanRenderer::nodeRestTransform(int nodeIndex) const {
 }
 
 quantiloom::Result<quantiloom::u32, quantiloom::String>
-QuantiloomVulkanRenderer::thermalElementAt(const quantiloom::PickResult& pick) const {
+ViewportRenderer::thermalElementAt(const quantiloom::PickResult& pick) const {
     if (!m_renderContext) {
         return quantiloom::Result<quantiloom::u32, quantiloom::String>::Err("no renderer");
     }
     return m_renderContext->ThermalElementAt(pick);
 }
 
-void QuantiloomVulkanRenderer::setDebugParameter(const quantiloom::u32 value) {
+void ViewportRenderer::setDebugParameter(const quantiloom::u32 value) {
     if (m_renderContext) {
         m_renderContext->SetDebugParameter(value);
         resetAccumulation();
     }
 }
 
-quantiloom::Result<void, quantiloom::String> QuantiloomVulkanRenderer::setThermalWhatIf(
+quantiloom::Result<void, quantiloom::String> ViewportRenderer::setThermalWhatIf(
     const quantiloom::ThermalSensitivityParameter parameter, const double step) {
     if (!m_renderContext) {
         return quantiloom::Result<void, quantiloom::String>::Err("no renderer");
@@ -1990,7 +1990,7 @@ quantiloom::Result<void, quantiloom::String> QuantiloomVulkanRenderer::setTherma
 }
 
 quantiloom::Result<quantiloom::ThermalElementTrajectory, quantiloom::String>
-QuantiloomVulkanRenderer::elementTrajectory(const quantiloom::u32 element,
+ViewportRenderer::elementTrajectory(const quantiloom::u32 element,
                                             const double fromHour, const double toHour,
                                             const quantiloom::u32 samples) {
     if (!m_renderContext) {
@@ -2013,7 +2013,7 @@ QuantiloomVulkanRenderer::elementTrajectory(const quantiloom::u32 element,
 // Sensor Simulation
 // ============================================================================
 
-void QuantiloomVulkanRenderer::setSensorEnabled(bool enabled) {
+void ViewportRenderer::setSensorEnabled(bool enabled) {
     m_sensorEnabled = enabled;
 
     // Use GPU sensor via libQuantiloom (real-time)
@@ -2038,7 +2038,7 @@ void QuantiloomVulkanRenderer::setSensorEnabled(bool enabled) {
 // Physical camera
 // ============================================================================
 
-quantiloom::Result<void, quantiloom::String> QuantiloomVulkanRenderer::setCameraConfig(
+quantiloom::Result<void, quantiloom::String> ViewportRenderer::setCameraConfig(
     const quantiloom::camera::CameraConfig& config) {
     if (!m_renderContext) {
         return quantiloom::Result<void, quantiloom::String>::Err("no renderer");
@@ -2077,7 +2077,7 @@ quantiloom::Result<void, quantiloom::String> QuantiloomVulkanRenderer::setCamera
 }
 
 quantiloom::Result<void, quantiloom::String>
-QuantiloomVulkanRenderer::reprocessCameraDisplay(
+ViewportRenderer::reprocessCameraDisplay(
     const quantiloom::camera::CameraConfig& config) {
     if (!m_renderContext) {
         return quantiloom::Result<void, quantiloom::String>::Err("no renderer");
@@ -2095,13 +2095,13 @@ QuantiloomVulkanRenderer::reprocessCameraDisplay(
     return quantiloom::Result<void, quantiloom::String>::Ok();
 }
 
-quantiloom::CameraHistoryStatus QuantiloomVulkanRenderer::cameraHistoryStatus() const {
+quantiloom::CameraHistoryStatus ViewportRenderer::cameraHistoryStatus() const {
     return m_renderContext ? m_renderContext->GetCameraHistoryStatus()
                            : quantiloom::CameraHistoryStatus{};
 }
 
 quantiloom::Result<quantiloom::camera::CameraOutput, quantiloom::String>
-QuantiloomVulkanRenderer::captureCameraProducts(double timeSeconds) {
+ViewportRenderer::captureCameraProducts(double timeSeconds) {
     if (!m_renderContext) {
         return quantiloom::Result<quantiloom::camera::CameraOutput,
                                   quantiloom::String>::Err("no renderer");
@@ -2117,7 +2117,7 @@ QuantiloomVulkanRenderer::captureCameraProducts(double timeSeconds) {
     return m_renderContext->CaptureCameraProducts();
 }
 
-void QuantiloomVulkanRenderer::setDisplayEnhancement(
+void ViewportRenderer::setDisplayEnhancement(
     const quantiloom::DisplayEnhancementParams& params) {
     m_displayParams = params;
 

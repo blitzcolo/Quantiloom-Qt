@@ -399,7 +399,7 @@ void ConfigManager::extractSceneConfig(const quantiloom::Config& config, SceneCo
     // Naming a preset is the opt-in; the model pack is a deployment artifact
     // that ships next to the executable, so a scene does not have to name a
     // path to it. An explicit atmosphere.model_pack still wins, and
-    // QuantiloomVulkanRenderer::applyAtmosphereToContext resolves an empty one.
+    // ViewportRenderer::applyAtmosphereToContext resolves an empty one.
     out.atmosphere.enabled = out.atmosphericEnabled;
 
     out.atmosphere.atmosModel = config.GetFloat("atmosphere.atmos_model",

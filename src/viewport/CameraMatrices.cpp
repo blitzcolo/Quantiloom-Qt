@@ -4,7 +4,7 @@
 
 #include <cmath>
 
-namespace vkview {
+namespace viewport {
 
 CameraMatrices CameraMatrices::fromCamera(const quantiloom::Camera& camera,
                                           float widthPx, float heightPx) {
@@ -90,4 +90,4 @@ CameraRay CameraMatrices::rayThroughPixel(float px, float py) const {
     return ray;
 }
 
-}  // namespace vkview
+}  // namespace viewport

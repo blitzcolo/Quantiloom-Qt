@@ -21,7 +21,7 @@
 #pragma once
 
 #include "TransformGizmo.hpp"
-#include "../vulkan/CameraMatrices.hpp"
+#include "../viewport/CameraMatrices.hpp"
 
 #include <glm/glm.hpp>
 
@@ -76,7 +76,7 @@ void buildGizmoGeometry(TransformGizmo::Mode mode, const GizmoFrame& frame,
 
 /// Ray-test the same handle set. Returns the grabbed handle, preferring
 /// planes over axes over rings, nearest hit within a class.
-GizmoHandle hitTestGizmo(const vkview::CameraRay& ray, const GizmoFrame& frame,
+GizmoHandle hitTestGizmo(const viewport::CameraRay& ray, const GizmoFrame& frame,
                          TransformGizmo::Mode mode);
 
 }  // namespace editing

@@ -5,7 +5,7 @@
 
 #include "Commands.hpp"
 #include "SelectionManager.hpp"
-#include "../vulkan/QuantiloomVulkanWindow.hpp"
+#include "../viewport/ViewportWindow.hpp"
 
 #include <renderer/LightingParams.hpp>
 #include <QCoreApplication>
@@ -16,7 +16,7 @@
 // TransformNodeCommand
 // ============================================================================
 
-TransformNodeCommand::TransformNodeCommand(QuantiloomVulkanWindow* window,
+TransformNodeCommand::TransformNodeCommand(ViewportWindow* window,
                                            int nodeIndex,
                                            const glm::mat4& oldTransform,
                                            const glm::mat4& newTransform,
@@ -62,7 +62,7 @@ bool TransformNodeCommand::mergeWith(const Command* other) {
 // MultiTransformCommand
 // ============================================================================
 
-MultiTransformCommand::MultiTransformCommand(QuantiloomVulkanWindow* window,
+MultiTransformCommand::MultiTransformCommand(ViewportWindow* window,
                                              const std::vector<NodeTransform>& transforms,
                                              const QString& description)
     : Command(description.isEmpty()
@@ -116,7 +116,7 @@ bool MultiTransformCommand::mergeWith(const Command* other) {
 // PasteNodesCommand
 // ============================================================================
 
-PasteNodesCommand::PasteNodesCommand(QuantiloomVulkanWindow* window,
+PasteNodesCommand::PasteNodesCommand(ViewportWindow* window,
                                      const std::vector<Spec>& specs,
                                      const QString& description)
     : Command(description.isEmpty()
@@ -164,7 +164,7 @@ void PasteNodesCommand::undo() {
 // RemoveNodesCommand
 // ============================================================================
 
-RemoveNodesCommand::RemoveNodesCommand(QuantiloomVulkanWindow* window,
+RemoveNodesCommand::RemoveNodesCommand(ViewportWindow* window,
                                        const QVector<int>& nodeIndices,
                                        const QString& description)
     : Command(description.isEmpty()
@@ -196,7 +196,7 @@ void RemoveNodesCommand::undo() {
 // ModifyMaterialCommand
 // ============================================================================
 
-ModifyMaterialCommand::ModifyMaterialCommand(QuantiloomVulkanWindow* window,
+ModifyMaterialCommand::ModifyMaterialCommand(ViewportWindow* window,
                                              int materialIndex,
                                              const quantiloom::Material& oldMaterial,
                                              const quantiloom::Material& newMaterial,

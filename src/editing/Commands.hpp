@@ -19,7 +19,7 @@
 #include <functional>
 
 // Forward declarations
-class QuantiloomVulkanWindow;
+class ViewportWindow;
 class SelectionManager;
 
 namespace quantiloom {
@@ -120,7 +120,7 @@ private:
  */
 class TransformNodeCommand : public Command {
 public:
-    TransformNodeCommand(QuantiloomVulkanWindow* window,
+    TransformNodeCommand(ViewportWindow* window,
                          int nodeIndex,
                          const glm::mat4& oldTransform,
                          const glm::mat4& newTransform,
@@ -137,7 +137,7 @@ public:
     void setMergeGesture(int gestureId) { m_gestureId = gestureId; }
 
 private:
-    QuantiloomVulkanWindow* m_window;
+    ViewportWindow* m_window;
     int m_nodeIndex;
     glm::mat4 m_oldTransform;
     glm::mat4 m_newTransform;
@@ -156,7 +156,7 @@ public:
         glm::mat4 newTransform;
     };
 
-    MultiTransformCommand(QuantiloomVulkanWindow* window,
+    MultiTransformCommand(ViewportWindow* window,
                           const std::vector<NodeTransform>& transforms,
                           const QString& description = QString());
 
@@ -169,7 +169,7 @@ public:
     void setMergeGesture(int gestureId) { m_gestureId = gestureId; }
 
 private:
-    QuantiloomVulkanWindow* m_window;
+    ViewportWindow* m_window;
     std::vector<NodeTransform> m_transforms;
     int m_gestureId = -1;
 };
@@ -192,7 +192,7 @@ public:
         glm::mat4 transform;  ///< world transform for the copy
     };
 
-    PasteNodesCommand(QuantiloomVulkanWindow* window,
+    PasteNodesCommand(ViewportWindow* window,
                       const std::vector<Spec>& specs,
                       const QString& description = QString());
 
@@ -204,7 +204,7 @@ public:
     [[nodiscard]] const QVector<int>& createdIndices() const { return m_created; }
 
 private:
-    QuantiloomVulkanWindow* m_window;
+    ViewportWindow* m_window;
     std::vector<Spec> m_specs;
     QVector<int> m_created;
 };
@@ -215,7 +215,7 @@ private:
  */
 class RemoveNodesCommand : public Command {
 public:
-    RemoveNodesCommand(QuantiloomVulkanWindow* window,
+    RemoveNodesCommand(ViewportWindow* window,
                        const QVector<int>& nodeIndices,
                        const QString& description = QString());
 
@@ -224,7 +224,7 @@ public:
     [[nodiscard]] int id() const override { return static_cast<int>(CommandId::RemoveNodes); }
 
 private:
-    QuantiloomVulkanWindow* m_window;
+    ViewportWindow* m_window;
     QVector<int> m_indices;
 };
 
@@ -234,7 +234,7 @@ private:
  */
 class ModifyMaterialCommand : public Command {
 public:
-    ModifyMaterialCommand(QuantiloomVulkanWindow* window,
+    ModifyMaterialCommand(ViewportWindow* window,
                           int materialIndex,
                           const quantiloom::Material& oldMaterial,
                           const quantiloom::Material& newMaterial,
@@ -246,7 +246,7 @@ public:
     [[nodiscard]] int id() const override { return static_cast<int>(CommandId::ModifyMaterial); }
 
 private:
-    QuantiloomVulkanWindow* m_window;
+    ViewportWindow* m_window;
     int m_materialIndex;
     quantiloom::Material m_oldMaterial;
     quantiloom::Material m_newMaterial;
