@@ -10,9 +10,9 @@ The pieces, and which one to touch:
 
 | File | Owns |
 |---|---|
-| `GpuDevice` | GPU suitability and device creation. QRhi cannot do this: it has no way to enable the ray tracing feature structs |
+| `GpuDevice` | Device creation, by calling the SDK's `vk::CreateDevice`/`vk::DestroyDevice` with QRhi's preferred-for-import extensions as optional, `VK_KHR_swapchain` as required and the present predicate. QRhi cannot do this itself: it has no way to enable the ray tracing feature structs |
 | `ViewportRenderer` | The QRhi, the swapchain, the frame textures, the frame loop, the context jobs, the camera and every setter |
-| `SdkFrameBridge` | **Every Vulkan-typed SDK call** (`Create`/`InitParams`, the three frame calls, `BlitDepthTo`) and every `VkImageLayout`. Nowhere else in src/ has either |
+| `SdkFrameBridge` | **Every SDK call that takes a Vulkan handle** (`Create` with `vk::Handles`, the three frame calls and `BlitDepthTo` with `vk::Commands`/`vk::Target`) and every `VkImageLayout`. Nowhere else in src/ has either |
 | `OverlayRenderer` | The grid, the gizmo and the selection box as QRhi pipelines, the composite pass, the composited-capture readback |
 | `CameraMatrices` | The SDK's camera as matrices and pixel rays. The projection is OpenGL's convention; a backend's comes from `clipSpaceCorrMatrix()` in front of it |
 
@@ -133,11 +133,15 @@ QRhi's next barrier on it would have a stale source scope. The rule:
 > QRhi's next use requests. That use must come next, so QRhi's barrier is a
 > same-layout one rather than a transition ordered from a scope it never saw.
 
-For the frame texture that next use is the overlay pass, which is why the pass
-runs even when there is no grid and no gizmo. For the depth texture the SDK's
-own barriers already do this, so the bridge adds none. The two barriers live in
-`SdkFrameBridge.cpp`, as separate functions, because the backend-neutral SDK
-API takes the final layout over and deletes them.
+The SDK now carries this contract: the target descriptor (`vk::Target`) takes
+the layout QRhi last recorded and the `finalLayout` QRhi's next use requests,
+and the SDK's first barrier waits on everything submitted before while its last
+has the `ALL_COMMANDS` / `MEMORY_READ | MEMORY_WRITE` destination. **The bridge
+owns no barrier.** It passes `COLOR_ATTACHMENT_OPTIMAL` for the frame texture
+(the overlay pass is the next use, which is why the pass runs even when there is
+no grid and no gizmo) and `SHADER_READ_ONLY_OPTIMAL` for the depth AOV, and
+`publishLayouts` sets each texture's layout to the same value. Changing a final
+layout means changing it in both places, and the next QRhi use with it.
 
 ## Swapchain rebuilds are deferred
 

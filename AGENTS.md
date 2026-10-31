@@ -88,13 +88,13 @@ exported symbols). `src/libQuantiloom/AGENTS.md` over there has the rule.
 | `src/ui/` | Shell infrastructure: `PanelBase`, the debug/spectral `ModeCatalog`, workspaces, the viewport frame, shared styling |
 | `src/ui/theme/` | The ten themes as data (`Theme`) and the runtime switcher (`ThemeManager`). A theme is a style key, a palette, a few accent colours and an optional style sheet — adding one is a function returning a `Theme`, not code |
 | `src/dialogs/` | Preferences, the generated help pages, the hyperspectral cube export (three formats: ENVI, spectral EXR, TIFF), the sequence render dialog, whose Timeline mode drives one `OfflineRenderer` across the clock, and the fusion dataset export (`FusionExportDialog` — a rig of cameras exported through the SDK's `dataset::FusionExportJob`). The three offline dialogs share `OfflineExport` — renderer init, and camera-product writing under the CLI's file names |
-| `src/viewport/` | Qt↔SDK render bridge and orbit camera; the only `ExternalRenderContext` caller. Presents through an application-owned `QRhi` on a Vulkan device Studio creates and imports; its shaders are baked by `qsb`, so no `glslangValidator` is needed. Pinned to Qt 6.10.x because QRhi is a limited-compatibility API |
+| `src/viewport/` | Qt↔SDK render bridge and orbit camera; the only `ExternalRenderContext` caller. Presents through an application-owned `QRhi` on a Vulkan device the SDK creates (`vk::CreateDevice`) and Studio imports; its shaders are baked by `qsb`, so no `glslangValidator` is needed. Pinned to Qt 6.10.x because QRhi is a limited-compatibility API |
 | `src/config/` | TOML load/save (`ConfigManager`) |
 | `src/editing/` | Selection, undo stack, transform gizmo |
 | `src/i18n/` | Qt Linguist `.ts` (en + zh_CN) and the runtime `LanguageManager` |
 | `src/McpTools.cpp` | The 30 `ql_*` tools the embedded MCP server answers on `127.0.0.1:8600`; edits made through them enter the undo stack. `ql_set_thermal` takes every field of a solve, and `ql_get_thermal_status` reports them all |
 | `src/ThermalNames.hpp` | The four converters (to and from names) between two `[thermal]` vocabularies and the SDK enums: the convection model and the parameter-sensitivity list. A TOML key and a tool argument are the same string, so both boundaries read this one header |
-| `src/AssetPaths.cpp` | Where Studio looks for what it ships — beside the executable first, then the working directory — and for the NN atmosphere pack, in the CLI's order: env, working directory, executable |
+| `src/AssetPaths.cpp` | Where Studio looks for what it ships — beside the executable first, then the working directory — and for the NN atmosphere pack, in the CLI's order: env, working directory, `quantiloom::GetResourceRoot()` (`share/quantiloom` beside the executable, pinned by `main()`) |
 | `assets/configs/` | Hand-written TOML scene configs; also the core CLI's input format |
 | `assets/spectral/` | Baked copies from Quantiloom-dev. CMake warns at configure time when they drift; `scripts/sync_spectral_assets.sh --sync` re-copies and re-pins |
 

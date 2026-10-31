@@ -21,6 +21,7 @@
 #include <rhi/qrhi.h>
 
 #include <core/Log.hpp>  // libQuantiloom logging
+#include <core/Resources.hpp>
 
 int main(int argc, char* argv[]) {
     // Set log message format with timestamp [HH:mm:ss.zzz]
@@ -78,6 +79,13 @@ int main(int argc, char* argv[]) {
     if (sdkCheck.stale) {
         QL_LOG_WARN("SDK stale: {}", sdkCheck.message.toStdString());
     }
+
+    // The SDK's shaders and assets travel in share/quantiloom beside the
+    // executable (the QuantiloomSdkResources target). Pinned, so no other copy
+    // is tried; the SDK checks the shader-set stamp and refuses a stale one.
+    quantiloom::SetResourceRoot(
+        (QCoreApplication::applicationDirPath() + QStringLiteral("/share/quantiloom"))
+            .toStdString());
 
     // Create Vulkan instance for Qt
     QVulkanInstance vulkanInstance;

@@ -5,17 +5,20 @@
  * Every Vulkan-typed ExternalRenderContext call the viewport makes -- Create
  * with its InitParams, RenderFrame, PresentAccumulated, ReprocessAccumulated
  * and BlitDepthTo -- is made here, and this is the only file that handles a
- * VkImageLayout. The backend-neutral SDK API replaces exactly these calls, and
- * deletes the two barriers below.
+ * VkImageLayout. The calls are the SDK's backend-neutral ones (vk::Commands,
+ * vk::Target, vk::Handles from interop/VulkanInterop.hpp); the bridge records
+ * no barrier of its own because the SDK's first and last barriers carry the
+ * contract below.
  *
  * The SDK writes into the frame texture, a QRhi texture the viewport owns,
  * never into a swapchain image (QRhi's swapchain images have no
  * TRANSFER_DST). It records between QRhiCommandBuffer::beginExternal() and
  * endExternal(), outside any pass, on the frame's primary command buffer. QRhi
  * tracks each texture's {layout, access, stage} and setNativeLayout() updates
- * only the layout, so the last external barrier on a texture always has an
- * ALL_COMMANDS / MEMORY_READ|WRITE destination and leaves exactly the layout
- * QRhi's next use requests -- see src/viewport/AGENTS.md.
+ * only the layout, so the SDK's last barrier on a texture has an
+ * ALL_COMMANDS / MEMORY_READ|WRITE destination and leaves the finalLayout the
+ * bridge passes, which is exactly the layout QRhi's next use requests -- see
+ * src/viewport/AGENTS.md.
  */
 
 #pragma once

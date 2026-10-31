@@ -11,9 +11,11 @@
  * imported device, and ExternalRenderContext requires the handles to outlive
  * it.
  *
- * The request and result have the shape of the SDK helper that replaces this
- * in the backend-neutral API (quantiloom::vk::CreateDevice), so that change is
- * a call swap. Handles are spelled as their VkXxx_T pointers so that this
+ * The choice of GPU and the creation of the device are the SDK's
+ * (quantiloom::vk::CreateDevice), so the CLI and Studio read one requirement
+ * list; this file adds what presenting needs -- QRhi's preferred extensions,
+ * VK_KHR_swapchain and the present predicate -- and converts to and from Qt
+ * types. Handles are spelled as their VkXxx_T pointers so that this
  * header does not pull <vulkan/vulkan.h> into everything that includes it.
  */
 
@@ -71,11 +73,9 @@ struct GpuDeviceResult {
     QString error;
 };
 
-/// Pick the first discrete GPU that has everything the SDK needs (else the
-/// first GPU that does) and create a device with one queue on a
-/// graphics+compute family that can present. Suitability is queried, not
-/// guessed from the device type: extensions, then the ray tracing feature
-/// structs, then the core 1.2 features the SDK's shaders use.
+/// Ask the SDK for a device: the first discrete GPU that has everything it
+/// needs (else the first that does), with one queue on a graphics+compute
+/// family that can present. On failure the error says which GPU lacked what.
 [[nodiscard]] GpuDeviceResult createGpuDevice(const GpuDeviceRequest& request);
 
 void destroyGpuDevice(GpuDevice& device, VkInstance_T* instance,

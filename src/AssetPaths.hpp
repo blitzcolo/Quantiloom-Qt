@@ -21,8 +21,8 @@ namespace assetpaths {
 [[nodiscard]] QString bundled(const QString& relativePath);
 
 /// The NN atmosphere model pack: $QUANTILOOM_ATMOS_MODELS, then
-/// <cwd>/assets/atmos_models, then <exe dir>/assets/atmos_models -- the core
-/// CLI's order, which is why it is not bundled()'s. Empty if none exists.
+/// <cwd>/assets/atmos_models, then the SDK's resource root
+/// (quantiloom::GetResourceRoot()/assets/atmos_models) -- the core CLI's order, which is why it is not bundled()'s. Empty if none exists.
 [[nodiscard]] QString atmosphereModelPackDir();
 
 } // namespace assetpaths

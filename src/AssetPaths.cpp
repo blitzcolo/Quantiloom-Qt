@@ -9,6 +9,8 @@
 #include <QDir>
 #include <QFileInfo>
 
+#include <core/Resources.hpp>
+
 namespace assetpaths {
 
 QString bundled(const QString& relativePath) {
@@ -25,10 +27,13 @@ QString bundled(const QString& relativePath) {
 }
 
 QString atmosphereModelPackDir() {
+    // Where the SDK keeps it. The root is empty when the SDK fell back to the
+    // working directory, and then there is no third candidate.
+    const QString sdkRoot = QString::fromStdString(quantiloom::GetResourceRoot());
     const QStringList candidates{
         qEnvironmentVariable("QUANTILOOM_ATMOS_MODELS"),
         QDir::currentPath() + QStringLiteral("/assets/atmos_models"),
-        QCoreApplication::applicationDirPath() + QStringLiteral("/assets/atmos_models"),
+        sdkRoot.isEmpty() ? QString() : sdkRoot + QStringLiteral("/assets/atmos_models"),
     };
     for (const QString& dir : candidates) {
         if (!dir.isEmpty() && QDir(dir).exists()) {

@@ -106,10 +106,12 @@ list(APPEND CMAKE_PREFIX_PATH "${QUANTILOOM_SDK_DIR}")
 
 message(STATUS "Using Quantiloom SDK: ${QUANTILOOM_SDK_DIR}")
 
-# Find prebuilt Quantiloom (also finds Vulkan and glm as dependencies)
+# Find prebuilt Quantiloom. VulkanInterop is the component that carries the
+# Vulkan-typed builders and device helpers (and finds Vulkan for its headers);
+# the base package is backend-neutral.
 # The SDK and Studio ship together: SdkGuard checks the exact binary at start-up,
 # and the minimum here is the release this tree was last built and reviewed against.
-find_package(Quantiloom 0.8.3 REQUIRED)
+find_package(Quantiloom 0.8.3 REQUIRED COMPONENTS VulkanInterop)
 message(STATUS "Found Quantiloom: ${Quantiloom_VERSION}")
 
 # Use namespaced target from find_package
@@ -418,7 +420,7 @@ target_link_libraries(QuantiloomQt PRIVATE
     Qt6::Gui
     Qt6::GuiPrivate
     Qt6::Charts
-    Vulkan::Vulkan
+    Quantiloom::VulkanInterop
     ${QUANTILOOM_LIBRARIES}
     Quantiloom::libSpectraForge
 )
@@ -533,28 +535,6 @@ if(WIN32)
         COMMENT "Copying libSpectraForge DLL from SDK..."
     )
 
-    # Copy shader files from SDK (required at runtime)
-    file(GLOB QUANTILOOM_SHADERS "${QUANTILOOM_SDK_DIR}/bin/*.spv")
-    if(QUANTILOOM_SHADERS)
-        add_custom_command(TARGET QuantiloomQt POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                ${QUANTILOOM_SHADERS}
-                $<TARGET_FILE_DIR:QuantiloomQt>
-            COMMENT "Copying shader files from SDK..."
-        )
-    endif()
-
-    # Copy NN atmosphere model pack from SDK (required at runtime when the
-    # atmosphere is enabled; copy_directory_if_different skips unchanged files)
-    if(EXISTS "${QUANTILOOM_SDK_DIR}/assets/atmos_models")
-        add_custom_command(TARGET QuantiloomQt POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
-                "${QUANTILOOM_SDK_DIR}/assets/atmos_models"
-                "$<TARGET_FILE_DIR:QuantiloomQt>/assets/atmos_models"
-            COMMENT "Copying atmosphere model pack from SDK..."
-        )
-    endif()
-
     # ========================================================================
     # Copy OpenUSD Runtime Dependencies from SDK
     # ========================================================================
@@ -656,6 +636,19 @@ add_custom_target(QuantiloomQtAssets ALL
 install(DIRECTORY assets/spectral assets/luts DESTINATION assets)
 
 add_dependencies(QuantiloomQt QuantiloomQtAssets)
+
+# The SDK's runtime resources (SPIR-V shaders with their SHADERSET stamp, the
+# NN atmosphere pack, the BRDF LUT) live under share/quantiloom in the SDK.
+# main() pins quantiloom::SetResourceRoot() to the copy beside the executable.
+# A target rather than POST_BUILD, so a refreshed SDK is picked up by a build
+# that does not relink; copy_directory_if_different keeps the no-op cheap.
+add_custom_target(QuantiloomSdkResources ALL
+    COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
+        "${QUANTILOOM_SDK_DIR}/share/quantiloom"
+        "$<TARGET_FILE_DIR:QuantiloomQt>/share/quantiloom"
+    COMMENT "Copying the SDK's runtime resources..."
+)
+add_dependencies(QuantiloomQt QuantiloomSdkResources)
 
 # ============================================================================
 # Summary
