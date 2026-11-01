@@ -71,8 +71,12 @@ message(STATUS "Qt6 path: ${Qt6_DIR}")
 # ============================================================================
 # Find Vulkan
 # ============================================================================
-find_package(Vulkan REQUIRED)
-message(STATUS "Vulkan SDK: ${Vulkan_VERSION}")
+# The viewport presents through QRhi; on Apple the backend is Metal and there
+# is no Vulkan SDK to find, so require it everywhere except Apple.
+if(NOT APPLE)
+    find_package(Vulkan REQUIRED)
+    message(STATUS "Vulkan SDK: ${Vulkan_VERSION}")
+endif()
 
 # ============================================================================
 # libQuantiloom SDK Integration
@@ -673,6 +677,10 @@ message(STATUS "========================================")
 message(STATUS "  Version:      ${PROJECT_VERSION}")
 message(STATUS "  Build Type:   ${CMAKE_BUILD_TYPE}")
 message(STATUS "  Qt6:          ${Qt6_VERSION}")
-message(STATUS "  Vulkan:       ${Vulkan_VERSION}")
+if(Vulkan_FOUND)
+    message(STATUS "  Vulkan:       ${Vulkan_VERSION}")
+else()
+    message(STATUS "  Vulkan:       not required (Apple)")
+endif()
 message(STATUS "  Quantiloom:   SDK (${QUANTILOOM_SDK_DIR})")
 message(STATUS "========================================")
