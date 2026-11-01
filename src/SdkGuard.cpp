@@ -30,6 +30,22 @@ QString sha256Of(const QString& path) {
     return QString::fromLatin1(hash.result().toHex());
 }
 
+/// The rebuild hint shown after a mismatch or a stale SDK, chosen per
+/// platform. Kept as a %N argument rather than baked into the translatable
+/// string: the command is a platform fact, not part of the sentence.
+QString rebuildCommand() {
+#if defined(Q_OS_WIN)
+    return QStringLiteral("cd /mnt/h/Quantiloom-Qt && ./build_wsl.sh");
+#elif defined(Q_OS_MACOS)
+    // To be added with the macOS packaging work; the name follows the
+    // repo's build_wsl.sh convention.
+    return QStringLiteral("./build_macos.sh (from the repository root)");
+#else
+    // This repository packages no build script for other platforms yet.
+    return QStringLiteral("./build.sh (from the repository root)");
+#endif
+}
+
 } // namespace
 
 SdkCheckResult checkSdkBinaries() {
@@ -46,12 +62,24 @@ SdkCheckResult checkSdkBinaries() {
     }
 
     // 1. The copy that will actually be loaded sits next to the executable.
-    const QString loadedPath =
+    QString loadedPath =
         QDir(QCoreApplication::applicationDirPath()).filePath(libraryName);
     if (!QFileInfo::exists(loadedPath)) {
+#ifdef Q_OS_MACOS
+        // Inside a .app bundle the SDK library lives in Contents/Frameworks,
+        // one level up from MacOS/ where the executable sits.
+        loadedPath = QDir(QCoreApplication::applicationDirPath())
+                         .filePath(QStringLiteral("../Frameworks/%1").arg(libraryName));
+        if (!QFileInfo::exists(loadedPath)) {
+            // Not a layout this check understands (the library may come from
+            // the system loader path). Stay quiet rather than guess.
+            return result;
+        }
+#else
         // Not a layout this check understands (the library may come from the
         // system loader path). Stay quiet rather than guess.
         return result;
+#endif
     }
 
     const QString loadedHash = sha256Of(loadedPath);
@@ -59,6 +87,11 @@ SdkCheckResult checkSdkBinaries() {
         return result;
     }
 
+    // Code signing rewrites the library's bytes, so on macOS the hash
+    // recorded at configure time must be taken AFTER signing (packaging
+    // work on the Mac); a bundle signed after its stamp was recorded trips
+    // this guard. The stamp comes from the "SDK freshness guard" section
+    // in CMakeLists.txt.
     if (loadedHash != builtAgainst) {
         result.mismatch = true;
         result.message =
@@ -70,8 +103,9 @@ SdkCheckResult checkSdkBinaries() {
                 "The SDK's public types are source-compatible but not binary-"
                 "compatible across updates, so continuing would be undefined "
                 "behaviour with no visible error. Rebuild:\n\n"
-                "    cd /mnt/h/Quantiloom-Qt && ./build_wsl.sh")
-                .arg(libraryName, loadedHash.left(16), builtAgainst.left(16));
+                "    %4")
+                .arg(libraryName, loadedHash.left(16), builtAgainst.left(16),
+                     rebuildCommand());
         return result;
     }
 
@@ -88,8 +122,8 @@ SdkCheckResult checkSdkBinaries() {
                     "executable was built. This run uses the older library and "
                     "will not reflect the current core.\n\n"
                     "Rebuild with:\n"
-                    "    cd /mnt/h/Quantiloom-Qt && ./build_wsl.sh")
-                    .arg(QString::fromLatin1(kSdkDir));
+                    "    %2")
+                    .arg(QString::fromLatin1(kSdkDir), rebuildCommand());
         }
     }
 

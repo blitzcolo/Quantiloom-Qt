@@ -3754,7 +3754,7 @@ Built against: %3
 The SDK&apos;s public types are source-compatible but not binary-compatible across updates, so continuing would be undefined behaviour with no visible error. Rebuild:
 
     cd /mnt/h/Quantiloom-Qt &amp;&amp; ./build_wsl.sh</source>
-        <translation>可执行文件旁的 %1 并不是本次构建所链接的那个库。
+        <translation type="vanished">可执行文件旁的 %1 并不是本次构建所链接的那个库。
 
 已加载：      %2
 构建时使用：  %3
@@ -3768,10 +3768,38 @@ SDK 的公开类型在版本之间保持源码兼容，但并不保持二进制�
 
 Rebuild with:
     cd /mnt/h/Quantiloom-Qt &amp;&amp; ./build_wsl.sh</source>
-        <translation>位于 %1 的 Quantiloom SDK 在本可执行文件构建之后被重新安装过。本次运行使用的是较旧的库，不会反映当前的核心实现。
+        <translation type="vanished">位于 %1 的 Quantiloom SDK 在本可执行文件构建之后被重新安装过。本次运行使用的是较旧的库，不会反映当前的核心实现。
 
 请重新构建：
     cd /mnt/h/Quantiloom-Qt &amp;&amp; ./build_wsl.sh</translation>
+    </message>
+    <message>
+        <source>%1 next to the executable is not the library this build was linked against.
+
+Loaded:       %2
+Built against: %3
+
+The SDK&apos;s public types are source-compatible but not binary-compatible across updates, so continuing would be undefined behaviour with no visible error. Rebuild:
+
+    %4</source>
+        <translation>可执行文件旁的 %1 并不是本次构建所链接的那个库。
+
+已加载：      %2
+构建时使用：  %3
+
+SDK 的公开类型在版本之间保持源码兼容，但并不保持二进制兼容，因此继续运行属于没有可见报错的未定义行为。请重新构建：
+
+    %4</translation>
+    </message>
+    <message>
+        <source>The Quantiloom SDK at %1 has been reinstalled since this executable was built. This run uses the older library and will not reflect the current core.
+
+Rebuild with:
+    %2</source>
+        <translation>位于 %1 的 Quantiloom SDK 在本可执行文件构建之后被重新安装过。本次运行使用的是较旧的库，不会反映当前的核心实现。
+
+请重新构建：
+    %2</translation>
     </message>
 </context>
 <context>
