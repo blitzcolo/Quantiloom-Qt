@@ -4993,6 +4993,10 @@ Coverage — %3</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>macOS</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Classic</source>
         <translation type="unfinished"></translation>
     </message>

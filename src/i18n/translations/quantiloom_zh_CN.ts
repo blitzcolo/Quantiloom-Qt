@@ -5289,6 +5289,10 @@ Coverage — %3</source>
         <translation>Blender 深色</translation>
     </message>
     <message>
+        <source>macOS</source>
+        <translation>macOS 原生</translation>
+    </message>
+    <message>
         <source>Classic</source>
         <translation>经典</translation>
     </message>

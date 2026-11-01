@@ -23,6 +23,9 @@ const QString ThemeManager::kHighContrast   = QStringLiteral("high-contrast");
 const QString ThemeManager::kSolarizedLight = QStringLiteral("solarized-light");
 const QString ThemeManager::kPhosphor       = QStringLiteral("phosphor");
 const QString ThemeManager::kPrintFriendly  = QStringLiteral("print-friendly");
+#ifdef Q_OS_MACOS
+const QString ThemeManager::kMacOS          = QStringLiteral("macos");
+#endif
 
 namespace {
 
@@ -999,6 +1002,57 @@ QStatusBar { border-top: 1px solid #000000; }
     return t;
 }
 
+#ifdef Q_OS_MACOS
+// ---------------------------------------------------------------------------
+// macOS
+// ---------------------------------------------------------------------------
+// The one theme here that is the platform rather than a picture of one: Qt's
+// own macOS style, which draws its controls through AppKit, on the palette
+// AppKit gives Qt. Unlike every theme above it, it names no palette colour.
+//
+// The palette is left default-constructed, which is a palette with no role set
+// (an empty resolve mask). QApplication::setPalette() resolves such a palette
+// entirely against the platform theme, polished by the style, and leaves
+// Qt::AA_SetPalette off, so the application keeps following the system when
+// the user changes the accent or highlight colour while it runs. Any colour
+// named here would be one fighting the native style -- deriveDisabledGroup()
+// included, since AppKit supplies the disabled group as well.
+//
+// Light only. Qt::ColorScheme::Light asks AppKit for the Aqua appearance, so
+// the theme looks the same whatever the system is set to, as every other theme
+// does; a Mac in dark mode still starts in Blender Dark (defaultThemeId()). A
+// theme that followed the system would need accents that change with it, and
+// apply() leaves the scheme alone for Unknown, so a Dark pinned by the theme
+// before it would stay pinned.
+//
+// No style sheet: touching a border property in QSS opts a widget out of the
+// native drawing, and the native drawing is the whole of this theme. If the
+// style plugin was not deployed, apply() falls back to Fusion as it does for
+// any missing key -- still on the platform's palette.
+//
+// Accents are Apple's system colours for the light appearance. The accent chip
+// takes the default system blue, not the user's own accent: a Theme is plain
+// data built before apply() installs the platform palette, so there is no
+// resolved accent to read when it is made. No caption colours either -- the
+// drawn title bar exists only on Windows (WindowChrome::isSupported()), and a
+// Mac keeps its own.
+theming::Theme macOS() {
+    theming::Theme t;
+    t.id = ThemeManager::kMacOS;
+    t.styleKey = QStringLiteral("macos");
+    t.colorScheme = Qt::ColorScheme::Light;
+
+    t.accents.accentChip  = {QColor(0x00, 0x7a, 0xff), QColor(0xff, 0xff, 0xff)};  // systemBlue
+    t.accents.neutralChip = {QColor(0xe5, 0xe5, 0xea), QColor(0x3c, 0x3c, 0x43)};  // systemGray5
+    t.accents.warningChip = {QColor(0xff, 0xe5, 0xbf), QColor(0x7a, 0x45, 0x00)};  // systemOrange tint
+    t.accents.noticeBackground = QColor(0xff, 0xf9, 0xe0);  // systemYellow tint
+    t.accents.noticeBorder     = QColor(0xe6, 0xb8, 0x00);
+    t.accents.noticeText       = QColor(0x6b, 0x4d, 0x00);
+    t.accents.errorText        = QColor(0xd7, 0x00, 0x15);  // systemRed, accessible variant
+    return t;
+}
+#endif  // Q_OS_MACOS
+
 }  // namespace
 
 ThemeManager::ThemeManager() = default;
@@ -1012,8 +1066,13 @@ QVector<theming::Theme> ThemeManager::availableThemes() {
     // Menu order: the three that can be picked automatically first, then the
     // period pieces, then the working themes. Print Friendly goes last of the
     // working themes -- it is the one picked for an errand rather than to work
-    // in, so it should not sit between two that are.
-    return {blenderDark(), classic(), windows11(),
+    // in, so it should not sit between two that are. On macOS the native theme
+    // joins the first group, being the light default there.
+    return {blenderDark(),
+#ifdef Q_OS_MACOS
+            macOS(),
+#endif
+            classic(), windows11(),
             windowsXp(), windows7(),
             neutralGrey(), highContrast(), solarizedLight(), phosphor(),
             printFriendly()};
@@ -1024,6 +1083,9 @@ QString ThemeManager::displayName(const QString& id) {
     // literals at the call site, and a forwarded const char* produces no .ts
     // entry while looking perfectly translated. See src/i18n/CLAUDE.md.
     if (id == kBlenderDark)    return tr("Blender Dark");
+#ifdef Q_OS_MACOS
+    if (id == kMacOS)          return tr("macOS");
+#endif
     if (id == kClassic)        return tr("Classic");
     if (id == kWindows11)      return tr("Windows 11");
     if (id == kWindowsXp)      return tr("Windows XP");
@@ -1052,7 +1114,13 @@ QString ThemeManager::defaultThemeId() {
     if (QGuiApplication::styleHints()->colorScheme() == Qt::ColorScheme::Dark) {
         return kBlenderDark;
     }
+#ifdef Q_OS_MACOS
+    // The native theme rather than the hand-drawn Windows 11 the rule below
+    // gives every other light machine. Dark stays Blender Dark: see macOS().
+    return kMacOS;
+#else
     return kWindows11;
+#endif
 }
 
 void ThemeManager::applyStoredPreference() {
