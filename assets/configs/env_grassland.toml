@@ -7,12 +7,12 @@
 # textures merged with SU7 (5.0 m), CesiumMan (1.76 m) and the glass/chrome
 # look-dev sphere pair, all at real-world scale (1 unit = 1 m).
 #
-# Spectral: the ground and building materials are bound to measured USGS
-# splib07a curves (VIS/NIR/SWIR coverage 1.00 on every one); metals and glass
-# carry measured n(lambda), k(lambda) instead. Several are bound to a mixture
-# of curves rather than one, which is what keeps their texture in the spectral
-# modes. Verify a candidate curve with
-#     python3 scripts/spectral_preview.py usgs "<ref>"
+# Spectral: the ground and building materials are bound to measured curves
+# from the merged library (NIR/SWIR coverage 1.00 on every one, VIS 0.84 at
+# worst); metals and glass carry measured n(lambda), k(lambda) instead.
+# Several are bound to a mixture of curves rather than one, which is what
+# keeps their texture in the spectral modes. Verify a candidate curve with
+#     python3 scripts/spectral_preview.py merged "<ref>"
 # ============================================================================
 
 [renderer]
@@ -54,8 +54,8 @@ mode = "rgb"
 band = "VIS"
 # NMF basis + material index. BOTH are required for any quantiloom_* binding;
 # naming only one silently disables all of them.
-basis_file = "../spectral/quantiloom_basis_v3_usgs.qlbin"
-materials_json = "../spectral/quantiloom_materials_usgs.json"
+basis_file = "../spectral/quantiloom_basis_v3_merged.qlbin"
+materials_json = "../spectral/quantiloom_materials_merged.json"
 
 [scene]
 gltf = "../models/env/grassland.glb"
@@ -97,9 +97,9 @@ t_ground_K = 293.15
 albedo = [0.8, 0.8, 0.8]
 
 # ============================================================================
-# Measured spectral reflectance (USGS splib07a, reconstructed from the NMF basis)
+# Measured spectral reflectance (merged library, reconstructed from the NMF basis)
 # ============================================================================
-# Each ref is the exact key in quantiloom_materials_usgs.json. A ref that does
+# Each ref is the exact key in quantiloom_materials_merged.json. A ref that does
 # not match falls back to RGB upsampling with only a warning, so keep the
 # strings verbatim -- including the punctuation.
 #
@@ -113,12 +113,12 @@ albedo = [0.8, 0.8, 0.8]
 
 [[materials]]
 name = "GrassGround"
-spectral_material_type = "quantiloom_usgs"
-# Green cordgrass and dry golden grass. The ground texture decides how much of
+spectral_material_type = "quantiloom_merged"
+# Green grass and dry grass. The ground texture decides how much of
 # each is where, so the meadow is patchy in the measurement, not just in RGB.
 spectral_material_refs = [
-    "Spar.patens CRMS322v06 grn.a",   # saltmeadow cordgrass, green sample
-    "Grass_Golden_Dry GDS480",        # sun-dried grass
+    "Grass (grass)",         # green grass
+    "Dry grass (drygrass)",  # sun-dried grass
 ]
 
 # Grass over damp soil. The wetness factor is what makes a lawn the
@@ -138,8 +138,8 @@ interior_bc = "adiabatic"
 
 [[materials]]
 name = "Rock"
-spectral_material_type = "quantiloom_usgs"
-spectral_material_ref = "Pyroxene_Basalt CU01-20A"
+spectral_material_type = "quantiloom_merged"
+spectral_material_ref = "Basalt (Basalt_7)"
 
 # Granite. More mass than anything else here and a good conductor with it.
 ir_emissivity = 0.9
@@ -153,8 +153,8 @@ interior_bc = "adiabatic"
 
 [[materials]]
 name = "HouseWall"
-spectral_material_type = "quantiloom_usgs"
-spectral_material_ref = "Titanium_dioxide GDS798 TiO2"   # the pigment in white wall paint
+spectral_material_type = "quantiloom_merged"
+spectral_material_ref = "White rubberized coating (0795UUURBR)"  # white coating on the wall
 
 # Rendered masonry, painted white so it takes little of the sun, and held
 # from behind by a room at 295 K. The fixed back face is what stops a
@@ -171,8 +171,8 @@ interior_temperature_k = 295
 
 [[materials]]
 name = "HouseRoof"
-spectral_material_type = "quantiloom_usgs"
-spectral_material_ref = "Brick GDS350 Dk Red Building"
+spectral_material_type = "quantiloom_merged"
+spectral_material_ref = "Asphalt roofing shingle (0597UUUASP)"
 
 # Dark tile, four centimetres of it, exposed to the wind and to the whole
 # sky: the hottest surface in the scene by day and the coldest by night,
@@ -189,8 +189,8 @@ interior_temperature_k = 298
 
 [[materials]]
 name = "HouseDoor"
-spectral_material_type = "quantiloom_usgs"
-spectral_material_ref = "Wood_Beam GDS363 Nw Pine 2X4"
+spectral_material_type = "quantiloom_merged"
+spectral_material_ref = "Pine Wood (0404UUUWOD)"
 
 # --- SU7 --------------------------------------------------------------------
 
@@ -207,8 +207,8 @@ interior_temperature_k = 295
 
 [[materials]]
 name = "Car_Car_body"
-spectral_material_type = "quantiloom_usgs"
-spectral_material_ref = "Titanium_dioxide GDS798 TiO2"   # white automotive paint pigment
+spectral_material_type = "quantiloom_merged"
+spectral_material_ref = "White rubberized coating (0795UUURBR)"  # white coating standing in for the paint
 
 # Painted aluminium panel, 3 mm of skin and structure -- a thousandth of
 # the ground's thermal mass, so it tracks the sun in minutes while the
@@ -228,8 +228,8 @@ interior_bc = "adiabatic"
 
 [[materials]]
 name = "Car_M_Wheel_ALL.002"
-spectral_material_type = "quantiloom_usgs"
-spectral_material_ref = "Carbon_Black GDS68"             # tyre carbon black
+spectral_material_type = "quantiloom_merged"
+spectral_material_ref = "Black unspecified rubber (0833UUURBR)"  # tyre rubber
 
 # Tyre rubber: nearly black to the sun and a poor conductor, so it runs
 # hotter than the bodywork above it.
@@ -244,8 +244,8 @@ interior_bc = "adiabatic"
 
 [[materials]]
 name = "Car_M_BODY_black.004"
-spectral_material_type = "quantiloom_usgs"
-spectral_material_ref = "Plastic_ABS GDS341 BlackPipe"
+spectral_material_type = "quantiloom_merged"
+spectral_material_ref = "Black gloss paint (0403UUUPNT)"
 
 # ============================================================================
 # Measured complex refractive index (refractiveindex.info)
