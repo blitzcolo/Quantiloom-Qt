@@ -1,0 +1,127 @@
+# Airport apron scene.
+#
+# The site glTF is the backdrop: runway, taxiway, apron, terminal, tower, jet bridges, ground
+# support equipment and the runway/approach lighting. The aircraft are separate models placed on
+# it by [[models]] -- the same airliner file appears twice, on two different stands, which is the
+# point of the multi-model loader.
+#
+# Site datum: origin at the centre of stand 2, runway centreline 260 m to +X and aligned with Y.
+# Stand 1 is at y = -90, stand 2 at y = 0, stand 3 at y = +90; a nose-in aircraft faces -X, so
+# rotation_euler_degrees = [0, -90, 0] about the up axis after the exporter's Y-up conversion.
+
+[renderer]
+resolution = [1920, 1080]
+spp = 128
+seed = 7
+output = "scene_airport.exr"
+enable_shadow_rays = true
+
+[spectral]
+mode = "vis_fused"
+lambda_min = 380
+lambda_max = 2500
+delta_lambda = 10
+basis_file = "../spectral/quantiloom_basis_v3_usgs.qlbin"
+materials_json = "../spectral/quantiloom_materials_usgs.json"
+band = "VIS"
+
+[scene]
+gltf = "../models/blender/sites/airportsite.gltf"
+world_units_to_meters = 1
+default_temperature_k = 295
+
+[[models]]
+file = "../models/blender/aircraft/airliner.gltf"
+name = "airliner_stand1"
+translation = [30, 0, -90]
+rotation_euler_degrees = [0, -90, 0]
+
+[[models]]
+file = "../models/blender/aircraft/airliner.gltf"
+name = "airliner_stand3"
+translation = [30, 0, 90]
+rotation_euler_degrees = [0, -90, 0]
+
+[[models]]
+file = "../models/blender/aircraft/helicopter.gltf"
+name = "helicopter"
+translation = [110, 0, -160]
+rotation_euler_degrees = [0, 20, 0]
+
+[[models]]
+file = "../models/blender/vehicles/van.gltf"
+name = "service_van"
+translation = [55, 0, 30]
+rotation_euler_degrees = [0, 180, 0]
+
+[[models]]
+file = "../models/blender/vehicles/semitrailer.gltf"
+name = "cargo_truck"
+translation = [95, 0, 60]
+rotation_euler_degrees = [0, 90, 0]
+
+[[models]]
+file = "../models/blender/organics/man.gltf"
+name = "ramp_agent"
+translation = [20, 0, -70]
+rotation_euler_degrees = [0, 140, 0]
+
+[camera]
+position = [180, 55, -240]
+look_at = [10, 12, -20]
+up = [0, 1, 0]
+fov_y = 42
+
+[lighting]
+sun_direction = [0.42, 0.78, 0.46]
+sun_radiance = [158, 142, 122]
+sky_radiance = [17, 19, 26]
+atmosphere_temperature_k = 295.15
+solar_lut = "assets/luts/astmg173.csv"
+solar_lut_columns = [4, 3]
+solar_lut_diffuse_is_global = true
+
+[atmosphere]
+preset = "turbulent_clear"
+vis_km = 25
+t_ground_K = 297
+rh = 45
+p_hPa = 1013
+
+[thermal]
+time_h = 14.0
+air_temperature_k = 295.15
+sky_temperature_k = 262.0
+
+[[materials]]
+name = "Runway_Asphalt"
+ir_emissivity = 0.94
+thermal_conductivity_w_mk = 0.75
+density_kg_m3 = 2300
+specific_heat_j_kgk = 920
+thickness_m = 0.25
+convection_h_w_m2k = 12
+shortwave_absorptivity = 0.90
+interior_bc = "adiabatic"
+
+[[materials]]
+name = "Concrete"
+ir_emissivity = 0.92
+thermal_conductivity_w_mk = 1.4
+density_kg_m3 = 2300
+specific_heat_j_kgk = 880
+thickness_m = 0.30
+convection_h_w_m2k = 12
+shortwave_absorptivity = 0.60
+
+[[materials]]
+name = "Airframe_White"
+ir_emissivity = 0.88
+thermal_conductivity_w_mk = 160
+density_kg_m3 = 2700
+specific_heat_j_kgk = 900
+thickness_m = 0.003
+convection_h_w_m2k = 18
+shortwave_absorptivity = 0.25
+interior_bc = "fixed"
+interior_temperature_k = 295.15

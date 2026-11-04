@@ -1,0 +1,114 @@
+# Container terminal scene.
+#
+# Site datum: origin on the quay edge under the middle ship-to-shore crane. Water is -Y, the yard
+# is +Y, sea level z = 0 and the quay deck z = 4. The container ship berths alongside with its
+# port side to the quay, so it sits at y about -25 and faces along X.
+
+[renderer]
+resolution = [1920, 1080]
+spp = 128
+seed = 11
+output = "scene_port.exr"
+enable_shadow_rays = true
+
+[spectral]
+mode = "vis_fused"
+lambda_min = 380
+lambda_max = 2500
+delta_lambda = 10
+basis_file = "../spectral/quantiloom_basis_v3_usgs.qlbin"
+materials_json = "../spectral/quantiloom_materials_usgs.json"
+band = "VIS"
+
+[scene]
+gltf = "../models/blender/sites/portsite.gltf"
+world_units_to_meters = 1
+default_temperature_k = 291
+
+[[models]]
+file = "../models/blender/vehicles/ship.gltf"
+name = "container_ship"
+translation = [0, 0, 26]
+rotation_euler_degrees = [0, 90, 0]
+
+[[models]]
+file = "../models/blender/vehicles/reefertruck.gltf"
+name = "reefer_truck"
+translation = [-40, 4, -120]
+rotation_euler_degrees = [0, 0, 0]
+
+[[models]]
+file = "../models/blender/vehicles/semitrailer.gltf"
+name = "yard_truck"
+translation = [60, 4, -95]
+rotation_euler_degrees = [0, 180, 0]
+
+[[models]]
+file = "../models/blender/vehicles/speedboat.gltf"
+name = "pilot_boat"
+translation = [180, 0, 60]
+rotation_euler_degrees = [0, 210, 0]
+
+[camera]
+position = [210, 70, 240]
+look_at = [0, 24, -30]
+up = [0, 1, 0]
+fov_y = 40
+
+[lighting]
+sun_direction = [-0.35, 0.72, 0.60]
+sun_radiance = [150, 138, 122]
+sky_radiance = [20, 23, 31]
+atmosphere_temperature_k = 291.15
+solar_lut = "assets/luts/astmg173.csv"
+solar_lut_columns = [4, 3]
+solar_lut_diffuse_is_global = true
+
+[atmosphere]
+preset = "maritime"
+vis_km = 20
+t_ground_K = 291
+rh = 78
+p_hPa = 1014
+
+[thermal]
+time_h = 16.0
+air_temperature_k = 291.15
+sky_temperature_k = 268.0
+
+[[materials]]
+name = "Ocean"
+ir_emissivity = 0.98
+thermal_conductivity_w_mk = 0.6
+density_kg_m3 = 1025
+specific_heat_j_kgk = 3990
+thickness_m = 2.0
+convection_h_w_m2k = 20
+shortwave_absorptivity = 0.94
+interior_bc = "fixed"
+interior_temperature_k = 291.0
+
+# The reefer stack is the cold target in this scene: the containers hold their set point while
+# everything round them follows the sun.
+[[materials]]
+name = "Reefer_Container"
+ir_emissivity = 0.90
+thermal_conductivity_w_mk = 0.04
+density_kg_m3 = 60
+specific_heat_j_kgk = 1400
+thickness_m = 0.10
+convection_h_w_m2k = 14
+shortwave_absorptivity = 0.35
+interior_bc = "fixed"
+interior_temperature_k = 258.0
+
+[[materials]]
+name = "Container"
+ir_emissivity = 0.90
+thermal_conductivity_w_mk = 50
+density_kg_m3 = 7800
+specific_heat_j_kgk = 470
+thickness_m = 0.002
+convection_h_w_m2k = 14
+shortwave_absorptivity = 0.72
+interior_bc = "adiabatic"

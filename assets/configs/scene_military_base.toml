@@ -1,0 +1,147 @@
+# Forward operating base scene.
+#
+# Site datum: origin at the centre of the apron. Hangar to -X, hardened shelters to +X, fuel farm
+# at -Y, tent camp at +X +Y, helipad at +Y, radar station at (150, -120).
+#
+# The radar dish is a separate node in the site glTF, `MilitaryBase_RadarDish`, so [[nodes]] can
+# spin it: with [timeline] present the solver cuts the day into piecewise-static geometry spans
+# and the dish gives it something to cut on. Drop the [timeline] and [[nodes]] blocks for a
+# still frame.
+
+[renderer]
+resolution = [1920, 1080]
+spp = 128
+seed = 13
+output = "scene_military_base.exr"
+enable_shadow_rays = true
+
+[spectral]
+mode = "ir_band"
+lambda_min = 3000
+lambda_max = 14000
+delta_lambda = 100
+basis_file = "../spectral/quantiloom_basis_v3_usgs.qlbin"
+materials_json = "../spectral/quantiloom_materials_usgs.json"
+band = "LWIR"
+
+[scene]
+gltf = "../models/blender/sites/militarybase.gltf"
+world_units_to_meters = 1
+default_temperature_k = 303
+
+[timeline]
+start_s = 0
+end_s = "120s"
+ticks_per_second = 4
+time_s = 30
+thermal_geometry = "epochs"
+thermal_epoch_stride_s = "20s"
+
+[[nodes]]
+name = "MilitaryBase_RadarDish"
+[nodes.motion.orientation]
+type = "spin"
+axis = [0, 1, 0]
+rate_deg_s = 24
+
+[[models]]
+file = "../models/blender/military/sphowitzer.gltf"
+name = "howitzer"
+translation = [-160, 0, 78]
+rotation_euler_degrees = [0, 180, 0]
+
+[[models]]
+file = "../models/blender/military/missiletel.gltf"
+name = "tel"
+translation = [-100, 0, 78]
+rotation_euler_degrees = [0, 180, 0]
+
+[[models]]
+file = "../models/blender/vehicles/tank.gltf"
+name = "tank_revetment"
+translation = [-40, 0, 78]
+rotation_euler_degrees = [0, 180, 0]
+
+[[models]]
+file = "../models/blender/vehicles/apc.gltf"
+name = "apc"
+translation = [20, 0, 78]
+rotation_euler_degrees = [0, 180, 0]
+
+[[models]]
+file = "../models/blender/aircraft/helicopter.gltf"
+name = "helicopter_pad"
+translation = [0, 0, 130]
+rotation_euler_degrees = [0, 0, 0]
+
+[[models]]
+file = "../models/blender/aircraft/reconuav.gltf"
+name = "uav"
+translation = [-80, 0, 10]
+rotation_euler_degrees = [0, 90, 0]
+
+[[models]]
+file = "../models/blender/organics/worker.gltf"
+name = "sentry"
+translation = [-178, 0, 168]
+rotation_euler_degrees = [0, 225, 0]
+
+[camera]
+position = [230, 90, -280]
+look_at = [-10, 12, 20]
+up = [0, 1, 0]
+fov_y = 40
+
+[lighting]
+sun_direction = [0.55, 0.66, -0.51]
+sun_radiance = [172, 150, 124]
+sky_radiance = [15, 17, 24]
+atmosphere_temperature_k = 303.15
+solar_lut = "assets/luts/astmg173.csv"
+solar_lut_columns = [4, 3]
+solar_lut_diffuse_is_global = true
+
+[atmosphere]
+preset = "turbulent_clear"
+vis_km = 30
+t_ground_K = 306
+rh = 25
+p_hPa = 1008
+
+[thermal]
+time_h = 11.0
+air_temperature_k = 303.15
+sky_temperature_k = 258.0
+
+[[materials]]
+name = "Sandbag"
+ir_emissivity = 0.93
+thermal_conductivity_w_mk = 0.5
+density_kg_m3 = 1700
+specific_heat_j_kgk = 850
+thickness_m = 0.35
+convection_h_w_m2k = 11
+shortwave_absorptivity = 0.68
+
+[[materials]]
+name = "Camo_NATO"
+ir_emissivity = 0.92
+thermal_conductivity_w_mk = 45
+density_kg_m3 = 7800
+specific_heat_j_kgk = 480
+thickness_m = 0.02
+convection_h_w_m2k = 15
+shortwave_absorptivity = 0.78
+interior_bc = "adiabatic"
+
+[[materials]]
+name = "Tent_Canvas"
+ir_emissivity = 0.90
+thermal_conductivity_w_mk = 0.06
+density_kg_m3 = 300
+specific_heat_j_kgk = 1300
+thickness_m = 0.002
+convection_h_w_m2k = 13
+shortwave_absorptivity = 0.55
+interior_bc = "fixed"
+interior_temperature_k = 297.0

@@ -1,0 +1,110 @@
+# Offshore production platform scene.
+#
+# Site datum: origin at the centre of the cellar deck, sea level z = 0, seabed z = -70. The
+# cellar deck is at z = 22 and the main deck at z = 32; the helideck sits at z = 45 and the
+# flare boom reaches out to +X -Y.
+#
+# A helicopter on the deck and a supply boat alongside are the two models; both are placed in the
+# platform's own frame, so the boat's z = 0 is the waterline it was modelled to.
+
+[renderer]
+resolution = [1920, 1080]
+spp = 160
+seed = 19
+output = "scene_platform_offshore.exr"
+enable_shadow_rays = true
+
+[spectral]
+mode = "vis_fused"
+lambda_min = 380
+lambda_max = 2500
+delta_lambda = 10
+basis_file = "../spectral/quantiloom_basis_v3_usgs.qlbin"
+materials_json = "../spectral/quantiloom_materials_usgs.json"
+band = "VIS"
+
+[scene]
+gltf = "../models/blender/sites/platformoffshore.gltf"
+world_units_to_meters = 1
+default_temperature_k = 288
+
+[[models]]
+file = "../models/blender/aircraft/helicopter.gltf"
+name = "helicopter_deck"
+translation = [12, 45.3, 10]
+rotation_euler_degrees = [0, 200, 0]
+
+[[models]]
+file = "../models/blender/vehicles/speedboat.gltf"
+name = "supply_boat"
+translation = [-46, 0, 30]
+rotation_euler_degrees = [0, 75, 0]
+
+[[models]]
+file = "../models/blender/organics/worker.gltf"
+name = "deck_crew"
+translation = [-2, 32.6, 6]
+rotation_euler_degrees = [0, 150, 0]
+
+[camera]
+position = [115, 55, -120]
+look_at = [4, 30, -4]
+up = [0, 1, 0]
+fov_y = 42
+
+[lighting]
+sun_direction = [-0.28, 0.55, 0.79]
+sun_radiance = [148, 136, 120]
+sky_radiance = [22, 25, 34]
+atmosphere_temperature_k = 288.15
+solar_lut = "assets/luts/astmg173.csv"
+solar_lut_columns = [4, 3]
+solar_lut_diffuse_is_global = true
+
+[atmosphere]
+preset = "maritime"
+vis_km = 16
+t_ground_K = 288
+rh = 85
+p_hPa = 1009
+
+[thermal]
+time_h = 9.0
+air_temperature_k = 288.15
+sky_temperature_k = 272.0
+
+[[materials]]
+name = "Ocean"
+ir_emissivity = 0.98
+thermal_conductivity_w_mk = 0.6
+density_kg_m3 = 1025
+specific_heat_j_kgk = 3990
+thickness_m = 2.0
+convection_h_w_m2k = 24
+shortwave_absorptivity = 0.94
+interior_bc = "fixed"
+interior_temperature_k = 288.0
+
+[[materials]]
+name = "Platform_Steel"
+ir_emissivity = 0.90
+thermal_conductivity_w_mk = 45
+density_kg_m3 = 7850
+specific_heat_j_kgk = 480
+thickness_m = 0.02
+convection_h_w_m2k = 22
+shortwave_absorptivity = 0.66
+interior_bc = "adiabatic"
+
+[[materials]]
+name = "Splash_Zone"
+ir_emissivity = 0.94
+thermal_conductivity_w_mk = 1.0
+density_kg_m3 = 2000
+specific_heat_j_kgk = 900
+thickness_m = 0.06
+convection_h_w_m2k = 40
+shortwave_absorptivity = 0.80
+wetness_factor = 0.9
+interior_bc = "fixed"
+interior_temperature_k = 288.0
