@@ -761,6 +761,17 @@ if(APPLE)
         VERBATIM
     )
     add_dependencies(QuantiloomQt QuantiloomSdkFrameworks)
+    # An SDK built with OpenUSD carries its plugin tree in lib/usd; the SDK's
+    # UsdLoader looks for it beside libQuantiloom, which here is Frameworks/.
+    if(EXISTS "${QUANTILOOM_SDK_DIR}/lib/usd")
+        add_custom_command(TARGET QuantiloomSdkFrameworks POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
+                "${QUANTILOOM_SDK_DIR}/lib/usd"
+                "$<TARGET_BUNDLE_CONTENT_DIR:QuantiloomQt>/Frameworks/usd"
+            COMMENT "Copying the SDK's OpenUSD plugins into the bundle..."
+            VERBATIM
+        )
+    endif()
 endif()
 
 # ============================================================================
