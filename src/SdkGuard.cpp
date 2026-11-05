@@ -37,8 +37,6 @@ QString rebuildCommand() {
 #if defined(Q_OS_WIN)
     return QStringLiteral("cd /mnt/h/Quantiloom-Qt && ./build_wsl.sh");
 #elif defined(Q_OS_MACOS)
-    // To be added with the macOS packaging work; the name follows the
-    // repo's build_wsl.sh convention.
     return QStringLiteral("./build_macos.sh (from the repository root)");
 #else
     // This repository packages no build script for other platforms yet.
@@ -87,11 +85,11 @@ SdkCheckResult checkSdkBinaries() {
         return result;
     }
 
-    // Code signing rewrites the library's bytes, so on macOS the hash
-    // recorded at configure time must be taken AFTER signing (packaging
-    // work on the Mac); a bundle signed after its stamp was recorded trips
-    // this guard. The stamp comes from the "SDK freshness guard" section
-    // in CMakeLists.txt.
+    // Code signing rewrites the library's bytes, so a macOS bundle must carry
+    // the SDK's dylibs exactly as installed (build_macos.sh does not sign
+    // them); a library re-signed after its stamp was recorded trips this
+    // guard. The stamp comes from the "SDK freshness guard" section in
+    // CMakeLists.txt.
     if (loadedHash != builtAgainst) {
         result.mismatch = true;
         result.message =

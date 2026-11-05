@@ -34,9 +34,9 @@
 // incomplete type, unlike the unique_ptr<ExternalRenderContext> beside it).
 #include <renderer/ExternalRenderContext.hpp>
 
-#include "GpuDevice.hpp"
+#include "GpuBackend.hpp"
 #include "OverlayRenderer.hpp"
-#include "SdkFrameBridge.hpp"
+#include "SdkFrame.hpp"
 #include "ViewportSampleBatchScheduler.hpp"
 
 namespace quantiloom {
@@ -603,8 +603,7 @@ private:
     ViewportWindow* m_window;
 
     // The GPU side. Created on the first expose, rebuilt after a lost device.
-    viewport::GpuDevice m_device;
-    viewport::GetInstanceProcAddrFn m_getInstanceProcAddr = nullptr;
+    std::unique_ptr<viewport::GpuBackend> m_backend;
     std::unique_ptr<QRhi> m_rhi;
     std::unique_ptr<QRhiSwapChain> m_swapchain;
     std::unique_ptr<QRhiRenderPassDescriptor> m_swapchainPass;
@@ -615,7 +614,6 @@ private:
     bool m_swapchainFormatLogged = false;
     /// createRenderContext() ran on the current device.
     bool m_contextAttempted = false;
-    viewport::SdkFrameBridge m_bridge;
 
     // What the SDK writes and the overlay draws on, at m_targetExtent
     std::unique_ptr<QRhiTexture> m_frameTexture;   // RGBA8 sRGB

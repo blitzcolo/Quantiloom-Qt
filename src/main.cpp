@@ -2,7 +2,7 @@
  * @file main.cpp
  * @brief Entry point for QuantiloomGUI application
  *
- * Initializes Qt6 application with Vulkan support and launches main window.
+ * Initializes the Qt6 application and its GPU backend and launches main window.
  *
  * @author blitzcolo
  */
@@ -13,12 +13,11 @@
 #include "i18n/LanguageManager.hpp"
 #include "ui/theme/ThemeManager.hpp"
 #include "ui/chrome/DialogChrome.hpp"
+#include "viewport/GpuBackend.hpp"
+#include "AssetPaths.hpp"
 
 #include <QApplication>
-#include <QVulkanInstance>
-#include <QLoggingCategory>
 #include <QMessageBox>
-#include <rhi/qrhi.h>
 
 #include <core/Log.hpp>  // libQuantiloom logging
 #include <core/Resources.hpp>
@@ -83,40 +82,16 @@ int main(int argc, char* argv[]) {
     // The SDK's shaders and assets travel in share/quantiloom beside the
     // executable (the QuantiloomSdkResources target). Pinned, so no other copy
     // is tried; the SDK checks the shader-set stamp and refuses a stale one.
-    quantiloom::SetResourceRoot(
-        (QCoreApplication::applicationDirPath() + QStringLiteral("/share/quantiloom"))
-            .toStdString());
+    quantiloom::SetResourceRoot(assetpaths::sdkResourceRoot().toStdString());
 
-    // Create Vulkan instance for Qt
-    QVulkanInstance vulkanInstance;
-
-    // Set Vulkan API version (1.3 required for ray tracing)
-    vulkanInstance.setApiVersion(QVersionNumber(1, 3, 0));
-
-    // Enable validation layers in debug builds
-#ifdef QT_DEBUG
-    vulkanInstance.setLayers({"VK_LAYER_KHRONOS_validation"});
-    QLoggingCategory::setFilterRules("qt.vulkan=true");
-#endif
-
-    // Required extensions for ray tracing, plus what QRhi presents best with
-    // (the swapchain colour-space extension among them). Extensions the
-    // implementation does not have are ignored by QVulkanInstance.
-    QByteArrayList instanceExtensions{VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME};
-    for (const QByteArray& extension : QRhiVulkanInitParams::preferredInstanceExtensions()) {
-        if (!instanceExtensions.contains(extension)) {
-            instanceExtensions.append(extension);
-        }
-    }
-    vulkanInstance.setExtensions(instanceExtensions);
-
-    if (!vulkanInstance.create()) {
-        qFatal("Failed to create Vulkan instance: %d", vulkanInstance.errorCode());
+    // The Vulkan backend's QVulkanInstance; the Metal backend has no process-wide state.
+    viewport::HostGraphics hostGraphics;
+    if (!hostGraphics.create()) {
         return 1;
     }
 
     // Create and show main window
-    MainWindow mainWindow(&vulkanInstance);
+    MainWindow mainWindow(hostGraphics.vulkanInstance());
     mainWindow.show();
 
     // A path on the command line opens like File ▸ Open. The window edits a

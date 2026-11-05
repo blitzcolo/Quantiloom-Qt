@@ -16,6 +16,12 @@ Windows one anyway, so every build goes through `cmake.exe`. Run from the repo r
 
 Qt defaults to `C:\Qt\6.10.1\msvc2022_64`; override with `QT_PREFIX=... ./build_wsl.sh`.
 
+**macOS (Apple Silicon)** builds natively, no WSL: `./build_macos.sh` configures `build-mac/`
+(Ninja, Release, Qt at `~/Qt/6.12.0/macos`, `QT_PREFIX` overrides) and produces
+`build-mac/QuantiloomQt.app`. The viewport presents through Metal (`GpuBackendMetal.mm`) against
+`../Quantiloom-SDK/macos_arm64`; `GpuBackendVulkan.cpp` is the Windows/Linux twin, one of the two
+is compiled per platform. The Qt pin is 6.10 - 6.12.
+
 Run `./build-msvc/Release/QuantiloomQt.exe`; the window opens on the Windows desktop.
 Its exit code is meaningless from a non-interactive shell (5 and 29 observed on clean
 runs) — judge a run by its log, not by `$?`.

@@ -20,7 +20,6 @@
 #include <core/Image.hpp>
 #include <core/SpectralData.hpp>
 
-#include <QVulkanInstance>
 #include <rhi/qrhi.h>
 #include <QFile>
 #include <QFileInfo>
@@ -70,50 +69,15 @@ void ViewportRenderer::initialize() {
 }
 
 bool ViewportRenderer::createGpu() {
-    QVulkanInstance* inst = m_window->vulkanInstance();
-    m_getInstanceProcAddr = reinterpret_cast<viewport::GetInstanceProcAddrFn>(
-        inst->getInstanceProcAddr("vkGetInstanceProcAddr"));
-
-    viewport::GpuDeviceRequest request;
-    request.instance = inst->vkInstance();
-    request.getInstanceProcAddr = m_getInstanceProcAddr;
-    request.supportsPresent = [inst, window = m_window](VkPhysicalDevice_T* physicalDevice,
-                                                        uint32_t queueFamily) {
-        return inst->supportsPresent(physicalDevice, queueFamily, window);
-    };
-    request.optionalDeviceExtensions = QRhiVulkanInitParams::preferredExtensionsForImportedDevice();
-    request.requiredHostDeviceExtensions = {QByteArrayLiteral(VK_KHR_SWAPCHAIN_EXTENSION_NAME)};
-
-    viewport::GpuDeviceResult created = viewport::createGpuDevice(request);
-    if (!created.device) {
-        QL_LOG_ERROR("Viewport: no usable GPU: {}", created.error.toStdString());
-        emit m_window->renderContextFailed(
-            QObject::tr("No GPU on this machine has what the renderer needs:\n\n%1")
-                .arg(created.error));
+    if (!m_backend) {
+        m_backend = viewport::createGpuBackend();
+    }
+    viewport::GpuBackend::RhiResult created = m_backend->createRhi(m_window);
+    if (!created.rhi) {
+        emit m_window->renderContextFailed(created.message);
         return false;
     }
-    m_device = *created.device;
-
-    // QRhi presents and runs the overlay on the same device and queue the
-    // SDK records into. It never destroys an imported device; releaseGpu()
-    // does, after it.
-    QRhiVulkanInitParams params;
-    params.inst = inst;
-    params.window = m_window;
-    QRhiVulkanNativeHandles imported;
-    imported.physDev = m_device.physicalDevice;
-    imported.dev = m_device.device;
-    imported.gfxQueueFamilyIdx = m_device.queueFamily;
-    imported.gfxQueueIdx = m_device.queueIndex;
-    m_rhi.reset(QRhi::create(QRhi::Vulkan, &params, QRhi::Flags(), &imported));
-    if (!m_rhi) {
-        emit m_window->renderContextFailed(
-            QObject::tr("The renderer could not start:\n\n%1")
-                .arg(QStringLiteral("Qt could not present with the Vulkan device on %1.")
-                         .arg(m_device.name)));
-        viewport::destroyGpuDevice(m_device, inst->vkInstance(), m_getInstanceProcAddr);
-        return false;
-    }
+    m_rhi = std::move(created.rhi);
     QL_LOG_INFO("Viewport: QRhi {} presents on the imported device, {} frames in flight",
                 m_rhi->backendName(), framesInFlight());
 
@@ -146,8 +110,7 @@ bool ViewportRenderer::recreateSwapchain() {
     }
     m_swapchainDirty = false;
 
-    const bool encode = !viewport::surfaceOffersSrgb(m_window->vulkanInstance(), m_window,
-                                                     m_device.physicalDevice);
+    const bool encode = !m_backend->surfaceOffersSrgb();
     if (encode != m_encodeSrgb || !m_swapchainFormatLogged) {
         m_swapchainFormatLogged = true;
         // Through the core logger, not qDebug: with no console attached
@@ -192,8 +155,7 @@ void ViewportRenderer::createRenderContext() {
         return;
     }
 
-    auto created = viewport::SdkFrameBridge::createContext(m_window->vulkanInstance(), m_device,
-                                                           swapSize);
+    auto created = m_backend->createContext(swapSize);
     if (!created.context) {
         qCritical() << "Failed to create ExternalRenderContext:" << created.error;
         emit m_window->renderContextFailed(
@@ -281,9 +243,8 @@ void ViewportRenderer::releaseGpu() {
     m_swapchainPass.reset();
     m_swapchainDirty = true;
     m_rhi.reset();
-    if (m_device.device) {
-        viewport::destroyGpuDevice(m_device, m_window->vulkanInstance()->vkInstance(),
-                                   m_getInstanceProcAddr);
+    if (m_backend) {
+        m_backend->destroyDevice();
     }
 }
 
@@ -320,11 +281,13 @@ bool ViewportRenderer::ensureFrameTargets(QSize extent) {
         // and sampling decodes, UsedAsTransferSource for the composited
         // capture. QRhi gives every Vulkan texture TRANSFER_DST, which is
         // what the SDK's blit needs.
+        const QRhiTexture::Flags sdkWritten = m_backend->sdkWrittenTextureFlags();
         m_frameTexture.reset(m_rhi->newTexture(
             QRhiTexture::RGBA8, extent, 1,
-            QRhiTexture::RenderTarget | QRhiTexture::sRGB | QRhiTexture::UsedAsTransferSource));
+            QRhiTexture::RenderTarget | QRhiTexture::sRGB | QRhiTexture::UsedAsTransferSource |
+                sdkWritten));
         // R32_SFLOAT with TRANSFER_DST and SAMPLED: what BlitDepthTo requires.
-        m_depthTexture.reset(m_rhi->newTexture(QRhiTexture::R32F, extent));
+        m_depthTexture.reset(m_rhi->newTexture(QRhiTexture::R32F, extent, 1, sdkWritten));
         // Orders overlay geometry against itself only; cleared by every pass.
         m_overlayDepth.reset(m_rhi->newRenderBuffer(QRhiRenderBuffer::DepthStencil, extent));
     } else {
@@ -455,12 +418,7 @@ void ViewportRenderer::renderFrame() {
     bool haveImage = false;
     bool tracedFrame = false;
     if (ensureFrameTargets(m_targetExtent)) {
-        // Outside any pass, on the primary command buffer: QRhi records what
-        // it has deferred so far, and the SDK's commands follow it.
-        cb->beginExternal();
-        const auto* native =
-            static_cast<const QRhiVulkanCommandBufferNativeHandles*>(cb->nativeHandles());
-        viewport::SdkFrameBridge::FrameRequest request;
+        viewport::FrameRequest request;
         request.accumulating = accumulating;
         request.reprocess = m_reprocessPending;
         // Why paused, moving and physical-camera frames get exactly one
@@ -469,11 +427,9 @@ void ViewportRenderer::renderFrame() {
             return m_viewportSampleBatch.chooseForFrame(m_sampleCount, m_targetSPP, accumulating,
                                                         m_motionActive, m_cameraConfig.enabled);
         };
-        const viewport::SdkFrameBridge::FrameResult frame =
-            m_bridge.record(native->commandBuffer, *m_renderContext, m_frameTexture.get(),
-                            m_depthTexture.get(), m_targetExtent, request);
-        cb->endExternal();
-        m_bridge.publishLayouts(m_frameTexture.get(), m_depthTexture.get());
+        const viewport::FrameResult frame =
+            m_backend->recordFrame(cb, *m_renderContext, m_frameTexture.get(),
+                                   m_depthTexture.get(), m_targetExtent, request);
         haveImage = frame.haveImage;
         tracedFrame = frame.traced;
     }

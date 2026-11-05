@@ -64,53 +64,22 @@ SdkFrameBridge::FrameResult SdkFrameBridge::record(
         static_cast<VkImageLayout>(frameTexture->nativeTexture().layout),
         VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
-    // A frame is drawn for two different reasons, and only one of them should
-    // cost a sample. Accumulating is what Start/Resume asked for; redrawing
-    // because the selection or the gizmo changed is the shell's own business,
-    // and charging the user's sample budget for it would make the sample count
-    // of a finished render depend on how often they clicked.
-    //
-    // So past the target, or while paused, the accumulated image is presented
-    // again rather than re-traced. PresentAccumulated returns false when there
-    // is nothing to re-present -- before the first trace, or after a resize --
-    // and then a real frame is the only correct answer. A pending display
-    // reprocess re-runs the sensor chain and CLAHE over the unchanged
-    // accumulation instead; same refusals, same fallback.
-    bool presentedWithoutTracing = false;
-    if (!request.accumulating) {
-        presentedWithoutTracing =
-            request.reprocess
-                ? context.ReprocessAccumulated(commands, frameTarget)
-                : context.PresentAccumulated(commands, frameTarget);
-    }
-
-    FrameResult result;
-    if (!presentedWithoutTracing) {
-        context.SetViewportSampleBatch(request.chooseSampleBatch());
-        context.RenderFrame(commands, frameTarget);
-        result.traced = true;
-        if (!context.IsReady()) {
-            // This frame's recording is the one that failed, and nothing
-            // reliable is in the frame texture. The layout QRhi knew is the
-            // one it still has, and the caller presents a cleared swapchain
-            // image instead; the next frame reports the failure.
-            m_frameLayout = frameTexture->nativeTexture().layout;
-            return result;
-        }
-    }
-
     // The grid samples the depth texture, so it ends in SHADER_READ_ONLY.
     const QRhiTexture::NativeTexture depth = depthTexture->nativeTexture();
-    context.BlitDepthTo(
-        commands,
-        quantiloom::vk::Target(reinterpret_cast<VkImage>(depth.object), GpuTargetFormat::R32Float,
-                               width, height, static_cast<VkImageLayout>(depth.layout),
-                               VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL));
+    const auto depthTarget = quantiloom::vk::Target(
+        reinterpret_cast<VkImage>(depth.object), GpuTargetFormat::R32Float, width, height,
+        static_cast<VkImageLayout>(depth.layout), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+    const FrameResult result = recordSdkFrame(context, commands, frameTarget, depthTarget, request);
+    if (!result.haveImage) {
+        // This frame's recording is the one that failed. The layout QRhi knew
+        // is the one it still has.
+        m_frameLayout = frameTexture->nativeTexture().layout;
+        return result;
+    }
     m_depthWritten = true;
     m_depthLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-
     m_frameLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-    result.haveImage = true;
     return result;
 }
 

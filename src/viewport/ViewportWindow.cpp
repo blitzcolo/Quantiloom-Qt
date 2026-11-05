@@ -22,6 +22,8 @@
 #include <QMouseEvent>
 #include <QWheelEvent>
 #include <QHoverEvent>
+#include "GpuBackend.hpp"
+
 #include <QExposeEvent>
 #include <QPlatformSurfaceEvent>
 #include <QResizeEvent>
@@ -41,7 +43,7 @@ ViewportWindow::ViewportWindow(QWindow* parent)
     // and the window container hides this window with them), and rebuilding
     // the context on every restore reloaded the whole scene and lost the
     // accumulation. A hidden window only skips frames.
-    setSurfaceType(QSurface::VulkanSurface);
+    setSurfaceType(viewport::presentSurfaceType());
 }
 
 ViewportWindow::~ViewportWindow() {

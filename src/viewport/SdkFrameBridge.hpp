@@ -23,20 +23,14 @@
 
 #pragma once
 
+#include "SdkFrame.hpp"
+
 #include <QSize>
 #include <QString>
-
-#include <cstdint>
-#include <functional>
-#include <memory>
 
 class QRhiTexture;
 class QVulkanInstance;
 struct VkCommandBuffer_T;
-
-namespace quantiloom {
-class ExternalRenderContext;
-}
 
 namespace viewport {
 
@@ -44,34 +38,14 @@ struct GpuDevice;
 
 class SdkFrameBridge {
 public:
-    struct ContextResult {
-        std::unique_ptr<quantiloom::ExternalRenderContext> context;
-        QString error;
-    };
+    using ContextResult = viewport::ContextResult;
+    using FrameRequest = viewport::FrameRequest;
+    using FrameResult = viewport::FrameResult;
 
     /// The render context on @p device, rendering at @p extent into an
     /// R8G8B8A8_SRGB frame texture.
     [[nodiscard]] static ContextResult createContext(QVulkanInstance* instance,
                                                      const GpuDevice& device, QSize extent);
-
-    struct FrameRequest {
-        /// False past the target or while paused: the accumulation is shown
-        /// again rather than re-traced, if there is one to show.
-        bool accumulating = false;
-        /// A display-stage setting changed: re-run post-processing over the
-        /// unchanged accumulation instead of re-presenting it.
-        bool reprocess = false;
-        /// The sample batch for a traced frame; asked only when one is traced.
-        std::function<std::uint32_t()> chooseSampleBatch;
-    };
-
-    struct FrameResult {
-        /// The frame texture holds this frame's picture and the depth texture
-        /// its primary-hit depth.
-        bool haveImage = false;
-        /// RenderFrame ran, so a sample may have been added.
-        bool traced = false;
-    };
 
     /// Record this frame's SDK work into @p commandBuffer, which is QRhi's
     /// primary command buffer between beginExternal() and endExternal().

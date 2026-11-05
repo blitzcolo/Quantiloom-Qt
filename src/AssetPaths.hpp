@@ -20,6 +20,10 @@ namespace assetpaths {
 /// working directory, for a run from the repository root. Empty if neither exists.
 [[nodiscard]] QString bundled(const QString& relativePath);
 
+/// Where main() pins quantiloom::SetResourceRoot(): share/quantiloom beside
+/// the executable, or Contents/Resources/share/quantiloom inside a macOS .app.
+[[nodiscard]] QString sdkResourceRoot();
+
 /// The NN atmosphere model pack: $QUANTILOOM_ATMOS_MODELS, then
 /// <cwd>/assets/atmos_models, then the SDK's resource root
 /// (quantiloom::GetResourceRoot()/assets/atmos_models) -- the core CLI's order, which is why it is not bundled()'s. Empty if none exists.
