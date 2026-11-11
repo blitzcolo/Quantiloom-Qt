@@ -62,7 +62,9 @@ solar_lut_columns = [4, 3]
 solar_lut_diffuse_is_global = true
 
 [atmosphere]
-preset = "maritime"
+# "maritime" is no preset: it fell back to "clear" with a warning. A maritime
+# aerosol (ihaze 4) is not allowed under the G-173 daytime sun anyway.
+preset = "clear"
 # >= 20 km: daytime under the ASTM G-173 sun is limited to clear sky.
 vis_km = 20
 t_ground_K = 288
