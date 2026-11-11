@@ -70,7 +70,7 @@ solar_lut_diffuse_is_global = true
 preset = "clear"
 vis_km = 20
 t_ground_K = 291
-rh = 78
+rh = 0.78
 p_hPa = 1014
 
 [thermal]

@@ -71,7 +71,7 @@ solar_lut_diffuse_is_global = true
 preset = "turbulent_clear"
 vis_km = 22
 t_ground_K = 301
-rh = 35
+rh = 0.35
 p_hPa = 1011
 
 [thermal]
