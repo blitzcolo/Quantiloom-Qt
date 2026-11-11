@@ -227,6 +227,10 @@ private:
     // FPN sub-rows, enabled only while FPN is on.
     QDoubleSpinBox* m_prnuSigma = nullptr;
     QDoubleSpinBox* m_dsnuSigma = nullptr;
+    QDoubleSpinBox* m_columnGainSigma = nullptr;
+    QDoubleSpinBox* m_columnOffsetE = nullptr;
+    QDoubleSpinBox* m_rowGainSigma = nullptr;
+    QDoubleSpinBox* m_rowOffsetE = nullptr;
     QCheckBox* m_nucEnable = nullptr;
     QDoubleSpinBox* m_nucResidual = nullptr;
 
@@ -243,6 +247,10 @@ private:
     QDoubleSpinBox* m_thermalOffsetK = nullptr;
     QCheckBox* m_thermalNuc = nullptr;
     QDoubleSpinBox* m_thermalNucResidual = nullptr;
+    QDoubleSpinBox* m_thermalColumnGain = nullptr;
+    QDoubleSpinBox* m_thermalColumnOffsetK = nullptr;
+    QDoubleSpinBox* m_thermalRowGain = nullptr;
+    QDoubleSpinBox* m_thermalRowOffsetK = nullptr;
 
     // ISP group
     QGroupBox* m_ispGroup = nullptr;

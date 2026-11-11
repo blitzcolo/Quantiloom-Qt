@@ -4094,7 +4094,7 @@ Rebuild with:
     </message>
     <message>
         <source>Temperature of the optics. A lens at room temperature emits in the infrared, and a cooled detector counts that emission as background photons -- signal it must subtract and shot noise it cannot. Off leaves the lens out.</source>
-        <translation>光学系统的温度。室温下的镜头会发出红外辐射，制冷探测器把这部分辐射计为背景光子——其信号必须扣除，而其散粒噪声无法扣除。设为关闭则不建模镜头辐射。</translation>
+        <translation type="vanished">光学系统的温度。室温下的镜头会发出红外辐射，制冷探测器把这部分辐射计为背景光子——其信号必须扣除，而其散粒噪声无法扣除。设为关闭则不建模镜头辐射。</translation>
     </message>
     <message>
         <source>Lens Emissivity:</source>
@@ -4214,7 +4214,7 @@ Rebuild with:
     </message>
     <message>
         <source>Fraction of the fixed pattern the Non-Uniformity Correction leaves behind. 0 removes all of it, which no real calibration does.</source>
-        <translation>非均匀性校正后残留的固定图案比例。0 表示完全消除，实际标定无法做到。</translation>
+        <translation type="vanished">非均匀性校正后残留的固定图案比例。0 表示完全消除，实际标定无法做到。</translation>
     </message>
     <message>
         <source>Time Constant:</source>
@@ -4327,6 +4327,78 @@ Rebuild with:
     <message>
         <source>Per-channel gain applied before the colour transform. Auto white balance drives these when it is on.</source>
         <translation>色彩变换前按通道施加的增益。自动白平衡开启时由它驱动这三个值。</translation>
+    </message>
+    <message>
+        <source>Temperature of the optics. A lens at room temperature emits in the infrared, and a cooled detector counts that emission as background photons -- signal it must subtract and shot noise it cannot. With cos^4 vignetting on, an off-axis pixel collects less of it, exactly as it collects less of the scene. Off leaves the lens out.</source>
+        <translation>光学系统的温度。室温下的镜头会发出红外辐射，制冷探测器把这部分辐射计为背景光子——其信号必须扣除，而其散粒噪声无法扣除。开启 cos^4 渐晕时，离轴像元收到的镜头辐射会减少，与它收到的场景信号按同一比例减少。设为关闭则不建模镜头辐射。</translation>
+    </message>
+    <message>
+        <source>Column Gain Sigma:</source>
+        <translation>列增益标准差:</translation>
+    </message>
+    <message>
+        <source>Column-to-column spread in gain, as a fraction (one sigma): one value per readout column, shared by every pixel in it -- the striping a column amplifier leaves. 0 turns it off.</source>
+        <translation>列与列之间的增益离散，以比例表示（一倍标准差）：每个读出列一个值，该列所有像素共用——这就是列放大器留下的条纹。设为 0 即关闭。</translation>
+    </message>
+    <message>
+        <source>Column Offset Sigma:</source>
+        <translation>列偏置标准差:</translation>
+    </message>
+    <message>
+        <source>Column-to-column spread in offset, in electrons (one sigma), shared by every pixel in a column. 0 turns it off.</source>
+        <translation>列与列之间的偏置离散，单位为电子（一倍标准差），同一列所有像素共用。设为 0 即关闭。</translation>
+    </message>
+    <message>
+        <source>Row Gain Sigma:</source>
+        <translation>行增益标准差:</translation>
+    </message>
+    <message>
+        <source>Row-to-row spread in gain, as a fraction (one sigma), shared by every pixel in a row. 0 turns it off.</source>
+        <translation>行与行之间的增益离散，以比例表示（一倍标准差），同一行所有像素共用。设为 0 即关闭。</translation>
+    </message>
+    <message>
+        <source>Row Offset Sigma:</source>
+        <translation>行偏置标准差:</translation>
+    </message>
+    <message>
+        <source>Row-to-row spread in offset, in electrons (one sigma), shared by every pixel in a row. 0 turns it off.</source>
+        <translation>行与行之间的偏置离散，单位为电子（一倍标准差），同一行所有像素共用。设为 0 即关闭。</translation>
+    </message>
+    <message>
+        <source>Fraction of the fixed pattern a two-point Non-Uniformity Correction leaves behind -- every gain and offset deviation, per pixel, per column and per row. 1 is the uncorrected frame, 0 removes all of it, which no real calibration does. Calibration maps, when the config names them, replace this: they are the correction.</source>
+        <translation>两点非均匀性校正（NUC）之后残留的固定图样比例——逐像素、逐列、逐行的每一项增益与偏置偏差都按此比例残留。1 等于未校正，0 表示全部去除，而真实的标定做不到这一点。若配置指定了校正图，则以校正图为准，本项不再起作用。</translation>
+    </message>
+    <message>
+        <source>Column Responsivity Nonuniformity:</source>
+        <translation>列响应率非均匀性:</translation>
+    </message>
+    <message>
+        <source>Column-to-column spread in responsivity, as a fraction (one sigma), shared by every pixel in a column -- the striping that dominates an uncooled bolometer&apos;s residual pattern. 0 turns it off.</source>
+        <translation>列与列之间的响应率离散，以比例表示（一倍标准差），同一列所有像素共用——非制冷微测辐射热计残余图样中最主要的就是这种条纹。设为 0 即关闭。</translation>
+    </message>
+    <message>
+        <source>Column Offset Nonuniformity:</source>
+        <translation>列偏置非均匀性:</translation>
+    </message>
+    <message>
+        <source>Column-to-column spread in offset, stated as the scene temperature step it equals at the NETD reference temperature (one sigma). 0 turns it off.</source>
+        <translation>列与列之间的偏置离散，以其在 NETD 参考温度下相当的场景温度变化表示（一倍标准差）。设为 0 即关闭。</translation>
+    </message>
+    <message>
+        <source>Row Responsivity Nonuniformity:</source>
+        <translation>行响应率非均匀性:</translation>
+    </message>
+    <message>
+        <source>Row-to-row spread in responsivity, as a fraction (one sigma), shared by every pixel in a row. 0 turns it off.</source>
+        <translation>行与行之间的响应率离散，以比例表示（一倍标准差），同一行所有像素共用。设为 0 即关闭。</translation>
+    </message>
+    <message>
+        <source>Row Offset Nonuniformity:</source>
+        <translation>行偏置非均匀性:</translation>
+    </message>
+    <message>
+        <source>Row-to-row spread in offset, stated as the scene temperature step it equals at the NETD reference temperature (one sigma). 0 turns it off.</source>
+        <translation>行与行之间的偏置离散，以其在 NETD 参考温度下相当的场景温度变化表示（一倍标准差）。设为 0 即关闭。</translation>
     </message>
     <message>
         <source>Tone Gamma:</source>

@@ -3827,10 +3827,6 @@ Rebuild with:
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Temperature of the optics. A lens at room temperature emits in the infrared, and a cooled detector counts that emission as background photons -- signal it must subtract and shot noise it cannot. Off leaves the lens out.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Lens Emissivity:</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3948,7 +3944,7 @@ Rebuild with:
     </message>
     <message>
         <source>Fraction of the fixed pattern the Non-Uniformity Correction leaves behind. 0 removes all of it, which no real calibration does.</source>
-        <translation>Fraction of the fixed pattern the Non-Uniformity Correction leaves behind. 0 removes all of it, which no real calibration does.</translation>
+        <translation type="vanished">Fraction of the fixed pattern the Non-Uniformity Correction leaves behind. 0 removes all of it, which no real calibration does.</translation>
     </message>
     <message>
         <source>Time Constant:</source>
@@ -4061,6 +4057,78 @@ Rebuild with:
     <message>
         <source>Per-channel gain applied before the colour transform. Auto white balance drives these when it is on.</source>
         <translation>Per-channel gain applied before the colour transform. Auto white balance drives these when it is on.</translation>
+    </message>
+    <message>
+        <source>Temperature of the optics. A lens at room temperature emits in the infrared, and a cooled detector counts that emission as background photons -- signal it must subtract and shot noise it cannot. With cos^4 vignetting on, an off-axis pixel collects less of it, exactly as it collects less of the scene. Off leaves the lens out.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Column Gain Sigma:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Column-to-column spread in gain, as a fraction (one sigma): one value per readout column, shared by every pixel in it -- the striping a column amplifier leaves. 0 turns it off.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Column Offset Sigma:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Column-to-column spread in offset, in electrons (one sigma), shared by every pixel in a column. 0 turns it off.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Row Gain Sigma:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Row-to-row spread in gain, as a fraction (one sigma), shared by every pixel in a row. 0 turns it off.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Row Offset Sigma:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Row-to-row spread in offset, in electrons (one sigma), shared by every pixel in a row. 0 turns it off.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Fraction of the fixed pattern a two-point Non-Uniformity Correction leaves behind -- every gain and offset deviation, per pixel, per column and per row. 1 is the uncorrected frame, 0 removes all of it, which no real calibration does. Calibration maps, when the config names them, replace this: they are the correction.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Column Responsivity Nonuniformity:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Column-to-column spread in responsivity, as a fraction (one sigma), shared by every pixel in a column -- the striping that dominates an uncooled bolometer&apos;s residual pattern. 0 turns it off.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Column Offset Nonuniformity:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Column-to-column spread in offset, stated as the scene temperature step it equals at the NETD reference temperature (one sigma). 0 turns it off.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Row Responsivity Nonuniformity:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Row-to-row spread in responsivity, as a fraction (one sigma), shared by every pixel in a row. 0 turns it off.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Row Offset Nonuniformity:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Row-to-row spread in offset, stated as the scene temperature step it equals at the NETD reference temperature (one sigma). 0 turns it off.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Tone Gamma:</source>

@@ -429,7 +429,7 @@ void SensorPanel::setupUi() {
     // "not modelled" / "derive it" sentinel, labelled by special-value text.
     m_lensTemperature = makeSpin(0.0, 1000.0, 1.0, 2, 0.0, " K");
     addRow(opticsLayout, QT_TR_NOOP("Lens Temperature:"), m_lensTemperature,
-           QT_TR_NOOP("Temperature of the optics. A lens at room temperature emits in the infrared, and a cooled detector counts that emission as background photons -- signal it must subtract and shot noise it cannot. Off leaves the lens out."));
+           QT_TR_NOOP("Temperature of the optics. A lens at room temperature emits in the infrared, and a cooled detector counts that emission as background photons -- signal it must subtract and shot noise it cannot. With cos^4 vignetting on, an off-axis pixel collects less of it, exactly as it collects less of the scene. Off leaves the lens out."));
     m_lensEmissivity = makeSpin(-1.0, 1.0, 0.01, 3, -1.0, nullptr);
     addRow(opticsLayout, QT_TR_NOOP("Lens Emissivity:"), m_lensEmissivity,
            QT_TR_NOOP("How much the optics emit in the detector's band. At its minimum it is derived as one minus each channel's lens transmission, which the channels must then carry."));
@@ -528,13 +528,28 @@ void SensorPanel::setupUi() {
     addRow(photonLayout, QT_TR_NOOP("DSNU Sigma:"), m_dsnuSigma,
            QT_TR_NOOP("Dark Signal Non-Uniformity: pixel-to-pixel spread in dark current, in electrons. A fixed additive pattern, visible in dark areas."));
 
+    // Line-correlated components of the same pattern: one value per readout
+    // column and per row, fixed across frames. 0 leaves the pattern white.
+    m_columnGainSigma = makeSpin(0.0, 0.5, 0.001, 4, 0.0, nullptr);
+    addRow(photonLayout, QT_TR_NOOP("Column Gain Sigma:"), m_columnGainSigma,
+           QT_TR_NOOP("Column-to-column spread in gain, as a fraction (one sigma): one value per readout column, shared by every pixel in it -- the striping a column amplifier leaves. 0 turns it off."));
+    m_columnOffsetE = makeSpin(0.0, 1e5, 1.0, 2, 0.0, " e-");
+    addRow(photonLayout, QT_TR_NOOP("Column Offset Sigma:"), m_columnOffsetE,
+           QT_TR_NOOP("Column-to-column spread in offset, in electrons (one sigma), shared by every pixel in a column. 0 turns it off."));
+    m_rowGainSigma = makeSpin(0.0, 0.5, 0.001, 4, 0.0, nullptr);
+    addRow(photonLayout, QT_TR_NOOP("Row Gain Sigma:"), m_rowGainSigma,
+           QT_TR_NOOP("Row-to-row spread in gain, as a fraction (one sigma), shared by every pixel in a row. 0 turns it off."));
+    m_rowOffsetE = makeSpin(0.0, 1e5, 1.0, 2, 0.0, " e-");
+    addRow(photonLayout, QT_TR_NOOP("Row Offset Sigma:"), m_rowOffsetE,
+           QT_TR_NOOP("Row-to-row spread in offset, in electrons (one sigma), shared by every pixel in a row. 0 turns it off."));
+
     m_nucEnable = new QCheckBox();
     m_nucEnable->setChecked(false);
     photonLayout->addRow(m_nucEnable);
 
     m_nucResidual = makeSpin(0.0, 1.0, 0.01, 2, 0.0, nullptr);
     addRow(photonLayout, QT_TR_NOOP("NUC Residual:"), m_nucResidual,
-           QT_TR_NOOP("Fraction of the fixed pattern the Non-Uniformity Correction leaves behind. 0 removes all of it, which no real calibration does."));
+           QT_TR_NOOP("Fraction of the fixed pattern a two-point Non-Uniformity Correction leaves behind -- every gain and offset deviation, per pixel, per column and per row. 1 is the uncorrected frame, 0 removes all of it, which no real calibration does. Calibration maps, when the config names them, replace this: they are the correction."));
 
     mainLayout->addWidget(m_photonGroup);
 
@@ -576,11 +591,23 @@ void SensorPanel::setupUi() {
     m_thermalOffsetK = makeSpin(0.0, 100.0, 0.1, 3, 0.0, " K");
     addRow(thermalLayout, QT_TR_NOOP("Offset Nonuniformity:"), m_thermalOffsetK,
            QT_TR_NOOP("Pixel-to-pixel spread in offset of the uncorrected array, stated as the scene temperature step it equals at the NETD reference temperature (one sigma). A fixed additive pattern."));
+    m_thermalColumnGain = makeSpin(0.0, 0.5, 0.001, 4, 0.0, nullptr);
+    addRow(thermalLayout, QT_TR_NOOP("Column Responsivity Nonuniformity:"), m_thermalColumnGain,
+           QT_TR_NOOP("Column-to-column spread in responsivity, as a fraction (one sigma), shared by every pixel in a column -- the striping that dominates an uncooled bolometer's residual pattern. 0 turns it off."));
+    m_thermalColumnOffsetK = makeSpin(0.0, 100.0, 0.1, 3, 0.0, " K");
+    addRow(thermalLayout, QT_TR_NOOP("Column Offset Nonuniformity:"), m_thermalColumnOffsetK,
+           QT_TR_NOOP("Column-to-column spread in offset, stated as the scene temperature step it equals at the NETD reference temperature (one sigma). 0 turns it off."));
+    m_thermalRowGain = makeSpin(0.0, 0.5, 0.001, 4, 0.0, nullptr);
+    addRow(thermalLayout, QT_TR_NOOP("Row Responsivity Nonuniformity:"), m_thermalRowGain,
+           QT_TR_NOOP("Row-to-row spread in responsivity, as a fraction (one sigma), shared by every pixel in a row. 0 turns it off."));
+    m_thermalRowOffsetK = makeSpin(0.0, 100.0, 0.1, 3, 0.0, " K");
+    addRow(thermalLayout, QT_TR_NOOP("Row Offset Nonuniformity:"), m_thermalRowOffsetK,
+           QT_TR_NOOP("Row-to-row spread in offset, stated as the scene temperature step it equals at the NETD reference temperature (one sigma). 0 turns it off."));
     m_thermalNuc = new QCheckBox();
     thermalLayout->addRow(m_thermalNuc);
     m_thermalNucResidual = makeSpin(0.0, 1.0, 0.01, 3, 0.0, nullptr);
     addRow(thermalLayout, QT_TR_NOOP("NUC Residual:"), m_thermalNucResidual,
-           QT_TR_NOOP("Fraction of the fixed pattern the Non-Uniformity Correction leaves behind. 0 removes all of it, which no real calibration does."));
+           QT_TR_NOOP("Fraction of the fixed pattern a two-point Non-Uniformity Correction leaves behind -- every gain and offset deviation, per pixel, per column and per row. 1 is the uncorrected frame, 0 removes all of it, which no real calibration does. Calibration maps, when the config names them, replace this: they are the correction."));
 
     mainLayout->addWidget(m_thermalGroup);
 
@@ -787,6 +814,9 @@ void SensorPanel::setupUi() {
                                 m_timeConstant, m_responsivity, m_thermalReadNoise,
                                 m_drift, m_netd, m_netdRefTemp,
                                 m_thermalGainSigma, m_thermalOffsetK, m_thermalNucResidual,
+                                m_columnGainSigma, m_columnOffsetE, m_rowGainSigma,
+                                m_rowOffsetE, m_thermalColumnGain, m_thermalColumnOffsetK,
+                                m_thermalRowGain, m_thermalRowOffsetK,
                                 m_aeTarget, m_aeSmoothing, m_aeMinExposure,
                                 m_aeMaxExposure, m_aeMaxGain}) {
         connect(box, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
@@ -954,6 +984,8 @@ void SensorPanel::onShutterChanged(int index) {
 void SensorPanel::onFpnToggled(bool checked) {
     m_prnuSigma->setEnabled(checked);
     m_dsnuSigma->setEnabled(checked);
+    for (QDoubleSpinBox* box : {m_columnGainSigma, m_columnOffsetE, m_rowGainSigma, m_rowOffsetE})
+        box->setEnabled(checked);
     m_nucEnable->setEnabled(checked);
     m_nucResidual->setEnabled(checked && m_nucEnable->isChecked());
     onParamChanged();
@@ -968,6 +1000,9 @@ void SensorPanel::onThermalFpnToggled() {
     const bool fpn = m_thermalFpn->isChecked();
     m_thermalGainSigma->setEnabled(fpn);
     m_thermalOffsetK->setEnabled(fpn);
+    for (QDoubleSpinBox* box : {m_thermalColumnGain, m_thermalColumnOffsetK, m_thermalRowGain,
+                                m_thermalRowOffsetK})
+        box->setEnabled(fpn);
     m_thermalNuc->setEnabled(fpn);
     m_thermalNucResidual->setEnabled(fpn && m_thermalNuc->isChecked());
     onParamChanged();
@@ -1075,6 +1110,10 @@ void SensorPanel::onParamChanged() {
     m_camera.photon.enableFpn = m_fpnNoise->isChecked();
     m_camera.photon.prnuSigma = m_prnuSigma->value();
     m_camera.photon.dsnuElectronsRms = m_dsnuSigma->value();
+    m_camera.photon.columnGainSigma = m_columnGainSigma->value();
+    m_camera.photon.columnOffsetElectronsRms = m_columnOffsetE->value();
+    m_camera.photon.rowGainSigma = m_rowGainSigma->value();
+    m_camera.photon.rowOffsetElectronsRms = m_rowOffsetE->value();
     m_camera.photon.applyNuc = m_nucEnable->isChecked();
     m_camera.photon.nucResidualFraction = m_nucResidual->value();
 
@@ -1088,6 +1127,10 @@ void SensorPanel::onParamChanged() {
     m_camera.thermal.enableFpn = m_thermalFpn->isChecked();
     m_camera.thermal.fpnGainSigma = m_thermalGainSigma->value();
     m_camera.thermal.fpnOffsetKelvin = m_thermalOffsetK->value();
+    m_camera.thermal.fpnColumnGainSigma = m_thermalColumnGain->value();
+    m_camera.thermal.fpnColumnOffsetKelvin = m_thermalColumnOffsetK->value();
+    m_camera.thermal.fpnRowGainSigma = m_thermalRowGain->value();
+    m_camera.thermal.fpnRowOffsetKelvin = m_thermalRowOffsetK->value();
     m_camera.thermal.applyNuc = m_thermalNuc->isChecked();
     m_camera.thermal.nucResidualFraction = m_thermalNucResidual->value();
 
@@ -1312,11 +1355,17 @@ void SensorPanel::updateUiFromConfig(const quantiloom::camera::CameraConfig& con
     m_fpnNoise->setChecked(config.photon.enableFpn);
     m_prnuSigma->setValue(config.photon.prnuSigma);
     m_dsnuSigma->setValue(config.photon.dsnuElectronsRms);
+    m_columnGainSigma->setValue(config.photon.columnGainSigma);
+    m_columnOffsetE->setValue(config.photon.columnOffsetElectronsRms);
+    m_rowGainSigma->setValue(config.photon.rowGainSigma);
+    m_rowOffsetE->setValue(config.photon.rowOffsetElectronsRms);
     m_nucEnable->setChecked(config.photon.applyNuc);
     m_nucResidual->setValue(config.photon.nucResidualFraction);
     const bool fpnOn = config.photon.enableFpn;
     m_prnuSigma->setEnabled(fpnOn);
     m_dsnuSigma->setEnabled(fpnOn);
+    for (QDoubleSpinBox* box : {m_columnGainSigma, m_columnOffsetE, m_rowGainSigma, m_rowOffsetE})
+        box->setEnabled(fpnOn);
     m_nucEnable->setEnabled(fpnOn);
     m_nucResidual->setEnabled(fpnOn && config.photon.applyNuc);
 
@@ -1330,10 +1379,17 @@ void SensorPanel::updateUiFromConfig(const quantiloom::camera::CameraConfig& con
     m_thermalFpn->setChecked(config.thermal.enableFpn);
     m_thermalGainSigma->setValue(config.thermal.fpnGainSigma);
     m_thermalOffsetK->setValue(config.thermal.fpnOffsetKelvin);
+    m_thermalColumnGain->setValue(config.thermal.fpnColumnGainSigma);
+    m_thermalColumnOffsetK->setValue(config.thermal.fpnColumnOffsetKelvin);
+    m_thermalRowGain->setValue(config.thermal.fpnRowGainSigma);
+    m_thermalRowOffsetK->setValue(config.thermal.fpnRowOffsetKelvin);
     m_thermalNuc->setChecked(config.thermal.applyNuc);
     m_thermalNucResidual->setValue(config.thermal.nucResidualFraction);
     m_thermalGainSigma->setEnabled(config.thermal.enableFpn);
     m_thermalOffsetK->setEnabled(config.thermal.enableFpn);
+    for (QDoubleSpinBox* box : {m_thermalColumnGain, m_thermalColumnOffsetK, m_thermalRowGain,
+                                m_thermalRowOffsetK})
+        box->setEnabled(config.thermal.enableFpn);
     m_thermalNuc->setEnabled(config.thermal.enableFpn);
     m_thermalNucResidual->setEnabled(config.thermal.enableFpn && config.thermal.applyNuc);
 
@@ -1427,6 +1483,10 @@ void SensorPanel::blockSignalsForUpdate(bool block) {
              static_cast<QWidget*>(m_fpnNoise),
              static_cast<QWidget*>(m_prnuSigma),
              static_cast<QWidget*>(m_dsnuSigma),
+             static_cast<QWidget*>(m_columnGainSigma),
+             static_cast<QWidget*>(m_columnOffsetE),
+             static_cast<QWidget*>(m_rowGainSigma),
+             static_cast<QWidget*>(m_rowOffsetE),
              static_cast<QWidget*>(m_nucEnable),
              static_cast<QWidget*>(m_nucResidual),
              // Thermal
@@ -1436,6 +1496,10 @@ void SensorPanel::blockSignalsForUpdate(bool block) {
              static_cast<QWidget*>(m_drift),
              static_cast<QWidget*>(m_netd),
              static_cast<QWidget*>(m_netdRefTemp),
+             static_cast<QWidget*>(m_thermalColumnGain),
+             static_cast<QWidget*>(m_thermalColumnOffsetK),
+             static_cast<QWidget*>(m_thermalRowGain),
+             static_cast<QWidget*>(m_thermalRowOffsetK),
              // ISP
              static_cast<QWidget*>(m_autoExposure),
              static_cast<QWidget*>(m_aeTarget),
