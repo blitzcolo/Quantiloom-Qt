@@ -277,31 +277,40 @@ interior_bc = "adiabatic"
 
 [[materials]]
 name = "ChromeSphere"
-# Polished chrome. Emissivity this low means a thermal camera reads the
-# sky reflected in it rather than the sphere -- the classic way to get a
-# thermogram wrong, and worth having in frame on purpose.
+# Polished chrome. A thermal camera reads the sky reflected in it rather
+# than the sphere -- the classic way to get a thermogram wrong, and worth
+# having in frame on purpose. In every band its measured n,k below
+# (Rakic-LD, 0.25-62 um) drives the render, as a directional Fresnel lobe
+# in the infrared; ir_emissivity is the hemispherical value a thermal
+# solve would use and is not what the camera sees.
 ir_emissivity = 0.1
 
 [[materials]]
 name = "GlassSphere"
 # Glass is opaque and strongly emitting in the long wave, whatever it does
-# in the visible. It is not solved: its physics here is the measured
-# n(lambda) below.
-ir_emissivity = 0.88
+# in the visible. It is not solved. Its measured n,k below stops at 1.5 um,
+# so it drives VIS and NIR only; from SWIR on the renderer says so at load
+# and renders this scalar instead, as an opaque surface (no ir_transmittance,
+# so tau = 0). 0.84 is the HEMISPHERICAL emissivity of uncoated soda-lime
+# float glass -- the "corrected emissivity" 0.837 of EN 673 / ISO 10292,
+# whose normal-incidence value is 0.89 -- because a direction-independent
+# stand-in should send back what the surface sends back over the hemisphere.
+ir_emissivity = 0.84
 
 [[materials]]
 name = "WindowGlass"
 # As GlassSphere.
-ir_emissivity = 0.88
+ir_emissivity = 0.84
 
 [[materials]]
 name = "Car_Car_window"
 # As GlassSphere.
-ir_emissivity = 0.88
+ir_emissivity = 0.84
 
 [[materials]]
 name = "Car_M_IRON.004"
-# Bare aluminium, and as misleading in the infrared as the chrome.
+# Bare aluminium, and as misleading in the infrared as the chrome; its
+# measured n,k below (Rakic, to 200 um) drives the render in every band.
 ir_emissivity = 0.12
 
 [[materials]]
@@ -367,7 +376,9 @@ ir_emissivity = 0.9
 [refractive_index]
 ChromeSphere = "../../../Quantiloom-dev/assets/refractiveindex/database/data/main/Cr/nk/Rakic-LD.yml"
 "Car_M_IRON.004" = "../../../Quantiloom-dev/assets/refractiveindex/database/data/main/Al/nk/Rakic.yml"
-# NSG Opti-White low-iron float glass, tabulated n,k over 301-1498 nm.
+# NSG Opti-White low-iron float glass, tabulated n,k over 301-1498 nm: VIS and
+# NIR only. In SWIR, MWIR and LWIR the load warns that it does not reach and
+# the glass renders from its ir_emissivity above.
 GlassSphere = "../../../Quantiloom-dev/assets/refractiveindex/database/data/glass/misc/Pilkington-Optiwhite/nk/Treharne.yml"
 WindowGlass = "../../../Quantiloom-dev/assets/refractiveindex/database/data/glass/misc/Pilkington-Optiwhite/nk/Treharne.yml"
 "Car_Car_window" = "../../../Quantiloom-dev/assets/refractiveindex/database/data/glass/misc/Pilkington-Optiwhite/nk/Treharne.yml"
