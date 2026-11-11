@@ -177,9 +177,13 @@ Four rules the shell keeps, and that new work should not break:
 ## Conventions
 
 - Commits: Conventional Commits — `feat:`, `fix:`, `docs:`, `chore:`.
-- **No Codex session link in a commit message.** No `Codex-Session:` trailer,
-  no `https://Codex.ai/code/...` URL, in the subject, the body or a trailer. Same for
-  PR descriptions.
+- **No AI session link in a commit message**, from any assistant -- Claude Code,
+  Codex, Cursor or another. No `*-Session:` trailer, no session URL
+  (`https://claude.ai/code/...`, `https://chatgpt.com/codex/...` and the like), in the
+  subject, the body or a trailer. Same for PR descriptions.
+- **No AI as an author or co-author.** No `Co-Authored-By:` trailer naming an
+  assistant or a bot address, and no "Generated with ..." footer. The author and
+  committer are the person committing, under their own git identity.
 - Physics and algorithms belong in the SDK, not here (SRS CON-02).
 - User-visible strings: `tr()`, plus the Chinese in the same commit. The Chinese
   translation carries no backlog; keep it that way (`src/i18n/AGENTS.md`).
