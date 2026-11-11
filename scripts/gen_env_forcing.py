@@ -146,9 +146,12 @@ SCENES = [
         hour=14.0, declination_deg=20.0,
         air_min=297.0, air_max=309.0,
         rh_mean=42.0, rh_swing=12.0,
-        turbidity=0.24, diffuse_ratio=0.26,
-        note="Urban pad: the city holds its heat overnight and the haze puts a "
-             "quarter of the beam into the sky.",
+        # Clear sky, not haze: the scene's sun is ASTM G-173, the beam after a
+        # clear rural atmosphere, and the SDK refuses a daytime haze under it.
+        # 0.17 is the ASHRAE exponent that gives G-173's 900 W/m^2 at AM1.5.
+        turbidity=0.17, diffuse_ratio=0.12,
+        note="Urban pad on a clear day: the city holds its heat overnight, and "
+             "the sky is the clear sky the scene's ASTM G-173 sun belongs to.",
     ),
     dict(
         name="desert",

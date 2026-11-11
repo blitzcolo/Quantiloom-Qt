@@ -132,7 +132,6 @@ density_kg_m3 = 1200
 specific_heat_j_kgk = 1300
 thickness_m = 0.1
 convection_h_w_m2k = 12
-shortwave_absorptivity = 0.78
 wetness_factor = 0.45
 interior_bc = "adiabatic"
 
@@ -148,7 +147,6 @@ density_kg_m3 = 2700
 specific_heat_j_kgk = 790
 thickness_m = 0.4
 convection_h_w_m2k = 10
-shortwave_absorptivity = 0.65
 interior_bc = "adiabatic"
 
 [[materials]]
@@ -165,7 +163,6 @@ density_kg_m3 = 1800
 specific_heat_j_kgk = 900
 thickness_m = 0.25
 convection_h_w_m2k = 8
-shortwave_absorptivity = 0.3
 interior_bc = "fixed"
 interior_temperature_k = 295
 
@@ -183,7 +180,6 @@ density_kg_m3 = 2000
 specific_heat_j_kgk = 900
 thickness_m = 0.04
 convection_h_w_m2k = 15
-shortwave_absorptivity = 0.75
 interior_bc = "fixed"
 interior_temperature_k = 298
 
@@ -201,7 +197,6 @@ density_kg_m3 = 600
 specific_heat_j_kgk = 1600
 thickness_m = 0.04
 convection_h_w_m2k = 8
-shortwave_absorptivity = 0.55
 interior_bc = "fixed"
 interior_temperature_k = 295
 
@@ -223,7 +218,6 @@ density_kg_m3 = 2700
 specific_heat_j_kgk = 900
 thickness_m = 0.003
 convection_h_w_m2k = 10
-shortwave_absorptivity = 0.35
 interior_bc = "adiabatic"
 
 [[materials]]
@@ -239,7 +233,6 @@ density_kg_m3 = 1100
 specific_heat_j_kgk = 1900
 thickness_m = 0.015
 convection_h_w_m2k = 16
-shortwave_absorptivity = 0.92
 interior_bc = "adiabatic"
 
 [[materials]]
@@ -265,7 +258,6 @@ density_kg_m3 = 1100
 specific_heat_j_kgk = 1500
 thickness_m = 0.006
 convection_h_w_m2k = 16
-shortwave_absorptivity = 0.9
 interior_bc = "adiabatic"
 
 # ============================================================================

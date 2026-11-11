@@ -90,7 +90,9 @@ solar_lut_diffuse_is_global = true
 [atmosphere]
 # Hot clear desert air: low humidity, some thermal turbulence haze.
 preset = "turbulent_clear"    # vis 20 km, 308 K
-vis_km = 18.0
+# 20 km is the clearest air the ASTM G-173 sun can be paired with in daylight;
+# the 18 km this once said is refused.
+vis_km = 20.0
 rh = 0.15
 t_ground_K = 318.15
 
@@ -133,7 +135,6 @@ density_kg_m3 = 1600
 specific_heat_j_kgk = 800
 thickness_m = 0.15
 convection_h_w_m2k = 14
-shortwave_absorptivity = 0.72
 wetness_factor = 0.01
 interior_bc = "adiabatic"
 
@@ -151,7 +152,6 @@ density_kg_m3 = 2700
 specific_heat_j_kgk = 790
 thickness_m = 0.4
 convection_h_w_m2k = 10
-shortwave_absorptivity = 0.65
 interior_bc = "adiabatic"
 
 [[materials]]
@@ -172,7 +172,6 @@ density_kg_m3 = 2700
 specific_heat_j_kgk = 900
 thickness_m = 0.003
 convection_h_w_m2k = 10
-shortwave_absorptivity = 0.35
 interior_bc = "adiabatic"
 
 [[materials]]
@@ -188,7 +187,6 @@ density_kg_m3 = 1100
 specific_heat_j_kgk = 1900
 thickness_m = 0.015
 convection_h_w_m2k = 16
-shortwave_absorptivity = 0.92
 interior_bc = "adiabatic"
 
 [[materials]]
@@ -214,7 +212,6 @@ density_kg_m3 = 1100
 specific_heat_j_kgk = 1500
 thickness_m = 0.006
 convection_h_w_m2k = 16
-shortwave_absorptivity = 0.9
 interior_bc = "adiabatic"
 
 # ============================================================================

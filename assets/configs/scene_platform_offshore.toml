@@ -63,7 +63,8 @@ solar_lut_diffuse_is_global = true
 
 [atmosphere]
 preset = "maritime"
-vis_km = 16
+# >= 20 km: daytime under the ASTM G-173 sun is limited to clear sky.
+vis_km = 20
 t_ground_K = 288
 rh = 85
 p_hPa = 1009
