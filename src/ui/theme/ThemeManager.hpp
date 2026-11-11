@@ -50,6 +50,11 @@ public:
     static const QString kSolarizedLight;
     static const QString kPhosphor;
     static const QString kPrintFriendly;
+#ifdef Q_OS_MACOS
+    /// The native theme. Registered on macOS only, where it is the light
+    /// default; see macOS() in ThemeManager.cpp.
+    static const QString kMacOS;
+#endif
 
     static ThemeManager& instance();
 

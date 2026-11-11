@@ -19,6 +19,15 @@ Incremental rebuild after C++-only changes:
 cmake.exe --build build-msvc --config Release -j
 ```
 
+## macOS (Apple Silicon, Metal)
+
+```bash
+./build_macos.sh                      # configure + build, Ninja Release
+open build-mac/QuantiloomQt.app        # or build-mac/QuantiloomQt.app/Contents/MacOS/QuantiloomQt
+```
+
+Native `cmake`/`ninja`, Qt at `~/Qt/6.12.0/macos` (override `QT_PREFIX=...`; `DEPLOY_QT=1` also runs `macdeployqt`). The SDK is `../Quantiloom-SDK/macos_arm64`, installed from `../Quantiloom-dev`; CMake requests the `MetalInterop` component there instead of `VulkanInterop`. The bundle holds the SDK dylibs in `Contents/Frameworks` (copied untouched — re-signing or `install_name_tool` changes the bytes `SdkGuard` hashes) and the SDK's `share/quantiloom` plus `assets/` in `Contents/Resources`. The viewport uses `GpuBackendMetal.mm`: Studio creates the `MTLDevice`/queue (ray tracing required), imports them into QRhi and hands the same objects to the SDK. Incremental rebuild: `cmake --build build-mac -j`; judge a run by its log, as on Windows.
+
 ## The cross-repo dependency (read this before debugging anything)
 
 This repo contains **no physics** — it links the prebuilt SDK at `../Quantiloom-SDK/windows_amd64` (currently `H:/Quantiloom-SDK/windows_amd64`, CMake cache var `QUANTILOOM_SDK_ROOT`; the path is derived from this checkout's location, never hard-coded to a drive) via `find_package(Quantiloom)`. The SDK is produced by the sibling core repo `../Quantiloom-dev`. Consequences:

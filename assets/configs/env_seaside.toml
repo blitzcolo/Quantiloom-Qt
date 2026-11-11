@@ -397,12 +397,12 @@ name = "Car_pasted__M_BODY_inside.001"
 ir_emissivity = 0.9
 
 [refractive_index]
-ChromeSphere = "D:/Quantiloom-dev/assets/refractiveindex/database/data/main/Cr/nk/Rakic-LD.yml"
-"Car_M_IRON.004" = "D:/Quantiloom-dev/assets/refractiveindex/database/data/main/Al/nk/Rakic.yml"
+ChromeSphere = "../../../Quantiloom-dev/assets/refractiveindex/database/data/main/Cr/nk/Rakic-LD.yml"
+"Car_M_IRON.004" = "../../../Quantiloom-dev/assets/refractiveindex/database/data/main/Al/nk/Rakic.yml"
 # NSG Opti-White low-iron float glass, tabulated n,k over 301-1498 nm.
-GlassSphere = "D:/Quantiloom-dev/assets/refractiveindex/database/data/glass/misc/Pilkington-Optiwhite/nk/Treharne.yml"
-WindowGlass = "D:/Quantiloom-dev/assets/refractiveindex/database/data/glass/misc/Pilkington-Optiwhite/nk/Treharne.yml"
-"Car_Car_window" = "D:/Quantiloom-dev/assets/refractiveindex/database/data/glass/misc/Pilkington-Optiwhite/nk/Treharne.yml"
+GlassSphere = "../../../Quantiloom-dev/assets/refractiveindex/database/data/glass/misc/Pilkington-Optiwhite/nk/Treharne.yml"
+WindowGlass = "../../../Quantiloom-dev/assets/refractiveindex/database/data/glass/misc/Pilkington-Optiwhite/nk/Treharne.yml"
+"Car_Car_window" = "../../../Quantiloom-dev/assets/refractiveindex/database/data/glass/misc/Pilkington-Optiwhite/nk/Treharne.yml"
 
 # ============================================================================
 # [thermal] -- the temperatures come from an energy balance, not from the file

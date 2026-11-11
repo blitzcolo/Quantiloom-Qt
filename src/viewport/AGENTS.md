@@ -23,9 +23,20 @@ clears the swapchain and fits the frame into it. The SDK never writes a
 swapchain image — QRhi swapchains have no `TRANSFER_DST`, which the blit this
 replaced needed.
 
-QRhi is a **limited-compatibility** API and CMake pins Qt to 6.10.x for that
-reason. Keep every QRhi type inside this directory, and re-check a different
-minor against Qt's `qrhivulkan.cpp` before widening the pin.
+`GpuBackend` is the seam to the GPU API: `ViewportRenderer` asks it for the QRhi,
+the render context and each frame's SDK recording, and exactly one implementation is
+compiled -- `GpuBackendVulkan.cpp` (wraps `GpuDevice` and `SdkFrameBridge`, unchanged
+in behaviour) or `GpuBackendMetal.mm` (macOS: Studio's own `MTLDevice`/queue imported
+into QRhi and handed to the SDK; the SDK records into QRhi's current `MTLCommandBuffer`
+between `beginExternal()`/`endExternal()` and writes the frame and depth `MTLTexture`s,
+by a draw or a blit copy -- which is why they carry `RenderTarget` there; no layouts exist
+to publish).
+`SdkFrame.cpp` holds the trace / re-present / reprocess decision both share.
+
+QRhi is a **limited-compatibility** API and CMake pins Qt to 6.10 - 6.12 for that
+reason (the 6.12 headers were checked; see the comment in CMakeLists.txt). Keep every
+QRhi type inside this directory, and re-check a different minor against Qt's
+`qrhivulkan.cpp` / `qrhimetal.mm` before widening the pin.
 
 ## Long SDK calls run off the GUI thread
 

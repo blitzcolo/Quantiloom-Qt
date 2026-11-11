@@ -15,7 +15,6 @@
 
 #include <QMainWindow>
 #include <QHash>
-#include <QVulkanInstance>
 #include <QHash>
 #include <QMap>
 #include <QPointer>
@@ -44,6 +43,7 @@
 
 QT_BEGIN_NAMESPACE
 class QActionGroup;
+class QVulkanInstance;
 class QComboBox;
 class QDockWidget;
 class QDragEnterEvent;

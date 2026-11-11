@@ -14,16 +14,30 @@
 namespace assetpaths {
 
 QString bundled(const QString& relativePath) {
-    const QStringList candidates{
+    QStringList candidates{
         QCoreApplication::applicationDirPath() + QLatin1Char('/') + relativePath,
         QDir::currentPath() + QLatin1Char('/') + relativePath,
     };
+#ifdef Q_OS_MACOS
+    // A .app keeps its data in Contents/Resources, not beside the executable.
+    candidates.prepend(QCoreApplication::applicationDirPath() +
+                       QStringLiteral("/../Resources/") + relativePath);
+#endif
     for (const QString& path : candidates) {
         if (QFileInfo::exists(path)) {
             return path;
         }
     }
     return {};
+}
+
+QString sdkResourceRoot() {
+#ifdef Q_OS_MACOS
+    return QDir::cleanPath(QCoreApplication::applicationDirPath() +
+                           QStringLiteral("/../Resources/share/quantiloom"));
+#else
+    return QCoreApplication::applicationDirPath() + QStringLiteral("/share/quantiloom");
+#endif
 }
 
 QString atmosphereModelPackDir() {

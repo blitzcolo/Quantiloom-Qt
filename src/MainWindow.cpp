@@ -6,6 +6,7 @@
  */
 
 #include "MainWindow.hpp"
+#include "viewport/GpuBackend.hpp"
 #include "viewport/ViewportWindow.hpp"
 #include "panels/SceneTreePanel.hpp"
 #include "panels/MaterialEditorPanel.hpp"
@@ -313,7 +314,7 @@ void MainWindow::setupUi() {
     m_viewport = new ViewportWindow();
     // The window's surface and QRhi come from this instance. The device is the
     // viewport's own, chosen on first exposure by what the GPUs can do.
-    m_viewport->setVulkanInstance(m_vulkanInstance);
+    viewport::attachHostInstance(m_viewport, m_vulkanInstance);
 
     // Wrap in QWidget container for use as central widget
     m_viewportContainer = QWidget::createWindowContainer(m_viewport);

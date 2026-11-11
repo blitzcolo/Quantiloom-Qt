@@ -10,6 +10,12 @@ project(QuantiloomQt
     LANGUAGES CXX
 )
 
+if(APPLE)
+    enable_language(OBJCXX)
+    set(CMAKE_OBJCXX_STANDARD 20)
+    set(CMAKE_OBJCXX_STANDARD_REQUIRED ON)
+endif()
+
 # ============================================================================
 # C++20 Standard
 # ============================================================================
@@ -57,12 +63,27 @@ find_package(Qt6 REQUIRED COMPONENTS
     LinguistTools
 )
 
-# The viewport imports its own Vulkan device into QRhi and records SDK work
-# between beginExternal() and endExternal(); both were written against 6.10.
-# Check a different minor against src/viewport/AGENTS.md before widening this.
-if(Qt6_VERSION VERSION_LESS 6.10 OR Qt6_VERSION VERSION_GREATER_EQUAL 6.11)
+# The viewport imports its own GPU device into QRhi and records SDK work
+# between beginExternal() and endExternal(); written against 6.10, widened to
+# 6.12 after checking src/viewport/AGENTS.md against the 6.12.0 headers
+# (QtGui.framework/Headers/6.12.0/QtGui/rhi) -- present and unchanged there:
+#   Vulkan: QRhiVulkanNativeHandles {physDev, dev, gfxQueueFamilyIdx,
+#     gfxQueueIdx}, QRhiVulkanCommandBufferNativeHandles::commandBuffer,
+#     QRhiVulkanInitParams::preferredExtensionsForImportedDevice() and
+#     preferredInstanceExtensions().
+#   Metal: QRhiMetalNativeHandles {dev, cmdQueue} (host-created device and
+#     queue imported through QRhi::create) and
+#     QRhiMetalCommandBufferNativeHandles {commandBuffer, encoder}.
+#   Common: QRhiCommandBuffer::beginExternal()/endExternal()/nativeHandles(),
+#     QRhiTexture::NativeTexture {quint64 object; int layout}, setNativeLayout(),
+#     QRhiTexture::UsedWithLoadStore, QRhi::clipSpaceCorrMatrix(),
+#     QRhi::FramesInFlight, QSurface::MetalSurface.
+# Not re-read: qrhivulkan.cpp / qrhimetal.mm (6.12 ships headers only), so the
+# barrier behaviour in src/viewport/AGENTS.md is carried over from 6.10.
+# Check a different minor the same way before widening this.
+if(Qt6_VERSION VERSION_LESS 6.10 OR Qt6_VERSION VERSION_GREATER_EQUAL 6.13)
     message(FATAL_ERROR
-        "Qt ${Qt6_VERSION} found; the viewport's QRhi code is pinned to Qt 6.10.x.")
+        "Qt ${Qt6_VERSION} found; the viewport's QRhi code is pinned to Qt 6.10 - 6.12.")
 endif()
 
 message(STATUS "Qt6 version: ${Qt6_VERSION}")
@@ -71,8 +92,12 @@ message(STATUS "Qt6 path: ${Qt6_DIR}")
 # ============================================================================
 # Find Vulkan
 # ============================================================================
-find_package(Vulkan REQUIRED)
-message(STATUS "Vulkan SDK: ${Vulkan_VERSION}")
+# The viewport presents through QRhi; on Apple the backend is Metal and there
+# is no Vulkan SDK to find, so require it everywhere except Apple.
+if(NOT APPLE)
+    find_package(Vulkan REQUIRED)
+    message(STATUS "Vulkan SDK: ${Vulkan_VERSION}")
+endif()
 
 # ============================================================================
 # libQuantiloom SDK Integration
@@ -113,7 +138,12 @@ message(STATUS "Using Quantiloom SDK: ${QUANTILOOM_SDK_DIR}")
 # the base package is backend-neutral.
 # The SDK and Studio ship together: SdkGuard checks the exact binary at start-up,
 # and the minimum here is the release this tree was last built and reviewed against.
-find_package(Quantiloom 0.9.0 REQUIRED COMPONENTS VulkanInterop)
+# macOS is Metal-only: MetalInterop replaces VulkanInterop.
+if(APPLE)
+    find_package(Quantiloom 0.9.0 REQUIRED COMPONENTS MetalInterop)
+else()
+    find_package(Quantiloom 0.9.0 REQUIRED COMPONENTS VulkanInterop)
+endif()
 message(STATUS "Found Quantiloom: ${Quantiloom_VERSION}")
 
 # Use namespaced target from find_package
@@ -159,11 +189,16 @@ endif()
 # Reconfigure whenever the SDK is reinstalled. The package files are enough on
 # their own -- the install rewrites all of them -- but the binaries are listed
 # too so that a hand-copied DLL is also caught.
-set(QUANTILOOM_SDK_WATCHED
-    "${QUANTILOOM_SDK_DIR}/lib/cmake/Quantiloom/QuantiloomConfig.cmake"
-    "${QUANTILOOM_SDK_DIR}/lib/cmake/Quantiloom/QuantiloomTargets.cmake"
-    "${QUANTILOOM_SDK_DIR}/lib/cmake/Quantiloom/QuantiloomTargets-release.cmake"
-)
+# Ninja and Makefiles already track every file find_package read, and listing
+# them again is a "defined as an output multiple times" error under Ninja.
+set(QUANTILOOM_SDK_WATCHED "")
+if(CMAKE_GENERATOR MATCHES "Visual Studio")
+    list(APPEND QUANTILOOM_SDK_WATCHED
+        "${QUANTILOOM_SDK_DIR}/lib/cmake/Quantiloom/QuantiloomConfig.cmake"
+        "${QUANTILOOM_SDK_DIR}/lib/cmake/Quantiloom/QuantiloomTargets.cmake"
+        "${QUANTILOOM_SDK_DIR}/lib/cmake/Quantiloom/QuantiloomTargets-release.cmake"
+    )
+endif()
 foreach(_sdk_binary "${QUANTILOOM_SDK_DLL}" "${QUANTILOOM_SDK_IMPLIB}")
     if(_sdk_binary AND EXISTS "${_sdk_binary}")
         list(APPEND QUANTILOOM_SDK_WATCHED "${_sdk_binary}")
@@ -244,10 +279,9 @@ set(GUI_SOURCES
     src/viewport/ViewportWindow.hpp
     src/viewport/ViewportRenderer.cpp
     src/viewport/ViewportRenderer.hpp
-    src/viewport/GpuDevice.cpp
-    src/viewport/GpuDevice.hpp
-    src/viewport/SdkFrameBridge.cpp
-    src/viewport/SdkFrameBridge.hpp
+    src/viewport/GpuBackend.hpp
+    src/viewport/SdkFrame.cpp
+    src/viewport/SdkFrame.hpp
     src/viewport/PixelReadbackConversion.hpp
     src/viewport/ViewportSampleBatchScheduler.hpp
     src/viewport/CameraMatrices.cpp
@@ -318,6 +352,21 @@ set(GUI_SOURCES
     src/dialogs/HelpDialog.hpp
 )
 
+# One GpuBackend per platform (src/viewport/GpuBackend.hpp).
+if(APPLE)
+    list(APPEND GUI_SOURCES src/viewport/GpuBackendMetal.mm)
+    set_source_files_properties(src/viewport/GpuBackendMetal.mm
+        PROPERTIES COMPILE_OPTIONS "-fobjc-arc" SKIP_PRECOMPILE_HEADERS ON)
+else()
+    list(APPEND GUI_SOURCES
+        src/viewport/GpuBackendVulkan.cpp
+        src/viewport/GpuDevice.cpp
+        src/viewport/GpuDevice.hpp
+        src/viewport/SdkFrameBridge.cpp
+        src/viewport/SdkFrameBridge.hpp
+    )
+endif()
+
 # ============================================================================
 # Translations (i18n)
 # ============================================================================
@@ -363,9 +412,12 @@ endif()
 # ============================================================================
 # Executable
 # ============================================================================
+if(APPLE)
+    set(QUANTILOOM_BUNDLE_KEYWORD MACOSX_BUNDLE)
+endif()
 # Note: Remove WIN32 for debugging to see console output
 # add_executable(QuantiloomQt WIN32
-add_executable(QuantiloomQt
+add_executable(QuantiloomQt ${QUANTILOOM_BUNDLE_KEYWORD}
     ${GUI_SOURCES}
     ${QM_FILES}
     ${RESOURCE_FILES}
@@ -422,10 +474,22 @@ target_link_libraries(QuantiloomQt PRIVATE
     Qt6::Gui
     Qt6::GuiPrivate
     Qt6::Charts
-    Quantiloom::VulkanInterop
     ${QUANTILOOM_LIBRARIES}
     Quantiloom::libSpectraForge
 )
+if(APPLE)
+    target_link_libraries(QuantiloomQt PRIVATE
+        Quantiloom::MetalInterop
+        # The SDK's headers include <glm/glm.hpp>; its package provides the target
+        # (the Vulkan SDK supplies glm on the other platforms).
+        glm::glm
+        "-framework Foundation"
+        "-framework Metal"
+        "-framework QuartzCore"
+    )
+else()
+    target_link_libraries(QuantiloomQt PRIVATE Quantiloom::VulkanInterop)
+endif()
 
 # ============================================================================
 # Compiler Flags
@@ -641,11 +705,17 @@ endif()
 # The shell looks up assets/spectral and assets/luts beside the executable
 # first (MainWindow::spectralDatabasePath, resolveBundledIlluminant,
 # SpectralLibraryPanel::assetsDir), so the copies are deployed beside it.
+# A macOS .app keeps data in Contents/Resources (AssetPaths::bundled() looks there).
+if(APPLE)
+    set(QUANTILOOM_DATA_DIR "$<TARGET_BUNDLE_CONTENT_DIR:QuantiloomQt>/Resources")
+else()
+    set(QUANTILOOM_DATA_DIR "$<TARGET_FILE_DIR:QuantiloomQt>")
+endif()
 add_custom_target(QuantiloomQtAssets ALL
     COMMAND ${CMAKE_COMMAND} -E copy_directory
-        "${CMAKE_CURRENT_SOURCE_DIR}/assets/spectral" "$<TARGET_FILE_DIR:QuantiloomQt>/assets/spectral"
+        "${CMAKE_CURRENT_SOURCE_DIR}/assets/spectral" "${QUANTILOOM_DATA_DIR}/assets/spectral"
     COMMAND ${CMAKE_COMMAND} -E copy_directory
-        "${CMAKE_CURRENT_SOURCE_DIR}/assets/luts" "$<TARGET_FILE_DIR:QuantiloomQt>/assets/luts"
+        "${CMAKE_CURRENT_SOURCE_DIR}/assets/luts" "${QUANTILOOM_DATA_DIR}/assets/luts"
 )
 install(DIRECTORY assets/spectral assets/luts DESTINATION assets)
 
@@ -659,10 +729,50 @@ add_dependencies(QuantiloomQt QuantiloomQtAssets)
 add_custom_target(QuantiloomSdkResources ALL
     COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
         "${QUANTILOOM_SDK_DIR}/share/quantiloom"
-        "$<TARGET_FILE_DIR:QuantiloomQt>/share/quantiloom"
+        "${QUANTILOOM_DATA_DIR}/share/quantiloom"
     COMMENT "Copying the SDK's runtime resources..."
 )
 add_dependencies(QuantiloomQt QuantiloomSdkResources)
+
+# ============================================================================
+# macOS bundle
+# ============================================================================
+# QuantiloomQt.app/Contents/Frameworks carries the SDK's dylibs exactly as
+# installed (cp -RPp, no install_name_tool, no codesign): SdkGuard compares
+# their SHA-256 with the stamp recorded above, and either would change it.
+# Qt is found through the build's rpath on the Qt prefix; run macdeployqt on
+# the bundle to make it self-contained.
+if(APPLE)
+    file(GLOB QUANTILOOM_SDK_DYLIBS "${QUANTILOOM_SDK_DIR}/lib/*.dylib")
+    set_target_properties(QuantiloomQt PROPERTIES
+        BUILD_WITH_INSTALL_RPATH ON
+        INSTALL_RPATH "@executable_path/../Frameworks;${QUANTILOOM_QT_PREFIX}/lib"
+        MACOSX_BUNDLE_BUNDLE_NAME "Quantiloom Studio"
+        MACOSX_BUNDLE_GUI_IDENTIFIER "com.blitzcolo.quantiloom.studio"
+        MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"
+        MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
+    )
+    add_custom_target(QuantiloomSdkFrameworks ALL
+        COMMAND ${CMAKE_COMMAND} -E make_directory
+            "$<TARGET_BUNDLE_CONTENT_DIR:QuantiloomQt>/Frameworks"
+        COMMAND cp -RPp ${QUANTILOOM_SDK_DYLIBS}
+            "$<TARGET_BUNDLE_CONTENT_DIR:QuantiloomQt>/Frameworks/"
+        COMMENT "Copying the SDK's dylibs into the bundle..."
+        VERBATIM
+    )
+    add_dependencies(QuantiloomQt QuantiloomSdkFrameworks)
+    # An SDK built with OpenUSD carries its plugin tree in lib/usd; the SDK's
+    # UsdLoader looks for it beside libQuantiloom, which here is Frameworks/.
+    if(EXISTS "${QUANTILOOM_SDK_DIR}/lib/usd")
+        add_custom_command(TARGET QuantiloomSdkFrameworks POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
+                "${QUANTILOOM_SDK_DIR}/lib/usd"
+                "$<TARGET_BUNDLE_CONTENT_DIR:QuantiloomQt>/Frameworks/usd"
+            COMMENT "Copying the SDK's OpenUSD plugins into the bundle..."
+            VERBATIM
+        )
+    endif()
+endif()
 
 # ============================================================================
 # Summary
@@ -673,6 +783,10 @@ message(STATUS "========================================")
 message(STATUS "  Version:      ${PROJECT_VERSION}")
 message(STATUS "  Build Type:   ${CMAKE_BUILD_TYPE}")
 message(STATUS "  Qt6:          ${Qt6_VERSION}")
-message(STATUS "  Vulkan:       ${Vulkan_VERSION}")
+if(Vulkan_FOUND)
+    message(STATUS "  Vulkan:       ${Vulkan_VERSION}")
+else()
+    message(STATUS "  Vulkan:       not required (Apple)")
+endif()
 message(STATUS "  Quantiloom:   SDK (${QUANTILOOM_SDK_DIR})")
 message(STATUS "========================================")
