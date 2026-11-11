@@ -4,8 +4,10 @@
 # Beach sloping into the sea, late-afternoon sun out over the water so the
 # wave mesh returns glints toward the camera. The shoreline runs along z=0:
 # land (z>0) rises to +1.6 m, the seabed drops to -3 m, and the SeaWater
-# mesh sits at y=0 with KHR transmission (IOR 1.33) plus volume absorption,
-# so the sand stays visible through the shallows.
+# mesh sits at y=0 with KHR transmission plus volume absorption, so the sand
+# stays visible through the shallows, and with the measured n,k of water
+# (Hale & Querry), which is what makes the sea reflect cold sky at grazing
+# view in MWIR and LWIR rather than render as a blackbody.
 #
 # Geometry: scripts/gen_env_scenes.py builds the GLB -- procedural terrain and
 # textures merged with SU7 (5.0 m), CesiumMan (1.76 m) and the glass/chrome
@@ -109,11 +111,18 @@ albedo = [0.8, 0.8, 0.8]
 # strings verbatim -- including the punctuation.
 #
 # Deliberately NOT bound:
-#   - SeaWater: also transmissive. Its appearance is Fresnel at IOR 1.33
+#   - SeaWater: also transmissive. Its appearance is the Fresnel interface
 #     plus the volume absorption already in the GLB; a remote-sensing water
 #     reflectance is the water-leaving signal and would double count it.
-#     Tune it by name instead -- roughness, attenuation_color,
-#     attenuation_distance -- with no GLB rebuild.
+#     Its optical constants ARE bound, in [refractive_index] below: n,k
+#     describes the interface itself, the term a reflectance would
+#     duplicate, so it double counts nothing -- the same arrangement as the
+#     glass. In the visible its n (1.333-1.339) takes the place of the GLB's
+#     IOR 1.33, and k does not add absorption on top of the GLB's
+#     attenuation (k is only read as absorption by a fusion "solid" medium,
+#     which this scene does not declare). Tune it by name instead --
+#     roughness, attenuation_color, attenuation_distance -- with no GLB
+#     rebuild.
 #   - GlassSphere / WindowGlass / Car_Car_window: transmissive. Their physics is
 #     the measured n(lambda) below plus Fresnel; a library "reflectance" here
 #     would double count the surface term.
@@ -288,7 +297,15 @@ name = "SeaWater"
 # water below holds its back face at 291 K -- so it ends the day within a
 # degree of where it started while the beach swings fifteen. That
 # contrast is the whole reason a coast has a sea breeze.
-ir_emissivity = 0.99
+#
+# ir_emissivity is what the thermal solve radiates with, and the solve wants
+# the HEMISPHERICAL value: 0.95 is 1 minus the cosine-weighted hemispherical
+# Fresnel reflectance of liquid water (Hale & Querry 1973 n,k), Planck-
+# weighted at 300 K over 8-12 um (0.9488; 0.932 over 3-5 um). The 0.99 this
+# used to carry is the normal-incidence value (0.989 over 8-12 um). The render
+# does not use this number: SeaWater's measured n,k below drives every band,
+# as a directional Fresnel lobe in the infrared.
+ir_emissivity = 0.95
 thermal_conductivity_w_mk = 0.6
 density_kg_m3 = 1000
 specific_heat_j_kgk = 4180
@@ -400,6 +417,9 @@ ir_emissivity = 0.9
 [refractive_index]
 ChromeSphere = "../../../Quantiloom-dev/assets/refractiveindex/database/data/main/Cr/nk/Rakic-LD.yml"
 "Car_M_IRON.004" = "../../../Quantiloom-dev/assets/refractiveindex/database/data/main/Al/nk/Rakic.yml"
+# Liquid water at 25 C, Hale & Querry (1973), tabulated 0.2-200 um: it reaches
+# every band. Reflects 1 % of the sky head-on at 10 um and 55 % at 85 degrees.
+SeaWater = "../../../Quantiloom-dev/assets/refractiveindex/database/data/main/H2O/nk/Hale.yml"
 # NSG Opti-White low-iron float glass, tabulated n,k over 301-1498 nm: VIS and
 # NIR only. In SWIR, MWIR and LWIR the load warns that it does not reach and
 # the glass renders from its ir_emissivity above.
