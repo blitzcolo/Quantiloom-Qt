@@ -1643,6 +1643,16 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Atmosphere Not Applied</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This atmosphere cannot be paired with the scene&apos;s sun:
+
+%1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Will export an EXR when the target is reached</source>
         <translation type="unfinished"></translation>
     </message>
@@ -2877,6 +2887,14 @@ Remove it from the recent files?</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Derive from measured reflectance</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>One minus the reflectance weighted by the scene&apos;s sun and sky, computed by the renderer from the material&apos;s bound spectra. Untick to write a value by hand.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Transmission and Volume</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3649,6 +3667,14 @@ Rebuild with:
         <translation>Enable NUC</translation>
     </message>
     <message>
+        <source>Off</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>From lens transmission</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Auto Exposure</source>
         <translation>Auto Exposure</translation>
     </message>
@@ -3794,6 +3820,22 @@ Rebuild with:
     </message>
     <message>
         <source>Focal length in pixels, as a calibration reports it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Lens Temperature:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Temperature of the optics. A lens at room temperature emits in the infrared, and a cooled detector counts that emission as background photons -- signal it must subtract and shot noise it cannot. Off leaves the lens out.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Lens Emissivity:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>How much the optics emit in the detector&apos;s band. At its minimum it is derived as one minus each channel&apos;s lens transmission, which the channels must then carry.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -3947,6 +3989,22 @@ Rebuild with:
     <message>
         <source>Scene temperature the NETD was quoted at. A NETD without its reference temperature attached means nothing.</source>
         <translation>Scene temperature the NETD was quoted at. A NETD without its reference temperature attached means nothing.</translation>
+    </message>
+    <message>
+        <source>Responsivity Nonuniformity:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Pixel-to-pixel spread in responsivity of the uncorrected array, as a fraction (one sigma). A fixed multiplicative pattern.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Offset Nonuniformity:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Pixel-to-pixel spread in offset of the uncorrected array, stated as the scene temperature step it equals at the NETD reference temperature (one sigma). A fixed additive pattern.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>AE Target Luminance:</source>

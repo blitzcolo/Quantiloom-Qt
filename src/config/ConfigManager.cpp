@@ -587,6 +587,7 @@ void ConfigManager::extractSceneConfig(const quantiloom::Config& config, SceneCo
         matConfig.thermal.convection = matTable.GetFloat("convection_h_w_m2k", 5.0f);
         matConfig.thermal.shortwaveAbsorptivity =
             matTable.GetFloat("shortwave_absorptivity", 0.7f);
+        matConfig.thermal.absorptivityExplicit = matTable.Has("shortwave_absorptivity");
         matConfig.thermal.wetness = matTable.GetFloat("wetness_factor", 0.0f);
         matConfig.thermal.internalHeat = matTable.GetFloat("internal_heat_w_m2", 0.0f);
         matConfig.thermal.isShell = matTable.GetBool("shell", false);
@@ -1201,8 +1202,10 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
                 materialOut << "specific_heat_j_kgk = " << matConfig.thermal.specificHeat << "\n";
                 materialOut << "thickness_m = " << matConfig.thermal.thickness << "\n";
                 materialOut << "convection_h_w_m2k = " << matConfig.thermal.convection << "\n";
-                materialOut << "shortwave_absorptivity = " << matConfig.thermal.shortwaveAbsorptivity
-                    << "\n";
+                if (matConfig.thermal.absorptivityExplicit) {
+                    materialOut << "shortwave_absorptivity = "
+                                << matConfig.thermal.shortwaveAbsorptivity << "\n";
+                }
                 materialOut << "wetness_factor = " << matConfig.thermal.wetness << "\n";
                 materialOut << "internal_heat_w_m2 = " << matConfig.thermal.internalHeat << "\n";
                 if (matConfig.thermal.isShell) {
@@ -1312,7 +1315,10 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
                     "spectral_unmix", "spectral_weight_texture", "emissive_curve",
                     "emissive_curve_column", "emissive_scale", "fluorescence_excitation_curve",
                     "fluorescence_excitation_curve_column", "fluorescence_emission_curve",
-                    "fluorescence_emission_curve_column", "fluorescence_yield", "temperature_texture"});
+                    "fluorescence_emission_curve_column", "fluorescence_yield", "temperature_texture",
+                    // Absent means derived from the reflectance; a carried copy
+                    // would undo switching a hand-written value back to that.
+                    "shortwave_absorptivity"});
                 merged = QString::fromStdString(carried.MergedWith(*edited).ToToml());
             }
             out << "[[materials]]\n";

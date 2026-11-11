@@ -1801,6 +1801,27 @@ void MainWindow::registerMcpTools() {
                 return error;
             }
 
+            // The candidate this call would produce, checked before anything is
+            // touched: under a ground-level reference sun the SDK limits daytime
+            // to clear sky, and a refusal here is an error result rather than
+            // the panel's dialog, which would hold the call open.
+            {
+                quantiloom::AtmosphereNNConfig candidate = m_atmosphericPanel->getAtmosphericConfig();
+                if (args.contains(QStringLiteral("preset"))) {
+                    candidate.ApplyPreset(args.value(QStringLiteral("preset")).toString().toStdString());
+                }
+                if (args.contains(QStringLiteral("enabled")))
+                    candidate.enabled = args.value(QStringLiteral("enabled")).toBool();
+                if (args.contains(QStringLiteral("vis_km")))
+                    candidate.visKm = args.value(QStringLiteral("vis_km")).toDouble();
+                if (args.contains(QStringLiteral("rainrt_mm_h")))
+                    candidate.rainrtMmH = args.value(QStringLiteral("rainrt_mm_h")).toDouble();
+                if (const QString conflict = m_viewport->referenceSunConflict(candidate);
+                    !conflict.isEmpty()) {
+                    return mcp::ToolResult::Error(conflict.toStdString());
+                }
+            }
+
             // Preset first, through the panel's own flow -- its combo owns the
             // preset, and its onPresetChanged re-derives the config -- and only
             // then the explicit overrides on top. The other order let the

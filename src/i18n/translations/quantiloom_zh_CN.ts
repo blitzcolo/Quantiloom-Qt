@@ -1794,6 +1794,18 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation>目标采样数</translation>
     </message>
     <message>
+        <source>Atmosphere Not Applied</source>
+        <translation>未应用大气设置</translation>
+    </message>
+    <message>
+        <source>This atmosphere cannot be paired with the scene&apos;s sun:
+
+%1</source>
+        <translation>该大气无法与场景的太阳光谱搭配：
+
+%1</translation>
+    </message>
+    <message>
         <source>Will export an EXR when the target is reached</source>
         <translation>达到目标采样数时将导出 EXR</translation>
     </message>
@@ -3153,6 +3165,14 @@ Remove it from the recent files?</source>
         <translation> W/m²</translation>
     </message>
     <message>
+        <source>Derive from measured reflectance</source>
+        <translation>由实测反射率推导</translation>
+    </message>
+    <message>
+        <source>One minus the reflectance weighted by the scene&apos;s sun and sky, computed by the renderer from the material&apos;s bound spectra. Untick to write a value by hand.</source>
+        <translation>1 减去以场景太阳与天空光谱加权的反射率，由渲染器根据材质绑定的光谱计算。取消勾选可手动填写数值。</translation>
+    </message>
+    <message>
         <source>Transmission and Volume</source>
         <translation>透射与体积</translation>
     </message>
@@ -3913,6 +3933,14 @@ Rebuild with:
         <translation>启用非均匀性校正</translation>
     </message>
     <message>
+        <source>Off</source>
+        <translation>关闭</translation>
+    </message>
+    <message>
+        <source>From lens transmission</source>
+        <translation>由镜头透过率推导</translation>
+    </message>
+    <message>
         <source>Auto Exposure</source>
         <translation>自动曝光</translation>
     </message>
@@ -4059,6 +4087,22 @@ Rebuild with:
     <message>
         <source>Focal length in pixels, as a calibration reports it.</source>
         <translation>以像素表示的焦距，即标定结果给出的值。</translation>
+    </message>
+    <message>
+        <source>Lens Temperature:</source>
+        <translation>镜头温度:</translation>
+    </message>
+    <message>
+        <source>Temperature of the optics. A lens at room temperature emits in the infrared, and a cooled detector counts that emission as background photons -- signal it must subtract and shot noise it cannot. Off leaves the lens out.</source>
+        <translation>光学系统的温度。室温下的镜头会发出红外辐射，制冷探测器把这部分辐射计为背景光子——其信号必须扣除，而其散粒噪声无法扣除。设为关闭则不建模镜头辐射。</translation>
+    </message>
+    <message>
+        <source>Lens Emissivity:</source>
+        <translation>镜头发射率:</translation>
+    </message>
+    <message>
+        <source>How much the optics emit in the detector&apos;s band. At its minimum it is derived as one minus each channel&apos;s lens transmission, which the channels must then carry.</source>
+        <translation>光学系统在探测器波段内的发射率。取最小值时按 1 减去各通道的镜头透过率推导，此时各通道必须提供镜头透过率曲线。</translation>
     </message>
     <message>
         <source>Shutter:</source>
@@ -4211,6 +4255,22 @@ Rebuild with:
     <message>
         <source>Scene temperature the NETD was quoted at. A NETD without its reference temperature attached means nothing.</source>
         <translation>厂家标称 NETD 时所对应的场景温度。没有参考温度的 NETD 没有意义。</translation>
+    </message>
+    <message>
+        <source>Responsivity Nonuniformity:</source>
+        <translation>响应率非均匀性:</translation>
+    </message>
+    <message>
+        <source>Pixel-to-pixel spread in responsivity of the uncorrected array, as a fraction (one sigma). A fixed multiplicative pattern.</source>
+        <translation>未校正阵列各像素间响应率的离散程度，以比例表示（一倍标准差）。一种固定的乘性图样。</translation>
+    </message>
+    <message>
+        <source>Offset Nonuniformity:</source>
+        <translation>偏置非均匀性:</translation>
+    </message>
+    <message>
+        <source>Pixel-to-pixel spread in offset of the uncorrected array, stated as the scene temperature step it equals at the NETD reference temperature (one sigma). A fixed additive pattern.</source>
+        <translation>未校正阵列各像素间偏置的离散程度，以 NETD 参考温度下等效的场景温度差表示（一倍标准差）。一种固定的加性图样。</translation>
     </message>
     <message>
         <source>AE Target Luminance:</source>

@@ -39,6 +39,11 @@ struct MaterialThermalProps {
     float thickness = 0.2f;        ///< m
     float convection = 5.0f;       ///< W/(m^2 K)
     float shortwaveAbsorptivity = 0.7f;
+    /// The config wrote shortwave_absorptivity by hand. Unset, the SDK derives
+    /// it from the material's measured reflectance under the scene's sun, the
+    /// value above is only what the panel shows, and a save writes no key --
+    /// writing it back would turn a derived number into a hand-filled one.
+    bool absorptivityExplicit = false;
     /// 0 for dry, 1 for open water. What makes a lawn cooler than the
     /// pavement beside it: evaporation carries heat away that no combination
     /// of the properties above can account for.

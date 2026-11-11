@@ -302,6 +302,9 @@ private:
     void applyLightingParams(const quantiloom::LightingParams& params);
     void applyEnvironmentMap(const QString& path, bool enabled);
     void applyAtmosphere(const quantiloom::AtmosphereNNConfig& config);
+    /// Puts the atmosphere panel back and says why the SDK would refuse what
+    /// it asked for (ExternalRenderContext::ReferenceSunConflict).
+    void refuseAtmosphere(const QString& conflict);
     void applySensorEnabled(bool enabled);
     /// The two camera dispatchers, matching the panel's two change signals.
     /// Structural edits (detector, optics, readout, noise, AE/AWB) re-measure
@@ -356,6 +359,9 @@ private:
     /// wetness or a thickness edit moves the viewport rather than only the
     /// file that gets saved.
     void applyThermalMaterial(const QString& name, const MaterialThermalProps& props);
+    /// The thermal properties the material panel shows for a material: the
+    /// document's, with a derived absorptivity filled in from the SDK.
+    [[nodiscard]] MaterialThermalProps thermalPropertiesForPanel(const QString& name) const;
     [[nodiscard]] quantiloom::ThermalSolveParams currentThermalParams() const;
     /// The sky the surfaces radiate against for air at @p airTemperatureK, in
     /// the order ResolveRenderConfig decides it.

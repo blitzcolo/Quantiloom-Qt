@@ -515,6 +515,15 @@ void ViewportWindow::setThermalTime(double time_h) {
     withRenderer([time_h](ViewportRenderer& r) { r.setThermalTime(time_h); });
 }
 
+std::optional<float> ViewportWindow::derivedShortwaveAbsorptivity(const QString& material) const {
+    return m_renderer ? m_renderer->derivedShortwaveAbsorptivity(material) : std::nullopt;
+}
+
+QString ViewportWindow::referenceSunConflict(
+    const quantiloom::AtmosphereNNConfig& config) const {
+    return m_renderer ? m_renderer->referenceSunConflict(config) : QString();
+}
+
 quantiloom::ThermalSolveStatus ViewportWindow::thermalSolveStatus() const {
     if (m_renderer) {
         return m_renderer->thermalSolveStatus();

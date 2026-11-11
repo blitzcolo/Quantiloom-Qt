@@ -135,6 +135,7 @@ private slots:
     void onThermographyChanged();
     void onFpnToggled(bool checked);
     void onNucToggled(bool checked);
+    void onThermalFpnToggled();
     void onAutoExposureToggled(bool checked);
     void onDenoiseToggled(bool checked);
     void onSharpenToggled(bool checked);
@@ -198,6 +199,8 @@ private:
     QDoubleSpinBox* m_intrinsics[4]{};
     QDoubleSpinBox* m_distortion[5]{};
     QDoubleSpinBox* m_maxTheta = nullptr;
+    QDoubleSpinBox* m_lensTemperature = nullptr;
+    QDoubleSpinBox* m_lensEmissivity = nullptr;
     QSpinBox* m_nativeWidth = nullptr;
     QSpinBox* m_nativeHeight = nullptr;
 
@@ -235,6 +238,11 @@ private:
     QDoubleSpinBox* m_drift = nullptr;
     QDoubleSpinBox* m_netd = nullptr;
     QDoubleSpinBox* m_netdRefTemp = nullptr;
+    QCheckBox* m_thermalFpn = nullptr;
+    QDoubleSpinBox* m_thermalGainSigma = nullptr;
+    QDoubleSpinBox* m_thermalOffsetK = nullptr;
+    QCheckBox* m_thermalNuc = nullptr;
+    QDoubleSpinBox* m_thermalNucResidual = nullptr;
 
     // ISP group
     QGroupBox* m_ispGroup = nullptr;

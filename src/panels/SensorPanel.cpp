@@ -205,6 +205,10 @@ void SensorPanel::retranslateUi() {
     m_darkCurrentEnable->setText(tr("Enable Dark Current"));
     m_fpnNoise->setText(tr("Fixed Pattern Noise (FPN)"));
     m_nucEnable->setText(tr("Enable NUC"));
+    m_thermalFpn->setText(tr("Fixed Pattern Noise (FPN)"));
+    m_thermalNuc->setText(tr("Enable NUC"));
+    m_lensTemperature->setSpecialValueText(tr("Off"));
+    m_lensEmissivity->setSpecialValueText(tr("From lens transmission"));
     m_autoExposure->setText(tr("Auto Exposure"));
     m_autoWhiteBalance->setText(tr("Auto White Balance"));
     m_denoise->setText(tr("Denoise"));
@@ -421,6 +425,18 @@ void SensorPanel::setupUi() {
            QT_TR_NOOP("Maximum valid angle from the forward axis."));
     connect(m_maxTheta, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &SensorPanel::onParamChanged);
+    // The lens's own thermal emission. The minimum of each box is its
+    // "not modelled" / "derive it" sentinel, labelled by special-value text.
+    m_lensTemperature = makeSpin(0.0, 1000.0, 1.0, 2, 0.0, " K");
+    addRow(opticsLayout, QT_TR_NOOP("Lens Temperature:"), m_lensTemperature,
+           QT_TR_NOOP("Temperature of the optics. A lens at room temperature emits in the infrared, and a cooled detector counts that emission as background photons -- signal it must subtract and shot noise it cannot. Off leaves the lens out."));
+    m_lensEmissivity = makeSpin(-1.0, 1.0, 0.01, 3, -1.0, nullptr);
+    addRow(opticsLayout, QT_TR_NOOP("Lens Emissivity:"), m_lensEmissivity,
+           QT_TR_NOOP("How much the optics emit in the detector's band. At its minimum it is derived as one minus each channel's lens transmission, which the channels must then carry."));
+    for (QDoubleSpinBox* box : {m_lensTemperature, m_lensEmissivity}) {
+        connect(box, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+                this, &SensorPanel::onParamChanged);
+    }
     connect(m_projectionModel, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &SensorPanel::onParamChanged);
     connect(m_explicitIntrinsics, &QCheckBox::toggled,
@@ -551,6 +567,20 @@ void SensorPanel::setupUi() {
     m_netdRefTemp = makeSpin(0.0, 1000.0, 1.0, 1, 0.0, " K");
     addRow(thermalLayout, QT_TR_NOOP("NETD Reference Temperature:"), m_netdRefTemp,
            QT_TR_NOOP("Scene temperature the NETD was quoted at. A NETD without its reference temperature attached means nothing."));
+
+    m_thermalFpn = new QCheckBox();
+    thermalLayout->addRow(m_thermalFpn);
+    m_thermalGainSigma = makeSpin(0.0, 0.5, 0.001, 4, 0.0, nullptr);
+    addRow(thermalLayout, QT_TR_NOOP("Responsivity Nonuniformity:"), m_thermalGainSigma,
+           QT_TR_NOOP("Pixel-to-pixel spread in responsivity of the uncorrected array, as a fraction (one sigma). A fixed multiplicative pattern."));
+    m_thermalOffsetK = makeSpin(0.0, 100.0, 0.1, 3, 0.0, " K");
+    addRow(thermalLayout, QT_TR_NOOP("Offset Nonuniformity:"), m_thermalOffsetK,
+           QT_TR_NOOP("Pixel-to-pixel spread in offset of the uncorrected array, stated as the scene temperature step it equals at the NETD reference temperature (one sigma). A fixed additive pattern."));
+    m_thermalNuc = new QCheckBox();
+    thermalLayout->addRow(m_thermalNuc);
+    m_thermalNucResidual = makeSpin(0.0, 1.0, 0.01, 3, 0.0, nullptr);
+    addRow(thermalLayout, QT_TR_NOOP("NUC Residual:"), m_thermalNucResidual,
+           QT_TR_NOOP("Fraction of the fixed pattern the Non-Uniformity Correction leaves behind. 0 removes all of it, which no real calibration does."));
 
     mainLayout->addWidget(m_thermalGroup);
 
@@ -756,6 +786,7 @@ void SensorPanel::setupUi() {
                                 m_prnuSigma, m_dsnuSigma, m_nucResidual,
                                 m_timeConstant, m_responsivity, m_thermalReadNoise,
                                 m_drift, m_netd, m_netdRefTemp,
+                                m_thermalGainSigma, m_thermalOffsetK, m_thermalNucResidual,
                                 m_aeTarget, m_aeSmoothing, m_aeMinExposure,
                                 m_aeMaxExposure, m_aeMaxGain}) {
         connect(box, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
@@ -770,6 +801,8 @@ void SensorPanel::setupUi() {
     }
     connect(m_fpnNoise, &QCheckBox::toggled, this, &SensorPanel::onFpnToggled);
     connect(m_nucEnable, &QCheckBox::toggled, this, &SensorPanel::onNucToggled);
+    connect(m_thermalFpn, &QCheckBox::toggled, this, &SensorPanel::onThermalFpnToggled);
+    connect(m_thermalNuc, &QCheckBox::toggled, this, &SensorPanel::onThermalFpnToggled);
     connect(m_autoExposure, &QCheckBox::toggled, this, &SensorPanel::onAutoExposureToggled);
     connect(m_autoWhiteBalance, &QCheckBox::toggled, this, [this](bool checked) {
         // Auto white balance drives the three gains, as their tooltip says;
@@ -931,6 +964,15 @@ void SensorPanel::onNucToggled(bool checked) {
     onParamChanged();
 }
 
+void SensorPanel::onThermalFpnToggled() {
+    const bool fpn = m_thermalFpn->isChecked();
+    m_thermalGainSigma->setEnabled(fpn);
+    m_thermalOffsetK->setEnabled(fpn);
+    m_thermalNuc->setEnabled(fpn);
+    m_thermalNucResidual->setEnabled(fpn && m_thermalNuc->isChecked());
+    onParamChanged();
+}
+
 void SensorPanel::onAutoExposureToggled(bool checked) {
     for (QWidget* widget : {static_cast<QWidget*>(m_aeTarget),
                             static_cast<QWidget*>(m_aeSmoothing),
@@ -1006,6 +1048,8 @@ void SensorPanel::onParamChanged() {
                 : m_distortion[i]->value();
     }
     projection.maxThetaRadians = glm::radians(m_maxTheta->value());
+    m_camera.optics.lensTemperatureK = m_lensTemperature->value();
+    m_camera.optics.lensEmissivity = m_lensEmissivity->value();
     updateLensFieldStates();
 
     // Readout
@@ -1041,6 +1085,11 @@ void SensorPanel::onParamChanged() {
     m_camera.thermal.driftDnPerSecond = m_drift->value();
     m_camera.thermal.netdKelvin = m_netd->value() * 1e-3;
     m_camera.thermal.netdReferenceTemperatureK = m_netdRefTemp->value();
+    m_camera.thermal.enableFpn = m_thermalFpn->isChecked();
+    m_camera.thermal.fpnGainSigma = m_thermalGainSigma->value();
+    m_camera.thermal.fpnOffsetKelvin = m_thermalOffsetK->value();
+    m_camera.thermal.applyNuc = m_thermalNuc->isChecked();
+    m_camera.thermal.nucResidualFraction = m_thermalNucResidual->value();
 
     // ISP auto block (structural: AE/AWB state belongs to the acquisition)
     m_camera.isp.autoExposure = m_autoExposure->isChecked();
@@ -1234,6 +1283,8 @@ void SensorPanel::updateUiFromConfig(const quantiloom::camera::CameraConfig& con
         m_distortion[i]->setValue(projection.coefficients[i]);
     }
     m_maxTheta->setValue(glm::degrees(projection.maxThetaRadians));
+    m_lensTemperature->setValue(config.optics.lensTemperatureK);
+    m_lensEmissivity->setValue(config.optics.lensEmissivity);
     updateLensFieldStates();
 
     // Readout
@@ -1276,6 +1327,15 @@ void SensorPanel::updateUiFromConfig(const quantiloom::camera::CameraConfig& con
     m_drift->setValue(config.thermal.driftDnPerSecond);
     m_netd->setValue(config.thermal.netdKelvin * 1e3);
     m_netdRefTemp->setValue(config.thermal.netdReferenceTemperatureK);
+    m_thermalFpn->setChecked(config.thermal.enableFpn);
+    m_thermalGainSigma->setValue(config.thermal.fpnGainSigma);
+    m_thermalOffsetK->setValue(config.thermal.fpnOffsetKelvin);
+    m_thermalNuc->setChecked(config.thermal.applyNuc);
+    m_thermalNucResidual->setValue(config.thermal.nucResidualFraction);
+    m_thermalGainSigma->setEnabled(config.thermal.enableFpn);
+    m_thermalOffsetK->setEnabled(config.thermal.enableFpn);
+    m_thermalNuc->setEnabled(config.thermal.enableFpn);
+    m_thermalNucResidual->setEnabled(config.thermal.enableFpn && config.thermal.applyNuc);
 
     // ISP
     m_autoExposure->setChecked(config.isp.autoExposure);

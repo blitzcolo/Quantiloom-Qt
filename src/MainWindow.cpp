@@ -1303,7 +1303,22 @@ QString MainWindow::resolveBundledIlluminant() {
     return assetpaths::bundled(QStringLiteral("assets/luts/astmg173.csv"));
 }
 
+void MainWindow::refuseAtmosphere(const QString& conflict) {
+    m_atmosphericPanel->setAtmosphericConfig(m_viewport->atmosphericConfig());
+    QMessageBox::warning(this, tr("Atmosphere Not Applied"),
+                         tr("This atmosphere cannot be paired with the scene's sun:\n\n%1")
+                             .arg(conflict));
+}
+
 void MainWindow::applyAtmosphere(const quantiloom::AtmosphereNNConfig& config) {
+    // A scene lit by a ground-level reference sun (ASTM G-173) is limited to
+    // clear sky in daylight; the SDK refuses the pairing at load, and the
+    // same rule holds for an interactive change. The panel is put back.
+    if (const QString conflict = m_viewport->referenceSunConflict(config);
+        !conflict.isEmpty()) {
+        refuseAtmosphere(conflict);
+        return;
+    }
     const double skyBefore = derivedSkyTemperatureK(m_thermalPanel->params().airTemperature_K);
     m_viewport->setAtmosphericConfig(config);
     m_atmosphericPanel->setAtmosphericConfig(config);
@@ -1745,6 +1760,17 @@ void MainWindow::refreshTimelineInfo() {
     }
 }
 
+MaterialThermalProps MainWindow::thermalPropertiesForPanel(const QString& name) const {
+    MaterialThermalProps props = m_thermalProperties.value(name);
+    // A derived absorptivity is shown as the number the solve uses.
+    if (!props.absorptivityExplicit) {
+        if (const auto derived = m_viewport->derivedShortwaveAbsorptivity(name)) {
+            props.shortwaveAbsorptivity = *derived;
+        }
+    }
+    return props;
+}
+
 void MainWindow::applyThermalMaterial(const QString& name,
                                       const MaterialThermalProps& props) {
     quantiloom::ThermalMaterialParams mp;
@@ -1753,7 +1779,11 @@ void MainWindow::applyThermalMaterial(const QString& name,
     mp.specificHeat_J_kgK = props.specificHeat;
     mp.thickness_m = props.thickness;
     mp.convection_W_m2K = props.convection;
-    mp.shortwaveAbsorptivity = props.shortwaveAbsorptivity;
+    // Not written by hand: the value the reflectance gives, as the SDK derived it.
+    mp.shortwaveAbsorptivity =
+        props.absorptivityExplicit
+            ? props.shortwaveAbsorptivity
+            : m_viewport->derivedShortwaveAbsorptivity(name).value_or(props.shortwaveAbsorptivity);
     mp.wetnessFactor = props.wetness;
     mp.internalHeat_W_m2 = props.internalHeat;
     mp.isShell = props.isShell;
@@ -1922,9 +1952,8 @@ void MainWindow::applyMaterial(int index, const quantiloom::Material& material) 
         m_materialEditorPanel->setMaterial(index, &scene->materials[static_cast<size_t>(index)]);
         // The thermal half comes from the config rather than the material,
         // which does not carry it.
-        m_materialEditorPanel->setThermalProperties(
-            m_thermalProperties.value(
-                QString::fromStdString(scene->materials[static_cast<size_t>(index)].name)));
+        m_materialEditorPanel->setThermalProperties(thermalPropertiesForPanel(
+            QString::fromStdString(scene->materials[static_cast<size_t>(index)].name)));
         m_materialEditorPanel->setEmissiveScale(
             m_emissiveScales.value(
                 QString::fromStdString(scene->materials[static_cast<size_t>(index)].name)));
@@ -2490,6 +2519,13 @@ void MainWindow::setupDockWidgets() {
             });
     connect(m_atmosphericPanel, &AtmosphericPanel::configChanged,
             this, [this](const quantiloom::AtmosphereNNConfig& config) {
+                // Refused before it reaches the history, so a rejected
+                // atmosphere leaves no undo entry that does nothing.
+                if (const QString conflict = m_viewport->referenceSunConflict(config);
+                    !conflict.isEmpty()) {
+                    refuseAtmosphere(conflict);
+                    return;
+                }
                 pushSettingCommand(CommandId::ModifyAtmosphere, tr("Atmosphere"),
                                    m_viewport->atmosphericConfig(), config,
                                    [this](const quantiloom::AtmosphereNNConfig& v) {
@@ -2613,7 +2649,7 @@ void MainWindow::setupDockWidgets() {
                             m_materialEditorPanel->setMaterial(
                                 index, &refreshed->materials[static_cast<size_t>(index)]);
                             m_materialEditorPanel->setThermalProperties(
-                                m_thermalProperties.value(name));
+                                thermalPropertiesForPanel(name));
                             m_materialEditorPanel->setEmissiveScale(scale);
                         }
                     }
@@ -4951,7 +4987,7 @@ void MainWindow::onMaterialSelected(int materialIndex) {
         const auto& material = scene->materials[static_cast<size_t>(materialIndex)];
         m_materialEditorPanel->setMaterial(materialIndex, &material);
         m_materialEditorPanel->setThermalProperties(
-            m_thermalProperties.value(QString::fromStdString(material.name)));
+            thermalPropertiesForPanel(QString::fromStdString(material.name)));
         m_materialEditorPanel->setEmissiveScale(
             m_emissiveScales.value(QString::fromStdString(material.name)));
         m_propertiesPanel->showMaterial();

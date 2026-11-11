@@ -429,6 +429,12 @@ void MaterialEditorPanel::setupUi() {
     m_thermalAbsorptivity->setDecimals(3);
     m_thermalAbsorptivity->setSingleStep(0.05);
     m_thermalAbsorptivity->setValue(0.7);
+    m_thermalAbsorptivityDerived = new QCheckBox();
+    m_thermalAbsorptivityDerived->setChecked(true);
+    connect(m_thermalAbsorptivityDerived, &QCheckBox::toggled, this, [this](bool derived) {
+        m_thermalAbsorptivity->setEnabled(!derived);
+        onThermalPropertyChanged();
+    });
 
     m_thermalWetness = new QDoubleSpinBox();
     m_thermalWetness->setRange(0.0, 1.0);
@@ -452,6 +458,7 @@ void MaterialEditorPanel::setupUi() {
     addThermalRow(QT_TR_NOOP("Solar absorptivity:"), m_thermalAbsorptivity,
                   QT_TR_NOOP("Fraction of sunlight absorbed. Not the infrared emissivity: fresh snow "
                      "absorbs almost no sunlight and radiates nearly as a blackbody."));
+    thermalLayout->addRow(QString(), m_thermalAbsorptivityDerived);
     addThermalRow(QT_TR_NOOP("Wetness factor:"), m_thermalWetness,
                   QT_TR_NOOP("How much of the surface evaporates: 0 for dry, 1 for open water. "
                      "Evaporation is why a lawn is ten degrees cooler than the pavement "
@@ -516,6 +523,10 @@ void MaterialEditorPanel::setupUi() {
         m_thermalInteriorConvection->setSuffix(tr(" W/(m²·K)"));
         m_thermalInternalHeat->setSuffix(tr(" W/m²"));
         m_thermalShell->setText(tr("Exposed on both sides"));
+        m_thermalAbsorptivityDerived->setText(tr("Derive from measured reflectance"));
+        m_thermalAbsorptivityDerived->setToolTip(tr(
+            "One minus the reflectance weighted by the scene's sun and sky, computed by the "
+            "renderer from the material's bound spectra. Untick to write a value by hand."));
         m_thermalShell->setToolTip(
             tr("A panel, a sign, a tent: one thin slab with sky on both faces, "
                "modelled as two sheets of triangles. Without this the two sheets are "
@@ -1265,6 +1276,7 @@ void MaterialEditorPanel::setThermalProperties(const MaterialThermalProps& props
     const QSignalBlocker ic(m_thermalInteriorConvection);
     const QSignalBlocker q(m_thermalInternalHeat);
     const QSignalBlocker sh(m_thermalShell);
+    const QSignalBlocker ad(m_thermalAbsorptivityDerived);
 
     m_thermalConductivity->setValue(static_cast<double>(props.conductivity));
     m_thermalDensity->setValue(static_cast<double>(props.density));
@@ -1272,6 +1284,8 @@ void MaterialEditorPanel::setThermalProperties(const MaterialThermalProps& props
     m_thermalThickness->setValue(static_cast<double>(props.thickness));
     m_thermalConvection->setValue(static_cast<double>(props.convection));
     m_thermalAbsorptivity->setValue(static_cast<double>(props.shortwaveAbsorptivity));
+    m_thermalAbsorptivityDerived->setChecked(!props.absorptivityExplicit);
+    m_thermalAbsorptivity->setEnabled(props.absorptivityExplicit);
     m_thermalWetness->setValue(static_cast<double>(props.wetness));
     m_thermalInteriorTemp->setValue(static_cast<double>(props.interiorTemperature));
     m_thermalInteriorConvection->setValue(static_cast<double>(props.interiorConvection));
@@ -1294,6 +1308,7 @@ void MaterialEditorPanel::onThermalPropertyChanged() {
     m_thermal.thickness = static_cast<float>(m_thermalThickness->value());
     m_thermal.convection = static_cast<float>(m_thermalConvection->value());
     m_thermal.shortwaveAbsorptivity = static_cast<float>(m_thermalAbsorptivity->value());
+    m_thermal.absorptivityExplicit = !m_thermalAbsorptivityDerived->isChecked();
     m_thermal.wetness = static_cast<float>(m_thermalWetness->value());
     m_thermal.interiorTemperature = static_cast<float>(m_thermalInteriorTemp->value());
     m_thermal.interiorConvection = static_cast<float>(m_thermalInteriorConvection->value());
