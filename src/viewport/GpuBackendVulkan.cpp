@@ -15,6 +15,7 @@
 #include <rhi/qrhi_platform.h>
 
 #include <core/Log.hpp>
+#include <renderer/ExternalRenderContext.hpp>
 
 namespace viewport {
 
