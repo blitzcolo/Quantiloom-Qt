@@ -107,7 +107,7 @@ albedo = [0.8, 0.8, 0.8]
 # strings verbatim -- including the punctuation.
 #
 # Deliberately NOT bound:
-#   - GlassSphere / WindowGlass / Car_Car_window: transmissive. Their physics is
+#   - GlassSphere / Car_Car_window: transmissive. Their physics is
 #     the measured n(lambda) below plus Fresnel; a library "reflectance" here
 #     would double count the surface term.
 #   - the CesiumMan figure: none of the three databases has skin, and its
@@ -326,8 +326,9 @@ ChromeSphere = "../../../Quantiloom-dev/assets/refractiveindex/database/data/mai
 # NSG Opti-White low-iron float glass, tabulated n,k over 301-1498 nm: VIS and
 # NIR only. In SWIR, MWIR and LWIR the load warns that it does not reach and
 # the glass renders from its ir_emissivity above.
+# The desert has no building, so no WindowGlass entry: the SDK refuses an n,k
+# binding with no declared fallback in a quantitative band, named material or not.
 GlassSphere = "../../../Quantiloom-dev/assets/refractiveindex/database/data/glass/misc/Pilkington-Optiwhite/nk/Treharne.yml"
-WindowGlass = "../../../Quantiloom-dev/assets/refractiveindex/database/data/glass/misc/Pilkington-Optiwhite/nk/Treharne.yml"
 "Car_Car_window" = "../../../Quantiloom-dev/assets/refractiveindex/database/data/glass/misc/Pilkington-Optiwhite/nk/Treharne.yml"
 
 # ============================================================================
