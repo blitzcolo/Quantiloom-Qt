@@ -140,9 +140,9 @@ message(STATUS "Using Quantiloom SDK: ${QUANTILOOM_SDK_DIR}")
 # and the minimum here is the release this tree was last built and reviewed against.
 # macOS is Metal-only: MetalInterop replaces VulkanInterop.
 if(APPLE)
-    find_package(Quantiloom 0.9.1 REQUIRED COMPONENTS MetalInterop)
+    find_package(Quantiloom 0.10.0 REQUIRED COMPONENTS MetalInterop)
 else()
-    find_package(Quantiloom 0.9.1 REQUIRED COMPONENTS VulkanInterop)
+    find_package(Quantiloom 0.10.0 REQUIRED COMPONENTS VulkanInterop)
 endif()
 message(STATUS "Found Quantiloom: ${Quantiloom_VERSION}")
 
