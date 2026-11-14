@@ -167,6 +167,7 @@ void ViewportRenderer::createRenderContext() {
 
     m_renderContext = std::move(created.context);
     m_initialized = true;
+    m_contextFaulted = false;
     m_targetExtent = swapSize;
 
     // The epoch build is synchronous on this thread and can take minutes on a
@@ -368,15 +369,22 @@ void ViewportRenderer::renderFrame() {
     // adopt a new render extent, which drains the queue (QRhi::finish()) and
     // so replaces the frame's command buffer -- which is why the native
     // command buffer is not fetched until below.
-    updateCamera(deltaTime);
+    try {
+        updateCamera(deltaTime);
+    } catch (const std::exception& e) {
+        // An SDK call the camera update made threw. The frame is begun and has
+        // to be ended, which the stopped path below does.
+        reportContextFault(e.what());
+    }
 
     // A frame whose recording failed (an allocation failure, a lost device)
     // leaves the context loaded but not ready, and every later RenderFrame
     // returns without recording -- nothing would be in the frame texture to
     // composite. So a context in that state is drawn like no scene at all,
-    // and said so once.
-    const bool stopped = m_renderContext && m_renderContext->HasScene() &&
-                         !m_renderContext->IsReady();
+    // and said so once. A context an SDK call threw out of is in that state
+    // too, whatever IsReady() says.
+    const bool stopped = m_contextFaulted || (m_renderContext && m_renderContext->HasScene() &&
+                                              !m_renderContext->IsReady());
     if (stopped && !m_renderingStoppedReported) {
         m_renderingStoppedReported = true;
         emit m_window->renderingStopped();
@@ -427,9 +435,19 @@ void ViewportRenderer::renderFrame() {
             return m_viewportSampleBatch.chooseForFrame(m_sampleCount, m_targetSPP, accumulating,
                                                         m_motionActive, m_cameraConfig.enabled);
         };
-        const viewport::FrameResult frame =
-            m_backend->recordFrame(cb, *m_renderContext, m_frameTexture.get(),
-                                   m_depthTexture.get(), m_targetExtent, request);
+        viewport::FrameResult frame;
+        try {
+            frame = m_backend->recordFrame(cb, *m_renderContext, m_frameTexture.get(),
+                                           m_depthTexture.get(), m_targetExtent, request);
+        } catch (const std::exception& e) {
+            // The display path can throw (a command buffer that would not
+            // allocate or begin). The backend had opened the external span and
+            // the throw skipped its close, and QRhi cannot begin the composite
+            // pass inside one. No image: the cleared frame goes out below and
+            // the next frame says the rendering stopped.
+            cb->endExternal();
+            reportContextFault(e.what());
+        }
         haveImage = frame.haveImage;
         tracedFrame = frame.traced;
     }
@@ -578,15 +596,35 @@ namespace {
 constexpr int kBusyCardDelayMs = 300;
 }  // namespace
 
-void ViewportRenderer::runContextJob(
+QString ViewportRenderer::reportContextFault(const std::string& what) {
+    // The core logger, not qCritical: with no console attached Qt routes that
+    // to the debugger, and a viewport that stopped with no reason in the log
+    // is the failure this exists to explain.
+    // Once per fault: a call that throws again on every frame of a faulted
+    // context must not log, and schedule another frame, each time it does.
+    if (!m_contextFaulted) {
+        QL_LOG_ERROR("Viewport: an SDK call threw: {}", what);
+        m_contextFaulted = true;
+        m_window->requestUpdate();
+    }
+    return QString::fromStdString(what);
+}
+
+QString ViewportRenderer::runContextJob(
     const QString& description,
     const std::function<void(quantiloom::ExternalRenderContext&)>& work) {
     // Inside a frame or the first-time setup -- a lost device rebuilt and its
     // document replayed, or anything a frame triggers -- the event loop must
     // not turn: this window is part way through its own work.
     if (m_inFrameCallback) {
-        work(*m_renderContext);
-        return;
+        try {
+            work(*m_renderContext);
+        } catch (const std::exception& e) {
+            return reportContextFault(e.what());
+        } catch (...) {
+            return reportContextFault("unknown exception");
+        }
+        return {};
     }
 
     // The context goes to the worker with the work. Every path into it from
@@ -600,12 +638,14 @@ void ViewportRenderer::runContextJob(
 
     QEventLoop loop;
     bool done = false;
-    std::exception_ptr failure;
+    std::optional<std::string> failure;
     std::thread worker([&] {
         try {
             work(*context);
+        } catch (const std::exception& e) {
+            failure = e.what();
         } catch (...) {
-            failure = std::current_exception();
+            failure = "unknown exception";
         }
         QMetaObject::invokeMethod(&loop, [&] {
             done = true;
@@ -643,9 +683,7 @@ void ViewportRenderer::runContextJob(
     // A gesture that ended meanwhile could not hand its scale back.
     applyRenderScale(m_motionActive && m_motionAdaptiveResolution ? m_motionScale : 1.0f);
     m_window->requestUpdate();
-    if (failure) {
-        std::rethrow_exception(failure);
-    }
+    return failure ? reportContextFault(*failure) : QString();
 }
 
 void ViewportRenderer::loadScene(const QString& filePath, bool adoptSceneCamera) {
@@ -680,7 +718,7 @@ void ViewportRenderer::loadScene(const QString& filePath, bool adoptSceneCamera)
     // The stored settings are re-applied inside the job, copied in: the new
     // pipeline starts on its default variant, and setting the mode and the
     // debug view is what builds theirs -- seconds on a cold driver cache.
-    runContextJob(
+    const QString failure = runContextJob(
         compilingShaders ? QObject::tr("Compiling shaders — first run may take a few minutes")
                          : tr("Loading scene\u2026"),
         [&result, usd, path = filePath.toStdString(),
@@ -704,8 +742,16 @@ void ViewportRenderer::loadScene(const QString& filePath, bool adoptSceneCamera)
 
     qDebug() << "  Scene load returned";
 
+    if (!failure.isEmpty()) {
+        qCritical() << "  Scene load threw:" << failure;
+        emit m_window->sceneLoaded(
+            false, QObject::tr("Failed to load scene: %1").arg(failure));
+        return;
+    }
+
     if (result) {
         qDebug() << "  Scene loaded successfully!";
+        m_contextFaulted = false;
         m_currentScenePath = filePath;  // Save for a context rebuild
         // A bare model is not a configuration, and the previous document's must
         // not outlive it: replaying it here is how one scene's illuminant and
@@ -811,12 +857,18 @@ bool ViewportRenderer::applyConfigToContext(bool isFreshOpen) {
     // The scene, its textures, the pipeline and -- in a thermal scene -- the
     // whole solve: tens of seconds on a large site.
     std::optional<quantiloom::ConfigApplyReport> applied;
-    runContextJob(
+    const QString failure = runContextJob(
         compilingShaders ? QObject::tr("Compiling shaders — first run may take a few minutes")
                          : tr("Loading scene\u2026"),
         [&applied, &options, config = m_currentConfig](quantiloom::ExternalRenderContext& context) {
             applied.emplace(context.ApplyConfig(*config, options));
         });
+    if (!applied) {
+        qCritical() << "  ApplyConfig threw:" << failure;
+        emit m_window->sceneLoaded(
+            false, QObject::tr("Failed to load configuration: %1").arg(failure));
+        return false;
+    }
     const quantiloom::ConfigApplyReport& report = *applied;
 
     if (!report.ok()) {
@@ -826,6 +878,8 @@ bool ViewportRenderer::applyConfigToContext(bool isFreshOpen) {
             QObject::tr("Failed to load configuration: %1").arg(message));
         return false;
     }
+
+    m_contextFaulted = false;
 
     if (isFreshOpen) {
         m_currentScenePath.clear();
@@ -1984,10 +2038,12 @@ void ViewportRenderer::setThermalTime(double time_h) {
         // Along a day already solved this is a replay from a checkpoint; the
         // first hour asked for after the solve's inputs changed is the solve.
         quantiloom::Result<void, quantiloom::String> result;
-        runContextJob(tr("Solving the thermal field\u2026"),
-                      [&result, time_h](quantiloom::ExternalRenderContext& context) {
-                          result = context.SetThermalTime(time_h);
-                      });
+        if (!runContextJob(tr("Solving the thermal field\u2026"),
+                           [&result, time_h](quantiloom::ExternalRenderContext& context) {
+                               result = context.SetThermalTime(time_h);
+                           }).isEmpty()) {
+            return;  // threw; reportContextFault() has said so
+        }
         if (!result) {
             qWarning() << "[Thermal] SetThermalTime failed:"
                        << QString::fromStdString(result.error());
@@ -2095,12 +2151,17 @@ ViewportRenderer::elementTrajectory(const quantiloom::u32 element,
     // Every sample is the whole field stepped to that hour from a checkpoint.
     std::optional<quantiloom::Result<quantiloom::ThermalElementTrajectory, quantiloom::String>>
         trajectory;
-    runContextJob(tr("Replaying this surface's thermal day\u2026"),
-                  [&trajectory, element, fromHour, toHour,
-                   samples](quantiloom::ExternalRenderContext& context) {
-                      trajectory.emplace(
-                          context.GetElementTrajectory(element, fromHour, toHour, samples));
-                  });
+    const QString failure =
+        runContextJob(tr("Replaying this surface's thermal day\u2026"),
+                      [&trajectory, element, fromHour, toHour,
+                       samples](quantiloom::ExternalRenderContext& context) {
+                          trajectory.emplace(
+                              context.GetElementTrajectory(element, fromHour, toHour, samples));
+                      });
+    if (!trajectory) {
+        return quantiloom::Result<quantiloom::ThermalElementTrajectory,
+                                  quantiloom::String>::Err(failure.toStdString());
+    }
     return std::move(*trajectory);
 }
 

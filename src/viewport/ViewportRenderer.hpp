@@ -778,8 +778,18 @@ private:
     /// delay longOperationStarted(@p description) puts up the busy card, and
     /// longOperationFinished() takes it down. Called with the context present;
     /// runs @p work inline instead inside a frame or the first-time setup.
-    void runContextJob(const QString& description,
-                       const std::function<void(quantiloom::ExternalRenderContext&)>& work);
+    ///
+    /// An exception @p work throws does not leave this function -- it would
+    /// unwind through whichever slot or event handler called, and a Qt event
+    /// handler has none to catch it. It is reported through reportContextFault()
+    /// and its message is returned; empty means the job ran to the end. A caller
+    /// that reads what @p work was to fill in must check that before it does.
+    QString runContextJob(const QString& description,
+                          const std::function<void(quantiloom::ExternalRenderContext&)>& work);
+    /// The SDK threw: log it, stop drawing this context (renderFrame() takes the
+    /// path a failed recording takes, and says so once) and ask for that frame.
+    /// Returns @p what as a QString.
+    QString reportContextFault(const std::string& what);
     bool m_contextJobActive = false;
     /// The worker of the job in progress, so a surface about to be destroyed
     /// can wait for it. Null outside runContextJob().
@@ -805,6 +815,10 @@ private:
     /// applied by the deferred queue, and would otherwise be applied again
     /// immediately afterwards by that replay.
     bool m_configAppliedToContext = false;
+    /// An SDK call threw, so the context is in an unknown state. Treated by
+    /// renderFrame() like a context whose recording failed. Cleared by a new
+    /// context and by a scene or config that then loads.
+    bool m_contextFaulted = false;
     /// renderingStopped() has been emitted for the current failure.
     bool m_renderingStoppedReported = false;
 

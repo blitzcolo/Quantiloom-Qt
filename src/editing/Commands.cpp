@@ -74,12 +74,17 @@ MultiTransformCommand::MultiTransformCommand(ViewportWindow* window,
 {
 }
 
+// Every node is set first and the acceleration structure rebuilt once, as the
+// drag does: setNodeTransform() rebuilds and discards the accumulation per
+// node, so a selection of N paid for N full rebuilds on every push, undo and
+// redo.
 void MultiTransformCommand::execute() {
     if (!m_window) return;
 
     for (const auto& t : m_transforms) {
-        m_window->setNodeTransform(t.nodeIndex, t.newTransform);
+        m_window->setNodeTransformInteractive(t.nodeIndex, t.newTransform);
     }
+    m_window->finalizeInteractiveEdit();
 }
 
 void MultiTransformCommand::undo() {
@@ -87,8 +92,9 @@ void MultiTransformCommand::undo() {
 
     // Undo in reverse order
     for (auto it = m_transforms.rbegin(); it != m_transforms.rend(); ++it) {
-        m_window->setNodeTransform(it->nodeIndex, it->oldTransform);
+        m_window->setNodeTransformInteractive(it->nodeIndex, it->oldTransform);
     }
+    m_window->finalizeInteractiveEdit();
 }
 
 bool MultiTransformCommand::mergeWith(const Command* other) {
