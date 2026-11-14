@@ -23,6 +23,14 @@ constexpr float kSnapRotateDeg = 15.0f;
 constexpr float kSnapRotateDegFine = 5.0f;
 constexpr float kSnapScale = 0.1f;
 
+// A scale drag reads its factor off the closest-approach parameter of the
+// pointer ray to the axis line. Near-parallel, that parameter is amplified
+// without bound, so both ends are clamped: a factor past kScaleMax is a
+// measurement of the ray, not of the gesture, and it would write a scale no
+// scene can hold into the node (and so into the saved config).
+constexpr float kScaleMin = 0.01f;
+constexpr float kScaleMax = 100.0f;
+
 float snapTo(float value, float step) {
     return std::round(value / step) * step;
 }
@@ -261,7 +269,7 @@ void TransformGizmo::updateHandleDrag(const viewport::CameraRay& ray, bool snap)
             if (snap) {
                 factor = snapTo(factor, kSnapScale);
             }
-            factor = std::max(factor, 0.01f);
+            factor = std::clamp(factor, kScaleMin, kScaleMax);
             m_deltaScale = glm::vec3(1.0f);
             m_deltaScale[m_dragAxis] = factor;
             break;
@@ -273,7 +281,7 @@ void TransformGizmo::updateHandleDrag(const viewport::CameraRay& ray, bool snap)
             if (snap) {
                 factor = snapTo(factor, kSnapScale);
             }
-            factor = std::max(factor, 0.01f);
+            factor = std::clamp(factor, kScaleMin, kScaleMax);
             m_deltaScale = glm::vec3(factor);
             break;
         }

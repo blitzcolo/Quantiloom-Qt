@@ -23,7 +23,7 @@
 
 #include <core/Image.hpp>
 
-#include <QImage>
+#include <QPixmap>
 
 #include <memory>
 #include <vector>
@@ -76,6 +76,9 @@ private:
     void rescaleDifference();
     void updateEnabled();
     void updateReferenceCaption();
+    /// Applies a reference read that finished on its worker: clears the wait
+    /// cursor, then either adopts the image or records the failure.
+    void applyReference(const QString& path, quantiloom::Image image, bool ok);
     /// A sentence in place of the figures.
     void showMessage(const QString& message);
 
@@ -92,7 +95,12 @@ private:
     QLabel* m_figureValues[kFigureCount] = {};
     QLabel* m_differenceView = nullptr;
     QLabel* m_legend = nullptr;
-    QImage m_differenceImage;
+    /// The difference image, converted once: a resize rescales this, it does
+    /// not reformat the whole picture again.
+    QPixmap m_differencePixmap;
+    /// A read running on its worker. One at a time, and the wait cursor is
+    /// ours to put back.
+    bool m_loadInFlight = false;
     /// The file name a failed load named, so the caption can be re-worded.
     QString m_loadFailed;
 

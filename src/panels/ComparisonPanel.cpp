@@ -22,11 +22,14 @@
 #include <QImage>
 #include <QLabel>
 #include <QPixmap>
+#include <QPointer>
 #include <QPushButton>
+#include <QThread>
 #include <QVBoxLayout>
 
 #include <algorithm>
 #include <cmath>
+#include <memory>
 #include <vector>
 
 namespace {
@@ -112,7 +115,12 @@ ComparisonPanel::ComparisonPanel(QWidget* parent) : PanelBase(parent) {
     updateEnabled();
 }
 
-ComparisonPanel::~ComparisonPanel() = default;
+ComparisonPanel::~ComparisonPanel() {
+    // A read still running has nobody left to put the wait cursor back.
+    if (m_loadInFlight) {
+        QApplication::restoreOverrideCursor();
+    }
+}
 
 QString ComparisonPanel::panelTitle() const {
     return tr("Comparison");
@@ -170,24 +178,55 @@ void ComparisonPanel::updateReferenceCaption() {
 }
 
 void ComparisonPanel::loadReference() {
+    if (m_loadInFlight) return;
     const QString path = QFileDialog::getOpenFileName(
         this, tr("Load Reference Image"),
         m_referencePath.isEmpty() ? QString() : QFileInfo(m_referencePath).absolutePath(),
         tr("OpenEXR (*.exr);;All files (*)"));
     if (path.isEmpty()) return;
 
-    // A large EXR takes a moment on the GUI thread; say so.
+    // A 4K EXR is tens of MB of half floats and takes seconds to read: off the
+    // GUI thread, in the shape the export dialogs use, so the shell's timers
+    // keep ticking while it loads.
+    struct Read {
+        bool ok = false;
+        quantiloom::Image image;
+    };
+    const auto read = std::make_shared<Read>();
+    QPointer<ComparisonPanel> self(this);
+    m_loadInFlight = true;
+    m_loadButton->setEnabled(false);
     QApplication::setOverrideCursor(Qt::WaitCursor);
-    auto loaded = quantiloom::ImageIO::ReadEXR(path.toStdString());
+    auto* thread = QThread::create([self, path, read] {
+        auto loaded = quantiloom::ImageIO::ReadEXR(path.toStdString());
+        if (loaded.has_value()) {
+            read->image = std::move(loaded.value());
+            read->ok = true;
+        }
+        // Back on the GUI thread, which owns the widgets and the cursor.
+        QMetaObject::invokeMethod(self, [self, path, read] {
+            if (!self) return;
+            self->applyReference(path, std::move(read->image), read->ok);
+        }, Qt::QueuedConnection);
+    });
+    connect(thread, &QThread::finished, thread, &QObject::deleteLater);
+    thread->start();
+}
+
+void ComparisonPanel::applyReference(const QString& path, quantiloom::Image image,
+                                     bool ok) {
+    m_loadInFlight = false;
     QApplication::restoreOverrideCursor();
-    if (!loaded.has_value()) {
+    m_loadButton->setEnabled(true);
+
+    if (!ok) {
         m_loadFailed = QFileInfo(path).fileName();
         updateReferenceCaption();
         return;
     }
 
     m_loadFailed.clear();
-    m_reference = std::make_unique<quantiloom::Image>(std::move(loaded.value()));
+    m_reference = std::make_unique<quantiloom::Image>(std::move(image));
     m_referencePath = path;
 
     // Channels by the name the file gave them, since a comparison against a
@@ -227,7 +266,7 @@ void ComparisonPanel::showMessage(const QString& message) {
     m_report->setVisible(true);
     m_figures->setVisible(false);
     m_differenceView->clear();
-    m_differenceImage = QImage();
+    m_differencePixmap = QPixmap();
     m_legend->setVisible(false);
 }
 
@@ -341,6 +380,9 @@ void ComparisonPanel::showDifference(const std::vector<double>& reference,
     QImage picture(static_cast<int>(m_reference->width),
                    static_cast<int>(m_reference->height), QImage::Format_RGB888);
     for (quantiloom::u32 y = 0; y < m_reference->height; ++y) {
+        // A scanline at a time: setPixel() is the bounds-checked slow path, and
+        // a 4K reference is 8 M calls of it.
+        uchar* row = picture.scanLine(static_cast<int>(y));
         for (quantiloom::u32 x = 0; x < m_reference->width; ++x) {
             const size_t i = static_cast<size_t>(y) * m_reference->width + x;
             const double d = std::clamp((rendered[i] - reference[i]) / scale, -1.0, 1.0);
@@ -348,18 +390,22 @@ void ComparisonPanel::showDifference(const std::vector<double>& reference,
             // it is brighter, and near-black where the two agree.
             const int warm = static_cast<int>(255.0 * std::max(d, 0.0));
             const int cool = static_cast<int>(255.0 * std::max(-d, 0.0));
-            picture.setPixel(static_cast<int>(x), static_cast<int>(y),
-                             qRgb(warm, 0, cool));
+            uchar* pixel = row + 3 * x;
+            pixel[0] = static_cast<uchar>(warm);
+            pixel[1] = 0;
+            pixel[2] = static_cast<uchar>(cool);
         }
     }
-    m_differenceImage = picture;
+    // Converted once: a resize rescales this pixmap rather than reformatting
+    // the whole image again.
+    m_differencePixmap = QPixmap::fromImage(picture);
     m_legend->setVisible(true);
     rescaleDifference();
 }
 
 void ComparisonPanel::rescaleDifference() {
-    if (m_differenceImage.isNull()) return;
-    m_differenceView->setPixmap(QPixmap::fromImage(m_differenceImage).scaled(
+    if (m_differencePixmap.isNull()) return;
+    m_differenceView->setPixmap(m_differencePixmap.scaled(
         m_differenceView->size(), Qt::KeepAspectRatio, Qt::FastTransformation));
 }
 
