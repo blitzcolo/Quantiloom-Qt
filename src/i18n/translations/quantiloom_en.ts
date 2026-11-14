@@ -1020,11 +1020,15 @@ May cause colour shifts.</source>
         <translation type="unfinished">Render</translation>
     </message>
     <message>
+        <source>Stop</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Close</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>A cube render cannot be interrupted. This window can be closed once it has finished.</source>
+        <source>Stopping after the current band...</source>
         <translation type="unfinished"></translation>
     </message>
     <message numerus="yes">
@@ -1071,6 +1075,10 @@ May cause colour shifts.</source>
     </message>
     <message>
         <source>Cube written.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cube render stopped.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1658,6 +1666,10 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
     </message>
     <message>
         <source>Automatic export off</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The stored MCP port (%1) is not a port number from 1 to 65535. Start Studio with --mcp=PORT to set it.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -3323,6 +3335,14 @@ Pick a node or a material in the scene tree.</source>
     <name>QObject</name>
     <message>
         <source>Quantiloom SDK mismatch</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>MCP Server</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 is not a port number from 1 to 65535. The MCP server was not started.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -5474,6 +5494,10 @@ Coverage — %3</source>
     </message>
     <message>
         <source>Multiplies the tick rate during playback. A timeline that spans a month is not watchable at one tick per twentieth of a second. Each tick still has to be rendered, so a high multiplier runs as fast as the frames allow, not faster.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This timeline has %1 ticks, more than the tick controls can represent. Seek with Time.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

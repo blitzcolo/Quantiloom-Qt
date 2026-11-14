@@ -114,5 +114,6 @@ private:
     std::vector<std::unique_ptr<Command>> m_commands;
     int m_undoIndex = 0;       // Points to next command to undo
     int m_cleanIndex = 0;      // Index at last save
+    bool m_lastClean = true;   // isClean() as last reported through cleanChanged
     int m_undoLimit = 100;     // Maximum number of commands to keep
 };

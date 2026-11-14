@@ -1054,6 +1054,10 @@ May cause colour shifts.</source>
         <translation> nm</translation>
     </message>
     <message>
+        <source>Stopping after the current band...</source>
+        <translation>当前波段完成后停止……</translation>
+    </message>
+    <message>
         <source>From:</source>
         <translation>起始：</translation>
     </message>
@@ -1102,12 +1106,16 @@ May cause colour shifts.</source>
         <translation>渲染</translation>
     </message>
     <message>
+        <source>Stop</source>
+        <translation>停止</translation>
+    </message>
+    <message>
         <source>Close</source>
         <translation>关闭</translation>
     </message>
     <message>
         <source>A cube render cannot be interrupted. This window can be closed once it has finished.</source>
-        <translation>立方体渲染无法中断。渲染完成后才能关闭此窗口。</translation>
+        <translation type="vanished">立方体渲染无法中断。渲染完成后才能关闭此窗口。</translation>
     </message>
     <message numerus="yes">
         <source>%n band(s) — each traced to completion</source>
@@ -1156,6 +1164,10 @@ May cause colour shifts.</source>
     <message>
         <source>Cube written.</source>
         <translation>立方体已写出。</translation>
+    </message>
+    <message>
+        <source>Cube render stopped.</source>
+        <translation>立方体渲染已停止。</translation>
     </message>
     <message>
         <source>Cube Render Failed</source>
@@ -1812,6 +1824,10 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
     <message>
         <source>Automatic export off</source>
         <translation>已关闭自动导出</translation>
+    </message>
+    <message>
+        <source>The stored MCP port (%1) is not a port number from 1 to 65535. Start Studio with --mcp=PORT to set it.</source>
+        <translation>已保存的 MCP 端口（%1）不是 1 到 65535 之间的端口号。请以 --mcp=PORT 启动 Studio 来设置。</translation>
     </message>
     <message>
         <source>Field of view</source>
@@ -3541,6 +3557,14 @@ Pick a node or a material in the scene tree.</source>
     <message>
         <source>Quantiloom SDK mismatch</source>
         <translation>Quantiloom SDK 不匹配</translation>
+    </message>
+    <message>
+        <source>MCP Server</source>
+        <translation>MCP 服务</translation>
+    </message>
+    <message>
+        <source>%1 is not a port number from 1 to 65535. The MCP server was not started.</source>
+        <translation>%1 不是 1 到 65535 之间的端口号。MCP 服务未启动。</translation>
     </message>
     <message>
         <source>Qt could not create a Vulkan device. The selected GPU is most likely missing the ray tracing extensions this renderer needs. On a laptop with both an integrated and a discrete GPU, check that Quantiloom is running on the discrete one.</source>
@@ -5857,6 +5881,10 @@ Coverage — %3</source>
     <message>
         <source>Multiplies the tick rate during playback. A timeline that spans a month is not watchable at one tick per twentieth of a second. Each tick still has to be rendered, so a high multiplier runs as fast as the frames allow, not faster.</source>
         <translation>播放时对时间刻速率的倍乘。跨度一个月的时间轴若每 1/20 秒一个时间刻是看不完的。每个时间刻仍需渲染，因此倍率很高时只会以画面允许的最快速度运行，不会更快。</translation>
+    </message>
+    <message>
+        <source>This timeline has %1 ticks, more than the tick controls can represent. Seek with Time.</source>
+        <translation>该时间轴有 %1 个时间刻，超出时间刻控件可表示的范围。请用时间框定位。</translation>
     </message>
     <message>
         <source>Tick %1 / %2 · %3</source>

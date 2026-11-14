@@ -41,6 +41,7 @@
 #include "viewport/ViewportWindow.hpp"
 
 #include <QCoreApplication>
+#include <QDir>
 #include <QElapsedTimer>
 #include <QEventLoop>
 #include <QFileInfo>
@@ -48,6 +49,8 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonValue>
+#include <QSettings>
+#include <QStandardPaths>
 #include <QTimer>
 
 #include <core/Log.hpp>
@@ -343,6 +346,111 @@ QJsonObject ThermalStatusJson(bool enabled, double time_h,
 
 }  // namespace
 
+namespace {
+
+/// Directories the user adds to what an MCP caller may read from and write to.
+constexpr auto kMcpAllowedRootsKey = "mcp_allowed_roots";
+
+/// Appended to the description of every tool that takes a file path, so a
+/// caller learns the policy from the catalogue instead of from a refusal.
+constexpr const char* kMcpPathPolicy =
+    "\n\nThe path is confined: it must resolve (symbolic links followed) inside the open "
+    "document's directory, the Quantiloom folder under Documents, the system temporary "
+    "directory, or a directory listed in the mcp_allowed_roots application setting. "
+    "Anything else is refused.";
+
+}  // namespace
+
+/// The tool arguments come from a client that may itself be acting on text it
+/// found in a scene, so a path in them is a request, not an instruction. This is
+/// the one place that decides whether it is granted.
+bool MainWindow::resolveMcpPath(const QString& requested, bool mustExist,
+                                const QStringList& suffixes, QString& resolved,
+                                QString& problem) const {
+    const QString cleaned = QDir::cleanPath(QFileInfo(requested).absoluteFilePath());
+    const QFileInfo info(cleaned);
+    const bool exists = info.exists();
+    const bool dangling = !exists && info.isSymLink();
+
+    // What would actually be opened, with symbolic links resolved. A file that
+    // does not exist yet is placed by where its directory really is.
+    QString candidate = cleaned;
+    if (exists) {
+        candidate = info.canonicalFilePath();
+    } else if (!dangling) {
+        const QString directory = QFileInfo(info.absolutePath()).canonicalFilePath();
+        if (!directory.isEmpty()) {
+            candidate = QDir(directory).filePath(info.fileName());
+        }
+    }
+
+    QStringList roots;
+    const QString document =
+        m_currentConfigFile.isEmpty() ? m_currentSceneFile : m_currentConfigFile;
+    if (!document.isEmpty()) {
+        roots << QFileInfo(document).absolutePath();
+    }
+    const QString documents = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
+    if (!documents.isEmpty()) {
+        roots << documents + QStringLiteral("/Quantiloom");
+    }
+    roots << QStandardPaths::writableLocation(QStandardPaths::TempLocation);
+    roots << QSettings().value(kMcpAllowedRootsKey).toStringList();
+
+#if defined(Q_OS_WIN)
+    constexpr Qt::CaseSensitivity caseRule = Qt::CaseInsensitive;
+#else
+    constexpr Qt::CaseSensitivity caseRule = Qt::CaseSensitive;
+#endif
+    bool inside = false;
+    for (const QString& root : roots) {
+        // A root that does not exist has no canonical path and grants nothing.
+        const QString canonicalRoot = QFileInfo(root).canonicalFilePath();
+        if (canonicalRoot.isEmpty()) {
+            continue;
+        }
+        const QString prefix =
+            canonicalRoot.endsWith(QLatin1Char('/')) ? canonicalRoot : canonicalRoot + QLatin1Char('/');
+        if (candidate.startsWith(prefix, caseRule)) {
+            inside = true;
+            break;
+        }
+    }
+    if (!inside) {
+        problem = QStringLiteral(
+                      "Refused: %1 is outside the directories the MCP tools may use (the open "
+                      "document's directory, the Quantiloom folder under Documents, the system "
+                      "temporary directory, and any listed in the mcp_allowed_roots setting).")
+                      .arg(requested);
+        return false;
+    }
+
+    if (!suffixes.contains(QFileInfo(candidate).suffix().toLower())) {
+        problem = QStringLiteral("Refused: %1 must have one of the extensions: %2.")
+                      .arg(requested, suffixes.join(QStringLiteral(", ")));
+        return false;
+    }
+    if (dangling) {
+        problem = QStringLiteral("Refused: %1 is a symbolic link that points nowhere.").arg(requested);
+        return false;
+    }
+    if (exists && !info.isFile()) {
+        problem = QStringLiteral("%1 is not a regular file.").arg(requested);
+        return false;
+    }
+    if (mustExist && !exists) {
+        problem = QStringLiteral("No such file: %1").arg(requested);
+        return false;
+    }
+    if (!mustExist && !exists && !QFileInfo(info.absolutePath()).isDir()) {
+        problem = QStringLiteral("The directory for %1 does not exist.").arg(requested);
+        return false;
+    }
+
+    resolved = candidate;
+    return true;
+}
+
 void MainWindow::registerMcpTools() {
     if (!m_mcpServer) {
         return;
@@ -567,6 +675,7 @@ void MainWindow::registerMcpTools() {
             "window stops responding while it runs -- longer for a larger viewport. Calls less "
             "than a second after the previous capture finished are refused; ql_read_pixel is the "
             "cheap alternative.";
+        tool.description += kMcpPathPolicy;
         tool.inputSchemaJson = R"({
   "type": "object",
   "properties": {
@@ -587,7 +696,7 @@ void MainWindow::registerMcpTools() {
     }
   }
 })";
-        tool.readOnly = true;
+        // Not readOnly: save_path writes a file.
         tool.timeoutMs = 60000;  // the readback stalls on the GPU
         // The SDK has no asynchronous full-frame readback, so each capture
         // freezes the UI thread for its duration. Calls run one at a time on
@@ -611,6 +720,19 @@ void MainWindow::registerMcpTools() {
                     "limited to one per second; retry shortly.");
             }
 
+            // Resolved before the capture: a refused path should cost nothing,
+            // and the capture freezes the UI thread.
+            const QString requestedPath = args.value(QStringLiteral("save_path")).toString();
+            QString savePath;
+            if (!requestedPath.isEmpty()) {
+                QString problem;
+                if (!resolveMcpPath(requestedPath, false,
+                                    {QStringLiteral("exr"), QStringLiteral("png")}, savePath,
+                                    problem)) {
+                    return mcp::ToolResult::Error(problem.toStdString());
+                }
+            }
+
             const bool raw =
                 args.value(QStringLiteral("view")).toString(QStringLiteral("display")) ==
                 QLatin1String("raw");
@@ -629,7 +751,6 @@ void MainWindow::registerMcpTools() {
             out["accumulated_samples"] =
                 static_cast<qint64>(m_viewport->currentSampleCount());
 
-            const QString savePath = args.value(QStringLiteral("save_path")).toString();
             if (!savePath.isEmpty()) {
                 const bool png = QFileInfo(savePath).suffix().compare(
                                      QStringLiteral("png"), Qt::CaseInsensitive) == 0;
@@ -2011,6 +2132,7 @@ void MainWindow::registerMcpTools() {
             "\n"
             "Conversion to a prefiltered cubemap happens on load, so the call takes a moment for "
             "a large map. Resets accumulation.";
+        tool.description += kMcpPathPolicy;
         tool.inputSchemaJson = R"({
   "type": "object",
   "properties": {
@@ -2026,10 +2148,16 @@ void MainWindow::registerMcpTools() {
                 return error;
             }
 
-            const QString path = args.value(QStringLiteral("path")).toString();
+            const QString requestedPath = args.value(QStringLiteral("path")).toString();
             const bool enabled = args.value(QStringLiteral("enabled")).toBool(true);
-            if (!path.isEmpty() && !QFileInfo::exists(path)) {
-                return mcp::ToolResult::Error("No such file: " + path.toStdString());
+            QString path;
+            if (!requestedPath.isEmpty()) {
+                QString problem;
+                if (!resolveMcpPath(requestedPath, true,
+                                    {QStringLiteral("exr"), QStringLiteral("hdr")}, path,
+                                    problem)) {
+                    return mcp::ToolResult::Error(problem.toStdString());
+                }
             }
             // No path means "the map the document already names". With none,
             // enabling would switch on a map that does not exist and report
@@ -2277,6 +2405,7 @@ void MainWindow::registerMcpTools() {
             "Save writes: [[nodes]] transform edits, [[duplicates]] pastes, "
             "scene.removed_nodes deletions, camera, lighting, sensor. An export -- the "
             "open document keeps its own path. save_path must be absolute.";
+        tool.description += kMcpPathPolicy;
         tool.inputSchemaJson = R"({
   "type": "object",
   "properties": {
@@ -2284,6 +2413,8 @@ void MainWindow::registerMcpTools() {
   },
   "required": ["save_path"]
 })";
+        // Overwrites the file at save_path.
+        tool.destructive = true;
         tool.handler = [this](const quantiloom::String& argumentsJson) {
             QJsonObject args;
             mcp::ToolResult error;
@@ -2293,9 +2424,14 @@ void MainWindow::registerMcpTools() {
             if (!m_viewport->getScene()) {
                 return mcp::ToolResult::Error("No scene is loaded.");
             }
-            const QString path = args.value(QStringLiteral("save_path")).toString();
-            if (path.isEmpty()) {
+            const QString requestedPath = args.value(QStringLiteral("save_path")).toString();
+            if (requestedPath.isEmpty()) {
                 return mcp::ToolResult::Error("save_path is required.");
+            }
+            QString path;
+            QString problem;
+            if (!resolveMcpPath(requestedPath, false, {QStringLiteral("toml")}, path, problem)) {
+                return mcp::ToolResult::Error(problem.toStdString());
             }
             SceneConfig config;
             collectCurrentConfig(config);
@@ -2320,6 +2456,7 @@ void MainWindow::registerMcpTools() {
             "SDK-side captures cannot show. Asynchronous -- the PNG lands at save_path a "
             "few frames after this returns; poll the file. Grid and gizmo visibility "
             "follow the current UI state (View menu, ql_select).";
+        tool.description += kMcpPathPolicy;
         tool.inputSchemaJson = R"({
   "type": "object",
   "properties": {
@@ -2330,16 +2467,22 @@ void MainWindow::registerMcpTools() {
   },
   "required": ["save_path"]
 })";
-        tool.readOnly = true;
+        // Writes a PNG at save_path.
+        tool.destructive = true;
         tool.handler = [this](const quantiloom::String& argumentsJson) {
             QJsonObject args;
             mcp::ToolResult error;
             if (!ParseArgs(argumentsJson, args, error)) {
                 return error;
             }
-            const QString savePath = args.value(QStringLiteral("save_path")).toString();
-            if (savePath.isEmpty()) {
+            const QString requestedPath = args.value(QStringLiteral("save_path")).toString();
+            if (requestedPath.isEmpty()) {
                 return mcp::ToolResult::Error("save_path is required.");
+            }
+            QString savePath;
+            QString problem;
+            if (!resolveMcpPath(requestedPath, false, {QStringLiteral("png")}, savePath, problem)) {
+                return mcp::ToolResult::Error(problem.toStdString());
             }
             if (!m_viewport->hasRenderer()) {
                 return mcp::ToolResult::Error("The viewport is not rendering yet.");

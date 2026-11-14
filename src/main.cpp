@@ -22,12 +22,25 @@
 #include <core/Log.hpp>  // libQuantiloom logging
 #include <core/Resources.hpp>
 
+namespace {
+
+/// Shuts libQuantiloom's logging down when main() returns, which is after the
+/// window, the viewport and the SDK objects they own have been destroyed:
+/// their teardown messages are the half of the log that explains a crash on
+/// exit, and a Shutdown() placed before the return would discard them.
+struct LogShutdownGuard {
+    ~LogShutdownGuard() { quantiloom::Log::Shutdown(); }
+};
+
+}  // namespace
+
 int main(int argc, char* argv[]) {
     // Set log message format with timestamp [HH:mm:ss.zzz]
     qSetMessagePattern("[%{time HH:mm:ss.zzz}] %{message}");
 
     // Initialize libQuantiloom logging (console only, no log file)
     quantiloom::Log::Init(nullptr, quantiloom::Log::Level::Debug);
+    LogShutdownGuard logShutdown;
 
     // Enable high DPI scaling
     QApplication::setHighDpiScaleFactorRoundingPolicy(
@@ -72,7 +85,6 @@ int main(int argc, char* argv[]) {
         QMessageBox::critical(nullptr,
                               QObject::tr("Quantiloom SDK mismatch"),
                               sdkCheck.message);
-        quantiloom::Log::Shutdown();
         return 1;
     }
     if (sdkCheck.stale) {
@@ -109,17 +121,26 @@ int main(int argc, char* argv[]) {
         if (argument == QLatin1String("--mcp")) {
             mainWindow.startMcpServerFromCommandLine(0);
         } else if (argument.startsWith(QLatin1String("--mcp="))) {
-            mainWindow.startMcpServerFromCommandLine(
-                argument.mid(6).toUShort());
+            // 0 means "no port given" to the window, so a value that does not
+            // parse must not reach it as 0: it would quietly start on the
+            // stored port instead of the one typed.
+            bool isPort = false;
+            const uint port = argument.mid(6).toUInt(&isPort);
+            if (!isPort || port < 1 || port > 65535) {
+                QL_LOG_ERROR("{}: not a port number from 1 to 65535; the MCP server was not started",
+                             argument.toStdString());
+                QMessageBox::warning(
+                    &mainWindow, QObject::tr("MCP Server"),
+                    QObject::tr("%1 is not a port number from 1 to 65535. "
+                                "The MCP server was not started.")
+                        .arg(argument));
+                continue;
+            }
+            mainWindow.startMcpServerFromCommandLine(static_cast<quint16>(port));
         } else if (!argument.startsWith(QLatin1Char('-'))) {
             mainWindow.openFromCommandLine(argument);
         }
     }
 
-    int result = app.exec();
-
-    // Cleanup libQuantiloom logging
-    quantiloom::Log::Shutdown();
-
-    return result;
+    return app.exec();
 }

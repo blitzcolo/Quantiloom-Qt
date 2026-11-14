@@ -73,6 +73,7 @@
 #include <QMessageBox>
 #include <QCloseEvent>
 #include <QMouseEvent>
+#include <QScopedValueRollback>
 #include <QTimer>
 #include <QVBoxLayout>
 #include <QFileInfo>
@@ -2008,9 +2009,31 @@ void MainWindow::setMcpServerRunning(bool running) {
         return;
     }
 
+    // Where a start that cannot proceed ends up: a box with the reason, and
+    // the menu entry back to unticked.
+    const auto failToStart = [this](const QString& reason) {
+        QL_LOG_ERROR("MCP: {}", reason.toStdString());
+        QMessageBox::warning(this, tr("MCP Server"),
+                             tr("Could not start the MCP server.\n\n%1").arg(reason));
+        if (m_mcpAction) {
+            const QSignalBlocker blocker(m_mcpAction);
+            m_mcpAction->setChecked(false);
+        }
+    };
+
+    // The stored value is only ever written by --mcp=PORT, but the store is a
+    // plain preferences file: a value outside 1-65535 is refused here rather
+    // than wrapped into some other port by a narrowing cast.
     QSettings settings;
-    const quantiloom::u16 port =
-        static_cast<quantiloom::u16>(settings.value(kMcpPortKey, 8600).toUInt());
+    bool portIsNumber = false;
+    const qlonglong storedPort = settings.value(kMcpPortKey, 8600).toLongLong(&portIsNumber);
+    if (!portIsNumber || storedPort < 1 || storedPort > 65535) {
+        failToStart(tr("The stored MCP port (%1) is not a port number from 1 to 65535. "
+                       "Start Studio with --mcp=PORT to set it.")
+                        .arg(settings.value(kMcpPortKey).toString()));
+        return;
+    }
+    const auto port = static_cast<quantiloom::u16>(storedPort);
 
     quantiloom::mcp::ServerOptions options;
     options.port = port;
@@ -2038,21 +2061,17 @@ void MainWindow::setMcpServerRunning(bool running) {
     options.hostDispatch = [self](std::function<void()> work) {
         if (self) {
             QMetaObject::invokeMethod(
-                self.data(), [work = std::move(work)]() mutable { work(); },
+                self.data(),
+                [self, work = std::move(work)]() mutable {
+                    self->runMcpHostWork(std::move(work));
+                },
                 Qt::QueuedConnection);
         }
     };
 
     auto created = quantiloom::mcp::Server::Create(options);
     if (!created.has_value()) {
-        const QString reason = QString::fromStdString(created.error());
-        QL_LOG_ERROR("MCP: {}", created.error());
-        QMessageBox::warning(this, tr("MCP Server"),
-                             tr("Could not start the MCP server.\n\n%1").arg(reason));
-        if (m_mcpAction) {
-            const QSignalBlocker blocker(m_mcpAction);
-            m_mcpAction->setChecked(false);
-        }
+        failToStart(QString::fromStdString(created.error()));
         return;
     }
     m_mcpServer = std::move(created.value());
@@ -2090,12 +2109,27 @@ void MainWindow::startMcpServerFromCommandLine(quint16 port) {
 }
 
 void MainWindow::pumpMcp() {
-    if (!m_mcpServer || m_mcpPumping || m_viewport->isRendererBusy()) {
+    if (!m_mcpServer || m_mcpPumping || m_mcpHostWorkRunning || m_viewport->isRendererBusy()) {
         return;
     }
     m_mcpPumping = true;
     m_mcpServer->Pump();
     m_mcpPumping = false;
+}
+
+void MainWindow::runMcpHostWork(std::function<void()> work) {
+    if (m_mcpHostWorkRunning) {
+        // Posted while another was mid-flight, so it was delivered by that
+        // one's own event loop. Run it once that has returned, not inside it.
+        QTimer::singleShot(100, this, [this, work = std::move(work)]() mutable {
+            runMcpHostWork(std::move(work));
+        });
+        return;
+    }
+    // Restored on every exit, so a handler that throws cannot leave the pump
+    // standing down for the rest of the session.
+    const QScopedValueRollback hostWorkRunning(m_mcpHostWorkRunning, true);
+    work();
 }
 
 void MainWindow::updateMcpStatusLabel() {
@@ -3617,8 +3651,8 @@ void MainWindow::restoreWindowState() {
 
 void MainWindow::closeEvent(QCloseEvent* event) {
     // An offline render in flight would hold the exit until its worker
-    // returned -- a cube cannot be interrupted at all -- with no window left
-    // to say why.
+    // returned -- a cube stops only between bands -- with no window left to
+    // say why. Qt 6 routes a quit request through these close events too.
     if ((m_cubeDialog && m_cubeDialog->isRunning()) ||
         (m_sequenceDialog && m_sequenceDialog->isRunning())) {
         QMessageBox::information(

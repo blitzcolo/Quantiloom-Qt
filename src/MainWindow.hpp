@@ -403,9 +403,19 @@ private:
     // window until pumpMcp() runs a queued call on this thread.
     void setMcpServerRunning(bool running);
     void pumpMcp();
+    /// Runs a HostDispatch tool, one at a time: its handler may run an event
+    /// loop of its own, inside which a second one would otherwise start.
+    void runMcpHostWork(std::function<void()> work);
     /// Defined in McpTools.cpp -- the tool catalogue is long enough to live
     /// beside itself rather than in the middle of the shell.
     void registerMcpTools();
+    /// Confines a path an MCP caller chose to the directories it may use (see
+    /// McpTools.cpp). `resolved` is the canonical path to read or write; false
+    /// leaves the reason in `problem`. `suffixes` are the allowed extensions,
+    /// lower case and without the dot.
+    [[nodiscard]] bool resolveMcpPath(const QString& requested, bool mustExist,
+                                      const QStringList& suffixes, QString& resolved,
+                                      QString& problem) const;
     void updateMcpStatusLabel();
 
     void buildThemeMenu(QMenu* menu);
@@ -923,6 +933,11 @@ private:
     /// while the renderer is busy on its worker (isRendererBusy()): a tool run
     /// then would find no render context to work on.
     bool m_mcpPumping = false;
+    /// A HostDispatch tool is running. Its handler can sit in a nested event
+    /// loop for minutes, and the pump's timer keeps firing inside it, so the
+    /// pump stands down for the duration rather than start a second handler
+    /// inside the first.
+    bool m_mcpHostWorkRunning = false;
     /// The card up while the renderer is busy; created on first use.
     BusyOverlay* m_busyOverlay = nullptr;
 

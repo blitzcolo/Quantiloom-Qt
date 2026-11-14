@@ -99,6 +99,7 @@ QString UndoStack::redoText() const {
 void UndoStack::setClean() {
     if (m_cleanIndex != m_undoIndex) {
         m_cleanIndex = m_undoIndex;
+        m_lastClean = true;
         emit cleanChanged(true);
     }
 }
@@ -141,6 +142,9 @@ const Command* UndoStack::command(int index) const {
 void UndoStack::emitStateChanged() {
     emit canUndoChanged(canUndo());
     emit canRedoChanged(canRedo());
-    emit cleanChanged(isClean());
+    if (isClean() != m_lastClean) {
+        m_lastClean = isClean();
+        emit cleanChanged(m_lastClean);
+    }
     emit indexChanged(m_undoIndex);
 }
