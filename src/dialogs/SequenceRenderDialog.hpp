@@ -38,6 +38,7 @@
 
 #include <atomic>
 #include <functional>
+#include <memory>
 #include <vector>
 
 QT_BEGIN_NAMESPACE
@@ -176,7 +177,11 @@ private:
     bool m_running = false;
     /// Set from the GUI thread, read by the worker between frames: the only
     /// place a sequence can be stopped without abandoning a frame mid-trace.
-    std::atomic<bool> m_cancelled{false};
+    /// Shared with the run rather than owned here, because a worker that has
+    /// posted its result outlives `m_worker` being cleared, and it must not
+    /// reach the dialog to find out it was cancelled.
+    std::shared_ptr<std::atomic<bool>> m_cancelled{
+        std::make_shared<std::atomic<bool>>(false)};
     /// The dialog was closed during a run; close it once the run stops.
     bool m_closeWhenStopped = false;
 };

@@ -61,10 +61,14 @@ HyperspectralExportDialog::HyperspectralExportDialog(const SceneConfig& config, 
 }
 
 HyperspectralExportDialog::~HyperspectralExportDialog() {
-    // reject() refuses while a cube is being traced, so the only way here with
+    // reject() stops and waits for the band loop, so the only way here with
     // the worker alive is the application shutting down -- which the shell
-    // asks about first. The worker holds only a QPointer back to the dialog.
+    // asks about first. Asking the cube to stop bounds the wait to the band
+    // in flight. The worker holds only a QPointer back to the dialog and the
+    // shared flag. A run that has already posted finish() cleared m_worker and
+    // has nothing left to touch here, which is why the null case needs no wait.
     if (m_worker) {
+        m_cancelled->store(true);
         m_worker->wait();
     }
 }
@@ -214,7 +218,7 @@ void HyperspectralExportDialog::retranslateUi() {
     m_saveIntermediates->setToolTip(
         tr("Writes one image per band beside the cube, for inspecting a single "
            "wavelength. Multiplies the output size by the band count."));
-    m_startButton->setText(tr("Render"));
+    m_startButton->setText(m_running ? tr("Stop") : tr("Render"));
     m_closeButton->setText(tr("Close"));
     updateBandCount();
 }
@@ -228,12 +232,12 @@ void HyperspectralExportDialog::changeEvent(QEvent* event) {
 
 void HyperspectralExportDialog::reject() {
     if (m_running) {
-        // The core has no cancel for a cube, and destroying the dialog would
-        // block the window on the worker until the last band. Say so instead
-        // of closing; the window is modeless, so it is not in the way.
-        m_statusLabel->setText(
-            tr("A cube render cannot be interrupted. This window can be closed "
-               "once it has finished."));
+        // Destroying the dialog now would block the window on the worker, so
+        // ask the cube to stop and close once finish() says it has.
+        m_cancelled->store(true);
+        m_closeWhenStopped = true;
+        m_startButton->setEnabled(false);
+        m_statusLabel->setText(tr("Stopping after the current band..."));
         return;
     }
     QDialog::reject();
@@ -308,7 +312,11 @@ void HyperspectralExportDialog::onBrowseOutput() {
 
 void HyperspectralExportDialog::onStartOrCancel() {
     if (m_running) {
-        return;   // A cube cannot be interrupted; the core has no cancel.
+        // Stop: the band being traced finishes, then the cube ends there.
+        m_cancelled->store(true);
+        m_startButton->setEnabled(false);
+        m_statusLabel->setText(tr("Stopping after the current band..."));
+        return;
     }
 
     if (documentProvider) {
@@ -327,8 +335,9 @@ void HyperspectralExportDialog::onStartOrCancel() {
     }
 
     m_running = true;
-    m_startButton->setEnabled(false);
-    m_closeButton->setEnabled(false);
+    m_cancelled->store(false);
+    m_closeWhenStopped = false;
+    m_startButton->setText(tr("Stop"));
     setInputsEnabled(false);
     m_progress->setVisible(true);
     m_progress->setValue(0);
@@ -338,7 +347,11 @@ void HyperspectralExportDialog::onStartOrCancel() {
     // creates its own device, so nothing here touches the viewport's.
     const QString baseDir = m_baseConfig.baseDir;
     QPointer<HyperspectralExportDialog> self(this);
-    m_worker = QThread::create([this, self, toml, baseDir] {
+    const auto cancelFlag = m_cancelled;
+    // `this` is deliberately not captured: the worker reaches the dialog only
+    // through `self`, so a run that outlives it (the destructor's wait is the
+    // only thing that normally prevents that) has nothing to dereference.
+    m_worker = QThread::create([self, toml, baseDir, cancelFlag] {
         QString error;
         bool ok = false;
         try {
@@ -348,6 +361,7 @@ void HyperspectralExportDialog::onStartOrCancel() {
                             .arg(QString::fromStdString(parsed.error()));
             } else {
                 auto params = offlineexport::rendererInit(baseDir);
+                params.cancelled = [cancelFlag] { return cancelFlag->load(); };
                 params.onProgress = [self](const quantiloom::OfflineProgress& progress) {
                     // Queued onto the GUI thread: this runs between bands on
                     // the worker.
@@ -395,17 +409,23 @@ void HyperspectralExportDialog::onStartOrCancel() {
 }
 
 void HyperspectralExportDialog::finish(bool success, const QString& message) {
+    // A stop the user asked for is not a failure, whatever the core says.
+    const bool stopped = !success && m_cancelled->load();
     m_running = false;
     m_worker = nullptr;   // deleteLater is already connected
-    m_startButton->setEnabled(true);
-    m_closeButton->setEnabled(true);
+    m_startButton->setText(tr("Render"));
     setInputsEnabled(true);
     updateBandCount();
     m_progress->setValue(success ? 100 : 0);
     m_progress->setVisible(success);
-    m_statusLabel->setText(message);
+    m_statusLabel->setText(stopped ? tr("Cube render stopped.") : message);
 
-    if (!success) {
+    if (m_closeWhenStopped) {
+        m_closeWhenStopped = false;
+        QDialog::reject();
+        return;
+    }
+    if (!success && !stopped) {
         QMessageBox::warning(this, tr("Cube Render Failed"), message);
     }
 }

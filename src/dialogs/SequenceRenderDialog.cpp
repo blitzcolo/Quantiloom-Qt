@@ -60,9 +60,11 @@ SequenceRenderDialog::SequenceRenderDialog(const SceneConfig& config,
 
 SequenceRenderDialog::~SequenceRenderDialog() {
     // Same contract as the cube export: the worker owns nothing this dialog
-    // outlives, and holds only a QPointer back to it.
+    // outlives. It reaches the dialog only through its QPointer, and reads the
+    // cancel flag through the share of it it captured rather than through
+    // `this`, so waiting here is about the GPU work and nothing else.
     if (m_worker && m_worker->isRunning()) {
-        m_cancelled = true;
+        m_cancelled->store(true);
         m_worker->wait();
     }
 }
@@ -329,7 +331,7 @@ void SequenceRenderDialog::reject() {
         // button; the dialog goes when the frame in flight is written. Closing
         // outright would destroy it with the worker still tracing, and the
         // destructor would block the window until that frame finished.
-        m_cancelled = true;
+        m_cancelled->store(true);
         m_closeWhenStopped = true;
         m_startButton->setEnabled(false);
         m_statusLabel->setText(tr("Stopping after this frame, then closing..."));
@@ -722,7 +724,7 @@ void SequenceRenderDialog::onStartOrCancel() {
     if (m_running) {
         // Between frames, not mid-trace: a frame abandoned halfway is a file
         // that exists and is wrong, which is worse than one that does not.
-        m_cancelled = true;
+        m_cancelled->store(true);
         m_startButton->setEnabled(false);
         m_statusLabel->setText(tr("Stopping after this frame..."));
         return;
@@ -761,7 +763,7 @@ void SequenceRenderDialog::startSweepRun(const QString& baseToml) {
     }
 
     m_running = true;
-    m_cancelled = false;
+    m_cancelled->store(false);
     m_closeWhenStopped = false;
     m_startButton->setText(tr("Stop"));
     setInputsEnabled(false);
@@ -770,14 +772,19 @@ void SequenceRenderDialog::startSweepRun(const QString& baseToml) {
 
     QPointer<SequenceRenderDialog> self(this);
     const QString baseDir = m_baseConfig.baseDir;
-    m_worker = QThread::create([this, self, baseToml, overrides, paths, frameCount, baseDir] {
+    // The run's own share of the cancel flag. The worker reads it between
+    // frames, and `m_worker` is cleared the moment the result is posted -- so
+    // a worker reaching it through `this` would be the one place a destroyed
+    // dialog is still dereferenced.
+    const auto cancelFlag = m_cancelled;
+    m_worker = QThread::create([self, cancelFlag, baseToml, overrides, paths, frameCount, baseDir] {
         QString error;
         int rendered = 0;
         std::optional<quantiloom::Config> baseConfig;
         std::unique_ptr<quantiloom::RenderDevice> device;
 
         for (int i = 0; i < frameCount; ++i) {
-            if (m_cancelled) break;
+            if (cancelFlag->load()) break;
 
             QMetaObject::invokeMethod(self, [self, i, frameCount] {
                 if (!self) return;
@@ -877,7 +884,7 @@ void SequenceRenderDialog::startSweepRun(const QString& baseToml) {
             }
         }
 
-        const bool cancelled = m_cancelled;
+        const bool cancelled = cancelFlag->load();
         QMetaObject::invokeMethod(self, [self, error, rendered, frameCount, cancelled] {
             if (!self) return;
             if (!error.isEmpty()) {
@@ -916,7 +923,7 @@ void SequenceRenderDialog::startTimelineRun() {
     }
 
     m_running = true;
-    m_cancelled = false;
+    m_cancelled->store(false);
     m_closeWhenStopped = false;
     m_startButton->setText(tr("Stop"));
     setInputsEnabled(false);
@@ -931,7 +938,9 @@ void SequenceRenderDialog::startTimelineRun() {
     const long long firstTick = m_fromTick->value();
     const long long lastTick = m_toTick->value();
     const int everyTick = m_everyTick->value();
-    m_worker = QThread::create([this, self, toml, paths, frameCount, baseDir,
+    // Same share as the sweep takes, for the same reason.
+    const auto cancelFlag = m_cancelled;
+    m_worker = QThread::create([self, cancelFlag, toml, paths, frameCount, baseDir,
                                 timeline, firstTick, lastTick, everyTick] {
         QString error;
         int rendered = 0;
@@ -969,7 +978,7 @@ void SequenceRenderDialog::startTimelineRun() {
                     int i = 0;
                     for (long long tick = firstTick; error.isEmpty() && tick <= lastTick;
                          tick += everyTick) {
-                        if (m_cancelled) break;
+                        if (cancelFlag->load()) break;
                         const double time = timeline.TimeOfTick(tick);
                         quantiloom::u64 targetDeviceSlot = 0;
                         if (cameraConfig.enabled) {
@@ -1056,7 +1065,7 @@ void SequenceRenderDialog::startTimelineRun() {
             error = tr("The sequence failed: %1").arg(QString::fromLatin1(e.what()));
         }
 
-        const bool cancelled = m_cancelled;
+        const bool cancelled = cancelFlag->load();
         QMetaObject::invokeMethod(self, [self, error, rendered, frameCount, cancelled] {
             if (!self) return;
             if (!error.isEmpty()) {
@@ -1075,7 +1084,11 @@ void SequenceRenderDialog::startTimelineRun() {
 
 void SequenceRenderDialog::finish(const bool success, const QString& message) {
     m_running = false;
-    m_worker = nullptr;   // deleteLater is already connected
+    // Cleared while the thread may still be returning from run(): the result
+    // is posted as the worker's last statement, and deleteLater is already
+    // connected, so the object outlives its own pointer here. The destructor
+    // relies on exactly that -- a finished run left m_worker null.
+    m_worker = nullptr;
     m_startButton->setText(tr("Render"));
     m_startButton->setEnabled(true);
     setInputsEnabled(true);

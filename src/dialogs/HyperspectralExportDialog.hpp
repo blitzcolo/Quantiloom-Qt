@@ -21,7 +21,9 @@
 #include "../config/ConfigManager.hpp"
 #include "../ui/UiStyle.hpp"
 
+#include <atomic>
 #include <functional>
+#include <memory>
 #include <vector>
 
 QT_BEGIN_NAMESPACE
@@ -60,7 +62,8 @@ public:
     std::function<SceneConfig()> documentProvider;
 
 public slots:
-    /// Refused while a cube is being traced: the core has no cancel.
+    /// While a cube is being traced, asks it to stop after the current band
+    /// and closes once it has.
     void reject() override;
 
 protected:
@@ -109,4 +112,9 @@ private:
 
     QThread* m_worker = nullptr;
     bool m_running = false;
+    /// Shared with the worker, which polls it between bands; the worker never
+    /// reaches the dialog itself to read it.
+    std::shared_ptr<std::atomic<bool>> m_cancelled{std::make_shared<std::atomic<bool>>(false)};
+    /// Close was asked for while running: close once the band loop has stopped.
+    bool m_closeWhenStopped = false;
 };
