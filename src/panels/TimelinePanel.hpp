@@ -101,6 +101,9 @@ private:
     void setupUi();
     void updateReadout();
     void updateHint();
+    /// Enables the tick slider and spin box only when the tick grid fits
+    /// their int range, so neither can show a position the clock is not at.
+    void updateTickControls();
     void updatePlayButton();
     void restartTimer();
     /// Move to @p tick, clamping or wrapping by the loop setting, and tell

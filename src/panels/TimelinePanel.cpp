@@ -34,6 +34,11 @@ constexpr double kClockFormatThreshold_s = 3600.0;
 /// pretending otherwise makes playback claim a rate it is not achieving.
 constexpr int kMinimumTimerInterval_ms = 16;
 
+/// The slider and the tick spin box are int-valued. A grid whose last tick is
+/// past this cannot be shown in them, and a tick past it must saturate rather
+/// than wrap to a negative value.
+constexpr long long kWidgetTickMax = std::numeric_limits<int>::max();
+
 }  // namespace
 
 TimelinePanel::TimelinePanel(QWidget* parent) : PanelBase(parent) {
@@ -221,6 +226,7 @@ void TimelinePanel::retranslateUi() {
     PanelBase::retranslateUi();
     updateHint();
     updateReadout();
+    updateTickControls();
 }
 
 void TimelinePanel::updateHint() {
@@ -231,6 +237,25 @@ void TimelinePanel::updateHint() {
                  "where it stands.")
             : tr("This scene declares no [timeline]. Add one, with [[models]] "
                  "carrying a motion, to give it a clock."));
+}
+
+void TimelinePanel::updateTickControls() {
+    // A grid finer than the int-valued tick widgets can show cannot be
+    // scrubbed through them: the thumb would sit at one end while the clock
+    // ran past it, and touching it would seek to that end. They are switched
+    // off instead; Time is a double spin box and stays the route.
+    const long long lastTick =
+        m_info.present ? std::max<long long>(m_info.TickCount() - 1, 0) : 0;
+    const bool representable = lastTick <= kWidgetTickMax;
+    m_slider->setEnabled(representable);
+    m_tickSpin->setEnabled(representable);
+    const QString hint =
+        representable
+            ? QString()
+            : tr("This timeline has %1 ticks, more than the tick controls can "
+                 "represent. Seek with Time.").arg(lastTick);
+    m_slider->setToolTip(hint);
+    m_tickSpin->setToolTip(hint);
 }
 
 void TimelinePanel::updatePlayButton() {
@@ -258,14 +283,11 @@ void TimelinePanel::setInfo(const quantiloom::TimelineInfo& info) {
     m_tick = enabled ? std::clamp<long long>(info.TickOf(info.current_s), 0, lastTick) : 0;
 
     m_suppressSignals = true;
-    // The widgets are int-valued; a tick count past INT_MAX must saturate
-    // rather than wrap to a negative range.
-    constexpr long long kWidgetMax = std::numeric_limits<int>::max();
-    const int widgetLast = static_cast<int>(std::min(lastTick, kWidgetMax));
+    const int widgetLast = static_cast<int>(std::min(lastTick, kWidgetTickMax));
     m_slider->setRange(0, widgetLast);
-    m_slider->setValue(static_cast<int>(std::min(m_tick, kWidgetMax)));
+    m_slider->setValue(static_cast<int>(std::min(m_tick, kWidgetTickMax)));
     m_tickSpin->setRange(0, widgetLast);
-    m_tickSpin->setValue(static_cast<int>(std::min(m_tick, kWidgetMax)));
+    m_tickSpin->setValue(static_cast<int>(std::min(m_tick, kWidgetTickMax)));
     m_secondsSpin->setRange(info.start_s, std::max(info.end_s, info.start_s));
     m_secondsSpin->setSingleStep(info.ticksPerSecond > 0.0 ? 1.0 / info.ticksPerSecond : 0.05);
     m_secondsSpin->setValue(info.current_s);
@@ -275,6 +297,7 @@ void TimelinePanel::setInfo(const quantiloom::TimelineInfo& info) {
     updateReadout();
     // The hint says different things with and without a clock.
     updateHint();
+    updateTickControls();
 }
 
 void TimelinePanel::updateReadout() {
@@ -368,8 +391,12 @@ void TimelinePanel::requestTick(long long tick) {
     m_tick = tick;
 
     m_suppressSignals = true;
-    m_slider->setValue(static_cast<int>(m_tick));
-    m_tickSpin->setValue(static_cast<int>(m_tick));
+    // An out-of-range long long -> int cast is undefined, and wraps on every
+    // compiler this ships on: the thumb landed near the start while the clock
+    // was at the end, so the first touch of the slider jumped there. Saturate,
+    // as setInfo() already does.
+    m_slider->setValue(static_cast<int>(std::min(m_tick, kWidgetTickMax)));
+    m_tickSpin->setValue(static_cast<int>(std::min(m_tick, kWidgetTickMax)));
     m_secondsSpin->setValue(m_info.TimeOfTick(m_tick));
     m_suppressSignals = false;
 

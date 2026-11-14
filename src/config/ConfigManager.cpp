@@ -12,6 +12,7 @@
 #include <QStringList>
 #include <QFileInfo>
 #include <QTextStream>
+#include <QLocale>
 #include <QDebug>
 
 #include <core/Log.hpp>
@@ -24,6 +25,7 @@
 #include <algorithm>
 #include <cmath>
 #include <functional>
+#include <limits>
 
 // The camera's [sensor] tree is the SDK's serialization, in both directions:
 // reading goes through ParseCameraConfig (which also migrates legacy
@@ -900,7 +902,62 @@ QString ConfigManager::exportConfigToString(const SceneConfig& config) {
     return text;
 }
 
-void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
+namespace {
+
+// The shortest spelling of a value that reads back as the same number. TOML
+// numbers are doubles on the way in, and QTextStream's default six significant
+// digits does not survive the trip: a clock at 2592000.5 s was written as
+// 2.592e+06, so reopening the document rendered a different instant. Shortest
+// round-trip also keeps a hand-edited file readable, which a fixed 17 digits
+// does not -- that spells a third as 0.33333333333333331.
+QString tomlReal(double value) {
+    return QString::number(value, 'g', QLocale::FloatingPointShortest);
+}
+
+// QString::number() takes a double only, and widening a float asks for
+// seventeen digits: 0.1f would come out as 0.10000000149011612. So this looks
+// for the fewest digits that still parse back to the same float.
+QString tomlReal(float value) {
+    for (int precision = 1; precision < std::numeric_limits<float>::max_digits10; ++precision) {
+        const QString text = QString::number(static_cast<double>(value), 'g', precision);
+        if (text.toFloat() == value) {
+            return text;
+        }
+    }
+    return QString::number(static_cast<double>(value), 'g',
+                           std::numeric_limits<float>::max_digits10);
+}
+
+// The exporter's stream. Every number writeConfig() prints goes through here,
+// so no key can be written at a precision that loses it -- including a field
+// added later as a plain `out << value`.
+class TomlWriter {
+public:
+    explicit TomlWriter(QTextStream& stream) : m_stream(stream) {}
+
+    TomlWriter& operator<<(double value) {
+        m_stream << tomlReal(value);
+        return *this;
+    }
+    TomlWriter& operator<<(float value) {
+        m_stream << tomlReal(value);
+        return *this;
+    }
+    template <typename T>
+    TomlWriter& operator<<(const T& value) {
+        m_stream << value;
+        return *this;
+    }
+
+private:
+    QTextStream& m_stream;
+};
+
+}  // namespace
+
+void ConfigManager::writeConfig(QTextStream& stream, const SceneConfig& config) {
+    TomlWriter out(stream);
+
     // Header
     out << "# ============================================================================\n";
     out << "# Quantiloom Scene Configuration\n";
@@ -1177,7 +1234,8 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
             matConfig.irTransmittance > 0.0f || matConfig.irTemperature_K > 0.0f ||
             hasTemperatureMap || matConfig.hasThermal() || matConfig.hasEmissiveCurve()) {
             QString materialText;
-            QTextStream materialOut(&materialText);
+            QTextStream materialStream(&materialText);
+            TomlWriter materialOut(materialStream);
             materialOut << "name = " << tomlQuoted(matConfig.name) << "\n";
             if (matConfig.hasPbr) {
                 materialOut << "base_color = [" << matConfig.baseColor.r << ", "
@@ -1291,7 +1349,7 @@ void ConfigManager::writeConfig(QTextStream& out, const SceneConfig& config) {
                 }
                 materialOut << "fluorescence_yield = " << matConfig.fluorescenceYield << "\n";
             }
-            materialOut.flush();
+            materialStream.flush();
             const auto edited =
                 quantiloom::Config::Parse(materialText.toStdString());
             QString merged;
