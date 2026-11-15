@@ -24,6 +24,11 @@ REPO = Path(__file__).resolve().parents[1]
 MODELS = REPO / "assets" / "models"
 OUT_DIR = MODELS / "env"
 
+# Emission a source model carries by mistake, per file and material name. SU7's
+# black paint has emissiveFactor 0.05, which lights the car body about as
+# brightly as sunlit concrete; a renderer takes that as a light source.
+EXPORT_ERROR_EMISSIVE = {"SU7.glb": {"M_BODY_black.004"}}
+
 GLB_MAGIC = 0x46546C67
 CHUNK_JSON = 0x4E4F534A
 CHUNK_BIN = 0x004E4942
@@ -524,8 +529,11 @@ class Builder:
                 for v in obj:
                     remap_textures(v)
 
+        drop_emissive = EXPORT_ERROR_EMISSIVE.get(Path(path).name, set())
         for mat in src.get("materials", []):
             nmat = json.loads(json.dumps(mat))
+            if nmat.get("name") in drop_emissive:
+                nmat.pop("emissiveFactor", None)
             nmat["name"] = f"{name}_{nmat.get('name', 'mat')}"
             remap_textures(nmat)
             for e in nmat.get("extensions", {}):
