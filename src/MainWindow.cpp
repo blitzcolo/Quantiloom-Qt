@@ -1761,8 +1761,32 @@ void MainWindow::refreshTimelineInfo() {
     }
 }
 
+namespace {
+
+/// The key a document states a material's properties under: the material's own
+/// name, or -- for a copy the core prefixed with its model's, "post1/Material"
+/// -- the bare name an entry for every copy is written as. The core reaches
+/// such a copy from a bare [[materials]] entry (scene::AddressMaterial), so a
+/// panel looking the copy up by its own name alone shows defaults where the
+/// render has the document's values.
+template <typename Table>
+QString documentKey(const Table& table, const QString& name, const QStringList& modelNames) {
+    if (table.contains(name)) return name;
+    for (const QString& model : modelNames) {
+        if (name.size() > model.size() + 1 && name.startsWith(model) &&
+            name.at(model.size()) == u'/') {
+            const QString bare = name.mid(model.size() + 1);
+            if (table.contains(bare)) return bare;
+        }
+    }
+    return name;
+}
+
+} // namespace
+
 MaterialThermalProps MainWindow::thermalPropertiesForPanel(const QString& name) const {
-    MaterialThermalProps props = m_thermalProperties.value(name);
+    MaterialThermalProps props =
+        m_thermalProperties.value(documentKey(m_thermalProperties, name, m_modelNames));
     // A derived absorptivity is shown as the number the solve uses.
     if (!props.absorptivityExplicit) {
         if (const auto derived = m_viewport->derivedShortwaveAbsorptivity(name)) {
@@ -1880,7 +1904,9 @@ bool MainWindow::bindEmissionSpectrum(int index, const std::string& source) {
     // The level is the editor's (or the file's) choice for this material; a
     // lamp is levelled when it is bound, so it has to be given here.
     const QString level = m_emissiveScales.value(
-        QString::fromStdString(scene->materials[static_cast<size_t>(index)].name),
+        documentKey(m_emissiveScales,
+                    QString::fromStdString(scene->materials[static_cast<size_t>(index)].name),
+                    m_modelNames),
         QStringLiteral("match_luminance"));
     const QString baseDir =
         m_currentConfigFile.isEmpty() ? QString()
@@ -1955,9 +1981,10 @@ void MainWindow::applyMaterial(int index, const quantiloom::Material& material) 
         // which does not carry it.
         m_materialEditorPanel->setThermalProperties(thermalPropertiesForPanel(
             QString::fromStdString(scene->materials[static_cast<size_t>(index)].name)));
-        m_materialEditorPanel->setEmissiveScale(
-            m_emissiveScales.value(
-                QString::fromStdString(scene->materials[static_cast<size_t>(index)].name)));
+        m_materialEditorPanel->setEmissiveScale(m_emissiveScales.value(documentKey(
+            m_emissiveScales,
+            QString::fromStdString(scene->materials[static_cast<size_t>(index)].name),
+            m_modelNames)));
     }
     setSceneModified(true);
     showStatusMessage(tr("Material modified"));
@@ -2653,7 +2680,8 @@ void MainWindow::setupDockWidgets() {
                 const QString name =
                     QString::fromStdString(scene->materials[static_cast<size_t>(index)].name);
                 const QString previousScale =
-                    m_emissiveScales.value(name, QStringLiteral("match_luminance"));
+                    m_emissiveScales.value(documentKey(m_emissiveScales, name, m_modelNames),
+                                           QStringLiteral("match_luminance"));
                 if (name.isEmpty() || previousScale == scale) {
                     return;
                 }
@@ -5022,8 +5050,8 @@ void MainWindow::onMaterialSelected(int materialIndex) {
         m_materialEditorPanel->setMaterial(materialIndex, &material);
         m_materialEditorPanel->setThermalProperties(
             thermalPropertiesForPanel(QString::fromStdString(material.name)));
-        m_materialEditorPanel->setEmissiveScale(
-            m_emissiveScales.value(QString::fromStdString(material.name)));
+        m_materialEditorPanel->setEmissiveScale(m_emissiveScales.value(
+            documentKey(m_emissiveScales, QString::fromStdString(material.name), m_modelNames)));
         m_propertiesPanel->showMaterial();
         m_spectralMaterialGenPanel->setCurrentMaterialIndex(materialIndex);
         m_currentMaterialIndex = materialIndex;
@@ -5551,6 +5579,10 @@ void MainWindow::applyConfig(const SceneConfig& config) {
     m_sensorPanel->setCameraConfig(config.cameraConfig);    // Params first,
     m_cameraPanel->setMotion(config.cameraConfig.motion);
     m_sensorPanel->setCameraEnabled(config.sensorEnabled);  // then enabled state
+    m_modelNames.clear();
+    for (const ModelConfig& model : config.models) {
+        m_modelNames << model.name;
+    }
     m_thermalProperties.clear();
     for (const MaterialConfig& material : config.materialConfigs) {
         if (material.hasThermal()) {
@@ -6043,7 +6075,8 @@ void MainWindow::collectCurrentConfig(SceneConfig& config) {
             QString::fromStdString(material.temperatureTexturePath);
         matConfig.temperatureScale = material.temperatureScale;
         matConfig.temperatureOffset = material.temperatureOffset;
-        matConfig.thermal = m_thermalProperties.value(name);
+        matConfig.thermal =
+            m_thermalProperties.value(documentKey(m_thermalProperties, name, m_modelNames));
 
         // The spectral binding, from the material rather than from whatever
         // the file said: assigning one in the library panel writes it onto the
@@ -6071,7 +6104,8 @@ void MainWindow::collectCurrentConfig(SceneConfig& config) {
             QString::fromStdString(material.emissiveCurveSource);
         // The level the editor chose, or the file's own when it was not touched
         // (matConfig already holds that one).
-        if (const auto level = m_emissiveScales.constFind(name);
+        if (const auto level =
+                m_emissiveScales.constFind(documentKey(m_emissiveScales, name, m_modelNames));
             level != m_emissiveScales.constEnd()) {
             matConfig.emissiveScale = level.value();
         }

@@ -137,11 +137,11 @@ forcing_file = "../forcing/desert_day.csv"
 exchange_rays = 128
 exchange_top_k = 16
 
-# Both models are the same file, so both bring a material called "Material".
-# Merging keeps the first one's bare name and prefixes the second with its
-# model's -- so the block's is "block/Material". A material named in only one
-# of these blocks would leave half the scene out of the thermal solve, which
-# the log says plainly ("N materials have no measured spectrum...").
+# Both models are the same file, so both bring a material called "Material",
+# and merging prefixes every copy with its model's name: "ground/Material" and
+# "block/Material". The bare name reaches every copy, so the first entry is the
+# ground's and the default for any other copy; the second names the block's
+# exactly and wins over it wherever the two sit in the file.
 [[materials]]
 name = "Material"
 thermal_conductivity_w_mk = 0.30

@@ -637,6 +637,9 @@ private:
     /// no field for it. Absent means the file did not say, and the core's
     /// default ("match_luminance") applies.
     QHash<QString, QString> m_emissiveScales;
+    /// The document's [[models]] names: a material the core prefixed with one of
+    /// them still takes the two tables above from an entry under its bare name.
+    QStringList m_modelNames;
     /// The [thermal] block as the file gave it, so a config that has one
     /// survives being opened and saved. No panel edits it yet; the sequence
     /// dialog overrides the hour per frame. Held as the individual values
