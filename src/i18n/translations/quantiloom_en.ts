@@ -3956,7 +3956,7 @@ Rebuild with:
     </message>
     <message>
         <source>Dark Signal Non-Uniformity: pixel-to-pixel spread in dark current, in electrons. A fixed additive pattern, visible in dark areas.</source>
-        <translation>Dark Signal Non-Uniformity: pixel-to-pixel spread in dark current, in electrons. A fixed additive pattern, visible in dark areas.</translation>
+        <translation type="vanished">Dark Signal Non-Uniformity: pixel-to-pixel spread in dark current, in electrons. A fixed additive pattern, visible in dark areas.</translation>
     </message>
     <message>
         <source>NUC Residual:</source>
@@ -4080,6 +4080,26 @@ Rebuild with:
     </message>
     <message>
         <source>Temperature of the optics. A lens at room temperature emits in the infrared, and a cooled detector counts that emission as background photons -- signal it must subtract and shot noise it cannot. With cos^4 vignetting on, an off-axis pixel collects less of it, exactly as it collects less of the scene. Off leaves the lens out.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Dark Signal Non-Uniformity: pixel-to-pixel spread in dark current, in electrons RMS at the reference exposure below. It grows with the exposure as the dark current does, and cannot sensibly exceed the mean dark charge. A pattern that does not grow with exposure is an offset: use Bias Sigma.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>DSNU Reference Exposure:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The exposure the DSNU above was measured at, as a datasheet quotes it. At any other exposure the DSNU is scaled by exposure / reference.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Bias Sigma:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Pixel-to-pixel spread in the readout offset, in DN (one sigma). A fixed additive pattern that does not change with exposure -- where a short-exposure datasheet DSNU usually belongs.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

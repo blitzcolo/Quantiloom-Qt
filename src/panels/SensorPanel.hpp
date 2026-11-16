@@ -227,6 +227,8 @@ private:
     // FPN sub-rows, enabled only while FPN is on.
     QDoubleSpinBox* m_prnuSigma = nullptr;
     QDoubleSpinBox* m_dsnuSigma = nullptr;
+    QDoubleSpinBox* m_dsnuReferenceExposure = nullptr;
+    QDoubleSpinBox* m_biasDnRms = nullptr;
     QDoubleSpinBox* m_columnGainSigma = nullptr;
     QDoubleSpinBox* m_columnOffsetE = nullptr;
     QDoubleSpinBox* m_rowGainSigma = nullptr;

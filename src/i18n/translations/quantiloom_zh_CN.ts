@@ -4230,7 +4230,7 @@ Rebuild with:
     </message>
     <message>
         <source>Dark Signal Non-Uniformity: pixel-to-pixel spread in dark current, in electrons. A fixed additive pattern, visible in dark areas.</source>
-        <translation>暗信号非均匀性：像素间暗电流的离散度，单位为电子。属于固定的加性图案，在暗区可见。</translation>
+        <translation type="vanished">暗信号非均匀性：像素间暗电流的离散度，单位为电子。属于固定的加性图案，在暗区可见。</translation>
     </message>
     <message>
         <source>NUC Residual:</source>
@@ -4355,6 +4355,26 @@ Rebuild with:
     <message>
         <source>Temperature of the optics. A lens at room temperature emits in the infrared, and a cooled detector counts that emission as background photons -- signal it must subtract and shot noise it cannot. With cos^4 vignetting on, an off-axis pixel collects less of it, exactly as it collects less of the scene. Off leaves the lens out.</source>
         <translation>光学系统的温度。室温下的镜头会发出红外辐射，制冷探测器把这部分辐射计为背景光子——其信号必须扣除，而其散粒噪声无法扣除。开启 cos^4 渐晕时，离轴像元收到的镜头辐射会减少，与它收到的场景信号按同一比例减少。设为关闭则不建模镜头辐射。</translation>
+    </message>
+    <message>
+        <source>Dark Signal Non-Uniformity: pixel-to-pixel spread in dark current, in electrons RMS at the reference exposure below. It grows with the exposure as the dark current does, and cannot sensibly exceed the mean dark charge. A pattern that does not grow with exposure is an offset: use Bias Sigma.</source>
+        <translation>暗信号非均匀性：暗电流在像素间的离散，单位为电子 RMS，对应下方的参考曝光。它随曝光增长，与暗电流本身一样，且不应超过平均暗电荷。不随曝光变化的图样属于偏置：请使用偏置标准差。</translation>
+    </message>
+    <message>
+        <source>DSNU Reference Exposure:</source>
+        <translation>DSNU 参考曝光:</translation>
+    </message>
+    <message>
+        <source>The exposure the DSNU above was measured at, as a datasheet quotes it. At any other exposure the DSNU is scaled by exposure / reference.</source>
+        <translation>上方 DSNU 的测量曝光时间，即数据手册标注的条件。在其他曝光下，DSNU 按 曝光 / 参考曝光 缩放。</translation>
+    </message>
+    <message>
+        <source>Bias Sigma:</source>
+        <translation>偏置标准差:</translation>
+    </message>
+    <message>
+        <source>Pixel-to-pixel spread in the readout offset, in DN (one sigma). A fixed additive pattern that does not change with exposure -- where a short-exposure datasheet DSNU usually belongs.</source>
+        <translation>读出偏置在像素间的离散，单位为 DN（一倍标准差）。固定的加性图样，不随曝光变化——数据手册在短曝光下给出的 DSNU 通常应填在这里。</translation>
     </message>
     <message>
         <source>Column Gain Sigma:</source>

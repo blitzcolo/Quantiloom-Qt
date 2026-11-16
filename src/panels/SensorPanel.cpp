@@ -526,7 +526,15 @@ void SensorPanel::setupUi() {
 
     m_dsnuSigma = makeSpin(0.0, 1e5, 1.0, 2, 0.0, " e-");
     addRow(photonLayout, QT_TR_NOOP("DSNU Sigma:"), m_dsnuSigma,
-           QT_TR_NOOP("Dark Signal Non-Uniformity: pixel-to-pixel spread in dark current, in electrons. A fixed additive pattern, visible in dark areas."));
+           QT_TR_NOOP("Dark Signal Non-Uniformity: pixel-to-pixel spread in dark current, in electrons RMS at the reference exposure below. It grows with the exposure as the dark current does, and cannot sensibly exceed the mean dark charge. A pattern that does not grow with exposure is an offset: use Bias Sigma."));
+
+    m_dsnuReferenceExposure = makeSpin(1e-6, 10.0, 0.001, 6, 0.01, " s");
+    addRow(photonLayout, QT_TR_NOOP("DSNU Reference Exposure:"), m_dsnuReferenceExposure,
+           QT_TR_NOOP("The exposure the DSNU above was measured at, as a datasheet quotes it. At any other exposure the DSNU is scaled by exposure / reference."));
+
+    m_biasDnRms = makeSpin(0.0, 1e4, 0.1, 3, 0.0, " DN");
+    addRow(photonLayout, QT_TR_NOOP("Bias Sigma:"), m_biasDnRms,
+           QT_TR_NOOP("Pixel-to-pixel spread in the readout offset, in DN (one sigma). A fixed additive pattern that does not change with exposure -- where a short-exposure datasheet DSNU usually belongs."));
 
     // Line-correlated components of the same pattern: one value per readout
     // column and per row, fixed across frames. 0 leaves the pattern white.
@@ -810,7 +818,8 @@ void SensorPanel::setupUi() {
                                 m_rowDelay, m_exposureTime, m_framePeriod,
                                 m_analogGain, m_electronsPerDn, m_blackLevelDn,
                                 m_fullWell, m_readNoise, m_darkCurrent,
-                                m_prnuSigma, m_dsnuSigma, m_nucResidual,
+                                m_prnuSigma, m_dsnuSigma, m_dsnuReferenceExposure,
+                                m_biasDnRms, m_nucResidual,
                                 m_timeConstant, m_responsivity, m_thermalReadNoise,
                                 m_drift, m_netd, m_netdRefTemp,
                                 m_thermalGainSigma, m_thermalOffsetK, m_thermalNucResidual,
@@ -982,9 +991,8 @@ void SensorPanel::onShutterChanged(int index) {
 }
 
 void SensorPanel::onFpnToggled(bool checked) {
-    m_prnuSigma->setEnabled(checked);
-    m_dsnuSigma->setEnabled(checked);
-    for (QDoubleSpinBox* box : {m_columnGainSigma, m_columnOffsetE, m_rowGainSigma, m_rowOffsetE})
+    for (QDoubleSpinBox* box : {m_prnuSigma, m_dsnuSigma, m_dsnuReferenceExposure, m_biasDnRms,
+                                m_columnGainSigma, m_columnOffsetE, m_rowGainSigma, m_rowOffsetE})
         box->setEnabled(checked);
     m_nucEnable->setEnabled(checked);
     m_nucResidual->setEnabled(checked && m_nucEnable->isChecked());
@@ -1110,6 +1118,8 @@ void SensorPanel::onParamChanged() {
     m_camera.photon.enableFpn = m_fpnNoise->isChecked();
     m_camera.photon.prnuSigma = m_prnuSigma->value();
     m_camera.photon.dsnuElectronsRms = m_dsnuSigma->value();
+    m_camera.photon.dsnuReferenceExposureSeconds = m_dsnuReferenceExposure->value();
+    m_camera.photon.biasDnRms = m_biasDnRms->value();
     m_camera.photon.columnGainSigma = m_columnGainSigma->value();
     m_camera.photon.columnOffsetElectronsRms = m_columnOffsetE->value();
     m_camera.photon.rowGainSigma = m_rowGainSigma->value();
@@ -1355,6 +1365,8 @@ void SensorPanel::updateUiFromConfig(const quantiloom::camera::CameraConfig& con
     m_fpnNoise->setChecked(config.photon.enableFpn);
     m_prnuSigma->setValue(config.photon.prnuSigma);
     m_dsnuSigma->setValue(config.photon.dsnuElectronsRms);
+    m_dsnuReferenceExposure->setValue(config.photon.dsnuReferenceExposureSeconds);
+    m_biasDnRms->setValue(config.photon.biasDnRms);
     m_columnGainSigma->setValue(config.photon.columnGainSigma);
     m_columnOffsetE->setValue(config.photon.columnOffsetElectronsRms);
     m_rowGainSigma->setValue(config.photon.rowGainSigma);
@@ -1362,9 +1374,8 @@ void SensorPanel::updateUiFromConfig(const quantiloom::camera::CameraConfig& con
     m_nucEnable->setChecked(config.photon.applyNuc);
     m_nucResidual->setValue(config.photon.nucResidualFraction);
     const bool fpnOn = config.photon.enableFpn;
-    m_prnuSigma->setEnabled(fpnOn);
-    m_dsnuSigma->setEnabled(fpnOn);
-    for (QDoubleSpinBox* box : {m_columnGainSigma, m_columnOffsetE, m_rowGainSigma, m_rowOffsetE})
+    for (QDoubleSpinBox* box : {m_prnuSigma, m_dsnuSigma, m_dsnuReferenceExposure, m_biasDnRms,
+                                m_columnGainSigma, m_columnOffsetE, m_rowGainSigma, m_rowOffsetE})
         box->setEnabled(fpnOn);
     m_nucEnable->setEnabled(fpnOn);
     m_nucResidual->setEnabled(fpnOn && config.photon.applyNuc);
@@ -1483,6 +1494,8 @@ void SensorPanel::blockSignalsForUpdate(bool block) {
              static_cast<QWidget*>(m_fpnNoise),
              static_cast<QWidget*>(m_prnuSigma),
              static_cast<QWidget*>(m_dsnuSigma),
+             static_cast<QWidget*>(m_dsnuReferenceExposure),
+             static_cast<QWidget*>(m_biasDnRms),
              static_cast<QWidget*>(m_columnGainSigma),
              static_cast<QWidget*>(m_columnOffsetE),
              static_cast<QWidget*>(m_rowGainSigma),
