@@ -33,11 +33,16 @@ QString bundled(const QString& relativePath) {
 
 QString sdkResourceRoot() {
 #ifdef Q_OS_MACOS
-    return QDir::cleanPath(QCoreApplication::applicationDirPath() +
-                           QStringLiteral("/../Resources/share/quantiloom"));
+    const QString bundledRoot = QDir::cleanPath(QCoreApplication::applicationDirPath() +
+                                                QStringLiteral("/../Resources/share/quantiloom"));
 #else
-    return QCoreApplication::applicationDirPath() + QStringLiteral("/share/quantiloom");
+    const QString bundledRoot =
+        QCoreApplication::applicationDirPath() + QStringLiteral("/share/quantiloom");
 #endif
+    if (QDir(bundledRoot).exists()) {
+        return bundledRoot;
+    }
+    return QStringLiteral(QUANTILOOM_SDK_RESOURCE_DIR);
 }
 
 QString atmosphereModelPackDir() {

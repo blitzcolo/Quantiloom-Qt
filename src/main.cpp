@@ -91,9 +91,10 @@ int main(int argc, char* argv[]) {
         QL_LOG_WARN("SDK stale: {}", sdkCheck.message.toStdString());
     }
 
-    // The SDK's shaders and assets travel in share/quantiloom beside the
-    // executable (the QuantiloomSdkResources target). Pinned, so no other copy
-    // is tried; the SDK checks the shader-set stamp and refuses a stale one.
+    // The SDK's shaders and assets: its own share/quantiloom, read in place, or
+    // a copy bundled beside the executable (QUANTILOOM_BUNDLE_SDK_RESOURCES).
+    // Pinned, so no other copy is tried; the SDK checks the shader-set stamp
+    // and refuses a stale one.
     quantiloom::SetResourceRoot(assetpaths::sdkResourceRoot().toStdString());
 
     // The Vulkan backend's QVulkanInstance; the Metal backend has no process-wide state.

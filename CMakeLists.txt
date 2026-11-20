@@ -718,21 +718,41 @@ add_custom_target(QuantiloomQtAssets ALL
         "${CMAKE_CURRENT_SOURCE_DIR}/assets/luts" "${QUANTILOOM_DATA_DIR}/assets/luts"
 )
 install(DIRECTORY assets/spectral assets/luts DESTINATION assets)
+install(DIRECTORY "${QUANTILOOM_SDK_DIR}/share/quantiloom" DESTINATION share)
 
 add_dependencies(QuantiloomQt QuantiloomQtAssets)
 
 # The SDK's runtime resources (SPIR-V shaders with their SHADERSET stamp, the
-# NN atmosphere pack, the BRDF LUT) live under share/quantiloom in the SDK.
-# main() pins quantiloom::SetResourceRoot() to the copy beside the executable.
-# A target rather than POST_BUILD, so a refreshed SDK is picked up by a build
-# that does not relink; copy_directory_if_different keeps the no-op cheap.
-add_custom_target(QuantiloomSdkResources ALL
-    COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
-        "${QUANTILOOM_SDK_DIR}/share/quantiloom"
-        "${QUANTILOOM_DATA_DIR}/share/quantiloom"
-    COMMENT "Copying the SDK's runtime resources..."
-)
+# NN atmosphere pack, the BRDF LUT) live under share/quantiloom in the SDK --
+# about 270 MB, most of it the atmosphere pack. A build reads them there in
+# place: main() pins quantiloom::SetResourceRoot() to a share/quantiloom beside
+# the executable when one exists, else to QUANTILOOM_SDK_RESOURCE_DIR. So the
+# machine holds one installed copy, and a model or shader the core reinstalls
+# reaches Studio without a copy step.
+#
+# QUANTILOOM_BUNDLE_SDK_RESOURCES=ON makes the build tree self-contained (a
+# folder or .app to hand to another machine): the copy is mirrored, so a file
+# the SDK dropped is dropped here too. OFF removes a copy an earlier build left,
+# because main() would prefer it and it would never be refreshed again.
+option(QUANTILOOM_BUNDLE_SDK_RESOURCES
+    "Copy the SDK's share/quantiloom beside the executable instead of reading it from the SDK" OFF)
+if(QUANTILOOM_BUNDLE_SDK_RESOURCES)
+    add_custom_target(QuantiloomSdkResources ALL
+        COMMAND ${CMAKE_COMMAND} -E rm -rf "${QUANTILOOM_DATA_DIR}/share/quantiloom"
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${QUANTILOOM_SDK_DIR}/share/quantiloom"
+            "${QUANTILOOM_DATA_DIR}/share/quantiloom"
+        COMMENT "Bundling the SDK's runtime resources..."
+    )
+else()
+    add_custom_target(QuantiloomSdkResources ALL
+        COMMAND ${CMAKE_COMMAND} -E rm -rf "${QUANTILOOM_DATA_DIR}/share/quantiloom"
+        COMMENT "Reading the SDK's runtime resources in place: ${QUANTILOOM_SDK_DIR}/share/quantiloom"
+    )
+endif()
 add_dependencies(QuantiloomQt QuantiloomSdkResources)
+target_compile_definitions(QuantiloomQt PRIVATE
+    QUANTILOOM_SDK_RESOURCE_DIR="${QUANTILOOM_SDK_DIR}/share/quantiloom")
 
 # ============================================================================
 # macOS bundle

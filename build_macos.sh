@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
 # Build QuantiloomQt natively on Apple Silicon: Ninja, Release, Metal viewport.
-# Produces build-mac/QuantiloomQt.app with the SDK's dylibs in Contents/Frameworks
-# and its share/quantiloom in Contents/Resources.
+# Produces build-mac/QuantiloomQt.app with the SDK's dylibs in Contents/Frameworks.
+# The SDK's share/quantiloom is read in place from ../Quantiloom-SDK unless the
+# bundle is being deployed.
 #
 # Override the Qt install from the environment, e.g.
 #   QT_PREFIX=~/Qt/6.12.0/macos ./build_macos.sh
 # DEPLOY_QT=1 additionally runs macdeployqt on the bundle (Qt is otherwise
-# found through the executable's rpath, which is enough to run it here).
+# found through the executable's rpath, which is enough to run it here) and
+# copies the SDK's share/quantiloom into Contents/Resources, so the .app runs
+# on a machine without the SDK.
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -40,7 +43,8 @@ fi
 
 cmake -S . -B "$BUILD_DIR" -G Ninja \
     -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_PREFIX_PATH="$QT_PREFIX"
+    -DCMAKE_PREFIX_PATH="$QT_PREFIX" \
+    -DQUANTILOOM_BUNDLE_SDK_RESOURCES="${DEPLOY_QT:-0}"
 
 # --- Build -----------------------------------------------------------------
 
