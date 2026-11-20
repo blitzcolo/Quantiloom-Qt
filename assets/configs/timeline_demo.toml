@@ -111,15 +111,17 @@ fov_y = 45.0
 sun_direction = [-0.6857, 0.7232, 0.0819]
 sun_radiance = [0.0, 0.0, 0.0]
 sky_radiance = [0.0, 0.0, 0.0]
-atmosphere_temperature_k = 313.0
 
 [material]
 albedo = [0.5, 0.5, 0.5]
 
 [atmosphere]
-preset = "disabled"
-sky_model = "clear_sky"
-air_temperature_k = 313.0
+# Clear desert air from the NN atmosphere: its sky networks give the sky --
+# colder overhead than at the horizon, as MODTRAN has it -- and its view path
+# lies between the camera and the ground. relative_humidity is the thermal
+# balance's humidity as well as the network's.
+preset = "clear"
+t_ground_K = 313.0
 relative_humidity = 20.0
 
 [thermal]

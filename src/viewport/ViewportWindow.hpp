@@ -413,8 +413,6 @@ public:
     /// What the SDK derived for a material's short-wave absorptivity from its
     /// measured reflectance, or nothing when there was nothing to derive from.
     [[nodiscard]] std::optional<float> derivedShortwaveAbsorptivity(const QString& material) const;
-    /// Why the SDK would refuse this atmosphere under the scene's sun, or empty.
-    [[nodiscard]] QString referenceSunConflict(const quantiloom::AtmosphereNNConfig& config) const;
 
     // ========================================================================
     // Timeline

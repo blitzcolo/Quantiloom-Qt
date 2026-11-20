@@ -9,11 +9,11 @@
     </message>
     <message>
         <source>Clear sky (Berdahl-Fromberg)</source>
-        <translation>晴空模型（Berdahl-Fromberg）</translation>
+        <translation type="vanished">晴空模型（Berdahl-Fromberg）</translation>
     </message>
     <message>
         <source>A partly transparent slab of air rather than one blackbody: the zenith reads far colder than the horizon, which is what a thermal camera sees and what drives radiative cooling. Off gives the isotropic sky, as warm overhead as at the horizon.</source>
-        <translation>把天空当作半透明气层而非单一黑体：天顶远比地平线冷，这正是热像仪所见，也是辐射冷却的成因。关闭则回到各向同性天空，头顶与地平线一样暖。</translation>
+        <translation type="vanished">把天空当作半透明气层而非单一黑体：天顶远比地平线冷，这正是热像仪所见，也是辐射冷却的成因。关闭则回到各向同性天空，头顶与地平线一样暖。</translation>
     </message>
     <message>
         <source>Air temperature:</source>
@@ -21,7 +21,7 @@
     </message>
     <message>
         <source>Temperature of the air itself. With the clear sky on it is the sky&apos;s Planck temperature, which the emissivity then makes read colder; with it off it is the whole of the thermal sky.</source>
-        <translation>空气本身的温度。启用晴空模型时它是天空的普朗克温度，再由发射率使其读数更低；关闭时它就是热波段天空的全部。</translation>
+        <translation type="vanished">空气本身的温度。启用晴空模型时它是天空的普朗克温度，再由发射率使其读数更低；关闭时它就是热波段天空的全部。</translation>
     </message>
     <message>
         <source>Relative humidity:</source>
@@ -142,8 +142,20 @@ Leave empty to auto-detect.</source>
         <translation>大气</translation>
     </message>
     <message>
+        <source>Clear sky for the energy balance (Berdahl-Martin)</source>
+        <translation>能量平衡采用晴空模型（Berdahl-Martin）</translation>
+    </message>
+    <message>
+        <source>The surface energy balance radiates against a clear sky colder than the air, derived from the air temperature and humidity -- what drives radiative cooling. The rendered sky does not change: it is the NN atmosphere&apos;s, or one blackbody at the air temperature. Off, the balance takes the NN atmosphere&apos;s clear sky, or the air temperature.</source>
+        <translation>地表能量平衡朝一个比空气更冷的晴空辐射，它由大气温度和湿度推导而来——这正是辐射冷却的成因。渲染的天空不受影响：它来自 NN 大气，或是大气温度下的单一黑体。关闭时，能量平衡采用 NN 大气的晴空，或大气温度。</translation>
+    </message>
+    <message>
         <source> K</source>
         <translation> K</translation>
+    </message>
+    <message>
+        <source>Temperature of the air itself. Without the NN atmosphere the rendered thermal sky is one blackbody at it; the energy balance convects with it, and with the clear sky on derives its sky from it.</source>
+        <translation>空气本身的温度。不启用 NN 大气时，渲染的热天空是该温度下的单一黑体；能量平衡以它计算对流换热，启用晴空模型时还由它推导天空。</translation>
     </message>
     <message>
         <source>These live in the lighting parameters. With the network model below on and its model pack found, transmittance and path radiance come from it instead, and these remain the thermal-sky fallback.</source>
@@ -1807,13 +1819,13 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
     </message>
     <message>
         <source>Atmosphere Not Applied</source>
-        <translation>未应用大气设置</translation>
+        <translation type="vanished">未应用大气设置</translation>
     </message>
     <message>
         <source>This atmosphere cannot be paired with the scene&apos;s sun:
 
 %1</source>
-        <translation>该大气无法与场景的太阳光谱搭配：
+        <translation type="vanished">该大气无法与场景的太阳光谱搭配：
 
 %1</translation>
     </message>

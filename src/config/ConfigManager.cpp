@@ -344,19 +344,6 @@ void ConfigManager::extractSceneConfig(const quantiloom::Config& config, SceneCo
     }
 
     out.lighting.atmosphereTemperature_K = config.GetFloat("lighting.atmosphere_temperature_k", 260.0f);
-    // Where the visible sky's light comes from. The core decides what the keys
-    // mean; they are read here only so a save writes back what the file said.
-    out.lighting.skyDistribution =
-        config.GetString("lighting.sky_distribution", "clear") == "uniform"
-            ? quantiloom::SkyDistributionId::Uniform
-            : quantiloom::SkyDistributionId::Clear;
-    out.lighting.skyAerosolOpticalDepth =
-        config.GetFloat("lighting.sky_aerosol_optical_depth",
-                        quantiloom::LightingDefaults::SKY_AEROSOL_OPTICAL_DEPTH);
-    // skyEmissivityClear is not read from the file: the core derives it from
-    // [atmosphere] sky_model, air_temperature_k and relative_humidity, which
-    // are read below. Setting it from a stale key here would put a second
-    // opinion about the sky into the params the viewport uploads.
     out.lighting.worldUnitsToMeters = out.worldUnitsToMeters;
 
     // [quality] VIS_Fused chromaticity correction
@@ -431,11 +418,11 @@ void ConfigManager::extractSceneConfig(const quantiloom::Config& config, SceneCo
     out.atmosphere.h2oScale = config.GetFloat("atmosphere.h2o_scale",
         static_cast<quantiloom::f32>(out.atmosphere.h2oScale));
 
-    // [atmosphere] analytic sky. Read whether or not it is selected, for the
-    // same reason the sensor params are: the values outlive the switch.
-    out.clearSkyModel =
-        config.GetString("atmosphere.sky_model", "isotropic") == "clear_sky";
-    out.skyAirTemperatureK = config.Get<float>("atmosphere.air_temperature_k", 288.15f);
+    // The energy balance's clear sky and the air it is derived from, with the
+    // core's default for the air: the render's isotropic thermal sky.
+    out.clearSkyModel = config.GetString("thermal.sky_model", "isotropic") == "clear_sky";
+    out.skyAirTemperatureK =
+        config.Get<float>("thermal.air_temperature_k", out.lighting.atmosphereTemperature_K);
     out.skyRelativeHumidity = config.Get<float>("atmosphere.relative_humidity", 50.0f);
 
     // [thermal] -- the surface energy balance
@@ -1125,15 +1112,6 @@ void ConfigManager::writeConfig(QTextStream& stream, const SceneConfig& config) 
                               << config.lighting.skyRadiance_rgb.g << ", "
                               << config.lighting.skyRadiance_rgb.b << "]\n";
     out << "atmosphere_temperature_k = " << config.lighting.atmosphereTemperature_K << "\n";
-    // The clear sky is the default and is not restated; a file that chose the
-    // uniform dome, or another aerosol depth, keeps saying so.
-    if (config.lighting.skyDistribution == quantiloom::SkyDistributionId::Uniform) {
-        out << "sky_distribution = \"uniform\"\n";
-    }
-    if (std::abs(config.lighting.skyAerosolOpticalDepth -
-                 quantiloom::LightingDefaults::SKY_AEROSOL_OPTICAL_DEPTH) > 1e-6f) {
-        out << "sky_aerosol_optical_depth = " << config.lighting.skyAerosolOpticalDepth << "\n";
-    }
     // Read back by extractSceneConfig, so leaving it out was one more value
     // lighting.transmittance is gone: the key was deprecated when the NN
     // atmosphere took the view path, and the slot it occupied in
@@ -1176,13 +1154,9 @@ void ConfigManager::writeConfig(QTextStream& stream, const SceneConfig& config) 
     out << "rh = " << config.atmosphere.rh << "\n";
     out << "p_hPa = " << config.atmosphere.pHPa << "\n";
     out << "h2o_scale = " << config.atmosphere.h2oScale << "\n";
-    // The analytic sky, which the core reads from this same section. Written
-    // whether or not it is selected: the air temperature and humidity outlive
-    // the switch that reads them, and the emissivity the shader gets is
-    // derived from them rather than stored.
-    out << "sky_model = "
-        << (config.clearSkyModel ? "\"clear_sky\"" : "\"isotropic\"") << "\n";
-    out << "air_temperature_k = " << config.skyAirTemperatureK << "\n";
+    // The humidity the thermal balance evaporates into and derives its clear
+    // sky's dew point from. Written whatever the network says: it outlives
+    // the switch that reads it.
     out << "relative_humidity = " << config.skyRelativeHumidity << "\n";
     out << "\n";
 
@@ -1524,6 +1498,14 @@ void ConfigManager::writeConfig(QTextStream& stream, const SceneConfig& config) 
     }
     if (config.thermalSkyTemperatureK > 0.0) {
         out << "sky_temperature_k = " << config.thermalSkyTemperatureK << "\n";
+    }
+    // The balance's clear sky, and the air it is derived from -- which is
+    // what makes the air temperature this document's rather than the render
+    // sky's. Without the clear sky the air is lighting.atmosphere_temperature_k,
+    // already written, so it is not restated.
+    if (config.clearSkyModel) {
+        out << "sky_model = \"clear_sky\"\n";
+        out << "air_temperature_k = " << config.skyAirTemperatureK << "\n";
     }
     out << "\n";
 

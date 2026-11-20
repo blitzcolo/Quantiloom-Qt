@@ -489,7 +489,6 @@ public:
     void setThermalTime(double time_h);
     [[nodiscard]] quantiloom::ThermalSolveStatus thermalSolveStatus() const;
     [[nodiscard]] std::optional<float> derivedShortwaveAbsorptivity(const QString& material) const;
-    [[nodiscard]] QString referenceSunConflict(const quantiloom::AtmosphereNNConfig& config) const;
 
     // ========================================================================
     // Timeline

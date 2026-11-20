@@ -302,9 +302,6 @@ private:
     void applyLightingParams(const quantiloom::LightingParams& params);
     void applyEnvironmentMap(const QString& path, bool enabled);
     void applyAtmosphere(const quantiloom::AtmosphereNNConfig& config);
-    /// Puts the atmosphere panel back and says why the SDK would refuse what
-    /// it asked for (ExternalRenderContext::ReferenceSunConflict).
-    void refuseAtmosphere(const QString& conflict);
     void applySensorEnabled(bool enabled);
     /// The two camera dispatchers, matching the panel's two change signals.
     /// Structural edits (detector, optics, readout, noise, AE/AWB) re-measure

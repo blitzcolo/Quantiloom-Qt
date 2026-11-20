@@ -52,19 +52,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Clear sky (Berdahl-Fromberg)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>A partly transparent slab of air rather than one blackbody: the zenith reads far colder than the horizon, which is what a thermal camera sees and what drives radiative cooling. Off gives the isotropic sky, as warm overhead as at the horizon.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Air temperature:</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Temperature of the air itself. With the clear sky on it is the sky&apos;s Planck temperature, which the emissivity then makes read colder; with it off it is the whole of the thermal sky.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -121,7 +109,19 @@ Leave empty to auto-detect.</source>
         <translation type="unfinished">Atmosphere</translation>
     </message>
     <message>
+        <source>Clear sky for the energy balance (Berdahl-Martin)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The surface energy balance radiates against a clear sky colder than the air, derived from the air temperature and humidity -- what drives radiative cooling. The rendered sky does not change: it is the NN atmosphere&apos;s, or one blackbody at the air temperature. Off, the balance takes the NN atmosphere&apos;s clear sky, or the air temperature.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source> K</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Temperature of the air itself. Without the NN atmosphere the rendered thermal sky is one blackbody at it; the energy balance convects with it, and with the clear sky on derives its sky from it.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1648,16 +1648,6 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
     </message>
     <message>
         <source>Target samples</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Atmosphere Not Applied</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>This atmosphere cannot be paired with the scene&apos;s sun:
-
-%1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

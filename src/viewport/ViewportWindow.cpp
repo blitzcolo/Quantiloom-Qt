@@ -519,11 +519,6 @@ std::optional<float> ViewportWindow::derivedShortwaveAbsorptivity(const QString&
     return m_renderer ? m_renderer->derivedShortwaveAbsorptivity(material) : std::nullopt;
 }
 
-QString ViewportWindow::referenceSunConflict(
-    const quantiloom::AtmosphereNNConfig& config) const {
-    return m_renderer ? m_renderer->referenceSunConflict(config) : QString();
-}
-
 quantiloom::ThermalSolveStatus ViewportWindow::thermalSolveStatus() const {
     if (m_renderer) {
         return m_renderer->thermalSolveStatus();

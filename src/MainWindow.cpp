@@ -1197,7 +1197,7 @@ void MainWindow::applyLightingParams(const quantiloom::LightingParams& params) {
     // back out of the direction vector through asin and atan2, and rounding
     // that to the slider's integer degrees mid-drag would fight the drag.
     m_lightingPanel->setLightingParams(*m_lightingParams);
-    m_atmosphericPanel->setAnalyticSky(m_lightingParams->skyEmissivityClear > 0.0f,
+    m_atmosphericPanel->setAnalyticSky(m_skyClearModel,
                                        m_lightingParams->atmosphereTemperature_K,
                                        m_skyRelativeHumidity);
 }
@@ -1304,22 +1304,7 @@ QString MainWindow::resolveBundledIlluminant() {
     return assetpaths::bundled(QStringLiteral("assets/luts/astmg173.csv"));
 }
 
-void MainWindow::refuseAtmosphere(const QString& conflict) {
-    m_atmosphericPanel->setAtmosphericConfig(m_viewport->atmosphericConfig());
-    QMessageBox::warning(this, tr("Atmosphere Not Applied"),
-                         tr("This atmosphere cannot be paired with the scene's sun:\n\n%1")
-                             .arg(conflict));
-}
-
 void MainWindow::applyAtmosphere(const quantiloom::AtmosphereNNConfig& config) {
-    // A scene lit by a ground-level reference sun (ASTM G-173) is limited to
-    // clear sky in daylight; the SDK refuses the pairing at load, and the
-    // same rule holds for an interactive change. The panel is put back.
-    if (const QString conflict = m_viewport->referenceSunConflict(config);
-        !conflict.isEmpty()) {
-        refuseAtmosphere(conflict);
-        return;
-    }
     const double skyBefore = derivedSkyTemperatureK(m_thermalPanel->params().airTemperature_K);
     m_viewport->setAtmosphericConfig(config);
     m_atmosphericPanel->setAtmosphericConfig(config);
@@ -1479,13 +1464,11 @@ double MainWindow::derivedSkyTemperatureK(double airTemperatureK) const {
     }
     const quantiloom::AtmosphereNNConfig atmosphere = m_atmosphericPanel->getAtmosphericConfig();
     const bool network = atmosphere.enabled && atmosphere.preset != "disabled";
-    // The GPU's copy of the clear-sky emissivity is zeroed while the network
-    // owns the render's sky, but the balance is broadband and still wants the
-    // clear-sky model's -- and for a clear network sky, one from its own
-    // ground temperature and humidity.
-    double emissivity =
-        m_lightingParams ? static_cast<double>(m_lightingParams->skyEmissivityClear) : 0.0;
-    if (emissivity <= 0.0 && m_skyClearModel) {
+    // The balance is broadband: it takes the clear-sky model's emissivity
+    // ([thermal] sky_model), or for a clear network sky one from the network's
+    // own ground temperature and humidity.
+    double emissivity = 0.0;
+    if (m_skyClearModel) {
         emissivity = quantiloom::ClearSkyEmissivity(quantiloom::DewPointC(
             static_cast<double>(m_atmosphericPanel->atmosphereTemperatureK()) - 273.15,
             static_cast<double>(m_skyRelativeHumidity)));
@@ -2580,34 +2563,20 @@ void MainWindow::setupDockWidgets() {
             });
     connect(m_atmosphericPanel, &AtmosphericPanel::configChanged,
             this, [this](const quantiloom::AtmosphereNNConfig& config) {
-                // Refused before it reaches the history, so a rejected
-                // atmosphere leaves no undo entry that does nothing.
-                if (const QString conflict = m_viewport->referenceSunConflict(config);
-                    !conflict.isEmpty()) {
-                    refuseAtmosphere(conflict);
-                    return;
-                }
                 pushSettingCommand(CommandId::ModifyAtmosphere, tr("Atmosphere"),
                                    m_viewport->atmosphericConfig(), config,
                                    [this](const quantiloom::AtmosphereNNConfig& v) {
                                        applyAtmosphere(v);
                                    });
             });
-    // The analytic sky moved here from the lighting panel; it still belongs to
-    // LightingParams, so it is merged into the copy the shell holds rather
-    // than sent on its own. The emissivity comes from the SDK's correlation --
-    // the panel shows the number, it does not compute it.
+    // The air temperature is the render's isotropic thermal sky without the
+    // network, so it is merged into the LightingParams the shell holds rather
+    // than sent on its own. The clear sky is the energy balance's alone.
     connect(m_atmosphericPanel, &AtmosphericPanel::analyticSkyChanged,
             this, [this](bool clearSky, float airTemperatureK, float relativeHumidity) {
                 m_skyClearModel = clearSky;
                 m_skyRelativeHumidity = relativeHumidity;
                 m_lightingParams->atmosphereTemperature_K = airTemperatureK;
-                m_lightingParams->skyEmissivityClear =
-                    clearSky ? static_cast<float>(quantiloom::ClearSkyEmissivity(
-                                   quantiloom::DewPointC(
-                                       static_cast<double>(airTemperatureK) - 273.15,
-                                       static_cast<double>(relativeHumidity))))
-                             : 0.0f;
                 pushLightingParams();
                 // The same air the surfaces convect with, and the same
                 // humidity a wet one evaporates into. This is the one place
@@ -5679,7 +5648,7 @@ void MainWindow::syncPanelsFromRenderer() {
     const quantiloom::LightingParams lighting = m_viewport->lightingParams();
     *m_lightingParams = lighting;
     m_lightingPanel->setLightingParams(lighting);
-    m_atmosphericPanel->setAnalyticSky(lighting.skyEmissivityClear > 0.0f,
+    m_atmosphericPanel->setAnalyticSky(m_skyClearModel,
                                        lighting.atmosphereTemperature_K,
                                        m_skyRelativeHumidity);
 

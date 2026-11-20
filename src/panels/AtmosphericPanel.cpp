@@ -248,18 +248,19 @@ void AtmosphericPanel::retranslateUi() {
     // temperature survives only as the thermal-sky fallback. The panel says so
     // instead of implying an exclusivity the SDK does not implement.
     m_analyticGroup->setTitle(tr("Analytic sky"));
-    m_clearSkyCheck->setText(tr("Clear sky (Berdahl-Fromberg)"));
+    m_clearSkyCheck->setText(tr("Clear sky for the energy balance (Berdahl-Martin)"));
     m_clearSkyCheck->setToolTip(tr(
-        "A partly transparent slab of air rather than one blackbody: the "
-        "zenith reads far colder than the horizon, which is what a thermal "
-        "camera sees and what drives radiative cooling. Off gives the "
-        "isotropic sky, as warm overhead as at the horizon."));
+        "The surface energy balance radiates against a clear sky colder than "
+        "the air, derived from the air temperature and humidity -- what drives "
+        "radiative cooling. The rendered sky does not change: it is the NN "
+        "atmosphere's, or one blackbody at the air temperature. Off, the "
+        "balance takes the NN atmosphere's clear sky, or the air temperature."));
     m_atmosphereTempCaption->setText(tr("Air temperature:"));
     m_atmosphereTempSpin->setSuffix(tr(" K"));
     m_atmosphereTempSpin->setToolTip(tr(
-        "Temperature of the air itself. With the clear sky on it is the sky's "
-        "Planck temperature, which the emissivity then makes read colder; with "
-        "it off it is the whole of the thermal sky."));
+        "Temperature of the air itself. Without the NN atmosphere the rendered "
+        "thermal sky is one blackbody at it; the energy balance convects with "
+        "it, and with the clear sky on derives its sky from it."));
     m_humidityCaption->setText(tr("Relative humidity:"));
     m_humiditySpin->setSuffix(tr(" %"));
     m_humiditySpin->setToolTip(tr(
