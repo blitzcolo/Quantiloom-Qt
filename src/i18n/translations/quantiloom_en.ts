@@ -52,6 +52,10 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>The surface energy balance radiates against a clear sky colder than the air, derived from the air temperature and humidity -- what drives radiative cooling. The rendered sky does not change: it is the NN atmosphere&apos;s, or one blackbody at the air temperature. Off, the balance takes the sky the NN atmosphere&apos;s broadband network gives, clear or cloudy, or the air temperature.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Air temperature:</source>
         <translation type="unfinished"></translation>
     </message>
@@ -110,10 +114,6 @@ Leave empty to auto-detect.</source>
     </message>
     <message>
         <source>Clear sky for the energy balance (Berdahl-Martin)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>The surface energy balance radiates against a clear sky colder than the air, derived from the air temperature and humidity -- what drives radiative cooling. The rendered sky does not change: it is the NN atmosphere&apos;s, or one blackbody at the air temperature. Off, the balance takes the NN atmosphere&apos;s clear sky, or the air temperature.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -5220,6 +5220,10 @@ Coverage — %3</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Time-varying air temperature, irradiance, sun position and sky temperature, as CSV. Empty means the constant values above. Under the NN atmosphere the network replaces the file&apos;s sky column, unless a sky is stated, and -- with a solar LUT that has an extraterrestrial column -- its direct and diffuse columns too, evaluated at each row&apos;s air temperature and humidity.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Shadow-edge correction</source>
         <translation type="unfinished"></translation>
     </message>
@@ -5365,10 +5369,6 @@ Coverage — %3</source>
     </message>
     <message>
         <source>Choose a forcing CSV</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Time-varying air temperature, irradiance, sun position and sky temperature, as CSV. Empty means the constant values above.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

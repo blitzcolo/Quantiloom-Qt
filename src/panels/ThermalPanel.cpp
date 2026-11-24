@@ -323,7 +323,11 @@ void ThermalPanel::retranslateUi() {
     m_forcingBrowse->setToolTip(tr("Choose a forcing CSV"));
     m_forcingFileEdit->setToolTip(
         tr("Time-varying air temperature, irradiance, sun position and sky "
-           "temperature, as CSV. Empty means the constant values above."));
+           "temperature, as CSV. Empty means the constant values above. Under "
+           "the NN atmosphere the network replaces the file's sky column, "
+           "unless a sky is stated, and -- with a solar LUT that has an "
+           "extraterrestrial column -- its direct and diffuse columns too, "
+           "evaluated at each row's air temperature and humidity."));
     m_sunCorrectionCheck->setText(tr("Shadow-edge correction"));
     m_sunCorrectionCheck->setToolTip(
         tr("Carry dT/dv through the trajectory, so a shading pass resolves a "

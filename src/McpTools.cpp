@@ -1143,7 +1143,7 @@ void MainWindow::registerMcpTools() {
     "exchange_rays": {"type": "integer", "description": "Hemisphere rays per element for the view factors."},
     "exchange_top_k": {"type": "integer", "description": "View-factor entries kept per element."},
     "checkpoint_stride_h": {"type": "number", "description": "Simulated hours between stored states. Shorter is more memory and a cheaper replay."},
-    "forcing_file": {"type": "string", "description": "Path to a forcing CSV, or empty for constant forcing."},
+    "forcing_file": {"type": "string", "description": "Path to a forcing CSV, or empty for constant forcing. Under an NN atmosphere the network replaces its sky column (unless a sky is stated) and, with a solar LUT that has an extraterrestrial column, its dni and diffuse columns."},
     "convection_model": {"type": "string", "enum": ["constant", "wind", "stability"],
                          "description": "Where h comes from when the forcing does not state one. constant is the material's own number all day; wind is a + b U off the forcing's wind column; stability adds the free-convection floor that carries the exchange on a calm night. Anything but constant is solved on the CPU stepper."},
     "convection_wind_a": {"type": "number", "description": "The intercept in h = a + b U, W/m2K. McAdams 5.7."},

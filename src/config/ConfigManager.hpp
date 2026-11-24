@@ -462,6 +462,13 @@ struct SceneConfig {
     /// lighting.solar_lut_diffuse_is_global -- ASTM G-173's column 3 is
     /// global rather than sky.
     bool solarLutDiffuseIsGlobal = false;
+    /// lighting.render_solar_scale -- what the render multiplies every solar
+    /// term by, for an image taken in low light or at night after a day in
+    /// the sun; the thermal balance keeps the unscaled sun. The SDK hands the
+    /// RGB sun and sky back already multiplied by it, so the lighting written
+    /// out is divided by it again (MainWindow::collectCurrentConfig). Absent
+    /// stays absent.
+    std::optional<double> renderSolarScale;
 
     /// [spectral] NMF basis: the measured-material database and the band
     /// reconstructed from it.

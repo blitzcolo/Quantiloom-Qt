@@ -32,11 +32,29 @@
 #include <QTimer>
 #include <cmath>
 #include <exception>
+#include <filesystem>
 #include <iterator>
 #include <optional>
 #include <thread>
 
 #include <glm/gtc/matrix_transform.hpp>
+
+namespace {
+
+// A config path as ApplyConfig resolved it (the SDK's ResolveConfigPath, which
+// is not exported): against the config's directory when the file is there, as
+// written otherwise. baseDir must be spelled as ConfigApplyOptions::baseDir
+// was, so the two strings come out identical.
+std::string resolveAgainstConfigDir(const std::string& path, const std::string& baseDir) {
+    if (path.empty() || baseDir.empty()) return path;
+    const std::filesystem::path written(path);
+    if (written.is_absolute()) return path;
+    std::error_code ec;
+    const auto candidate = (std::filesystem::path(baseDir) / written).lexically_normal();
+    return std::filesystem::exists(candidate, ec) ? candidate.string() : path;
+}
+
+}  // namespace
 
 ViewportRenderer::ViewportRenderer(ViewportWindow* window)
     : m_window(window)
@@ -881,6 +899,14 @@ bool ViewportRenderer::applyConfigToContext(bool isFreshOpen) {
 
     m_contextFaulted = false;
 
+    // Read here only to be handed back: what the scale means is the SDK's
+    // (ConfigResolve), which refused the document above if it was not a
+    // finite number >= 0.
+    m_renderSolarScale = m_currentConfig->Get<double>("lighting.render_solar_scale", 1.0);
+    if (!(m_renderSolarScale >= 0.0) || !std::isfinite(m_renderSolarScale)) {
+        m_renderSolarScale = 1.0;
+    }
+
     if (isFreshOpen) {
         m_currentScenePath.clear();
         m_runtimeRefractiveIndices.clear();
@@ -912,6 +938,8 @@ bool ViewportRenderer::applyConfigToContext(bool isFreshOpen) {
         m_targetSPP = m_renderContext->GetSPP();
         m_samplingSeed = m_renderContext->GetSamplingSeed();
         m_atmosphericConfig = m_renderContext->GetAtmosphere();
+        m_atmosphericConfig.solarScatterScale = m_renderSolarScale;
+        refreshNNBalanceSky();
 
         const quantiloom::Camera& camera = m_renderContext->GetCamera();
         m_cameraPosition = camera.GetPosition();
@@ -1922,6 +1950,8 @@ std::unique_ptr<quantiloom::Image> ViewportRenderer::captureDisplayImage() {
 
 void ViewportRenderer::setAtmosphericConfig(const quantiloom::AtmosphereNNConfig& config) {
     m_atmosphericConfig = config;
+    // The panel does not own it: it is the document's render_solar_scale.
+    m_atmosphericConfig.solarScatterScale = m_renderSolarScale;
     applyAtmosphereToContext();
     // SetAtmosphere resets accumulation on the SDK side when the config
     // changed; this keeps the sample count shown here in step and restarts a
@@ -1967,6 +1997,22 @@ void ViewportRenderer::applyAtmosphereToContext() {
             QL_LOG_WARN("Failed to disable NN atmosphere: {}", e2.what());
         }
     }
+    refreshNNBalanceSky();
+}
+
+void ViewportRenderer::refreshNNBalanceSky() {
+    m_nnBalanceSkyK.reset();
+    if (!m_renderContext || !m_renderContext->GetAtmosphere().enabled) {
+        return;
+    }
+    const auto sky = m_renderContext->GetNNBalanceSkyTemperature();
+    if (sky.has_value()) {
+        m_nnBalanceSkyK = sky.value();
+    } else {
+        QL_LOG_WARN("The NN atmosphere gives the energy balance no sky ({}); it radiates "
+                    "against the air temperature",
+                    sky.error());
+    }
 }
 
 // ============================================================================
@@ -2008,7 +2054,17 @@ bool ViewportRenderer::hasEnvironmentMap() const {
 void ViewportRenderer::setThermalSolveParams(
     const quantiloom::ThermalSolveParams& params) {
     if (m_renderContext) {
-        m_renderContext->SetThermalSolveParams(params);
+        // The shell carries thermal.forcing_file as the document wrote it, and
+        // relative to the document. The SDK reads it as given -- against the
+        // working directory -- and keeps an NN atmosphere's sky and sun in
+        // place of the file's columns only while the params name the very
+        // string ApplyConfig resolved. Sent as written, the first thermal edit
+        // would quietly hand the solve back the file's own sky and sun.
+        quantiloom::ThermalSolveParams resolved = params;
+        resolved.forcingFile = resolveAgainstConfigDir(
+            params.forcingFile,
+            QDir::toNativeSeparators(m_currentConfigBaseDir).toStdString());
+        m_renderContext->SetThermalSolveParams(resolved);
         resetAccumulation();
     }
 }

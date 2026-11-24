@@ -229,6 +229,10 @@ quantiloom::AtmosphereNNConfig ViewportWindow::atmosphericConfig() const {
     return m_renderer ? m_renderer->atmosphericConfig() : quantiloom::AtmosphereNNConfig{};
 }
 
+std::optional<double> ViewportWindow::nnBalanceSkyTemperatureK() const {
+    return m_renderer ? m_renderer->nnBalanceSkyTemperatureK() : std::nullopt;
+}
+
 quantiloom::DebugVisualizationMode ViewportWindow::debugMode() const {
     return m_renderer ? m_renderer->getDebugMode() : quantiloom::DebugVisualizationMode::None;
 }

@@ -48,6 +48,10 @@
         <translation> %</translation>
     </message>
     <message>
+        <source>The surface energy balance radiates against a clear sky colder than the air, derived from the air temperature and humidity -- what drives radiative cooling. The rendered sky does not change: it is the NN atmosphere&apos;s, or one blackbody at the air temperature. Off, the balance takes the sky the NN atmosphere&apos;s broadband network gives, clear or cloudy, or the air temperature.</source>
+        <translation>地表能量平衡朝一个比空气更冷的晴空辐射，它由大气温度和湿度推导而来——这正是辐射冷却的成因。渲染的天空不受影响：它来自 NN 大气，或是大气温度下的单一黑体。关闭时，能量平衡采用 NN 大气宽带网络给出的天空（晴空与有云皆然），或大气温度。</translation>
+    </message>
+    <message>
         <source>Preset:</source>
         <translation>预设：</translation>
     </message>
@@ -147,7 +151,7 @@ Leave empty to auto-detect.</source>
     </message>
     <message>
         <source>The surface energy balance radiates against a clear sky colder than the air, derived from the air temperature and humidity -- what drives radiative cooling. The rendered sky does not change: it is the NN atmosphere&apos;s, or one blackbody at the air temperature. Off, the balance takes the NN atmosphere&apos;s clear sky, or the air temperature.</source>
-        <translation>地表能量平衡朝一个比空气更冷的晴空辐射，它由大气温度和湿度推导而来——这正是辐射冷却的成因。渲染的天空不受影响：它来自 NN 大气，或是大气温度下的单一黑体。关闭时，能量平衡采用 NN 大气的晴空，或大气温度。</translation>
+        <translation type="vanished">地表能量平衡朝一个比空气更冷的晴空辐射，它由大气温度和湿度推导而来——这正是辐射冷却的成因。渲染的天空不受影响：它来自 NN 大气，或是大气温度下的单一黑体。关闭时，能量平衡采用 NN 大气的晴空，或大气温度。</translation>
     </message>
     <message>
         <source> K</source>
@@ -5528,6 +5532,10 @@ Coverage — %3</source>
         <translation>启用热求解</translation>
     </message>
     <message>
+        <source>Time-varying air temperature, irradiance, sun position and sky temperature, as CSV. Empty means the constant values above. Under the NN atmosphere the network replaces the file&apos;s sky column, unless a sky is stated, and -- with a solar LUT that has an extraterrestrial column -- its direct and diffuse columns too, evaluated at each row&apos;s air temperature and humidity.</source>
+        <translation>随时间变化的大气温度、辐照度、太阳位置与天空温度（CSV 格式）。留空则使用上方的常数值。启用 NN 大气时，除非已明确给定天空，网络会替换文件中的天空温度列；若太阳光谱 LUT 带有大气层外辐照度列，直射与漫射两列也一并替换，均按每一行的大气温度与湿度计算。</translation>
+    </message>
+    <message>
         <source>Time of Day</source>
         <translation>时刻</translation>
     </message>
@@ -5749,7 +5757,7 @@ Coverage — %3</source>
     </message>
     <message>
         <source>Time-varying air temperature, irradiance, sun position and sky temperature, as CSV. Empty means the constant values above.</source>
-        <translation>随时间变化的大气温度、辐照度、太阳位置与天空温度（CSV 格式）。留空则使用上方的常数值。</translation>
+        <translation type="vanished">随时间变化的大气温度、辐照度、太阳位置与天空温度（CSV 格式）。留空则使用上方的常数值。</translation>
     </message>
     <message>
         <source>Hour at timeline start:</source>

@@ -243,6 +243,13 @@ public:
     [[nodiscard]] const quantiloom::AtmosphereNNConfig& atmosphericConfig() const {
         return m_atmosphericConfig;
     }
+    /// The sky the energy balance radiates against under the atmosphere the
+    /// context holds (the SDK's GetNNBalanceSkyTemperature), read after each
+    /// ApplyConfig and SetAtmosphere. Empty when the context has no network:
+    /// the atmosphere is off, or its pack could not answer.
+    [[nodiscard]] std::optional<double> nnBalanceSkyTemperatureK() const {
+        return m_nnBalanceSkyK;
+    }
     /// @}
 
     /**
@@ -719,6 +726,15 @@ private:
 
     // Atmosphere configuration (NN MODTRAN surrogate)
     quantiloom::AtmosphereNNConfig m_atmosphericConfig;  // Default: disabled
+    /// The document's lighting.render_solar_scale. ApplyConfig scales the
+    /// beam and the uploaded solar LUT by it and leaves the sky table's share
+    /// to AtmosphereNNConfig::solarScatterScale, which the resolver sets only
+    /// when the document has an [atmosphere]. Every atmosphere this class
+    /// hands the context carries it, so a preset chosen in the panel -- a fresh
+    /// config, scale 1 -- cannot light the sky at full sun under a dimmed beam.
+    double m_renderSolarScale = 1.0;
+    std::optional<double> m_nnBalanceSkyK;
+    void refreshNNBalanceSky();
 
     /// A display-stage setting changed (sensor, CLAHE): arm m_reprocessPending
     /// and ask for a frame, so the change shows on the accumulation as it

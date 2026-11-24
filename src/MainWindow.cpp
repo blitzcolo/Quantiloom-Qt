@@ -1307,7 +1307,12 @@ QString MainWindow::resolveBundledIlluminant() {
 void MainWindow::applyAtmosphere(const quantiloom::AtmosphereNNConfig& config) {
     const double skyBefore = derivedSkyTemperatureK(m_thermalPanel->params().airTemperature_K);
     m_viewport->setAtmosphericConfig(config);
-    m_atmosphericPanel->setAtmosphericConfig(config);
+    // The viewport stamps the document's render_solar_scale onto the sky's
+    // share of the sun; the panel holding the unstamped copy would make the
+    // next comparison against the viewport see an edit that was not made.
+    quantiloom::AtmosphereNNConfig shown = config;
+    shown.solarScatterScale = m_viewport->atmosphericConfig().solarScatterScale;
+    m_atmosphericPanel->setAtmosphericConfig(shown);
     // A clear network sky is the sky the surfaces radiate against too, so a
     // change to it is a change to the solve.
     if (m_thermalEnabled) {
@@ -1455,33 +1460,31 @@ quantiloom::ThermalSolveParams MainWindow::currentThermalParams() const {
 double MainWindow::derivedSkyTemperatureK(double airTemperatureK) const {
     // The sky they radiate against is not carried unless the document states
     // it (thermal.sky_temperature_k), because otherwise it is not an
-    // independent number: it is what a clear-sky emissivity implies for that
-    // air, in the order ResolveRenderConfig takes them. Carrying a default
-    // here instead would send 268 K over the top of it, and a surface under a
-    // sky six degrees too cold runs about two degrees too cool.
+    // independent number: it is decided in the order ResolveRenderConfig
+    // takes -- the clear-sky model's emissivity ([thermal] sky_model) for that
+    // air; else, under an NN atmosphere, the sky its broadband network gives,
+    // clear or cloudy alike; else the air temperature. Carrying a default here
+    // instead would send 268 K over the top of it, and a surface under a sky
+    // six degrees too cold runs about two degrees too cool.
     if (m_thermalSkyTemperatureK > 0.0) {
         return m_thermalSkyTemperatureK;
     }
-    const quantiloom::AtmosphereNNConfig atmosphere = m_atmosphericPanel->getAtmosphericConfig();
-    const bool network = atmosphere.enabled && atmosphere.preset != "disabled";
-    // The balance is broadband: it takes the clear-sky model's emissivity
-    // ([thermal] sky_model), or for a clear network sky one from the network's
-    // own ground temperature and humidity.
-    double emissivity = 0.0;
     if (m_skyClearModel) {
-        emissivity = quantiloom::ClearSkyEmissivity(quantiloom::DewPointC(
+        const double emissivity = quantiloom::ClearSkyEmissivity(quantiloom::DewPointC(
             static_cast<double>(m_atmosphericPanel->atmosphereTemperatureK()) - 273.15,
             static_cast<double>(m_skyRelativeHumidity)));
+        if (emissivity > 0.0) {
+            return quantiloom::EffectiveSkyTemperatureK(airTemperatureK, emissivity);
+        }
     }
-    if (emissivity <= 0.0 && network && atmosphere.icld == 0.0) {
-        emissivity = quantiloom::ClearSkyEmissivity(
-            quantiloom::DewPointC(atmosphere.tGroundK - 273.15, atmosphere.rh * 100.0));
-    }
-    if (emissivity > 0.0) {
-        return quantiloom::EffectiveSkyTemperatureK(airTemperatureK, emissivity);
-    }
-    if (network) {
-        return atmosphere.tGroundK;
+    // The network's sky is asked of the SDK (GetNNBalanceSkyTemperature), for
+    // the atmosphere the context actually holds. It used to be approximated
+    // here by a Berdahl-Martin emissivity, which every thermal edit then sent
+    // over the network's answer. Nothing means the context has no network --
+    // off, or a pack that could not answer, which the viewport has logged --
+    // and the balance takes the air, as the resolver does without one.
+    if (const auto network = m_viewport->nnBalanceSkyTemperatureK()) {
+        return *network;
     }
     return m_lightingParams ? static_cast<double>(m_lightingParams->atmosphereTemperature_K)
                             : airTemperatureK;
@@ -5853,8 +5856,42 @@ void MainWindow::collectCurrentConfig(SceneConfig& config) {
     // the renderer is running on.
     if (!m_lastConfig || !m_loadedLighting ||
         std::memcmp(m_loadedLighting.get(), m_lightingParams.get(),
-                    sizeof(quantiloom::LightingParams)) != 0)
+                    sizeof(quantiloom::LightingParams)) != 0) {
         config.lighting = *m_lightingParams;
+        // lighting.render_solar_scale: the struct the renderer runs on has the
+        // RGB sun and sky already multiplied by it, and the document states
+        // them before it. Writing them as they are would apply the scale a
+        // second time on the next open. A scale of 0 leaves nothing to divide,
+        // so the document's own values stand.
+        if (config.renderSolarScale && *config.renderSolarScale != 1.0) {
+            const double scale = *config.renderSolarScale;
+            const bool divisible = scale > 0.0 && std::isfinite(scale);
+            const float inverse = divisible ? static_cast<float>(1.0 / scale) : 0.0f;
+            // Each radiance on its own, and only once it was edited: one that
+            // was not would come back from the multiply and divide a rounding
+            // away from what the document said.
+            const auto unscale = [&](glm::vec3& rgb, float& spectral, const glm::vec3& loaded,
+                                     const glm::vec3& documentRgb, float documentSpectral) {
+                if (divisible && (!m_loadedLighting || loaded != rgb)) {
+                    rgb *= inverse;
+                    spectral *= inverse;
+                } else if (m_lastConfig) {
+                    rgb = documentRgb;
+                    spectral = documentSpectral;
+                }
+            };
+            const quantiloom::LightingParams loaded =
+                m_loadedLighting ? *m_loadedLighting : quantiloom::LightingParams{};
+            unscale(config.lighting.sunRadiance_rgb, config.lighting.sunRadiance_spectral,
+                    loaded.sunRadiance_rgb,
+                    m_lastConfig ? m_lastConfig->lighting.sunRadiance_rgb : glm::vec3(0.0f),
+                    m_lastConfig ? m_lastConfig->lighting.sunRadiance_spectral : 0.0f);
+            unscale(config.lighting.skyRadiance_rgb, config.lighting.skyRadiance_spectral,
+                    loaded.skyRadiance_rgb,
+                    m_lastConfig ? m_lastConfig->lighting.skyRadiance_rgb : glm::vec3(0.0f),
+                    m_lastConfig ? m_lastConfig->lighting.skyRadiance_spectral : 0.0f);
+        }
+    }
 
     // "None" in a spectral mode is the sun and sky switched off, and the
     // lighting panel shows both at 0. The file says the same, so it renders

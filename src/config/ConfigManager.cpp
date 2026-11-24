@@ -779,6 +779,10 @@ void ConfigManager::extractQuantitativeSpectral(const quantiloom::Config& config
         QString::fromStdString(config.GetString("lighting.solar_lut_normalise", ""));
     out.solarLutDiffuseIsGlobal =
         config.Get<bool>("lighting.solar_lut_diffuse_is_global", false);
+    out.renderSolarScale.reset();
+    if (config.Has("lighting.render_solar_scale")) {
+        out.renderSolarScale = config.Get<double>("lighting.render_solar_scale", 1.0);
+    }
 
     // [spectral] NMF basis.
     out.basisFile = QString::fromStdString(config.GetString("spectral.basis_file", ""));
@@ -1133,6 +1137,10 @@ void ConfigManager::writeConfig(QTextStream& stream, const SceneConfig& config) 
         if (config.solarLutDiffuseIsGlobal) {
             out << "solar_lut_diffuse_is_global = true\n";
         }
+    }
+    // Not under solar_lut: it scales the RGB sun and sky as well.
+    if (config.renderSolarScale) {
+        out << "render_solar_scale = " << *config.renderSolarScale << "\n";
     }
     out << "\n";
 

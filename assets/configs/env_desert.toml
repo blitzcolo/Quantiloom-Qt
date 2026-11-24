@@ -306,7 +306,7 @@ ir_emissivity = 0.9
 
 # Scene setting: the car's lamps are off. Every illumination case of this scene
 # is lit by the sun and the sky and by nothing else. A lamp does not follow
-# solar_lut or solar_scatter_scale, so at a moonlight level these two were the
+# solar_lut or lighting.render_solar_scale, so at a moonlight level these two were the
 # brightest sources in the frame and saturated a twentieth of the VIS image.
 [[materials]]
 name = "Car_Car_backlight"

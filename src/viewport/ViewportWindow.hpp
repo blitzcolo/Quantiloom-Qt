@@ -281,6 +281,9 @@ public:
     quantiloom::SpectralMode spectralMode() const;
     float wavelength() const;
     quantiloom::AtmosphereNNConfig atmosphericConfig() const;
+    /// The energy balance's sky under the context's NN atmosphere, from the
+    /// SDK; empty when there is no network (ViewportRenderer).
+    [[nodiscard]] std::optional<double> nnBalanceSkyTemperatureK() const;
     /// The sensor state currently in effect, for callers that need the value
     /// a change is replacing (the undo history does).
     [[nodiscard]] bool sensorEnabled() const;

@@ -112,7 +112,7 @@ meaning too.
 
 ### The quantitative spectral sections
 
-`[spectral_curves]`, `[refractive_index]`, `lighting.solar_lut*`,
+`[spectral_curves]`, `[refractive_index]`, `lighting.solar_lut*`, `lighting.render_solar_scale`,
 `spectral.basis_file` / `materials_json` / `band`, `scene.default_temperature_k`,
 `quality.fail_on_srgb_upsample` / `log_material_sources` and the whole
 `[hyperspectral]` block round-trip **without any widget behind them**. No panel edits
@@ -121,6 +121,15 @@ can put them back. Until this was added, opening a hand-authored quantitative co
 and saving it stripped every one of them — the illuminant included, which turns the
 spectral modes black, and the NMF database reference, which is the core's flagship
 measured-material path. A file lost its meaning by being looked at.
+
+`lighting.render_solar_scale` has a wrinkle the others do not. The SDK multiplies the
+RGB sun and sky by it when it resolves the document, so `GetLightingParams()` hands back
+scaled values, and the lighting panel shows what renders. `collectCurrentConfig()`
+divides them by the scale again before they are written, or each open-and-save would
+apply it once more; at a scale of 0 there is nothing to divide and the document's own
+values stand. The viewport also stamps the scale onto every `AtmosphereNNConfig` it
+hands the context (`solarScatterScale`), because a preset chosen in the panel starts
+from a fresh config at 1, which would light the sky table at full sun under a dimmed beam.
 
 The three USD load options — `scene.usd_time_code`, `scene.usd_payloads` and
 `scene.usd_stage_metrics` — are in the same group and there for the same reason.

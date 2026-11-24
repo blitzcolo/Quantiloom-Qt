@@ -254,7 +254,8 @@ void AtmosphericPanel::retranslateUi() {
         "the air, derived from the air temperature and humidity -- what drives "
         "radiative cooling. The rendered sky does not change: it is the NN "
         "atmosphere's, or one blackbody at the air temperature. Off, the "
-        "balance takes the NN atmosphere's clear sky, or the air temperature."));
+        "balance takes the sky the NN atmosphere's broadband network gives, "
+        "clear or cloudy, or the air temperature."));
     m_atmosphereTempCaption->setText(tr("Air temperature:"));
     m_atmosphereTempSpin->setSuffix(tr(" K"));
     m_atmosphereTempSpin->setToolTip(tr(
