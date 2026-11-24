@@ -17,6 +17,7 @@
 #include "AssetPaths.hpp"
 
 #include <QApplication>
+#include <QDir>
 #include <QMessageBox>
 
 #include <core/Log.hpp>  // libQuantiloom logging
@@ -47,6 +48,28 @@ int main(int argc, char* argv[]) {
         Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
 
     QApplication app(argc, argv);
+
+#ifdef Q_OS_MACOS
+    // Finder (and `open`) start a .app with "/" as its working directory. A
+    // config path the SDK cannot find beside the config falls back to the
+    // working directory -- "assets/luts/astmg173.csv" in several shipped
+    // scenes -- and on Windows that works because a double-clicked EXE starts
+    // in its own directory, where the assets are deployed. Contents/Resources
+    // is that directory inside a bundle. A launch from a shell keeps the
+    // directory it was given.
+    if (QDir::currentPath() == QLatin1String("/")) {
+        const QString resources = QDir::cleanPath(QCoreApplication::applicationDirPath() +
+                                                  QStringLiteral("/../Resources"));
+        if (QDir(resources).exists()) {
+            if (QDir::setCurrent(resources)) {
+                QL_LOG_INFO("Working directory set to {}", resources.toStdString());
+            } else {
+                QL_LOG_WARN("Could not change the working directory to {}",
+                            resources.toStdString());
+            }
+        }
+    }
+#endif
 
     // Set application metadata
     app.setApplicationName("Quantiloom");
