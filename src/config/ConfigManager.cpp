@@ -423,6 +423,7 @@ void ConfigManager::extractSceneConfig(const quantiloom::Config& config, SceneCo
     out.clearSkyModel = config.GetString("thermal.sky_model", "isotropic") == "clear_sky";
     out.skyAirTemperatureK =
         config.Get<float>("thermal.air_temperature_k", out.lighting.atmosphereTemperature_K);
+    out.skyAirTemperatureStated = config.Has("thermal.air_temperature_k");
     out.skyRelativeHumidity = config.Get<float>("atmosphere.relative_humidity", 50.0f);
 
     // [thermal] -- the surface energy balance
@@ -1509,10 +1510,13 @@ void ConfigManager::writeConfig(QTextStream& stream, const SceneConfig& config) 
     }
     // The balance's clear sky, and the air it is derived from -- which is
     // what makes the air temperature this document's rather than the render
-    // sky's. Without the clear sky the air is lighting.atmosphere_temperature_k,
-    // already written, so it is not restated.
+    // sky's. An air the document stated is restated too: left out, it would
+    // reopen as the atmosphere's, which under an NN atmosphere is t_ground_K
+    // rather than lighting.atmosphere_temperature_k.
     if (config.clearSkyModel) {
         out << "sky_model = \"clear_sky\"\n";
+    }
+    if (config.clearSkyModel || config.skyAirTemperatureStated) {
         out << "air_temperature_k = " << config.skyAirTemperatureK << "\n";
     }
     out << "\n";

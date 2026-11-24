@@ -334,6 +334,11 @@ struct SceneConfig {
     /// set it would lose it on save without this.
     bool clearSkyModel = false;
     float skyAirTemperatureK = 288.15f;
+    /// Whether the document states thermal.air_temperature_k. Unstated, the
+    /// air the surfaces exchange with is the atmosphere's -- an enabled NN
+    /// atmosphere's t_ground_K, else lighting.atmosphere_temperature_k -- which
+    /// the SDK resolves, so it is not this value. Written back whenever true.
+    bool skyAirTemperatureStated = false;
     float skyRelativeHumidity = 50.0f;
 
     // [sensor]

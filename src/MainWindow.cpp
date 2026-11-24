@@ -1305,7 +1305,7 @@ QString MainWindow::resolveBundledIlluminant() {
 }
 
 void MainWindow::applyAtmosphere(const quantiloom::AtmosphereNNConfig& config) {
-    const double skyBefore = derivedSkyTemperatureK(m_thermalPanel->params().airTemperature_K);
+    const quantiloom::ThermalSolveParams before = currentThermalParams();
     m_viewport->setAtmosphericConfig(config);
     // The viewport stamps the document's render_solar_scale onto the sky's
     // share of the sun; the panel holding the unstamped copy would make the
@@ -1313,12 +1313,28 @@ void MainWindow::applyAtmosphere(const quantiloom::AtmosphereNNConfig& config) {
     quantiloom::AtmosphereNNConfig shown = config;
     shown.solarScatterScale = m_viewport->atmosphericConfig().solarScatterScale;
     m_atmosphericPanel->setAtmosphericConfig(shown);
-    // A clear network sky is the sky the surfaces radiate against too, so a
-    // change to it is a change to the solve.
-    if (m_thermalEnabled) {
-        const quantiloom::ThermalSolveParams thermal = currentThermalParams();
-        if (thermal.skyTemperature_K != skyBefore) {
+    // The network's sky is the sky the surfaces radiate against too, and
+    // unless someone stated it the air they exchange with is the atmosphere's
+    // -- an enabled NN atmosphere's t_ground_K, else the document's
+    // lighting.atmosphere_temperature_k, in ResolveRenderConfig's order -- so
+    // either moving is a change to the solve, as reopening would make it.
+    quantiloom::ThermalSolveParams thermal = currentThermalParams();
+    if (m_thermalAirFollowsAtmosphere) {
+        const bool network = config.enabled && config.preset != "disabled";
+        thermal.airTemperature_K =
+            network ? config.tGroundK
+            : m_lastConfig ? static_cast<double>(m_lastConfig->lighting.atmosphereTemperature_K)
+                           : thermal.airTemperature_K;
+        thermal.skyTemperature_K = derivedSkyTemperatureK(thermal.airTemperature_K);
+    }
+    if (thermal.skyTemperature_K != before.skyTemperature_K ||
+        thermal.airTemperature_K != before.airTemperature_K) {
+        if (m_thermalEnabled) {
             applyThermalParams(thermal);
+        } else {
+            // Carried for when the solve is switched on.
+            const QSignalBlocker block(m_thermalPanel);
+            m_thermalPanel->setParams(thermal);
         }
     }
     setSceneModified(true);
@@ -2579,6 +2595,9 @@ void MainWindow::setupDockWidgets() {
             this, [this](bool clearSky, float airTemperatureK, float relativeHumidity) {
                 m_skyClearModel = clearSky;
                 m_skyRelativeHumidity = relativeHumidity;
+                // The user has now said what the air is; an atmosphere edit no
+                // longer moves it, and a save records it.
+                m_thermalAirFollowsAtmosphere = false;
                 m_lightingParams->atmosphereTemperature_K = airTemperatureK;
                 pushLightingParams();
                 // The same air the surfaces convect with, and the same
@@ -5600,8 +5619,21 @@ void MainWindow::applyConfig(const SceneConfig& config) {
     // from the live [atmosphere] keys rather than left at their defaults.
     {
         quantiloom::ThermalSolveParams tp = currentThermalParams();
-        tp.airTemperature_K = static_cast<double>(config.skyAirTemperatureK);
+        // An air the document does not state is the one the SDK resolved:
+        // ResolveRenderConfig takes the lighting's atmosphere temperature,
+        // which an enabled NN atmosphere has already replaced with its
+        // t_ground_K, and GetLightingParams hands back exactly that. Seeding
+        // the raw lighting.atmosphere_temperature_k instead (260 K by default)
+        // made the first thermal edit re-solve a scene some 30 K colder.
+        m_thermalAirFollowsAtmosphere = !config.skyAirTemperatureStated;
+        tp.airTemperature_K =
+            config.skyAirTemperatureStated
+                ? static_cast<double>(config.skyAirTemperatureK)
+                : static_cast<double>(m_viewport->lightingParams().atmosphereTemperature_K);
         tp.relativeHumidity = static_cast<double>(config.skyRelativeHumidity);
+        // currentThermalParams() derived the sky from the previous document's
+        // air; a clear-sky model derives it from this one's.
+        tp.skyTemperature_K = derivedSkyTemperatureK(tp.airTemperature_K);
         m_thermalPanel->setParams(tp);
         m_thermalPanel->setTime(config.thermalTimeH);
         m_thermalPanel->setSolveEnabled(config.thermalEnabled);
@@ -5909,7 +5941,11 @@ void MainWindow::collectCurrentConfig(SceneConfig& config) {
     // Collect camera settings. The panel keeps the enabled flag inside its
     // CameraConfig in sync with the switch, so the serialized tree carries it.
     config.clearSkyModel = m_atmosphericPanel->clearSkyEnabled();
-    config.skyAirTemperatureK = m_atmosphericPanel->atmosphereTemperatureK();
+    // The air the surfaces exchange with, as the solve carries it. With the
+    // clear sky on it is also the air the panel derives the sky from; the two
+    // only part when an atmosphere edit moved an unstated air.
+    config.skyAirTemperatureK = static_cast<float>(m_thermalPanel->params().airTemperature_K);
+    config.skyAirTemperatureStated = !m_thermalAirFollowsAtmosphere;
     config.skyRelativeHumidity = m_atmosphericPanel->relativeHumidity();
 
     config.sensorEnabled = m_sensorPanel->isCameraEnabled();

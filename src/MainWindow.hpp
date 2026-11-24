@@ -688,6 +688,11 @@ private:
     int m_thermalSunMemoryLags = 0;
     /// thermal.sky_temperature_k as the document states it; 0 derives it.
     double m_thermalSkyTemperatureK = 0.0;
+    /// True while nobody has stated the air the surfaces exchange with -- not
+    /// the document (thermal.air_temperature_k), not the user in the
+    /// atmosphere panel. Then it is the atmosphere's, and follows an
+    /// atmosphere edit the way reopening the document would.
+    bool m_thermalAirFollowsAtmosphere = false;
     quantiloom::Vector<quantiloom::ThermalSensitivityParameter> m_thermalParameterSensitivities;
 
     bool m_skyClearModel = false;
