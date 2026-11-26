@@ -1651,6 +1651,14 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Vertex colours</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Vertex colours: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Will export an EXR when the target is reached</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1940,6 +1948,10 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
     </message>
     <message>
         <source>&amp;Spectral Mode</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Vertex Colours</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -3418,6 +3430,18 @@ Pick a node or a material in the scene tree.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Scene</source>
+        <translation type="unfinished">Scene</translation>
+    </message>
+    <message>
+        <source>Vertex colours:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Whether the model&apos;s vertex colours (glTF COLOR_0) tint its surfaces. A Minecraft export keeps the biome tint of grass, leaves and water there. Changing it reloads the scene.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Display Enhancement</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3447,6 +3471,26 @@ Pick a node or a material in the scene tree.</source>
     </message>
     <message>
         <source>Writes beside the open configuration, named after it and the sample count. Has no effect in Infinite mode, which has no target to reach.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No scene loaded.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Only available for Minecraft scenes.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This Minecraft scene carries no vertex colours (COLOR_0).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>In effect: on (biome tint from COLOR_0)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Not in effect</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -6213,6 +6257,18 @@ Right-drag orbits the camera, middle-drag pans, the wheel zooms; G/R/T switch tr
     </message>
     <message>
         <source>%1 (%2 spp)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Auto (follow the scene)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>On</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Off</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

@@ -12,6 +12,10 @@
 
 #include "../ui/PanelBase.hpp"
 
+#include <optional>
+
+#include <scene/Scene.hpp>
+
 QT_BEGIN_NAMESPACE
 class QSpinBox;
 class QComboBox;
@@ -56,6 +60,20 @@ public:
     [[nodiscard]] bool autoExportOnComplete() const;
     void setAutoExportOnComplete(bool enabled);
 
+    /// [scene] vertex_colors as the combo holds it: "auto", "on" or "off".
+    [[nodiscard]] QString vertexColorMode() const;
+    /// Show a mode without emitting vertexColorModeRequested; the shell's
+    /// dispatcher calls this.
+    void setVertexColorMode(const QString& mode);
+    /// What the loaded scene offers, as the SDK resolved it; nullptr when no
+    /// scene is loaded. Decides whether the combo is enabled and what the
+    /// line under it says.
+    void setVertexColorState(const quantiloom::SceneVertexColors* state);
+    /// The one rule for whether the mode can be chosen: a Minecraft export
+    /// that carries COLOR_0. The Render menu and ql_set_vertex_colors ask
+    /// here, so they cannot offer what this combo refuses.
+    [[nodiscard]] bool vertexColorsSelectable() const;
+
 signals:
     void sppChanged(uint32_t spp);
     /// Asks the shell to run its one image export path. The panel used to
@@ -65,6 +83,9 @@ signals:
     void resetAccumulationRequested();
     /// The auto-export box was toggled by hand; Render ▸ mirrors it.
     void autoExportToggled(bool enabled);
+    /// The vertex-colour combo was changed by hand. The shell records it and
+    /// applies it through its dispatcher, which re-applies the document.
+    void vertexColorModeRequested(const QString& mode);
 
 private slots:
     void onSppPresetChanged(int index);
@@ -73,6 +94,9 @@ private slots:
 
 private:
     void setupUi();
+    /// Recomputes the combo's enabled state and the line under it from
+    /// m_vertexColorState; also run on a language change.
+    void updateVertexColorHint();
 
     // Current settings
     uint32_t m_targetSPP = 4;
@@ -90,4 +114,7 @@ private:
     QCheckBox* m_autoExportCheck = nullptr;
     QGroupBox* m_displayGroup = nullptr;
     QVBoxLayout* m_displayLayout = nullptr;
+    QComboBox* m_vertexColorCombo = nullptr;
+    QLabel* m_vertexColorHint = nullptr;
+    std::optional<quantiloom::SceneVertexColors> m_vertexColorState;
 };

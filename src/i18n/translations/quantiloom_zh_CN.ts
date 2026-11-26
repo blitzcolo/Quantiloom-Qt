@@ -1664,6 +1664,14 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <translation>光谱模式: %1</translation>
     </message>
     <message>
+        <source>Vertex colours</source>
+        <translation>顶点颜色</translation>
+    </message>
+    <message>
+        <source>Vertex colours: %1</source>
+        <translation>顶点颜色：%1</translation>
+    </message>
+    <message>
         <source>Target samples: infinite</source>
         <translation>目标采样数：无限</translation>
     </message>
@@ -2376,6 +2384,10 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
     <message>
         <source>Stop tracing, keeping the samples so far</source>
         <translation>停止追踪，保留已累积的采样</translation>
+    </message>
+    <message>
+        <source>&amp;Vertex Colours</source>
+        <translation>顶点颜色(&amp;V)</translation>
     </message>
     <message>
         <source>Ti&amp;meline</source>
@@ -3676,6 +3688,18 @@ Pick a node or a material in the scene tree.</source>
         <translation>跟随视口尺寸。</translation>
     </message>
     <message>
+        <source>Scene</source>
+        <translation>场景</translation>
+    </message>
+    <message>
+        <source>Vertex colours:</source>
+        <translation>顶点颜色：</translation>
+    </message>
+    <message>
+        <source>Whether the model&apos;s vertex colours (glTF COLOR_0) tint its surfaces. A Minecraft export keeps the biome tint of grass, leaves and water there. Changing it reloads the scene.</source>
+        <translation>模型的顶点颜色（glTF COLOR_0）是否为表面染色。Minecraft 导出的场景在其中保存草、树叶和水的群系染色。更改后会重新载入场景。</translation>
+    </message>
+    <message>
         <source>Display Enhancement</source>
         <translation>显示增强</translation>
     </message>
@@ -3706,6 +3730,26 @@ Pick a node or a material in the scene tree.</source>
     <message>
         <source>Writes beside the open configuration, named after it and the sample count. Has no effect in Infinite mode, which has no target to reach.</source>
         <translation>写入到已打开配置的同目录，以配置名和采样数命名。无限模式没有目标采样数，此项不生效。</translation>
+    </message>
+    <message>
+        <source>No scene loaded.</source>
+        <translation>未加载场景。</translation>
+    </message>
+    <message>
+        <source>Only available for Minecraft scenes.</source>
+        <translation>仅 Minecraft 场景可用。</translation>
+    </message>
+    <message>
+        <source>This Minecraft scene carries no vertex colours (COLOR_0).</source>
+        <translation>该 Minecraft 场景不含顶点颜色（COLOR_0）。</translation>
+    </message>
+    <message>
+        <source>In effect: on (biome tint from COLOR_0)</source>
+        <translation>生效：开启（来自 COLOR_0 的群系染色）</translation>
+    </message>
+    <message>
+        <source>Not in effect</source>
+        <translation>未生效</translation>
     </message>
     <message>
         <source>%1 / %2</source>
@@ -6641,6 +6685,18 @@ Right-drag orbits the camera, middle-drag pans, the wheel zooms; G/R/T switch tr
     <message>
         <source>%1 (%2 spp)</source>
         <translation>%1（%2 采样／像素）</translation>
+    </message>
+    <message>
+        <source>Auto (follow the scene)</source>
+        <translation>自动（跟随场景）</translation>
+    </message>
+    <message>
+        <source>On</source>
+        <translation>开启</translation>
+    </message>
+    <message>
+        <source>Off</source>
+        <translation>关闭</translation>
     </message>
 </context>
 <context>

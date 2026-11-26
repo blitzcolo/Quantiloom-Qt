@@ -534,6 +534,30 @@ QString qualityPresetLabel(const QualityPreset& preset) {
 }
 
 // ============================================================================
+// Vertex colours
+// ============================================================================
+
+QStringList vertexColorModeIds() {
+    return {QStringLiteral("auto"), QStringLiteral("on"), QStringLiteral("off")};
+}
+
+QString vertexColorModeLabel(const QString& id) {
+    if (id == QLatin1String("auto")) return Tr::tr("Auto (follow the scene)");
+    if (id == QLatin1String("on"))   return Tr::tr("On");
+    if (id == QLatin1String("off"))  return Tr::tr("Off");
+    return id;
+}
+
+QString vertexColorModeId(quantiloom::VertexColorMode mode) {
+    switch (mode) {
+        case quantiloom::VertexColorMode::On:   return QStringLiteral("on");
+        case quantiloom::VertexColorMode::Off:  return QStringLiteral("off");
+        case quantiloom::VertexColorMode::Auto: return QStringLiteral("auto");
+    }
+    return QStringLiteral("auto");
+}
+
+// ============================================================================
 // Stable identifiers
 // ============================================================================
 //

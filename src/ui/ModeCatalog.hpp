@@ -16,12 +16,14 @@
 #pragma once
 
 #include <QString>
+#include <QStringList>
 #include <QVector>
 
 #include <optional>
 #include <string>
 
 #include <core/Types.hpp>
+#include <scene/Scene.hpp>
 
 namespace catalog {
 
@@ -131,5 +133,23 @@ struct QualityPreset {
 
 /// Translated preset name including its sample count, e.g. "Preview (1 spp)".
 [[nodiscard]] QString qualityPresetLabel(const QualityPreset& preset);
+
+// ============================================================================
+// Vertex colours
+// ============================================================================
+
+/// The values of [scene] vertex_colors, in display order: "auto", "on",
+/// "off". The spelling is the document's and the SDK's, so these are the
+/// item data of the Render panel's combo, the data of the Render menu's
+/// entries and the enum ql_set_vertex_colors accepts. What each one means is
+/// decided in the SDK's ConfigResolve, not here.
+[[nodiscard]] QStringList vertexColorModeIds();
+
+/// Translated name for one of those identifiers, e.g. "Auto (follow the scene)".
+[[nodiscard]] QString vertexColorModeLabel(const QString& id);
+
+/// The identifier for the mode a loaded scene was configured with, so what
+/// the SDK resolved is shown in the same vocabulary the document is written in.
+[[nodiscard]] QString vertexColorModeId(quantiloom::VertexColorMode mode);
 
 } // namespace catalog

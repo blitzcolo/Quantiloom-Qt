@@ -49,6 +49,12 @@ the SDK's serialization in both directions: `ParseCameraConfig` on load, which
 migrates a legacy unversioned `[sensor]` block, and `CameraConfigToToml` on save, so
 Studio writes exactly what the CLI writes.
 
+`scene.vertex_colors` is in this group too, owned by the Render panel's Scene combo.
+The panel is seeded from what the SDK read (`Scene::vertexColors.mode`), so a value
+written into a scene the combo will not edit (anything but a Minecraft export with
+`COLOR_0`) still survives a save. It is written only when it is not `"auto"`, and
+changing it re-applies the document, because the SDK reads it at scene load.
+
 Node transforms and material edits round-trip too, and did not used to. Both are
 written only for what changed since the document was opened — `MainWindow` keeps
 `m_editedNodes` and `m_editedMaterials`, the `apply*` dispatchers add to them, and

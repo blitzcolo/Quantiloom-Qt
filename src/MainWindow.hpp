@@ -286,6 +286,12 @@ private:
     void requestTargetSpp(uint32_t spp);
     void requestWavelength(float wavelength_nm);
     void requestThermalEnabled(bool enabled);
+    /// [scene] vertex_colors -- "auto", "on" or "off". The Render menu, the
+    /// Render panel's combo and ql_set_vertex_colors all come through
+    /// request*, which records it; apply* syncs both controls and re-applies
+    /// the document with the new key, because the SDK reads it at scene load.
+    void applyVertexColorMode(const QString& mode);
+    void requestVertexColorMode(const QString& mode);
     /// Export EXR when the target is reached: the menu entry and the panel's
     /// box both come here, and the choice is remembered across sessions.
     void applyAutoExport(bool enabled);
@@ -349,6 +355,12 @@ private:
     /// ConfigManager hold one configuration rather than a hand-set one and a
     /// serialized one.
     void createDefaultTimeline();
+    /// Serialize `config`, parse it back and hand that one document to both
+    /// the ConfigManager and the renderer, as a file open would. For edits
+    /// the SDK only reads when it loads a scene. A parse failure is shown
+    /// under `title` and leaves everything as it was; returns whether the
+    /// document was applied.
+    bool reapplyDocument(const SceneConfig& config, const QString& title);
     /// Push the current TimelineInfo into the panel and the thermal readout.
     /// Called after anything that could have changed what the clock is.
     void refreshTimelineInfo();
@@ -613,6 +625,12 @@ private:
     /// toolbar combo, the panel and the viewport strip -- so a mode set by
     /// config load or by any dispatcher reads the same everywhere.
     void syncSpectralModeUi(quantiloom::SpectralMode mode);
+    /// The same for the vertex-colour mode: the Render menu's check and the
+    /// Render panel's combo.
+    void syncVertexColorModeUi(const QString& mode);
+    /// Re-read what the loaded scene offers (scene->vertexColors) into the
+    /// Render panel, and enable Render ▸ Vertex Colours by the panel's rule.
+    void refreshVertexColorAvailability();
     DebugVisualizationPanel* m_debugVisualizationPanel = nullptr;
     AtmosphericPanel* m_atmosphericPanel = nullptr;
     SensorPanel* m_sensorPanel = nullptr;
@@ -862,6 +880,8 @@ private:
     QActionGroup* m_qualityGroup = nullptr;
     QActionGroup* m_transformModeGroup = nullptr;
     QActionGroup* m_themeGroup = nullptr;
+    QMenu* m_vertexColorMenu = nullptr;
+    QActionGroup* m_vertexColorGroup = nullptr;
 
     QHash<QString, QAction*> m_themeActions;  ///< keyed by theme id
 

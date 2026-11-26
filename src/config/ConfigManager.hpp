@@ -285,6 +285,13 @@ struct SceneConfig {
     /// no field is silently dropped from any config Studio touches.
     QString variant;
     float worldUnitsToMeters = 1.0f;
+    /// scene.vertex_colors -- "auto", "on" or "off": whether glTF COLOR_0
+    /// tints the surface. What "auto" decides (COLOR_0 present and the scene
+    /// read as a Minecraft export) is the SDK's, in ConfigResolve. The Render
+    /// panel owns it, so collectCurrentConfig() reads it back from there;
+    /// written only when it is not "auto", so a document that never chose
+    /// does not acquire the key by being saved.
+    QString vertexColors = QStringLiteral("auto");
 
     /// scene.usd_time_code -- which sample a USD stage is read at. Absent means
     /// the stage's own default time, which is not time zero: time zero is a

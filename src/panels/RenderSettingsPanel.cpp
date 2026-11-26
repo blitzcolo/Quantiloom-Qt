@@ -125,6 +125,53 @@ void RenderSettingsPanel::setupUi() {
 
     mainLayout->addWidget(resGroup);
 
+    // --- scene ----------------------------------------------------------
+    // Document state, unlike the rest of this panel: [scene] vertex_colors.
+    // Offered only where the SDK reports a Minecraft export carrying COLOR_0
+    // -- the one kind of scene whose vertex colours are a deliberate tint
+    // (grass, leaves, water) rather than whatever an exporter left there.
+    auto* sceneGroup = new QGroupBox(this);
+    auto* sceneLayout = new QFormLayout(sceneGroup);
+
+    // Items from the catalogue, the same list Render ▸ Vertex Colours
+    // builds, carrying the document's spelling as data.
+    m_vertexColorCombo = new QComboBox(sceneGroup);
+    for (const QString& id : catalog::vertexColorModeIds()) {
+        m_vertexColorCombo->addItem(QString(), id);
+    }
+    m_vertexColorCombo->setCurrentIndex(
+        std::max(0, m_vertexColorCombo->findData(QStringLiteral("auto"))));
+    connect(m_vertexColorCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, [this](int index) {
+                if (index < 0) return;
+                emit vertexColorModeRequested(m_vertexColorCombo->itemData(index).toString());
+            });
+    auto* vertexColorCaption = new QLabel(sceneGroup);
+    sceneLayout->addRow(vertexColorCaption, m_vertexColorCombo);
+
+    m_vertexColorHint = new QLabel(sceneGroup);
+    m_vertexColorHint->setWordWrap(true);
+    bindStyle([this] { uistyle::applyHintStyle(m_vertexColorHint); });
+    sceneLayout->addRow(m_vertexColorHint);
+
+    bindText([this, sceneGroup, vertexColorCaption] {
+        sceneGroup->setTitle(tr("Scene"));
+        vertexColorCaption->setText(tr("Vertex colours:"));
+        m_vertexColorCombo->setToolTip(
+            tr("Whether the model's vertex colours (glTF COLOR_0) tint its surfaces. "
+               "A Minecraft export keeps the biome tint of grass, leaves and water there. "
+               "Changing it reloads the scene."));
+        // By value: each item carries its identifier, so the labels follow
+        // the language without moving the selection.
+        for (int i = 0; i < m_vertexColorCombo->count(); ++i) {
+            m_vertexColorCombo->setItemText(
+                i, catalog::vertexColorModeLabel(m_vertexColorCombo->itemData(i).toString()));
+        }
+    });
+    updateVertexColorHint();
+
+    mainLayout->addWidget(sceneGroup);
+
     // --- display enhancement (hosted) -----------------------------------
     m_displayGroup = new QGroupBox(this);
     m_displayLayout = new QVBoxLayout(m_displayGroup);
@@ -179,10 +226,56 @@ void RenderSettingsPanel::setAutoExportOnComplete(bool enabled) {
     m_autoExportCheck->setChecked(enabled);
 }
 
+QString RenderSettingsPanel::vertexColorMode() const {
+    return m_vertexColorCombo->currentData().toString();
+}
+
+void RenderSettingsPanel::setVertexColorMode(const QString& mode) {
+    const int index = m_vertexColorCombo->findData(mode);
+    if (index < 0) return;
+    const QSignalBlocker blocker(m_vertexColorCombo);
+    m_vertexColorCombo->setCurrentIndex(index);
+}
+
+void RenderSettingsPanel::setVertexColorState(const quantiloom::SceneVertexColors* state) {
+    if (state) {
+        m_vertexColorState = *state;
+    } else {
+        m_vertexColorState.reset();
+    }
+    updateVertexColorHint();
+}
+
+bool RenderSettingsPanel::vertexColorsSelectable() const {
+    return m_vertexColorState && m_vertexColorState->minecraftExport &&
+           m_vertexColorState->present;
+}
+
+void RenderSettingsPanel::updateVertexColorHint() {
+    const bool selectable = vertexColorsSelectable();
+    m_vertexColorCombo->setEnabled(selectable);
+
+    // Enabled, the line says what renders now; disabled, it says why.
+    QString hint;
+    if (!m_vertexColorState) {
+        hint = tr("No scene loaded.");
+    } else if (!m_vertexColorState->minecraftExport) {
+        hint = tr("Only available for Minecraft scenes.");
+    } else if (!m_vertexColorState->present) {
+        hint = tr("This Minecraft scene carries no vertex colours (COLOR_0).");
+    } else if (m_vertexColorState->active) {
+        hint = tr("In effect: on (biome tint from COLOR_0)");
+    } else {
+        hint = tr("Not in effect");
+    }
+    m_vertexColorHint->setText(hint);
+}
+
 void RenderSettingsPanel::retranslateUi() {
     PanelBase::retranslateUi();
     setResolution(m_width, m_height);
     setSampleCount(m_sampleCount);
+    updateVertexColorHint();
 }
 
 void RenderSettingsPanel::setDisplayEnhancementWidget(QWidget* widget) {

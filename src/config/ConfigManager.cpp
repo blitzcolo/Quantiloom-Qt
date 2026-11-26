@@ -240,6 +240,7 @@ void ConfigManager::extractSceneConfig(const quantiloom::Config& config, SceneCo
     out.usdPath = QString::fromStdString(config.GetString("scene.usd", ""));
     out.variant = QString::fromStdString(config.GetString("scene.variant", ""));
     out.worldUnitsToMeters = config.GetFloat("scene.world_units_to_meters", 1.0f);
+    out.vertexColors = QString::fromStdString(config.GetString("scene.vertex_colors", "auto"));
 
     // The three USD load options. Studio has no widget for any of them and no
     // reading of what they mean -- the core decides that, in ConfigResolve and
@@ -1029,6 +1030,11 @@ void ConfigManager::writeConfig(QTextStream& stream, const SceneConfig& config) 
         out << "variant = " << tomlQuoted(config.variant) << "\n";
     }
     out << "world_units_to_meters = " << config.worldUnitsToMeters << "\n";
+    // "auto" is the SDK's default, so it is left unsaid: a document that
+    // never chose a vertex-colour mode is written back as it was.
+    if (!config.vertexColors.isEmpty() && config.vertexColors != QLatin1String("auto")) {
+        out << "vertex_colors = " << tomlQuoted(config.vertexColors) << "\n";
+    }
     // Backfilled onto materials with no IR temperature of their own. Written
     // only when the file named it, so a scene that never asked for the
     // backfill does not acquire one by being saved.

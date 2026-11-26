@@ -627,6 +627,22 @@ void MainWindow::setupMenus() {
     // reaching it meant finding one panel among ten.
     m_spectralMenu = m_renderMenu->addMenu(QString());
 
+    // [scene] vertex_colors. The Render panel's combo is a shortcut to this,
+    // and both are enabled by the panel's one rule (a Minecraft export that
+    // carries COLOR_0), so the menu never offers what the panel refuses.
+    m_vertexColorMenu = m_renderMenu->addMenu(QString());
+    m_vertexColorGroup = new QActionGroup(this);
+    m_vertexColorGroup->setExclusive(true);
+    for (const QString& id : catalog::vertexColorModeIds()) {
+        QAction* action = m_vertexColorMenu->addAction(QString());
+        action->setCheckable(true);
+        action->setData(id);
+        action->setChecked(id == QLatin1String("auto"));
+        m_vertexColorGroup->addAction(action);
+        connect(action, &QAction::triggered, this, [this, id]() { requestVertexColorMode(id); });
+    }
+    m_vertexColorMenu->menuAction()->setEnabled(false);   // no scene yet
+
     // Binding a measured spectrum is a menu verb like any other. The library
     // panel's two buttons are a shortcut to these, never the only route.
     m_renderMenu->addSeparator();
@@ -1127,6 +1143,45 @@ void MainWindow::requestWavelength(float wavelength_nm) {
     pushSettingCommand(CommandId::ModifyWavelength, tr("Wavelength"),
                        m_viewport->wavelength(), wavelength_nm,
                        [this](const float& v) { applyWavelength(v); });
+}
+
+void MainWindow::requestVertexColorMode(const QString& mode) {
+    // Refused where the panel would be disabled, so no route can set what
+    // the panel and the menu do not offer. Undo replays apply* directly.
+    if (!m_renderSettingsPanel->vertexColorsSelectable()) return;
+    pushSettingCommand(CommandId::ModifyVertexColors, tr("Vertex colours"),
+                       m_renderSettingsPanel->vertexColorMode(), mode,
+                       [this](const QString& v) { applyVertexColorMode(v); });
+}
+
+void MainWindow::applyVertexColorMode(const QString& mode) {
+    syncVertexColorModeUi(mode);
+    if (!m_viewport->getScene()) return;
+
+    // The SDK reads the key when it loads a scene, so the document is
+    // re-applied with it rather than a renderer setter being called. The
+    // sceneLoaded that follows refreshes the panel's hint from what the SDK
+    // resolved.
+    SceneConfig config;
+    collectCurrentConfig(config);
+    config.vertexColors = mode;
+    if (!reapplyDocument(config, tr("Vertex colours"))) return;
+
+    setSceneModified(true);
+    showStatusMessage(tr("Vertex colours: %1").arg(catalog::vertexColorModeLabel(mode)));
+}
+
+void MainWindow::syncVertexColorModeUi(const QString& mode) {
+    for (QAction* action : m_vertexColorGroup->actions()) {
+        action->setChecked(action->data().toString() == mode);
+    }
+    m_renderSettingsPanel->setVertexColorMode(mode);
+}
+
+void MainWindow::refreshVertexColorAvailability() {
+    const quantiloom::Scene* scene = m_viewport->getScene();
+    m_renderSettingsPanel->setVertexColorState(scene ? &scene->vertexColors : nullptr);
+    m_vertexColorMenu->menuAction()->setEnabled(m_renderSettingsPanel->vertexColorsSelectable());
 }
 
 void MainWindow::syncSpectralModeUi(quantiloom::SpectralMode mode) {
@@ -1721,19 +1776,23 @@ void MainWindow::createDefaultTimeline() {
     config.timeline.body = QStringLiteral(
         "start_s = 0\nend_s = 10\nticks_per_second = 20\n");
     config.timeline.timeS = 0.0;
+    if (!reapplyDocument(config, tr("Timeline"))) return;
+    m_timelineTimeS = 0.0;
+    setSceneModified(true);
+}
+
+bool MainWindow::reapplyDocument(const SceneConfig& config, const QString& title) {
     const QString toml = m_configManager->exportConfigToString(config);
     auto parsed = quantiloom::Config::Parse(toml.toStdString());
     if (!parsed) {
-        QMessageBox::warning(this, tr("Timeline"),
-                             QString::fromStdString(parsed.error()));
-        return;
+        QMessageBox::warning(this, title, QString::fromStdString(parsed.error()));
+        return false;
     }
     m_lastConfig = std::make_unique<SceneConfig>(config);
-    m_timelineTimeS = 0.0;
     auto document = std::make_shared<quantiloom::Config>(std::move(parsed.value()));
     m_configManager->adoptRawConfig(document);
     m_viewport->applyConfig(document, config.baseDir);
-    setSceneModified(true);
+    return true;
 }
 
 void MainWindow::refreshTimelineInfo() {
@@ -2519,6 +2578,8 @@ void MainWindow::setupDockWidgets() {
     // one export path, the same one File ▸ Export Image uses.
     connect(m_renderSettingsPanel, &RenderSettingsPanel::exportRequested,
             this, &MainWindow::onExportImage);
+    connect(m_renderSettingsPanel, &RenderSettingsPanel::vertexColorModeRequested,
+            this, &MainWindow::requestVertexColorMode);
 
     // Each of these routes through its dispatcher as before; the difference is
     // that the change is now recorded, so Ctrl+Z no longer skips silently past
@@ -3361,6 +3422,10 @@ void MainWindow::retranslateUi() {
         }
     }
     m_spectralMenu->setTitle(tr("&Spectral Mode"));
+    m_vertexColorMenu->setTitle(tr("&Vertex Colours"));
+    for (QAction* action : m_vertexColorGroup->actions()) {
+        action->setText(catalog::vertexColorModeLabel(action->data().toString()));
+    }
     // M, not T: Tools has T.
     m_timelineMenu->setTitle(tr("Ti&meline"));
     m_timelineCreateAction->setText(tr("Create Default Timeline"));
@@ -5418,6 +5483,9 @@ void MainWindow::updatePanelsFromScene() {
     // A new document: the fly speed and zoom range are read off its extent,
     // so an avocado and an aircraft carrier navigate the same way.
     updateSceneScale();
+    // Whether this scene is a Minecraft export with COLOR_0 is the SDK's
+    // finding, made on every apply; the panel and the menu follow it.
+    refreshVertexColorAvailability();
 
     if (scene) {
         // Seed the panel from the struct the renderer is actually running on,
@@ -5693,6 +5761,11 @@ void MainWindow::syncPanelsFromRenderer() {
 
     const auto mode = m_viewport->spectralMode();
     syncSpectralModeUi(mode);
+    // The vertex-colour mode as the SDK read it from the document -- for a
+    // bare model, the default -- so the next save writes what was applied.
+    if (const quantiloom::Scene* scene = m_viewport->getScene()) {
+        syncVertexColorModeUi(catalog::vertexColorModeId(scene->vertexColors.mode));
+    }
     { const QSignalBlocker blocker(m_orthographicAction);
       m_orthographicAction->setChecked(m_viewport->cameraIsOrthographic()); }
     m_renderSettingsPanel->setTargetSPP(m_viewport->targetSPP());
@@ -5756,6 +5829,14 @@ void MainWindow::collectCurrentConfig(SceneConfig& config) {
 
     config.cameraOrthographic = m_viewport->cameraIsOrthographic();
     config.cameraOrthoHeight = m_viewport->cameraOrthoHeight();
+
+    // The panel holds what the SDK last read from the document, whether or
+    // not the scene lets it be changed, so a mode written into a scene that
+    // is not a Minecraft export survives the save. With no scene loaded the
+    // panel has nothing to say and the document's own value stands.
+    if (m_viewport->getScene()) {
+        config.vertexColors = m_renderSettingsPanel->vertexColorMode();
+    }
 
     // The illuminant, as the core's own keys. The panel holds a choice; these
     // are what a scene file says, and what ResolveSolarLut reads back.

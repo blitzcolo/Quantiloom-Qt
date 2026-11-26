@@ -56,6 +56,9 @@ enum class CommandId {
     ModifyTargetSamples = 15,
     ModifyCameraFov = 16,
     ModifyThermalSolve = 17,
+    // [scene] vertex_colors: document state, applied by re-applying the
+    // document, so undoing it reloads the scene the same way.
+    ModifyVertexColors = 18,
 };
 
 /**
