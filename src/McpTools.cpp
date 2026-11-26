@@ -344,6 +344,17 @@ QJsonObject ThermalStatusJson(bool enabled, double time_h,
     return out;
 }
 
+/// What the SDK resolved about a scene's vertex colours, under the names
+/// ql_get_scene and ql_set_vertex_colors both answer with.
+QJsonObject VertexColorsJson(const quantiloom::SceneVertexColors& state) {
+    QJsonObject out;
+    out["mode"] = catalog::vertexColorModeId(state.mode);
+    out["has_vertex_colors"] = state.present;
+    out["minecraft_export"] = state.minecraftExport;
+    out["active"] = state.active;
+    return out;
+}
+
 }  // namespace
 
 namespace {
@@ -531,7 +542,9 @@ void MainWindow::registerMcpTools() {
         tool.name = "ql_get_scene";
         tool.description =
             "The loaded scene's contents: nodes with their indices, materials with their indices, "
-            "and triangle and vertex totals.\n"
+            "triangle and vertex totals, and vertex_colors -- the [scene] vertex_colors mode, "
+            "whether the scene carries COLOR_0, whether it reads as a Minecraft export, and "
+            "whether vertex colours tint the surface now (ql_set_vertex_colors changes it).\n"
             "\n"
             "The indices are what ql_set_node_transform and ql_set_material take. "
             "response_format 'concise' (the default) gives names and indices alone; 'detailed' "
@@ -569,6 +582,7 @@ void MainWindow::registerMcpTools() {
             out["triangles"] = static_cast<qint64>(scene->GetTotalTriangleCount());
             out["vertices"] = static_cast<qint64>(scene->GetTotalVertexCount());
             out["mesh_count"] = static_cast<qint64>(scene->meshes.size());
+            out["vertex_colors"] = VertexColorsJson(scene->vertexColors);
 
             QJsonArray nodes;
             for (size_t i = 0; i < scene->nodes.size(); ++i) {
@@ -1457,6 +1471,77 @@ void MainWindow::registerMcpTools() {
             out["delta_lambda_nm"] = m_spectralConfigPanel->deltaLambda();
             out["accumulated_samples"] =
                 static_cast<qint64>(m_viewport->currentSampleCount());
+            return Json(out);
+        };
+        add(tool);
+    }
+
+    {
+        mcp::ToolDef tool;
+        tool.name = "ql_set_vertex_colors";
+        tool.description =
+            "Whether the model's vertex colours (glTF COLOR_0) tint its surfaces -- the scene's "
+            "[scene] vertex_colors key. auto lets them through only when the scene carries "
+            "COLOR_0 and reads as a Minecraft export, where they hold the biome tint of grass, "
+            "leaves and water; on and off force it.\n"
+            "\n"
+            "Accepted only for a Minecraft export that carries COLOR_0 -- the same rule that "
+            "enables the Render panel's combo -- and refused for any other scene. "
+            "ql_get_scene's vertex_colors says which a scene is. The document is re-applied to "
+            "take it, so the scene reloads and accumulation restarts. Undoable.";
+        tool.inputSchemaJson = R"({
+  "type": "object",
+  "properties": {
+    "mode": {"type": "string", "enum": ["auto", "on", "off"]}
+  },
+  "required": ["mode"]
+})";
+        // Runs from the event loop rather than from the pump, like
+        // ql_apply_config: re-applying the document reloads the scene, which
+        // runs an event loop of its own.
+        tool.venue = mcp::ToolVenue::HostDispatch;
+        static constexpr int kReloadTimeoutMs = 900000;
+        tool.timeoutMs = kReloadTimeoutMs;
+        tool.handler = [this](const quantiloom::String& argumentsJson) {
+            QJsonObject args;
+            mcp::ToolResult error;
+            if (!ParseArgs(argumentsJson, args, error)) {
+                return error;
+            }
+            const QString mode = args.value(QStringLiteral("mode")).toString();
+            if (!catalog::vertexColorModeIds().contains(mode)) {
+                return mcp::ToolResult::Error("mode must be auto, on or off, not '" +
+                                              mode.toStdString() + "'.");
+            }
+            const quantiloom::Scene* scene = m_viewport->getScene();
+            if (!scene) {
+                return mcp::ToolResult::Error(
+                    "No scene is loaded. Open one with ql_apply_config first.");
+            }
+            if (!m_renderSettingsPanel->vertexColorsSelectable()) {
+                return mcp::ToolResult::Error(
+                    scene->vertexColors.minecraftExport
+                        ? "This Minecraft scene carries no vertex colours (COLOR_0), so there "
+                          "is nothing for vertex_colors to switch."
+                        : "vertex_colors can only be set on a Minecraft export; this scene "
+                          "is not one.");
+            }
+
+            m_lastSceneLoadSucceeded.reset();
+            m_openFailuresGoToCaller = true;
+            requestVertexColorMode(mode);
+            m_openFailuresGoToCaller = false;
+            // The same mode again changes nothing and reloads nothing.
+            if (m_lastSceneLoadSucceeded.has_value() && !*m_lastSceneLoadSucceeded) {
+                return mcp::ToolResult::Error("Reloading the scene with vertex_colors = " +
+                                              mode.toStdString() + " failed: " +
+                                              m_lastSceneLoadMessage.toStdString());
+            }
+
+            const quantiloom::Scene* reloaded = m_viewport->getScene();
+            QJsonObject out = reloaded ? VertexColorsJson(reloaded->vertexColors) : QJsonObject{};
+            out["requested"] = mode;
+            out["unsaved_changes"] = documentModified();
             return Json(out);
         };
         add(tool);
