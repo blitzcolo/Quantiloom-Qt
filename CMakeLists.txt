@@ -396,6 +396,12 @@ if(WIN32)
         @ONLY
     )
     list(APPEND RESOURCE_FILES "${QUANTILOOM_GENERATED_DIR}/QuantiloomQt.rc")
+    # The SDK takes every path as a UTF-8 std::string, and Windows decodes a
+    # narrow string through the process ANSI code page (GBK on a Chinese
+    # locale), so a scene or model with a Chinese file name was "not found".
+    # The manifest makes this process's code page UTF-8 (Windows 10 1903+);
+    # the SDK's own executables carry the same one.
+    list(APPEND RESOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/cmake/utf8.manifest")
 endif()
 
 # ============================================================================
