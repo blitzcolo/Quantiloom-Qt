@@ -23,15 +23,12 @@
 # blocks of one material; the render still shades every triangle, with the
 # temperature of its element.
 #
-# The sun is the one wangan_dalou.toml does NOT use. The forcing file is
-# concrete_day.csv, whose sun path was solved from env_concrete.toml's
-# sun_direction, and the solver heats the surfaces that sun lights. So the
-# render takes that same direction below -- a sun from the south-west, 52 deg
-# up -- and the heated and the lit faces agree. In this band the sun only
-# matters through that heating (the reflected sunlight is a rounding error
-# at 10 um), but it decides which walls are warm. A forcing file made from
-# this scene's own sun (scripts/gen_env_forcing.py takes a scene's
-# [lighting] sun_direction) would restore the south-east light of the VIS file.
+# The sun is wangan_dalou.toml's own. The forcing file, wangan_dalou_day.csv,
+# is written by scripts/gen_env_forcing.py from that scene's [lighting]
+# sun_direction: at 14:00 its sun points exactly where the VIS file is lit from
+# (south-east, 50 deg up), so the walls the solver warms are the walls the
+# render shows lit. The climate is concrete's -- air 297-309 K, clear sky --
+# which puts 298.76 K in the air at midnight and 308.80 K at 14:00.
 #
 # Surfaces: metals, glass and emitters take their metallic, roughness, n,k and
 # emission from the library's surface block; see wangan_dalou.toml. In LWIR
@@ -69,9 +66,9 @@ up = [0.0, 1.0, 0.0]
 fov_y = 45.0
 
 [lighting]
-# ~52 deg elevation from the south-west: where concrete_day.csv's sun is at
-# 14:00, which is what the thermal solve below heats the walls with.
-sun_direction = [-0.45, 0.79, 0.42]
+# ~50 deg elevation from the south-east, as in wangan_dalou.toml: where
+# wangan_dalou_day.csv's sun is at 14:00, which the thermal solve heats with.
+sun_direction = [0.45, 0.77, 0.45]
 sun_radiance = [3.1, 3.05, 2.95]    # RGB mode only; the spectral modes read the LUT
 sky_radiance = [0.45, 0.55, 0.75]   # RGB mode only
 solar_lut = "../luts/astmg173.csv"
@@ -80,8 +77,8 @@ solar_lut_diffuse_is_global = true
 
 [atmosphere]
 preset = "clear"
-# The air at 14:00 in concrete_day.csv.
-t_ground_K = 303.15
+# The air at 14:00 in wangan_dalou_day.csv.
+t_ground_K = 308.80
 
 [material]
 albedo = [0.8, 0.8, 0.8]
@@ -91,7 +88,7 @@ albedo = [0.8, 0.8, 0.8]
 # ============================================================================
 # Every library entry carries its own conductivity, density, specific heat and
 # thickness, so the day needs no [[materials]] table. The values here are
-# env_concrete.toml's, kept because the forcing file is too; its comments give
+# env_concrete.toml's, kept because the forcing file has its climate; its comments give
 # the reasons.
 [thermal]
 enabled = true
@@ -107,13 +104,13 @@ start_time_h = 0.0
 # anything thinner than 6 mm, and check the run did not diverge.
 timestep_s = 120.0
 layers = 8
-# Uniform at the pre-dawn air temperature, not steady: the steady-state
+# Uniform at the midnight air temperature of wangan_dalou_day.csv (298.76 K), not steady: the steady-state
 # relaxation takes hour-long steps that thin surfaces cannot follow, which is
 # the divergence env_concrete.toml describes. The deep 0.2-0.3 m masonry still
 # remembers this number at 14:00.
 initial = "uniform"
 initial_temperature_k = 298.8
-forcing_file = "../forcing/concrete_day.csv"
+forcing_file = "../forcing/wangan_dalou_day.csv"
 # Clusters of about 2 m instead of one element per triangle: 7.18 M triangles
 # become ~1.556 M elements.
 element_size_m = 2.0

@@ -141,7 +141,7 @@ def sun_at(latitude, declination, hour):
 # diffuse_ratio then puts back.
 SCENES = [
     dict(
-        name="concrete",
+        name="concrete", config="env_concrete.toml",
         sun_direction=(-0.45, 0.79, 0.42),
         hour=14.0, declination_deg=20.0,
         air_min=297.0, air_max=309.0,
@@ -154,7 +154,7 @@ SCENES = [
              "the sky is the clear sky the scene's ASTM G-173 sun belongs to.",
     ),
     dict(
-        name="desert",
+        name="desert", config="env_desert.toml",
         sun_direction=(0.35, 0.88, 0.2),
         hour=11.0, declination_deg=23.0,
         air_min=289.0, air_max=320.0,
@@ -164,7 +164,7 @@ SCENES = [
              "stop the ground radiating: the widest swing of the four.",
     ),
     dict(
-        name="grassland",
+        name="grassland", config="env_grassland.toml",
         sun_direction=(0.45, 0.71, 0.32),
         hour=10.0, declination_deg=8.0,
         air_min=285.0, air_max=298.0,
@@ -174,7 +174,7 @@ SCENES = [
              "reaches the air's afternoon peak.",
     ),
     dict(
-        name="seaside",
+        name="seaside", config="env_seaside.toml",
         sun_direction=(0.28, 0.36, -0.89),
         hour=16.0, declination_deg=14.0,
         air_min=292.0, air_max=300.0,
@@ -182,6 +182,19 @@ SCENES = [
         turbidity=0.20, diffuse_ratio=0.18,
         note="Maritime air: humid enough to keep the sky warm and the swing "
              "small, which is most of why a coast is mild.",
+    ),
+    dict(
+        # Concrete's day and climate: the 网安大楼 is a city block, and it keeps the
+        # sun wangan_dalou.toml is lit from rather than concrete's.
+        name="wangan_dalou", config="wangan_dalou.toml",
+        sun_direction=(0.45, 0.77, 0.45),
+        hour=14.0, declination_deg=20.0,
+        air_min=297.0, air_max=309.0,
+        rh_mean=42.0, rh_swing=12.0,
+        turbidity=0.17, diffuse_ratio=0.12,
+        note="A city block on a clear day, in the infrared render of the "
+             "Minecraft 网安大楼: the clear sky the scene's ASTM G-173 sun "
+             "belongs to.",
     ),
 ]
 
@@ -217,7 +230,7 @@ HEADER = """\
 # {note}
 #
 # Written by scripts/gen_env_forcing.py -- edit that, not this. The sun path is
-# solved from env_{name}.toml's own [lighting] sun_direction: at {hour:.1f} h it
+# solved from {config}'s own [lighting] sun_direction: at {hour:.1f} h it
 # points exactly where that scene is lit from, so the surface the solver warms
 # is the surface the render shows lit. Latitude {lat:.1f} deg, declination
 # {dec:.1f} deg.
@@ -280,11 +293,11 @@ def generate(scene, out_dir, check_only):
                        sky_temperature_k(air, rh), dhi, rh))
 
     title = "Quantiloom - %s: a day's forcing for the surface energy balance" % (
-        scene["name"].capitalize())
+        scene["name"].replace("_", " ").capitalize())
     path = os.path.join(out_dir, "%s_day.csv" % scene["name"])
     with open(path, "w", encoding="utf-8", newline="\n") as handle:
         handle.write(HEADER.format(title=title, note=scene["note"],
-                                   name=scene["name"], hour=scene["hour"],
+                                   config=scene["config"], hour=scene["hour"],
                                    lat=math.degrees(latitude),
                                    dec=math.degrees(declination)))
         handle.write("\n".join(rows) + "\n")
