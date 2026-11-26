@@ -1,0 +1,76 @@
+# ============================================================================
+# Quantiloom - 网安大楼 (a Minecraft build exported from Blender)
+# ============================================================================
+# Geometry: the exporter's glTF as it is, 192 materials named after their
+# blocks (minecraft:oak_planks, blockentity:minecraft:chest, ...), every one
+# textured from atlas_1001.png. The loader shares the 192 identical glTF
+# textures as one, so the 8192x8192 atlas is decoded and uploaded once.
+# 1 block = 1 m, Y up.
+#
+# Spectral: the Minecraft library baked in Quantiloom-dev from the vanilla
+# 26.4-pre-1 resource pack (scripts/spectral-baker/config_minecraft.toml),
+# one entry per block. material_binding = "by_name" binds each material to
+# the entry of its own name -- no per-material table here. Each entry is the
+# block's mean texture colour fitted onto a measured spectrum of its class
+# (wood, stone, leaves, ...), so it is a plausible spectrum, not a measured
+# one; it runs 0.35-15 um, which is what the infrared bands read too.
+#
+# Texture detail survives: a block bound to one entry is modulated in the
+# shader by how bright its atlas texel is against the block's mean colour.
+# The biome tint the exporter keeps in vertex colours (COLOR_0) is applied:
+# [scene] vertex_colors = "auto" (default) turns it on for a Minecraft export,
+# "off" falls back to the library's plains-biome tint, and "on" forces it for
+# any scene. Studio exposes the same choice in Render > Vertex Colours.
+#
+# Materials the library does not name (the exporter's generated sign
+# textures, its comparator shell) stay RGB-upsampled from the atlas, and the
+# log lists them under "Unbound by name".
+# ============================================================================
+
+[renderer]
+resolution = [1600, 900]
+spp = 64
+seed = 42
+output = "wangan_dalou.exr"
+# The sun and the NN atmosphere's sky light the spectral modes; an environment
+# map would only light the RGB preview and count the sky twice there.
+environment_map = ""
+environment_map_enabled = false
+enable_shadow_rays = true
+
+[spectral]
+mode = "vis_fused"
+band = "VIS"
+basis_file = "../spectral/quantiloom_basis_v3_minecraft.qlbin"
+materials_json = "../spectral/quantiloom_materials_minecraft.json"
+material_binding = "by_name"
+
+[scene]
+gltf = "../models/网安大楼.gltf"
+world_units_to_meters = 1.0
+# What a material without a thermal solve radiates at in MWIR/LWIR.
+default_temperature_k = 300.0
+
+[camera]
+position = [210.90, 154.64, 266.86]
+look_at = [0.53, 0.38, 0.40]
+up = [0.0, 1.0, 0.0]
+fov_y = 45.0
+
+[lighting]
+# ~50 deg elevation from the south-east.
+sun_direction = [0.45, 0.77, 0.45]
+sun_radiance = [3.1, 3.05, 2.95]    # RGB mode only; the spectral modes read the LUT
+sky_radiance = [0.45, 0.55, 0.75]   # RGB mode only
+# ASTM G-173: column 4 is direct + circumsolar, column 3 global tilt, which
+# already contains the direct beam.
+solar_lut = "../luts/astmg173.csv"
+solar_lut_columns = [4, 3]
+solar_lut_diffuse_is_global = true
+
+[atmosphere]
+preset = "clear"
+t_ground_K = 300.15
+
+[material]
+albedo = [0.8, 0.8, 0.8]
