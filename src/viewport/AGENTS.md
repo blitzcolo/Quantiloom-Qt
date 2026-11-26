@@ -108,24 +108,54 @@ frame.
 ## The viewport's size is not the render's
 
 `m_targetExtent` is what every frame hands the SDK as its target extent, and
-it follows the swapchain only through `adoptRenderExtent()` — called from
-`resetAccumulation()`, and from a swapchain rebuild when nothing is
-accumulated. A rebuilt swapchain alone (a splitter, a workspace switch, a
-window resize) leaves the accumulation alone: `renderFrame()` composites the
-frame texture at `m_targetExtent` into the swapchain, aspect kept, bars
-cleared. Calling `Resize()` from the swapchain rebuild is the bug this
-replaced — every step of a splitter drag restarted the render at zero.
+what it holds comes from a `ResolutionPolicy` (`ResolutionPolicy.hpp`), not
+from the swapchain. **Fixed** (the default, and what every document open
+enters at its `width`/`height`) holds a `WxH` whatever the view does: a
+swapchain rebuild -- a splitter, a workspace switch, a window resize, a DPR
+change -- asks `desiredExtent()` for the extent it already has, so it never
+reaches the SDK's `Resize()` and never restarts the accumulation. **Follow**
+takes the swapchain's device-pixel size times a scale (1, 0.75, 0.5, 0.25)
+and adopts it only where the accumulation is lost anyway. Both go through
+`adoptRenderExtent()`, called from `resetAccumulation()` and from a swapchain
+rebuild when nothing is accumulated. `setResolutionPolicy()` restarts through
+`resetAccumulation()` when the extent changes (and not when a mode or scale
+change lands on the same one). Calling `Resize()` from the swapchain rebuild
+in Fixed mode is the bug this structure exists to prevent; Follow was the
+only mode before, and every step of a splitter drag restarted the render at
+zero.
+
+The SDK's motion-adaptive `SetRenderScale` multiplies whatever extent this
+produces, so it works unchanged on top of either mode. The panel's extent
+line reports `currentRenderSize()` (the traced size) and the zoom against it.
+
+Presentation is a second, independent switch, `fitToView`. On, `presentedRect()`
+is the whole image scaled to fit the swapchain with its aspect kept -- up or
+down. Off, it is one render pixel per device pixel: centred on an axis it
+fits, and on an axis it overflows its origin is minus the scroll offset
+(`setScrollOffset()`, clamped to `[0, content - view]` on use). So the rect
+can start before the swapchain or run past it. The composite therefore draws
+with the **whole** rect as its viewport -- the texture is sampled where it
+belongs -- and a scissor (the rect intersected with the swapchain, which is
+why the composite pipeline carries `UsesScissor`). Fit and scroll are
+presentation only: they re-present the accumulation and never restart it.
+`presentation()` reports content size, view size, clamped scroll and zoom,
+and the window's `presentationChanged()` tells the shell (`ViewportHost`'s
+scrollbars, the panel's line) to reread them; it is emitted from inside the
+frame loop, so connect it queued.
 
 Two consequences. Anything that turns a pointer into a pixel goes through the
 window's `toTargetPixels()`, never `devicePixelRatio()` alone, because the
-image on screen may be scaled and offset — `presentedRect()` feeds both the
-composite's viewport and `swapchainToTarget()`, so drawing and hit-testing
-cannot drift. And `adoptRenderExtent()` drains the queue (`m_rhi->finish()`)
-before the SDK's `Resize()`, because that replaces images a frame in flight
-may still be reading; the frame textures themselves are resized in place and
-QRhi releases the old ones once no frame uses them. Note that `finish()` inside
-a frame submits and restarts the command buffer, so the native command buffer
-is only ever fetched *after* the camera update that can trigger this.
+image on screen may be scaled, offset or scrolled -- `presentedRect()` feeds
+both the composite's viewport and `swapchainToTarget()`, which is its exact
+inverse (origin first, then scale), so drawing and hit-testing cannot drift.
+And `adoptRenderExtent()` drains the queue (`m_rhi->finish()`) before the
+SDK's `Resize()`, because that replaces images a frame in flight may still be
+reading; the frame textures themselves are resized in place and QRhi releases
+the old ones once no frame uses them. Note that `finish()` inside a frame
+submits and restarts the command buffer, so the native command buffer is only
+ever fetched *after* the camera update that can trigger this. A policy change
+that arrives while a context job holds the context is remembered
+(`m_resolutionDeferred`) and the job's end restarts at the new extent.
 
 Nothing is released when the window is hidden or minimized: a hidden window
 just skips frames, and a lost surface costs only the swapchain. The old
