@@ -31,6 +31,7 @@
 #include "config/ConfigManager.hpp"
 #include "editing/SelectionManager.hpp"
 #include "editing/UndoStack.hpp"
+#include "panels/RenderSettingsPanel.hpp"
 #include "panels/AtmosphericPanel.hpp"
 #include "panels/DebugVisualizationPanel.hpp"
 #include "panels/MaterialEditorPanel.hpp"
