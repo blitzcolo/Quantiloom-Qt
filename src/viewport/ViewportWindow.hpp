@@ -25,6 +25,7 @@
 #include <renderer/TimelineControl.hpp>
 
 #include "../editing/GizmoModel.hpp"
+#include "ResolutionPolicy.hpp"
 
 namespace quantiloom {
 class Config;
@@ -477,6 +478,32 @@ public:
     /// no tool call can hold a drag open. The next gesture overwrites it.
     void overrideRenderScale(float scale);
 
+    /**
+     * @brief What the render extent follows: a fixed size or the viewport's
+     *
+     * Queued through withRenderer() like every setter here. A change of
+     * extent restarts the accumulation; a view resize in Fixed mode never
+     * does. The getter returns what was last set, renderer or not.
+     */
+    void setResolutionPolicy(const viewport::ResolutionPolicy& policy);
+    [[nodiscard]] const viewport::ResolutionPolicy& resolutionPolicy() const {
+        return m_resolutionPolicy;
+    }
+
+    /// Fitted whole to the view (on) or one render pixel per device pixel,
+    /// scrolled when larger than the view (off). Presentation only: never
+    /// restarts the accumulation.
+    void setFitToView(bool fit);
+    [[nodiscard]] bool fitToView() const { return m_fitToView; }
+
+    /// Where a 1:1 render larger than the view is scrolled to, in device
+    /// pixels from its top left. Presentation only.
+    void setScrollOffset(const QPoint& offset);
+
+    /// The shown size, view size, scroll and zoom, in device pixels; empty
+    /// before the first frame.
+    [[nodiscard]] viewport::Presentation presentation() const;
+
     // ========================================================================
     // Scene Editing
     // ========================================================================
@@ -626,6 +653,15 @@ signals:
     void cameraChanged();
 
     /**
+     * @brief The render extent, the view size or how the render is shown changed
+     *
+     * Emitted from inside the frame loop and the swapchain rebuild, so
+     * connect it queued; the shell reads presentation() and the true extent
+     * and updates its scrollbars and readout.
+     */
+    void presentationChanged();
+
+    /**
      * @brief A renderer operation on its worker thread has outlasted a moment
      *
      * A scene opening, first-run shader compilation, a pipeline variant, a
@@ -752,6 +788,8 @@ private:
     [[nodiscard]] bool viewportMotionHeld() const;
 
     std::unique_ptr<ViewportRenderer> m_renderer;
+    viewport::ResolutionPolicy m_resolutionPolicy;
+    bool m_fitToView = true;
     std::vector<std::function<void(ViewportRenderer&)>> m_deferredCalls;
     /// applyDeferredSettings() has posted the replay and it has not run yet.
     /// Calls made meanwhile join the queue, so they keep their order.

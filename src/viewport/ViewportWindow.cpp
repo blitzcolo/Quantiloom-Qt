@@ -622,6 +622,27 @@ void ViewportWindow::overrideRenderScale(float scale) {
     });
 }
 
+void ViewportWindow::setResolutionPolicy(const viewport::ResolutionPolicy& policy) {
+    m_resolutionPolicy = policy;
+    m_resolutionPolicy.fixed = viewport::clampedRenderSize(policy.fixed);
+    withRenderer([policy = m_resolutionPolicy](ViewportRenderer& r) {
+        r.setResolutionPolicy(policy);
+    });
+}
+
+void ViewportWindow::setFitToView(bool fit) {
+    m_fitToView = fit;
+    withRenderer([fit](ViewportRenderer& r) { r.setFitToView(fit); });
+}
+
+void ViewportWindow::setScrollOffset(const QPoint& offset) {
+    withRenderer([offset](ViewportRenderer& r) { r.setScrollOffset(offset); });
+}
+
+viewport::Presentation ViewportWindow::presentation() const {
+    return m_renderer ? m_renderer->presentation() : viewport::Presentation{};
+}
+
 // ============================================================================
 // Scene Editing
 // ============================================================================

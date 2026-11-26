@@ -161,9 +161,15 @@ void ViewportRenderer::onSwapchainResized() {
     // takes the new size up. Resizing here discarded every sample on each
     // step of a splitter drag. With nothing accumulated there is nothing to
     // keep, so the new size is taken at once.
+    //
+    // Which size depends on the policy: a Fixed render asks for the extent it
+    // already has, so a rebuilt swapchain never reaches the SDK's Resize() in
+    // that mode, accumulated or not. Only the shell hears of it, because the
+    // view the render is shown in has changed size.
     if (m_renderContext && (m_sampleCount == 0 || !m_renderContext->HasScene())) {
         adoptRenderExtent();
     }
+    notifyPresentationChanged();
 }
 
 void ViewportRenderer::createRenderContext() {
@@ -188,7 +194,9 @@ void ViewportRenderer::createRenderContext() {
     m_renderContext = std::move(created.context);
     m_initialized = true;
     m_contextFaulted = false;
-    m_targetExtent = swapSize;
+    m_targetExtent = desiredExtent();
+    m_resolutionDeferred = false;
+    notifyPresentationChanged();
 
     // The epoch build is synchronous on this thread and can take minutes on a
     // large scene; this is how the shell gets to say which epoch it is on.
@@ -496,12 +504,22 @@ void ViewportRenderer::renderFrame() {
     cb->beginPass(m_swapchain->currentFrameRenderTarget(), Qt::black, {1.0f, 0}, updates);
     if (haveImage) {
         const QRect shown = presentedRect();
-        // QRhi viewports have their origin at the bottom left.
-        m_overlay.composite(
-            cb, QRhiViewport(static_cast<float>(shown.x()),
+        // A 1:1 render larger than the view starts before the swapchain and
+        // runs past it. The viewport keeps the whole image's geometry, so
+        // the texture is sampled where it should be; the scissor holds the
+        // draw inside the swapchain.
+        const QRect visible = shown.intersected(QRect(QPoint(0, 0), swapSize));
+        if (!visible.isEmpty()) {
+            // QRhi viewports and scissors have their origin at the bottom left.
+            m_overlay.composite(
+                cb,
+                QRhiViewport(static_cast<float>(shown.x()),
                              static_cast<float>(swapSize.height() - shown.y() - shown.height()),
                              static_cast<float>(shown.width()),
-                             static_cast<float>(shown.height())));
+                             static_cast<float>(shown.height())),
+                QRhiScissor(visible.x(), swapSize.height() - visible.y() - visible.height(),
+                            visible.width(), visible.height()));
+        }
     }
     cb->endPass();
     m_rhi->endFrame(m_swapchain.get());
@@ -563,39 +581,123 @@ QRect ViewportRenderer::presentedRect() const {
     if (m_targetExtent.isEmpty() || swapSize.isEmpty()) {
         return QRect(QPoint(0, 0), swapSize);
     }
-    // Fitted whole, aspect kept: the camera's aspect is the render's, so
-    // stretching would distort and cropping would hide part of the image.
-    const QSize fitted =
-        m_targetExtent.scaled(swapSize, Qt::KeepAspectRatio).expandedTo(QSize(1, 1));
-    return QRect(QPoint((swapSize.width() - fitted.width()) / 2,
-                        (swapSize.height() - fitted.height()) / 2),
-                 fitted);
+    if (m_fitToView) {
+        // Fitted whole, aspect kept, up or down: the camera's aspect is the
+        // render's, so stretching would distort and cropping would hide part
+        // of the image.
+        const QSize fitted =
+            m_targetExtent.scaled(swapSize, Qt::KeepAspectRatio).expandedTo(QSize(1, 1));
+        return QRect(QPoint((swapSize.width() - fitted.width()) / 2,
+                            (swapSize.height() - fitted.height()) / 2),
+                     fitted);
+    }
+    // One render pixel per device pixel. Per axis: centred when the render
+    // fits, else its top left sits at minus the scroll, which stays inside
+    // [0, overflow] so the view never leaves the image.
+    const auto place = [](int content, int view, int scroll) {
+        return content <= view ? (view - content) / 2 : -std::clamp(scroll, 0, content - view);
+    };
+    return QRect(QPoint(place(m_targetExtent.width(), swapSize.width(), m_scroll.x()),
+                        place(m_targetExtent.height(), swapSize.height(), m_scroll.y())),
+                 m_targetExtent);
 }
 
 QPointF ViewportRenderer::swapchainToTarget(const QPointF& swapchainPixel) const {
     const QRect shown = presentedRect();
-    if (m_targetExtent.isEmpty() || shown.size() == m_targetExtent) {
+    if (m_targetExtent.isEmpty()) {
         return swapchainPixel;
     }
+    // The inverse of presentedRect(): back out the origin, then the scale
+    // (which is exactly 1 at 1:1 and whenever the fit fills the extent).
     return QPointF((swapchainPixel.x() - shown.x()) * m_targetExtent.width() / shown.width(),
                    (swapchainPixel.y() - shown.y()) * m_targetExtent.height() /
                        shown.height());
 }
 
-void ViewportRenderer::adoptRenderExtent() {
+viewport::Presentation ViewportRenderer::presentation() const {
+    viewport::Presentation out;
+    out.view = swapchainSize();
+    if (m_targetExtent.isEmpty() || out.view.isEmpty()) {
+        return out;
+    }
+    const QRect shown = presentedRect();
+    out.content = shown.size();
+    out.scroll = QPoint(std::max(0, -shown.x()), std::max(0, -shown.y()));
+    out.zoom = static_cast<double>(shown.width()) / m_targetExtent.width();
+    return out;
+}
+
+QSize ViewportRenderer::desiredExtent() const {
+    if (m_resolution.mode == viewport::ResolutionPolicy::Mode::Fixed) {
+        return viewport::clampedRenderSize(m_resolution.fixed);
+    }
     const QSize swapSize = swapchainSize();
-    if (!m_renderContext || swapSize.isEmpty() || swapSize == m_targetExtent) {
+    if (swapSize.isEmpty()) {
+        return m_targetExtent;
+    }
+    return QSize(std::max(1, qRound(swapSize.width() * m_resolution.followScale)),
+                 std::max(1, qRound(swapSize.height() * m_resolution.followScale)));
+}
+
+void ViewportRenderer::notifyPresentationChanged() {
+    emit m_window->presentationChanged();
+}
+
+void ViewportRenderer::setResolutionPolicy(const viewport::ResolutionPolicy& policy) {
+    viewport::ResolutionPolicy next = policy;
+    next.fixed = viewport::clampedRenderSize(next.fixed);
+    if (next == m_resolution) {
+        return;
+    }
+    m_resolution = next;
+    if (!m_renderContext) {
+        // No context yet, or it is out with a worker: createRenderContext()
+        // reads the policy, and a job's end restarts at the new extent.
+        m_resolutionDeferred = m_initialized;
+        return;
+    }
+    if (desiredExtent() != m_targetExtent) {
+        // Takes the extent up and restarts, with the queue drained first.
+        resetAccumulation();
+        notifyPresentationChanged();
+    }
+}
+
+void ViewportRenderer::setFitToView(bool fit) {
+    if (fit == m_fitToView) {
+        return;
+    }
+    m_fitToView = fit;
+    // Re-presents the accumulation as it is; a loop stopped at its target
+    // has to be asked for the frame, like a resize does.
+    m_window->requestUpdate();
+    notifyPresentationChanged();
+}
+
+void ViewportRenderer::setScrollOffset(const QPoint& offset) {
+    if (offset == m_scroll) {
+        return;
+    }
+    m_scroll = offset;
+    m_window->requestUpdate();
+}
+
+void ViewportRenderer::adoptRenderExtent() {
+    const QSize wanted = desiredExtent();
+    if (!m_renderContext || wanted.isEmpty() || wanted == m_targetExtent) {
         return;
     }
     // The SDK's Resize replaces images a frame still in flight may be
     // reading, so the queue is drained first; inside a frame QRhi submits
     // what is recorded and starts a new command buffer. The frame textures
     // follow on the next frame without a wait of their own: QRhi releases
-    // the old images once no frame uses them. Once per resize, not per frame.
+    // the old images once no frame uses them. Once per change of extent, not
+    // per frame.
     m_rhi->finish();
-    m_targetExtent = swapSize;
-    m_renderContext->Resize(static_cast<quantiloom::u32>(swapSize.width()),
-                            static_cast<quantiloom::u32>(swapSize.height()));
+    m_targetExtent = wanted;
+    m_renderContext->Resize(static_cast<quantiloom::u32>(wanted.width()),
+                            static_cast<quantiloom::u32>(wanted.height()));
+    notifyPresentationChanged();
 }
 
 void ViewportRenderer::setPaused(bool paused) {
@@ -699,6 +801,10 @@ QString ViewportRenderer::runContextJob(
     m_window->m_framesHeld = false;
     if (cardShown) {
         emit m_window->longOperationFinished();
+    }
+    if (m_resolutionDeferred) {
+        m_resolutionDeferred = false;
+        resetAccumulation();
     }
     // A gesture that ended meanwhile could not hand its scale back.
     applyRenderScale(m_motionActive && m_motionAdaptiveResolution ? m_motionScale : 1.0f);

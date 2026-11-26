@@ -288,6 +288,7 @@ set(GUI_SOURCES
     src/viewport/CameraMatrices.hpp
     src/viewport/OverlayRenderer.cpp
     src/viewport/OverlayRenderer.hpp
+    src/viewport/ResolutionPolicy.hpp
     # Parameter panels
     src/panels/SceneTreePanel.cpp
     src/panels/SceneTreePanel.hpp

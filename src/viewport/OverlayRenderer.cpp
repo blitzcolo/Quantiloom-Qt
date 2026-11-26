@@ -175,6 +175,7 @@ void OverlayRenderer::ensureResources(QRhi* rhi, QRhiRenderPassDescriptor* overl
     std::unique_ptr<QRhiGraphicsPipeline> composite(rhi->newGraphicsPipeline());
     composite->setShaderStages({{QRhiShaderStage::Vertex, loadShader("composite.vert")},
                                 {QRhiShaderStage::Fragment, loadShader("composite.frag")}});
+    composite->setFlags(QRhiGraphicsPipeline::UsesScissor);
     composite->setCullMode(QRhiGraphicsPipeline::None);
     composite->setTopology(QRhiGraphicsPipeline::Triangles);
     composite->setShaderResourceBindings(m_compositeBindings.get());
@@ -245,12 +246,14 @@ void OverlayRenderer::draw(QRhiCommandBuffer* cb, QSize extent) {
     }
 }
 
-void OverlayRenderer::composite(QRhiCommandBuffer* cb, const QRhiViewport& shown) {
+void OverlayRenderer::composite(QRhiCommandBuffer* cb, const QRhiViewport& shown,
+                                const QRhiScissor& visible) {
     if (!m_compositePipeline) {
         return;
     }
     cb->setGraphicsPipeline(m_compositePipeline.get());
     cb->setViewport(shown);
+    cb->setScissor(visible);
     cb->setShaderResources(m_compositeBindings.get());
     cb->draw(3);
 }

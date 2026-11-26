@@ -36,6 +36,7 @@
 
 #include "GpuBackend.hpp"
 #include "OverlayRenderer.hpp"
+#include "ResolutionPolicy.hpp"
 #include "SdkFrame.hpp"
 #include "ViewportSampleBatchScheduler.hpp"
 
@@ -311,15 +312,36 @@ public:
     [[nodiscard]] viewport::CameraMatrices overlayCamera() const;
 
     /// The extent the SDK renders to, and the space every pixel coordinate it
-    /// takes -- Pick, ReadPixelValue, overlayCamera() rays -- is in. The
-    /// swapchain's extent unless a resize is being held; see
-    /// onSwapchainResized().
+    /// takes -- Pick, ReadPixelValue, overlayCamera() rays -- is in. What the
+    /// resolution policy asks for: the fixed size, or the swapchain's times
+    /// the follow scale once nothing is accumulated; see onSwapchainResized().
     [[nodiscard]] QSize targetExtent() const { return m_targetExtent; }
 
-    /// A swapchain pixel position as a position in targetExtent(): the
-    /// identity, except while a held render is fitted into the swapchain.
-    /// Positions over the bars around it come out outside the extent.
+    /// A swapchain pixel position as a position in targetExtent(): the exact
+    /// inverse of presentedRect(), so the identity only when the render fills
+    /// the swapchain. Positions over the bars around it, or off the edge of a
+    /// scrolled render, come out outside the extent.
     [[nodiscard]] QPointF swapchainToTarget(const QPointF& swapchainPixel) const;
+
+    /// What the render extent follows. A change of extent restarts the
+    /// accumulation (through resetAccumulation()); a change of mode or scale
+    /// that lands on the same extent does not.
+    void setResolutionPolicy(const viewport::ResolutionPolicy& policy);
+    [[nodiscard]] const viewport::ResolutionPolicy& resolutionPolicy() const {
+        return m_resolution;
+    }
+
+    /// How the render is shown: fitted whole (on) or one render pixel per
+    /// device pixel (off). Presentation only -- the accumulation is untouched.
+    void setFitToView(bool fit);
+    [[nodiscard]] bool fitToView() const { return m_fitToView; }
+
+    /// Where the view is scrolled over a 1:1 render larger than it, in device
+    /// pixels from the render's top left. Clamped on use; presentation only.
+    void setScrollOffset(const QPoint& offset);
+
+    /// The shown size, the view size, the clamped scroll and the zoom now.
+    [[nodiscard]] viewport::Presentation presentation() const;
 
     /// One-shot what-you-see PNG: the rendered frame, at targetExtent(), with
     /// grid and gizmo composited, saved a few frames from now. Poll the file.
@@ -572,13 +594,26 @@ private:
     // Check if this is the first run (no pipeline cache)
     bool isFirstRun() const;
 
-    /// Make the swapchain's extent the one the SDK renders at. Costs the
+    /// The extent the resolution policy asks for now: the fixed size, or the
+    /// swapchain's times the follow scale. The current extent while there is
+    /// no swapchain to measure.
+    [[nodiscard]] QSize desiredExtent() const;
+
+    /// Make desiredExtent() the one the SDK renders at. Costs the
     /// accumulation when it changes anything, so it runs only where that is
     /// lost anyway: resetAccumulation(), or a rebuild with nothing accumulated.
+    /// In Fixed mode a rebuilt swapchain asks for the extent already held, so
+    /// this does nothing.
     void adoptRenderExtent();
 
-    /// Where the image at m_targetExtent is drawn in the swapchain image:
-    /// all of it when the two agree, else fitted with its aspect kept.
+    /// Tells the shell the extent or the presentation changed.
+    void notifyPresentationChanged();
+
+    /// Where the image at m_targetExtent is drawn in the swapchain image. Fit
+    /// on: the whole image, aspect kept, scaled up or down. Fit off: one
+    /// render pixel per device pixel, centred on an axis it fits and shifted
+    /// by the scroll offset on one it overflows. May start before the
+    /// swapchain or run past it; the composite scissors it.
     [[nodiscard]] QRect presentedRect() const;
 
     /// The device, the QRhi that imports it and the swapchain object; false
@@ -632,10 +667,19 @@ private:
     QSize m_frameTargetSize;
 
     /// What every frame hands the SDK as the target extent. It follows the
-    /// swapchain only through adoptRenderExtent(), so a viewport resize
-    /// alone leaves the accumulation as it is. Empty while there is no
+    /// resolution policy only through adoptRenderExtent(), so a viewport
+    /// resize alone leaves the accumulation as it is. Empty while there is no
     /// context.
     QSize m_targetExtent;
+
+    viewport::ResolutionPolicy m_resolution;
+    bool m_fitToView = true;
+    /// Device pixels from the render's top left to the view's; unclamped, see
+    /// presentedRect().
+    QPoint m_scroll;
+    /// A policy change arrived while the context was out with a worker; the
+    /// job's end restarts the accumulation at the new extent.
+    bool m_resolutionDeferred = false;
 
     // libQuantiloom render context
     std::unique_ptr<quantiloom::ExternalRenderContext> m_renderContext;

@@ -44,6 +44,7 @@ class QRhiGraphicsPipeline;
 class QRhiRenderPassDescriptor;
 class QRhiResourceUpdateBatch;
 class QRhiSampler;
+class QRhiScissor;
 class QRhiShaderResourceBindings;
 class QRhiTexture;
 class QRhiViewport;
@@ -79,8 +80,12 @@ public:
     /// Inside the overlay pass: the grid, then the gizmo, over @p extent.
     void draw(QRhiCommandBuffer* cb, QSize extent);
 
-    /// Inside the composite pass: the frame texture into @p shown.
-    void composite(QRhiCommandBuffer* cb, const QRhiViewport& shown);
+    /// Inside the composite pass: the frame texture into @p shown, which may
+    /// start before the swapchain or run past it (a 1:1 render larger than the
+    /// view, scrolled). @p visible is the part of it inside the swapchain,
+    /// which the scissor holds the draw to.
+    void composite(QRhiCommandBuffer* cb, const QRhiViewport& shown,
+                   const QRhiScissor& visible);
 
     /// Destroy every QRhi object. Call before the QRhi goes.
     void releaseResources();
