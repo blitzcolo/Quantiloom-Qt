@@ -5714,6 +5714,14 @@ Right-drag orbits the camera, middle-drag pans, the wheel zooms; G/R/T switch tr
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>no texture level here (miss, or no base-colour texture)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>level %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Solving the thermal field…</source>
         <translation type="unfinished"></translation>
     </message>
@@ -5833,6 +5841,10 @@ Right-drag orbits the camera, middle-drag pans, the wheel zooms; G/R/T switch tr
     </message>
     <message>
         <source>Alpha</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Texture LOD</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -6025,6 +6037,10 @@ Right-drag orbits the camera, middle-drag pans, the wheel zooms; G/R/T switch tr
     </message>
     <message>
         <source>Alpha/opacity value. 1 = opaque, 0 = transparent.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Mip level the base-colour fetch reads: dark blue = level 0, then cyan, green, yellow, red = level 12 or coarser; a darker line marks each whole level, grey = no base-colour texture. Hover for the number.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

@@ -167,8 +167,8 @@ MainWindow::MainWindow(QVulkanInstance* vulkanInstance, QWidget* parent)
 
     retranslateUi();
     // A menu hides its entries' tooltips unless told otherwise, which left
-    // every description written for them -- the forty-five debug modes
-    // included -- unread. Set after every menu exists, submenus too.
+    // every description written for them -- the debug modes included --
+    // unread. Set after every menu exists, submenus too.
     for (QMenu* menu : findChildren<QMenu*>()) {
         menu->setToolTipsVisible(true);
     }

@@ -75,6 +75,7 @@ QVector<DebugVisualizationMode> debugModesIn(DebugCategory category) {
                 DebugVisualizationMode::NormalMapDelta,
                 DebugVisualizationMode::Emissive,
                 DebugVisualizationMode::Alpha,
+                DebugVisualizationMode::TextureLod,
             };
         case DebugCategory::Lighting:
             return {
@@ -152,6 +153,7 @@ QString debugModeName(DebugVisualizationMode mode) {
         case DebugVisualizationMode::NormalMapDelta: return Tr::tr("Normal Map Delta");
         case DebugVisualizationMode::Emissive:       return Tr::tr("Emissive");
         case DebugVisualizationMode::Alpha:          return Tr::tr("Alpha");
+        case DebugVisualizationMode::TextureLod:     return Tr::tr("Texture LOD");
 
         // Lighting
         case DebugVisualizationMode::NdotL:     return Tr::tr("N dot L");
@@ -245,6 +247,10 @@ QString debugModeDescription(DebugVisualizationMode mode) {
             return Tr::tr("Emissive color/intensity. Self-illumination without external lighting.");
         case DebugVisualizationMode::Alpha:
             return Tr::tr("Alpha/opacity value. 1 = opaque, 0 = transparent.");
+        case DebugVisualizationMode::TextureLod:
+            return Tr::tr("Mip level the base-colour fetch reads: dark blue = level 0, then cyan, green, "
+                       "yellow, red = level 12 or coarser; a darker line marks each whole level, grey = no "
+                       "base-colour texture. Hover for the number.");
 
         // Lighting
         case DebugVisualizationMode::NdotL:
@@ -592,6 +598,7 @@ constexpr DebugModeId kDebugModeIds[] = {
     {DebugVisualizationMode::NormalMapDelta, "normal_map_delta"},
     {DebugVisualizationMode::Emissive, "emissive"},
     {DebugVisualizationMode::Alpha, "alpha"},
+    {DebugVisualizationMode::TextureLod, "texture_lod"},
 
     {DebugVisualizationMode::NdotL, "ndotl"},
     {DebugVisualizationMode::NdotV, "ndotv"},

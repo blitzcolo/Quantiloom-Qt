@@ -30,6 +30,7 @@
 #include <QEventLoop>
 #include <QScopedValueRollback>
 #include <QTimer>
+#include <algorithm>
 #include <cmath>
 #include <exception>
 #include <filesystem>
@@ -37,6 +38,7 @@
 #include <optional>
 #include <thread>
 
+#include <glm/geometric.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
 namespace {
@@ -1823,6 +1825,44 @@ bool ViewportRenderer::apparentTemperatureFromPixel(
     return true;
 }
 
+namespace {
+
+// The TextureLod view's ramp (common.hlsli, TextureLodToColor) read backwards:
+// five stops, level = 12 * position along the polyline, a contour line the
+// same colour at half brightness. The level is whichever point of either ramp
+// is nearest the pixel; the plain ramp wins a tie, so a contour line inside the
+// first, dark-blue stretch can read a little off.
+constexpr float kTextureLodRampLevels = 12.0f;
+
+std::optional<float> textureLodFromPixel(const glm::vec4& pixel) {
+    static const glm::vec3 stops[5] = {{0.0f, 0.0f, 0.45f}, {0.0f, 1.0f, 1.0f},
+                                       {0.0f, 1.0f, 0.0f},  {1.0f, 1.0f, 0.0f},
+                                       {1.0f, 0.0f, 0.0f}};
+    const glm::vec3 rgb(pixel);
+    if (std::max({rgb.r, rgb.g, rgb.b}) < 0.02f) return std::nullopt;  // a miss
+    if (std::abs(rgb.r - rgb.g) < 0.02f && std::abs(rgb.g - rgb.b) < 0.02f) {
+        return std::nullopt;  // grey: no base-colour texture
+    }
+    float bestLevel = 0.0f;
+    float bestError = 1e9f;
+    for (const float brightness : {1.0f, 0.5f}) {
+        const glm::vec3 q = rgb / brightness;
+        for (int i = 0; i < 4; ++i) {
+            const glm::vec3 edge = stops[i + 1] - stops[i];
+            const float u = std::clamp(glm::dot(q - stops[i], edge) / glm::dot(edge, edge),
+                                       0.0f, 1.0f);
+            const float error = glm::length(q - (stops[i] + u * edge)) * brightness;
+            if (error < bestError - 1e-3f) {
+                bestError = error;
+                bestLevel = (static_cast<float>(i) + u) * kTextureLodRampLevels / 4.0f;
+            }
+        }
+    }
+    return bestLevel;
+}
+
+}  // namespace
+
 QString ViewportRenderer::formatDebugValue(const glm::vec4& v) const {
     using quantiloom::DebugVisualizationMode;
 
@@ -1892,6 +1932,11 @@ QString ViewportRenderer::formatDebugValue(const glm::vec4& v) const {
             return tr("hashed — original value not recoverable");
         case DebugVisualizationMode::Temperature:
             return tr("colour-mapped — read against the colour bar");
+        case DebugVisualizationMode::TextureLod: {
+            const std::optional<float> level = textureLodFromPixel(v);
+            if (!level) return tr("no texture level here (miss, or no base-colour texture)");
+            return tr("level %1").arg(*level, 0, 'f', 2);
+        }
 
         // None or unknown
         case DebugVisualizationMode::None:

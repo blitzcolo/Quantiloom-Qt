@@ -6141,6 +6141,14 @@ Right-drag orbits the camera, middle-drag pans, the wheel zooms; G/R/T switch tr
         <translation>已伪彩映射 —— 请对照色标读取</translation>
     </message>
     <message>
+        <source>no texture level here (miss, or no base-colour texture)</source>
+        <translation>此处无纹理层级（未命中，或没有基础颜色纹理）</translation>
+    </message>
+    <message>
+        <source>level %1</source>
+        <translation>层级 %1</translation>
+    </message>
+    <message>
         <source>Solving the thermal field…</source>
         <translation>正在求解温度场…</translation>
     </message>
@@ -6261,6 +6269,10 @@ Right-drag orbits the camera, middle-drag pans, the wheel zooms; G/R/T switch tr
     <message>
         <source>Alpha</source>
         <translation>不透明度</translation>
+    </message>
+    <message>
+        <source>Texture LOD</source>
+        <translation>纹理 LOD 等级</translation>
     </message>
     <message>
         <source>N dot L</source>
@@ -6453,6 +6465,10 @@ Right-drag orbits the camera, middle-drag pans, the wheel zooms; G/R/T switch tr
     <message>
         <source>Alpha/opacity value. 1 = opaque, 0 = transparent.</source>
         <translation>不透明度值。1 为不透明，0 为全透明。</translation>
+    </message>
+    <message>
+        <source>Mip level the base-colour fetch reads: dark blue = level 0, then cyan, green, yellow, red = level 12 or coarser; a darker line marks each whole level, grey = no base-colour texture. Hover for the number.</source>
+        <translation>基础颜色采样所读取的 mip 层级：深蓝 = 0 级，依次为青、绿、黄，红 = 12 级或更粗；每个整数层级处有一条较暗的线，灰色 = 没有基础颜色纹理。悬停可读取数值。</translation>
     </message>
     <message>
         <source>Dot product of normal and light direction. Basic diffuse term.</source>
