@@ -15,6 +15,27 @@
 # (wood, stone, leaves, ...), so it is a plausible spectrum, not a measured
 # one; it runs 0.35-15 um, which is what the infrared bands read too.
 #
+# The same entry also carries the block's surface: metallic, roughness, measured
+# n,k, emission and a leaf's diffuse transmission, in the library's "surface"
+# block. Iron, gold and copper render as metals, glass and quartz as smooth
+# dielectrics, glowstone and lanterns as emitters, leaves transmit -- with no
+# [[materials]] table here. An explicit [[materials]] or [material_overrides]
+# key still wins over the library, and the library wins over the glTF.
+#
+# Per-texel maps are opt-in. The export has none (metallic 0, roughness 1 on
+# every material), so each block is one roughness. To take a LabPBR resource
+# pack's roughness, metal flag and normals per texel, derive a glTF, from the repo root, with
+#     python3 -I scripts/gen_minecraft_scene.py assets/models/网安大楼.gltf \
+#         --out assets/models/网安大楼_pbr.gltf --pbr-pack PACK.zip \
+#         --vanilla <textures/block of the 26.4-pre-1 assets> --pbr-maps mr
+# and point [scene] gltf at the result. A material that gets a
+# metallicRoughnessTexture keeps that texture over the library's metallic and
+# roughness (the library's n,k still bind); one with a normalTexture makes
+# every one of its primitives upload tangents. "mr" costs ~341 MiB of GPU
+# memory at the atlas's 8192 px; "normal" adds another ~341 MiB and ~188 MiB
+# of tangents, so "mr" is the sensible default. The pack is not
+# redistributable: the maps stay in assets/models, which git ignores.
+#
 # Texture detail survives: a block bound to one entry is modulated in the
 # shader by how bright its atlas texel is against the block's mean colour.
 # The biome tint the exporter keeps in vertex colours (COLOR_0) is applied:
