@@ -1,0 +1,124 @@
+# ============================================================================
+# Quantiloom - 网安大楼 in the long-wave infrared, with a solved day of heat
+# ============================================================================
+# The same scene as wangan_dalou.toml -- same glTF, same Minecraft spectral
+# library bound by block name -- rendered in lwir_fused (8-12 um) from
+# temperatures an energy balance solves instead of the flat 300 K a scene
+# without [thermal] radiates at. Keep wangan_dalou.toml for the fast VIS view.
+#
+# Cost, measured: a solve of this scene took about 15 minutes for 420 steps
+# over 1,555,870 elements, and its surfaces came out between 294.7 K and
+# 347.9 K at 14:00. It is paid once. The SDK (0.2.7 and later) stores a solved
+# field on disk under a hash of its inputs -- mesh, materials, the [thermal]
+# scalars, this forcing file, the sun direction, the library version and the
+# GPU -- so a repeat render, a different camera or another spp is a cache hit
+# and the solve is skipped; the render log says "Thermal cache: hit".
+# QUANTILOOM_THERMAL_CACHE=0 turns the cache off. Studio's Thermal panel
+# solves the same field behind its own slider.
+#
+# Why elements, not triangles: the mesh is 7.18 M triangles, and a per-triangle
+# solve keeps view-factor and state arrays that do not fit in memory. Setting
+# element_size_m clusters neighbouring triangles into elements of about that
+# size, 7.18 M -> ~1.556 M at 2 m. A block is 1 m, so an element is a few
+# blocks of one material; the render still shades every triangle, with the
+# temperature of its element.
+#
+# The sun is the one wangan_dalou.toml does NOT use. The forcing file is
+# concrete_day.csv, whose sun path was solved from env_concrete.toml's
+# sun_direction, and the solver heats the surfaces that sun lights. So the
+# render takes that same direction below -- a sun from the south-west, 52 deg
+# up -- and the heated and the lit faces agree. In this band the sun only
+# matters through that heating (the reflected sunlight is a rounding error
+# at 10 um), but it decides which walls are warm. A forcing file made from
+# this scene's own sun (scripts/gen_env_forcing.py takes a scene's
+# [lighting] sun_direction) would restore the south-east light of the VIS file.
+#
+# Surfaces: metals, glass and emitters take their metallic, roughness, n,k and
+# emission from the library's surface block; see wangan_dalou.toml. In LWIR
+# that is what lets a window or a copper rail reflect the cold sky as a mirror
+# does, rather than radiate as a grey body.
+# ============================================================================
+
+[renderer]
+resolution = [1600, 900]
+spp = 64
+seed = 42
+output = "wangan_dalou_lwir.exr"
+environment_map = ""
+environment_map_enabled = false
+enable_shadow_rays = true
+
+[spectral]
+mode = "lwir_fused"
+band = "LWIR"
+basis_file = "../spectral/quantiloom_basis_v3_minecraft.qlbin"
+materials_json = "../spectral/quantiloom_materials_minecraft.json"
+material_binding = "by_name"
+
+[scene]
+gltf = "../models/网安大楼.gltf"
+world_units_to_meters = 1.0
+# What a surface with no thermal solve would radiate at; here every surface
+# has one, so this only covers what the solve leaves out.
+default_temperature_k = 303.0
+
+[camera]
+position = [210.90, 154.64, 266.86]
+look_at = [0.53, 0.38, 0.40]
+up = [0.0, 1.0, 0.0]
+fov_y = 45.0
+
+[lighting]
+# ~52 deg elevation from the south-west: where concrete_day.csv's sun is at
+# 14:00, which is what the thermal solve below heats the walls with.
+sun_direction = [-0.45, 0.79, 0.42]
+sun_radiance = [3.1, 3.05, 2.95]    # RGB mode only; the spectral modes read the LUT
+sky_radiance = [0.45, 0.55, 0.75]   # RGB mode only
+solar_lut = "../luts/astmg173.csv"
+solar_lut_columns = [4, 3]
+solar_lut_diffuse_is_global = true
+
+[atmosphere]
+preset = "clear"
+# The air at 14:00 in concrete_day.csv.
+t_ground_K = 303.15
+
+[material]
+albedo = [0.8, 0.8, 0.8]
+
+# ============================================================================
+# [thermal] -- the temperatures come from an energy balance
+# ============================================================================
+# Every library entry carries its own conductivity, density, specific heat and
+# thickness, so the day needs no [[materials]] table. The values here are
+# env_concrete.toml's, kept because the forcing file is too; its comments give
+# the reasons.
+[thermal]
+enabled = true
+time_h = 14.0
+start_time_h = 0.0
+# 120 s over 420 steps from midnight to 14:00, the step the 15-minute solve
+# above used (its range stayed bounded and sensible). It is the step
+# env_concrete.toml found converged against the radiative coupling between
+# surfaces that are themselves moving. The thin things here are glass at
+# 6 mm (lumped time constant about 13 min), the metals at 10 mm, and 20 mm of
+# wool and carpet (about 160 s); 120 s is inside the quickest of those, and
+# the thinnest metal is slower than the glass. Halve the step if you add
+# anything thinner than 6 mm, and check the run did not diverge.
+timestep_s = 120.0
+layers = 8
+# Uniform at the pre-dawn air temperature, not steady: the steady-state
+# relaxation takes hour-long steps that thin surfaces cannot follow, which is
+# the divergence env_concrete.toml describes. The deep 0.2-0.3 m masonry still
+# remembers this number at 14:00.
+initial = "uniform"
+initial_temperature_k = 298.8
+forcing_file = "../forcing/concrete_day.csv"
+# Clusters of about 2 m instead of one element per triangle: 7.18 M triangles
+# become ~1.556 M elements.
+element_size_m = 2.0
+# A stored state is elementCount * layers * 8 bytes, ~100 MB here, so a 4 h
+# stride keeps four of them (~400 MB) for scrubbing the day in Studio.
+checkpoint_stride_h = 4.0
+exchange_rays = 128
+exchange_top_k = 16
