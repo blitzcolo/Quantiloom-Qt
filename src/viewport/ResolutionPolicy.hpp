@@ -40,6 +40,24 @@ struct ResolutionPolicy {
     friend bool operator==(const ResolutionPolicy&, const ResolutionPolicy&) = default;
 };
 
+/// A named size the shell offers; @c group is the aspect family, so a menu
+/// can separate 16:9 from 4:3 and so on.
+struct ResolutionPreset {
+    int width;
+    int height;
+    int group;
+};
+
+inline constexpr ResolutionPreset kResolutionPresets[] = {
+    {1280, 720, 0},  {1600, 900, 0},  {1920, 1080, 0}, {2560, 1440, 0}, {3840, 2160, 0},
+    {1024, 768, 1},  {1600, 1200, 1},
+    {1024, 1024, 2}, {2048, 2048, 2},
+    {2560, 1080, 3}, {3440, 1440, 3},
+};
+
+/// The scales Follow mode offers, 100% first.
+inline constexpr float kFollowScales[] = {1.0f, 0.75f, 0.5f, 0.25f};
+
 /// @p size with each side inside [kMinRenderSide, kMaxRenderSide].
 [[nodiscard]] inline QSize clampedRenderSize(const QSize& size) {
     return {std::clamp(size.width(), kMinRenderSide, kMaxRenderSide),

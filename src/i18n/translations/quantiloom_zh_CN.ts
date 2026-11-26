@@ -2913,6 +2913,46 @@ Remove it from the recent files?</source>
         <source>Exported %1 camera product(s) to %2</source>
         <translation type="vanished">已将 %1 个相机产品导出到 %2</translation>
     </message>
+    <message>
+        <source>&amp;Resolution</source>
+        <translation>分辨率(&amp;R)</translation>
+    </message>
+    <message>
+        <source>Custom...</source>
+        <translation>自定义...</translation>
+    </message>
+    <message>
+        <source>Render at a width and height of your choosing</source>
+        <translation>按您指定的宽度和高度渲染</translation>
+    </message>
+    <message>
+        <source>&amp;Follow Viewport</source>
+        <translation>跟随视口(&amp;F)</translation>
+    </message>
+    <message>
+        <source>Render at the viewport's pixel size times the scale, instead of a fixed size</source>
+        <translation>按视口像素尺寸乘以比例渲染，而不是固定尺寸</translation>
+    </message>
+    <message>
+        <source>Fit to &amp;View</source>
+        <translation>适应视口(&amp;V)</translation>
+    </message>
+    <message>
+        <source>On: the render is scaled to fit the viewport, up or down. Off: one render pixel per screen pixel, with scrollbars when it is larger than the viewport.</source>
+        <translation>开启：渲染图缩放至适应视口（放大或缩小）。关闭：渲染图一个像素对应屏幕一个像素，大于视口时出现滚动条。</translation>
+    </message>
+    <message>
+        <source>Custom Resolution</source>
+        <translation>自定义分辨率</translation>
+    </message>
+    <message>
+        <source>Width:</source>
+        <translation>宽度：</translation>
+    </message>
+    <message>
+        <source>Height:</source>
+        <translation>高度：</translation>
+    </message>
 </context>
 <context>
     <name>MaterialEditorPanel</name>
@@ -3685,7 +3725,7 @@ Pick a node or a material in the scene tree.</source>
     </message>
     <message>
         <source>Follows the viewport size.</source>
-        <translation>跟随视口尺寸。</translation>
+        <translation type="vanished">跟随视口尺寸。</translation>
     </message>
     <message>
         <source>Scene</source>
@@ -3761,11 +3801,63 @@ Pick a node or a material in the scene tree.</source>
     </message>
     <message>
         <source>%1 x %2</source>
-        <translation>%1 × %2</translation>
+        <translation type="vanished">%1 × %2</translation>
     </message>
     <message>
         <source>Resolution</source>
         <translation>分辨率</translation>
+    </message>
+    <message>
+        <source>Mode:</source>
+        <translation>模式：</translation>
+    </message>
+    <message>
+        <source>Fixed resolution</source>
+        <translation>固定分辨率</translation>
+    </message>
+    <message>
+        <source>Follow viewport</source>
+        <translation>跟随视口</translation>
+    </message>
+    <message>
+        <source>Fixed renders at exactly the size below, however large the viewport is. Follow viewport renders at the viewport's pixel size times the scale.</source>
+        <translation>固定分辨率按下方的尺寸渲染，与视口大小无关；跟随视口则按视口像素尺寸乘以比例渲染。</translation>
+    </message>
+    <message>
+        <source>Preset:</source>
+        <translation>预设：</translation>
+    </message>
+    <message>
+        <source>Custom</source>
+        <translation>自定义</translation>
+    </message>
+    <message>
+        <source>Width:</source>
+        <translation>宽度：</translation>
+    </message>
+    <message>
+        <source>Height:</source>
+        <translation>高度：</translation>
+    </message>
+    <message>
+        <source>Follow scale:</source>
+        <translation>跟随比例：</translation>
+    </message>
+    <message>
+        <source>Fit to view</source>
+        <translation>适应视口</translation>
+    </message>
+    <message>
+        <source>On: the render is scaled to fit the viewport, up or down. Off: one render pixel per screen pixel, with scrollbars when it is larger than the viewport.</source>
+        <translation>开启：渲染图缩放至适应视口（放大或缩小）。关闭：渲染图一个像素对应屏幕一个像素，大于视口时出现滚动条。</translation>
+    </message>
+    <message>
+        <source>The size the renderer is tracing at now, and how much the viewport magnifies it (100% is one render pixel per screen pixel).</source>
+        <translation>渲染器当前的追踪尺寸，以及视口对它的放大倍数（100% 即渲染图一个像素对应屏幕一个像素）。</translation>
+    </message>
+    <message>
+        <source>%1 x %2  -  zoom %3%</source>
+        <translation>%1 x %2  -  缩放 %3%</translation>
     </message>
 </context>
 <context>

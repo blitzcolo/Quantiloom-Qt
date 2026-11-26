@@ -11,6 +11,7 @@
 #pragma once
 
 #include "../ui/PanelBase.hpp"
+#include "../viewport/ResolutionPolicy.hpp"
 
 #include <optional>
 
@@ -42,16 +43,21 @@ public:
 
     void setSampleCount(uint32_t count);
     void setTargetSPP(uint32_t spp);
-    void setResolution(uint32_t width, uint32_t height);
+
+    /// Show a resolution policy without emitting resolutionRequested; the
+    /// shell's dispatcher calls this. Which controls are enabled follows the
+    /// mode: preset and size in Fixed, the scale in Follow.
+    void setResolutionPolicy(const viewport::ResolutionPolicy& policy);
+    /// Show the fit switch without emitting fitToViewToggled.
+    void setFitToView(bool fit);
+    /// The read-only line: the extent the renderer is tracing at and the zoom
+    /// the viewport shows it at (1.0 is one render pixel per screen pixel). An
+    /// empty extent, before the first frame, shows a dash.
+    void setRenderExtent(const QSize& extent, double zoom);
 
     /// Host the display-enhancement controls inside this panel.
     void setDisplayEnhancementWidget(QWidget* widget);
 
-    // Getters for current settings. These are the render resolution, not the
-    // panel's own geometry -- naming them width()/height() would shadow the
-    // non-virtual QWidget methods that answer the latter.
-    [[nodiscard]] uint32_t renderWidth() const { return m_width; }
-    [[nodiscard]] uint32_t renderHeight() const { return m_height; }
     [[nodiscard]] uint32_t spp() const { return m_targetSPP; }
 
     /// Whether reaching the target should write an EXR without being asked.
@@ -76,6 +82,10 @@ public:
 
 signals:
     void sppChanged(uint32_t spp);
+    /// A resolution control was changed by hand. The shell applies it through
+    /// its one dispatcher, which the Render menu and ql_set_resolution share.
+    void resolutionRequested(const viewport::ResolutionPolicy& policy);
+    void fitToViewToggled(bool fit);
     /// Asks the shell to run its one image export path. The panel used to
     /// raise its own save dialog and emit a format string that nothing
     /// listened for, so choosing a file did nothing at all.
@@ -91,23 +101,35 @@ private slots:
     void onSppPresetChanged(int index);
     void onCustomSppChanged(int value);
     void onResetClicked();
+    void onPresetChosen(int index);
+    void onSizeEdited();
+    void emitResolutionRequest();
 
 private:
     void setupUi();
     /// Recomputes the combo's enabled state and the line under it from
     /// m_vertexColorState; also run on a language change.
     void updateVertexColorHint();
+    /// Selects the preset matching the size in the two boxes, else Custom.
+    void selectPresetFor(const QSize& size);
+    void updateExtentLabel();
 
     // Current settings
     uint32_t m_targetSPP = 4;
     uint32_t m_sampleCount = 0;
-    uint32_t m_width = 1280;
-    uint32_t m_height = 720;
+    QSize m_extent;
+    double m_zoom = 1.0;
 
     // UI elements
     QLabel* m_sampleCountLabel = nullptr;
     QComboBox* m_sppPreset = nullptr;
     QSpinBox* m_customSpp = nullptr;
+    QComboBox* m_modeCombo = nullptr;
+    QComboBox* m_presetCombo = nullptr;
+    QSpinBox* m_widthSpin = nullptr;
+    QSpinBox* m_heightSpin = nullptr;
+    QComboBox* m_scaleCombo = nullptr;
+    QCheckBox* m_fitCheck = nullptr;
     QLabel* m_resolutionLabel = nullptr;
     QPushButton* m_exportBtn = nullptr;
     QPushButton* m_resetBtn = nullptr;

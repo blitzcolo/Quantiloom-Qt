@@ -42,6 +42,7 @@
 #include "ui/ModeCatalog.hpp"
 #include "ui/UiStyle.hpp"
 #include "ui/ViewportFrame.hpp"
+#include "ui/ViewportHost.hpp"
 #include "ui/theme/ThemeManager.hpp"
 #include "ui/chrome/TitleBar.hpp"
 #include "ui/chrome/WindowChrome.hpp"
@@ -65,6 +66,10 @@
 #include <QDockWidget>
 #include <QScreen>
 #include <QScrollArea>
+#include <QSpinBox>
+#include <QDialog>
+#include <QDialogButtonBox>
+#include <QFormLayout>
 #include <QTabWidget>
 #include <QStatusBar>
 #include <QProgressBar>
@@ -109,6 +114,7 @@ constexpr auto kGeometryKey    = "window/geometry";
 constexpr auto kStateVersionKey = "window/state_version";
 constexpr auto kShowGridKey    = "viewport/show_grid";
 constexpr auto kMotionAdaptiveResolutionKey = "viewport/motion_adaptive_resolution";
+constexpr auto kFitToViewKey = "viewport/fit_to_view";
 
 /// Bumped whenever the dock inventory changes, so a layout written by an older
 /// build is discarded instead of restored into a window that no longer has the
@@ -185,6 +191,7 @@ MainWindow::MainWindow(QVulkanInstance* vulkanInstance, QWidget* parent)
         applyGridVisible(settings.value(kShowGridKey, true).toBool());
         applyMotionAdaptiveResolution(
             settings.value(kMotionAdaptiveResolutionKey, true).toBool());
+        applyFitToView(settings.value(kFitToViewKey, true).toBool());
         applyWorkspaceEditingScope(m_workspaces->currentWorkspace());
     }
 
@@ -350,7 +357,17 @@ void MainWindow::setupUi() {
             0.85f));
     });
 
-    m_viewportFrame = new ViewportFrame(m_viewportContainer, this);
+    // The container sits beside two scrollbars that show only while a render
+    // shown 1:1 overflows the view. The wheel stays the camera's.
+    m_viewportHost = new ViewportHost(m_viewportContainer, this);
+    connect(m_viewportHost, &ViewportHost::scrollChanged,
+            this, [this](const QPoint& offset) { m_viewport->setScrollOffset(offset); });
+    // Queued: it is emitted from inside the frame loop and the swapchain
+    // rebuild, and showing a scrollbar resizes the view that is rebuilding.
+    connect(m_viewport, &ViewportWindow::presentationChanged,
+            this, &MainWindow::refreshPresentation, Qt::QueuedConnection);
+
+    m_viewportFrame = new ViewportFrame(m_viewportHost, this);
     connect(m_viewportFrame, &ViewportFrame::openSceneRequested,
             this, &MainWindow::onOpenScene);
     connect(m_viewportFrame, &ViewportFrame::openRecentRequested,
@@ -622,6 +639,11 @@ void MainWindow::setupMenus() {
 
     m_qualityMenu = m_renderMenu->addMenu(QString());
     buildQualityMenu(m_qualityMenu);
+
+    // What the render is made at, and how it is shown. The Render panel's
+    // Resolution group is a shortcut to this, never the only route.
+    m_resolutionMenu = m_renderMenu->addMenu(QString());
+    buildResolutionMenu(m_resolutionMenu);
 
     // The spectral mode decides what the rendered numbers physically are, and
     // reaching it meant finding one panel among ten.
@@ -2310,6 +2332,165 @@ void MainWindow::applyMotionAdaptiveResolution(bool enabled) {
     refreshSampleRateLabel();
 }
 
+void MainWindow::buildResolutionMenu(QMenu* menu) {
+    using Mode = viewport::ResolutionPolicy::Mode;
+    m_resolutionGroup = new QActionGroup(this);
+    m_resolutionGroup->setExclusive(true);
+
+    int group = -1;
+    for (const viewport::ResolutionPreset& preset : viewport::kResolutionPresets) {
+        if (group >= 0 && preset.group != group) menu->addSeparator();
+        group = preset.group;
+        const QSize size(preset.width, preset.height);
+        QAction* action =
+            menu->addAction(QStringLiteral("%1 x %2").arg(size.width()).arg(size.height()));
+        action->setCheckable(true);
+        action->setData(size);
+        m_resolutionGroup->addAction(action);
+        connect(action, &QAction::triggered, this, [this, size] {
+            viewport::ResolutionPolicy policy = m_resolution;
+            policy.mode = Mode::Fixed;
+            policy.fixed = size;
+            applyRenderResolution(policy);
+        });
+    }
+    menu->addSeparator();
+    m_resolutionCustomAction = menu->addAction(QString());
+    m_resolutionCustomAction->setCheckable(true);
+    m_resolutionGroup->addAction(m_resolutionCustomAction);
+    connect(m_resolutionCustomAction, &QAction::triggered,
+            this, &MainWindow::promptCustomResolution);
+
+    menu->addSeparator();
+    m_followMenu = menu->addMenu(QString());
+    for (const float scale : viewport::kFollowScales) {
+        QAction* action =
+            m_followMenu->addAction(QString::number(qRound(scale * 100)) + QLatin1Char('%'));
+        action->setCheckable(true);
+        action->setData(scale);
+        m_resolutionGroup->addAction(action);
+        connect(action, &QAction::triggered, this, [this, scale] {
+            viewport::ResolutionPolicy policy = m_resolution;
+            policy.mode = Mode::Follow;
+            policy.followScale = scale;
+            applyRenderResolution(policy);
+        });
+    }
+
+    menu->addSeparator();
+    m_fitToViewAction = menu->addAction(QString());
+    m_fitToViewAction->setCheckable(true);
+    connect(m_fitToViewAction, &QAction::triggered, this, &MainWindow::applyFitToView);
+}
+
+void MainWindow::promptCustomResolution() {
+    QDialog dialog(this);
+    dialog.setWindowTitle(tr("Custom Resolution"));
+    auto* form = new QFormLayout(&dialog);
+    auto* width = new QSpinBox(&dialog);
+    auto* height = new QSpinBox(&dialog);
+    for (QSpinBox* spin : {width, height}) {
+        spin->setRange(viewport::kMinRenderSide, viewport::kMaxRenderSide);
+    }
+    width->setValue(m_resolution.fixed.width());
+    height->setValue(m_resolution.fixed.height());
+    form->addRow(tr("Width:"), width);
+    form->addRow(tr("Height:"), height);
+    auto* buttons =
+        new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+    connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    form->addRow(buttons);
+
+    if (dialog.exec() != QDialog::Accepted) {
+        // The click already ticked Custom; put the tick back on what is in effect.
+        syncResolutionUi();
+        return;
+    }
+    viewport::ResolutionPolicy policy = m_resolution;
+    policy.mode = viewport::ResolutionPolicy::Mode::Fixed;
+    policy.fixed = QSize(width->value(), height->value());
+    applyRenderResolution(policy);
+}
+
+void MainWindow::applyRenderResolution(const viewport::ResolutionPolicy& requested,
+                                       bool editsDocument) {
+    // Single application point for the render resolution: the Render menu,
+    // the panel's controls and ql_set_resolution all end here.
+    viewport::ResolutionPolicy policy = requested;
+    policy.fixed = viewport::clampedRenderSize(policy.fixed);
+    const bool changed = !(policy == m_resolution);
+    const bool fixedChanged = policy.fixed != m_resolution.fixed;
+    m_resolution = policy;
+    m_viewport->setResolutionPolicy(policy);
+    syncResolutionUi();
+    if (!editsDocument || !changed) {
+        return;
+    }
+    // Only the fixed size is the document's (a save writes it as width and
+    // height); the mode and the scale are how the user looks at it.
+    if (fixedChanged) setSceneModified(true);
+    // A new extent restarts the accumulation, which is a new run as far as
+    // the completion message and the ETA are concerned.
+    beginRenderTiming();
+    setRenderActionsRunning(!m_viewport->isRenderPaused());
+    updateRenderProgress();
+}
+
+void MainWindow::enterFixedResolution(const QSize& size) {
+    viewport::ResolutionPolicy policy = m_resolution;
+    policy.mode = viewport::ResolutionPolicy::Mode::Fixed;
+    policy.fixed = size;
+    applyRenderResolution(policy, /*editsDocument=*/false);
+}
+
+void MainWindow::applyFitToView(bool fit) {
+    // A way of looking at the render, like the grid: it re-presents the
+    // accumulation and never restarts it.
+    m_fitToView = fit;
+    m_viewport->setFitToView(fit);
+    syncResolutionUi();
+    QSettings settings;
+    settings.setValue(kFitToViewKey, fit);
+}
+
+void MainWindow::syncResolutionUi() {
+    m_renderSettingsPanel->setResolutionPolicy(m_resolution);
+    m_renderSettingsPanel->setFitToView(m_fitToView);
+
+    const bool follow = m_resolution.mode == viewport::ResolutionPolicy::Mode::Follow;
+    QAction* match = m_resolutionCustomAction;
+    for (QAction* action : m_resolutionGroup->actions()) {
+        const QVariant value = action->data();
+        if (!value.isValid()) continue;   // Custom: the fallback above
+        const bool isScale = value.typeId() == QMetaType::Float;
+        if (follow ? (isScale && qFuzzyCompare(value.toFloat(), m_resolution.followScale))
+                   : (!isScale && value.toSize() == m_resolution.fixed)) {
+            match = action;
+        }
+    }
+    match->setChecked(true);
+    m_fitToViewAction->setChecked(m_fitToView);
+}
+
+void MainWindow::refreshPresentation() {
+    const viewport::Presentation presentation = m_viewport->presentation();
+    m_viewportHost->setPresentation(presentation, m_fitToView);
+    m_tracedExtent = m_viewport->currentRenderSize();
+    m_renderSettingsPanel->setRenderExtent(m_tracedExtent, displayZoom());
+}
+
+double MainWindow::displayZoom() const {
+    // Against the extent being traced, which is below the render's while a
+    // gesture is in progress, so it says how magnified the picture on screen
+    // really is.
+    const QSize traced = m_viewport->currentRenderSize();
+    if (traced.isEmpty()) {
+        return 1.0;
+    }
+    return static_cast<double>(m_viewport->presentation().content.width()) / traced.width();
+}
+
 void MainWindow::applyWorkspaceEditingScope(const QString& workspaceId) {
     // Layout is the scene-editing workspace; the others are parameter rooms.
     // Grid, gizmo and the transform shortcuts exist in Layout and nowhere
@@ -2580,6 +2761,12 @@ void MainWindow::setupDockWidgets() {
             this, &MainWindow::onExportImage);
     connect(m_renderSettingsPanel, &RenderSettingsPanel::vertexColorModeRequested,
             this, &MainWindow::requestVertexColorMode);
+    connect(m_renderSettingsPanel, &RenderSettingsPanel::resolutionRequested,
+            this, [this](const viewport::ResolutionPolicy& policy) {
+                applyRenderResolution(policy);
+            });
+    connect(m_renderSettingsPanel, &RenderSettingsPanel::fitToViewToggled,
+            this, &MainWindow::applyFitToView);
 
     // Each of these routes through its dispatcher as before; the difference is
     // that the change is now recorded, so Ctrl+Z no longer skips silently past
@@ -3087,6 +3274,7 @@ void MainWindow::setupConnections() {
                     m_pendingOpenPath.clear();
                     m_pendingDocumentConfig.reset();
                     m_pendingRawConfig.reset();
+                    m_resolutionBeforeOpen.reset();
                     updatePanelsFromScene();
                     if (openedDocument) seedPastedNodesFromDocument();
                     syncPanelsFromRenderer();
@@ -3111,6 +3299,10 @@ void MainWindow::setupConnections() {
                     // then exec()ed a nested event loop in the middle of it,
                     // which is why it came up empty and took the window with
                     // it.
+                    if (!m_pendingOpenPath.isEmpty() && m_resolutionBeforeOpen) {
+                        applyRenderResolution(*m_resolutionBeforeOpen, /*editsDocument=*/false);
+                    }
+                    m_resolutionBeforeOpen.reset();
                     m_pendingOpenPath.clear();
                     m_pendingDocumentConfig.reset();
                     m_pendingRawConfig.reset();
@@ -3414,6 +3606,16 @@ void MainWindow::retranslateUi() {
     m_resumeRenderAction->setToolTip(tr("Carry on from the samples already accumulated"));
     m_resetAccumulationAction->setText(tr("Reset &Accumulation"));
     m_qualityMenu->setTitle(tr("&Quality"));
+    m_resolutionMenu->setTitle(tr("&Resolution"));
+    m_resolutionCustomAction->setText(tr("Custom..."));
+    m_resolutionCustomAction->setToolTip(tr("Render at a width and height of your choosing"));
+    m_followMenu->setTitle(tr("&Follow Viewport"));
+    m_followMenu->setToolTip(
+        tr("Render at the viewport's pixel size times the scale, instead of a fixed size"));
+    m_fitToViewAction->setText(tr("Fit to &View"));
+    m_fitToViewAction->setToolTip(
+        tr("On: the render is scaled to fit the viewport, up or down. Off: one render "
+           "pixel per screen pixel, with scrollbars when it is larger than the viewport."));
     {
         const auto presets = catalog::qualityPresets();
         const auto actions = m_qualityGroup->actions();
@@ -3892,6 +4094,14 @@ bool MainWindow::openPath(const QString& filePath) {
     // The load is asynchronous and can take seconds on a large scene; the
     // sceneLoaded handler replaces this with the outcome.
     showStatusMessage(tr("Loading %1...").arg(QFileInfo(filePath).fileName()));
+    // The document's own resolution, before the load so the SDK renders it at
+    // that size from the first frame. A bare model has no [renderer] section
+    // and gets the default. A load that fails puts the previous one back.
+    m_resolutionBeforeOpen = m_resolution;
+    enterFixedResolution(m_pendingDocumentConfig
+                             ? QSize(static_cast<int>(m_pendingDocumentConfig->width),
+                                     static_cast<int>(m_pendingDocumentConfig->height))
+                             : viewport::ResolutionPolicy{}.fixed);
     const HistorySuppressor noHistory(m_suppressHistory);
     if (raw) m_viewport->applyConfig(raw, m_pendingDocumentConfig->baseDir);
     else m_viewport->loadScene(filePath);
@@ -4921,6 +5131,10 @@ void MainWindow::onFrameRendered(float frameTimeMs, uint32_t sampleCount) {
         showStatusMessage(tr("Camera history reset"));
     }
     m_lastCameraHistoryEpoch = cameraHistory.epoch;
+    // Motion-adaptive scaling changes the traced extent without any resize.
+    if (m_viewport->currentRenderSize() != m_tracedExtent) {
+        refreshPresentation();
+    }
     // Smoothed, because the per-frame figure jitters too fast to read. The
     // weight is on the history rather than the newest sample for the same
     // reason. An interval longer than a second is the render loop starting up
@@ -5571,7 +5785,7 @@ void MainWindow::applyConfig(const SceneConfig& config) {
     m_editedNodes.clear();
     m_editedMaterials.clear();
 
-    m_renderSettingsPanel->setResolution(config.width, config.height);
+    enterFixedResolution(QSize(static_cast<int>(config.width), static_cast<int>(config.height)));
     m_renderSettingsPanel->setTargetSPP(config.spp);
 
     m_spectralConfigPanel->setSpectralMode(config.spectralMode);
@@ -5813,8 +6027,10 @@ void MainWindow::collectCurrentConfig(SceneConfig& config) {
     }
 
     // Render
-    config.width = m_renderSettingsPanel->renderWidth();
-    config.height = m_renderSettingsPanel->renderHeight();
+    // The fixed size, also while the viewport is following: that mode is a
+    // way of looking and leaves the document's own resolution as it was.
+    config.width = static_cast<uint32_t>(m_resolution.fixed.width());
+    config.height = static_cast<uint32_t>(m_resolution.fixed.height());
     config.spp = m_renderSettingsPanel->spp();
     // From the renderer, not from m_lastConfig: no widget shows the seed, so
     // the carried-forward copy is the only other source and it goes stale the

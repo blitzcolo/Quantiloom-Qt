@@ -10,6 +10,7 @@
 #include "ui/UiStyle.hpp"
 #include "ui/HoverReadbackState.hpp"
 #include "editing/Commands.hpp"
+#include "viewport/ResolutionPolicy.hpp"
 // For IlluminantChoice, held by value below.
 #include "panels/LightingPanel.hpp"
 
@@ -91,6 +92,7 @@ class HyperspectralExportDialog;
 class SequenceRenderDialog;
 class ConfigManager;
 class ViewportFrame;
+class ViewportHost;
 class BusyOverlay;
 class TitleBar;
 class WindowChrome;
@@ -299,6 +301,29 @@ private:
     void applyDisplayEnhancementEnabled(bool enabled);
     void applyGridVisible(bool visible);
     void applyMotionAdaptiveResolution(bool enabled);
+    /// What the render extent follows: a fixed size or the viewport's. The
+    /// Render menu, the panel's controls and ql_set_resolution all come
+    /// through here. A changed fixed size is an edit of the document (it is
+    /// what a save writes as width and height); the mode and the scale are
+    /// ways of looking and are not. @p editsDocument is false for the
+    /// document's own size arriving with an open.
+    void applyRenderResolution(const viewport::ResolutionPolicy& policy,
+                               bool editsDocument = true);
+    /// Fitted to the view, or one render pixel per screen pixel with
+    /// scrollbars. A viewing preference, remembered across sessions.
+    void applyFitToView(bool fit);
+    /// A document was opened: Fixed at its own size, whatever the viewport
+    /// was doing before.
+    void enterFixedResolution(const QSize& size);
+    void buildResolutionMenu(QMenu* menu);
+    void promptCustomResolution();
+    /// Ticks and enables every control that shows the policy, from m_resolution.
+    void syncResolutionUi();
+    /// The true render extent and the zoom, into the panel's read-only line,
+    /// and the scrollbars from the renderer's presentation.
+    void refreshPresentation();
+    /// Shown size over traced size; 1.0 is one traced pixel per screen pixel.
+    [[nodiscard]] double displayZoom() const;
     /// Scope the scene-editing tools to the Layout workspace: grid, gizmo and
     /// the transform shortcuts exist there and nowhere else. The grid menu
     /// entry follows the workspace; the user's on/off preference survives.
@@ -565,6 +590,7 @@ private:
     // empty state and the non-modal progress line.
     ViewportWindow* m_viewport = nullptr;
     QWidget* m_viewportContainer = nullptr;
+    ViewportHost* m_viewportHost = nullptr;
     ViewportFrame* m_viewportFrame = nullptr;
 
     // Workspaces: one preset dock arrangement per stage of the work.
@@ -874,6 +900,13 @@ private:
     QAction* m_cameraUpdateKeyAction = nullptr;
     QAction* m_cameraDeleteKeyAction = nullptr;
     QMenu* m_qualityMenu = nullptr;
+    QMenu* m_resolutionMenu = nullptr;
+    QMenu* m_followMenu = nullptr;
+    /// One exclusive group over the presets, Custom and the follow scales: the
+    /// tick says which of them the policy is.
+    QActionGroup* m_resolutionGroup = nullptr;
+    QAction* m_resolutionCustomAction = nullptr;
+    QAction* m_fitToViewAction = nullptr;
     QMenu* m_themeMenu = nullptr;
 
     QActionGroup* m_debugGroup = nullptr;
@@ -991,6 +1024,18 @@ private:
     // the renderer's own flag so the status bar can say so without reaching
     // through a renderer that may not exist yet.
     bool m_motionAdaptiveResolution = true;
+
+    // The shell's copy of the render resolution policy; the viewport holds the
+    // same value and the panel and menu show it. Fixed at the document's
+    // width and height from every open on.
+    viewport::ResolutionPolicy m_resolution;
+    bool m_fitToView = true;
+    /// The extent last shown in the panel's line, to notice a motion-adaptive
+    /// change that no resize announces.
+    QSize m_tracedExtent;
+    /// Taken when an open starts so a load that fails puts the previous
+    /// document's resolution back.
+    std::optional<viewport::ResolutionPolicy> m_resolutionBeforeOpen;
 
     // Last configuration seen by applyConfig(), used as the base for
     // collectCurrentConfig(). Not every field has a panel behind it -- the

@@ -2709,6 +2709,46 @@ Remove it from the recent files?</source>
         <source>Exported %1 camera product(s) to %2</source>
         <translation type="vanished">Exported %1 camera product(s) to %2</translation>
     </message>
+    <message>
+        <source>&amp;Resolution</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Custom...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Render at a width and height of your choosing</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Follow Viewport</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Render at the viewport's pixel size times the scale, instead of a fixed size</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Fit to &amp;View</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>On: the render is scaled to fit the viewport, up or down. Off: one render pixel per screen pixel, with scrollbars when it is larger than the viewport.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Custom Resolution</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Width:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Height:</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>MaterialEditorPanel</name>
@@ -3427,7 +3467,7 @@ Pick a node or a material in the scene tree.</source>
     </message>
     <message>
         <source>Follows the viewport size.</source>
-        <translation type="unfinished"></translation>
+        <translation type="vanished"></translation>
     </message>
     <message>
         <source>Scene</source>
@@ -3503,11 +3543,63 @@ Pick a node or a material in the scene tree.</source>
     </message>
     <message>
         <source>%1 x %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="vanished"></translation>
     </message>
     <message>
         <source>Resolution</source>
         <translation>Resolution</translation>
+    </message>
+    <message>
+        <source>Mode:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Fixed resolution</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Follow viewport</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Fixed renders at exactly the size below, however large the viewport is. Follow viewport renders at the viewport's pixel size times the scale.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Preset:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Custom</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Width:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Height:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Follow scale:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Fit to view</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>On: the render is scaled to fit the viewport, up or down. Off: one render pixel per screen pixel, with scrollbars when it is larger than the viewport.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The size the renderer is tracing at now, and how much the viewport magnifies it (100% is one render pixel per screen pixel).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 x %2  -  zoom %3%</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>

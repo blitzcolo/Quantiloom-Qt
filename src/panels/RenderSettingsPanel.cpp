@@ -19,6 +19,7 @@
 #include <QPushButton>
 #include <QCheckBox>
 #include <QFormLayout>
+#include <QSignalBlocker>
 
 RenderSettingsPanel::RenderSettingsPanel(QWidget* parent)
     : PanelBase(parent)
@@ -102,25 +103,90 @@ void RenderSettingsPanel::setupUi() {
     mainLayout->addWidget(qualityGroup);
 
     // --- resolution -----------------------------------------------------
-    // Read-only on purpose: the viewport renders at the swapchain's size, so
-    // the preset list that used to sit here could not take effect. Rather than
-    // keep a control that silently does nothing, the panel reports the
-    // resolution the renderer is actually using.
+    // Every control here emits resolutionRequested() and nothing more: the
+    // shell applies it through its one dispatcher and pushes the result back
+    // through setResolutionPolicy(), so the Render menu and ql_set_resolution
+    // cannot disagree with what these show.
     auto* resGroup = new QGroupBox(this);
     auto* resLayout = new QFormLayout(resGroup);
 
-    m_resolutionLabel = new QLabel();   // filled by setResolution(), in retranslateUi()
+    using Mode = viewport::ResolutionPolicy::Mode;
+    m_modeCombo = new QComboBox(resGroup);
+    m_modeCombo->addItem(QString(), static_cast<int>(Mode::Fixed));
+    m_modeCombo->addItem(QString(), static_cast<int>(Mode::Follow));
+    connect(m_modeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &RenderSettingsPanel::emitResolutionRequest);
+    auto* modeCaption = new QLabel(resGroup);
+    resLayout->addRow(modeCaption, m_modeCombo);
+
+    m_presetCombo = new QComboBox(resGroup);
+    for (const viewport::ResolutionPreset& preset : viewport::kResolutionPresets) {
+        m_presetCombo->addItem(QStringLiteral("%1 x %2").arg(preset.width).arg(preset.height),
+                               QSize(preset.width, preset.height));
+    }
+    m_presetCombo->addItem(QString(), QSize());   // custom: no size of its own
+    connect(m_presetCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &RenderSettingsPanel::onPresetChosen);
+    auto* presetCaption = new QLabel(resGroup);
+    resLayout->addRow(presetCaption, m_presetCombo);
+
+    m_widthSpin = new QSpinBox(resGroup);
+    m_heightSpin = new QSpinBox(resGroup);
+    for (QSpinBox* spin : {m_widthSpin, m_heightSpin}) {
+        spin->setRange(viewport::kMinRenderSide, viewport::kMaxRenderSide);
+        // Applied on commit, like the custom sample count: typing 1920 would
+        // otherwise restart the render at 1, 19, 192 and 1920.
+        spin->setKeyboardTracking(false);
+        connect(spin, QOverload<int>::of(&QSpinBox::valueChanged),
+                this, &RenderSettingsPanel::onSizeEdited);
+    }
+    auto* widthCaption = new QLabel(resGroup);
+    auto* heightCaption = new QLabel(resGroup);
+    resLayout->addRow(widthCaption, m_widthSpin);
+    resLayout->addRow(heightCaption, m_heightSpin);
+
+    m_scaleCombo = new QComboBox(resGroup);
+    for (const float scale : viewport::kFollowScales) {
+        m_scaleCombo->addItem(QString::number(qRound(scale * 100)) + QLatin1Char('%'), scale);
+    }
+    connect(m_scaleCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &RenderSettingsPanel::emitResolutionRequest);
+    auto* scaleCaption = new QLabel(resGroup);
+    resLayout->addRow(scaleCaption, m_scaleCombo);
+
+    m_fitCheck = new QCheckBox(resGroup);
+    m_fitCheck->setChecked(true);
+    connect(m_fitCheck, &QCheckBox::toggled, this, &RenderSettingsPanel::fitToViewToggled);
+    resLayout->addRow(m_fitCheck);
+
+    // The truth about the picture: what is traced, and how it is shown.
+    m_resolutionLabel = new QLabel(resGroup);   // text from updateExtentLabel()
     auto* resCaption = new QLabel(resGroup);
     resLayout->addRow(resCaption, m_resolutionLabel);
 
-    auto* resNote = new QLabel(resGroup);
-    bindStyle([resNote] { uistyle::applyHintStyle(resNote); });
-    resLayout->addRow(resNote);
-
-    bindText([resGroup, resCaption, resNote] {
+    bindText([this, resGroup, modeCaption, presetCaption, widthCaption, heightCaption,
+              scaleCaption, resCaption] {
         resGroup->setTitle(tr("Resolution"));
+        modeCaption->setText(tr("Mode:"));
+        m_modeCombo->setItemText(0, tr("Fixed resolution"));
+        m_modeCombo->setItemText(1, tr("Follow viewport"));
+        m_modeCombo->setToolTip(
+            tr("Fixed renders at exactly the size below, however large the viewport is. "
+               "Follow viewport renders at the viewport's pixel size times the scale."));
+        presetCaption->setText(tr("Preset:"));
+        m_presetCombo->setItemText(m_presetCombo->count() - 1, tr("Custom"));
+        widthCaption->setText(tr("Width:"));
+        heightCaption->setText(tr("Height:"));
+        scaleCaption->setText(tr("Follow scale:"));
+        m_fitCheck->setText(tr("Fit to view"));
+        m_fitCheck->setToolTip(
+            tr("On: the render is scaled to fit the viewport, up or down. Off: one render "
+               "pixel per screen pixel, with scrollbars when it is larger than the viewport."));
         resCaption->setText(tr("Render resolution:"));
-        resNote->setText(tr("Follows the viewport size."));
+        m_resolutionLabel->setToolTip(
+            tr("The size the renderer is tracing at now, and how much the viewport "
+               "magnifies it (100% is one render pixel per screen pixel)."));
+        updateExtentLabel();
     });
 
     mainLayout->addWidget(resGroup);
@@ -273,7 +339,6 @@ void RenderSettingsPanel::updateVertexColorHint() {
 
 void RenderSettingsPanel::retranslateUi() {
     PanelBase::retranslateUi();
-    setResolution(m_width, m_height);
     setSampleCount(m_sampleCount);
     updateVertexColorHint();
 }
@@ -317,10 +382,79 @@ void RenderSettingsPanel::setTargetSPP(uint32_t spp) {
     m_customSpp->setValue(static_cast<int>(spp));
 }
 
-void RenderSettingsPanel::setResolution(uint32_t width, uint32_t height) {
-    m_width = width;
-    m_height = height;
-    m_resolutionLabel->setText(tr("%1 x %2").arg(width).arg(height));
+void RenderSettingsPanel::setResolutionPolicy(const viewport::ResolutionPolicy& policy) {
+    const QSignalBlocker modeBlocker(m_modeCombo);
+    const QSignalBlocker widthBlocker(m_widthSpin);
+    const QSignalBlocker heightBlocker(m_heightSpin);
+    const QSignalBlocker scaleBlocker(m_scaleCombo);
+    const bool follow = policy.mode == viewport::ResolutionPolicy::Mode::Follow;
+    m_modeCombo->setCurrentIndex(m_modeCombo->findData(static_cast<int>(policy.mode)));
+    m_widthSpin->setValue(policy.fixed.width());
+    m_heightSpin->setValue(policy.fixed.height());
+    selectPresetFor(policy.fixed);
+    const int scaleIndex = m_scaleCombo->findData(policy.followScale);
+    if (scaleIndex >= 0) {
+        m_scaleCombo->setCurrentIndex(scaleIndex);
+    }
+    m_presetCombo->setEnabled(!follow);
+    m_widthSpin->setEnabled(!follow);
+    m_heightSpin->setEnabled(!follow);
+    m_scaleCombo->setEnabled(follow);
+}
+
+void RenderSettingsPanel::setFitToView(bool fit) {
+    const QSignalBlocker blocker(m_fitCheck);
+    m_fitCheck->setChecked(fit);
+}
+
+void RenderSettingsPanel::setRenderExtent(const QSize& extent, double zoom) {
+    m_extent = extent;
+    m_zoom = zoom;
+    updateExtentLabel();
+}
+
+void RenderSettingsPanel::updateExtentLabel() {
+    if (m_extent.isEmpty()) {
+        m_resolutionLabel->setText(QStringLiteral("-"));
+        return;
+    }
+    m_resolutionLabel->setText(tr("%1 x %2  -  zoom %3%")
+                                   .arg(m_extent.width())
+                                   .arg(m_extent.height())
+                                   .arg(qRound(m_zoom * 100.0)));
+}
+
+void RenderSettingsPanel::selectPresetFor(const QSize& size) {
+    const QSignalBlocker blocker(m_presetCombo);
+    const int index = m_presetCombo->findData(size);
+    m_presetCombo->setCurrentIndex(index >= 0 ? index : m_presetCombo->count() - 1);
+}
+
+void RenderSettingsPanel::onPresetChosen(int index) {
+    const QSize size = m_presetCombo->itemData(index).toSize();
+    if (size.isEmpty()) {
+        return;   // Custom keeps what the boxes say
+    }
+    {
+        const QSignalBlocker widthBlocker(m_widthSpin);
+        const QSignalBlocker heightBlocker(m_heightSpin);
+        m_widthSpin->setValue(size.width());
+        m_heightSpin->setValue(size.height());
+    }
+    emitResolutionRequest();
+}
+
+void RenderSettingsPanel::onSizeEdited() {
+    selectPresetFor(QSize(m_widthSpin->value(), m_heightSpin->value()));
+    emitResolutionRequest();
+}
+
+void RenderSettingsPanel::emitResolutionRequest() {
+    viewport::ResolutionPolicy policy;
+    policy.mode = static_cast<viewport::ResolutionPolicy::Mode>(m_modeCombo->currentData().toInt());
+    policy.fixed = QSize(m_widthSpin->value(), m_heightSpin->value());
+    policy.followScale = m_scaleCombo->currentData().toFloat();
+    emit resolutionRequested(policy);
 }
 
 void RenderSettingsPanel::onSppPresetChanged(int index) {

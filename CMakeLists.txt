@@ -261,6 +261,8 @@ set(GUI_SOURCES
     src/ui/TrajectoryPlotWidget.hpp
     src/ui/ViewportFrame.cpp
     src/ui/ViewportFrame.hpp
+    src/ui/ViewportHost.cpp
+    src/ui/ViewportHost.hpp
     src/ui/WorkspaceManager.cpp
     src/ui/WorkspaceManager.hpp
     src/ui/chrome/TitleBar.cpp
