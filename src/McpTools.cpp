@@ -533,6 +533,18 @@ void MainWindow::registerMcpTools() {
             out["render_width"] = renderSize.width();
             out["render_height"] = renderSize.height();
             out["motion_adaptive_resolution"] = m_motionAdaptiveResolution;
+            // The policy behind render_width/render_height: what the render
+            // follows (fixed_* is the document's size even while following),
+            // and how it is shown. display_zoom is shown size over traced size.
+            out["resolution_mode"] =
+                m_resolution.mode == viewport::ResolutionPolicy::Mode::Fixed
+                    ? QStringLiteral("fixed")
+                    : QStringLiteral("viewport");
+            out["fixed_width"] = m_resolution.fixed.width();
+            out["fixed_height"] = m_resolution.fixed.height();
+            out["follow_scale"] = static_cast<double>(m_resolution.followScale);
+            out["fit_to_view"] = m_fitToView;
+            out["display_zoom"] = displayZoom();
             return Json(out);
         };
         add(tool);
@@ -1924,6 +1936,112 @@ void MainWindow::registerMcpTools() {
             out["luminance_only"] = now.luminanceOnly;
             out["globally_monotone"] = now.toneMode != quantiloom::DisplayToneMode::Clahe;
             out["session_only"] = true;
+            return Json(out);
+        };
+        add(tool);
+    }
+
+    {
+        mcp::ToolDef tool;
+        tool.name = "ql_set_resolution";
+        tool.description =
+            "Choose what the render is made at, and how it is shown. Give any subset.\n"
+            "\n"
+            "mode 'fixed' renders at exactly width x height, whatever the viewport's size; "
+            "resizing the viewport then never changes the render or restarts it. Giving width or "
+            "height without a mode selects 'fixed'. mode 'viewport' renders at the viewport's "
+            "device-pixel size times scale (1, 0.75, 0.5 or 0.25) and leaves the document's "
+            "fixed size as it was. Opening a scene enters 'fixed' at its width and height.\n"
+            "\n"
+            "fit_to_view true scales the render to fit the viewport, up or down, aspect kept; "
+            "false shows one render pixel per screen pixel, centred when smaller and "
+            "scrollable when larger. A presentation preference: it never restarts the render.\n"
+            "\n"
+            "A change of render size resets the accumulation and, if it changes the fixed "
+            "size, marks the document modified (a save writes it as width and height). The "
+            "extent takes effect on the next frame: poll ql_get_status for render_width, "
+            "render_height and display_zoom.";
+        tool.inputSchemaJson = R"({
+  "type": "object",
+  "properties": {
+    "mode": {"type": "string", "enum": ["fixed", "viewport"]},
+    "width": {"type": "integer", "minimum": 16, "maximum": 8192, "description": "Fixed width in pixels."},
+    "height": {"type": "integer", "minimum": 16, "maximum": 8192, "description": "Fixed height in pixels."},
+    "scale": {"type": "number", "enum": [1, 0.75, 0.5, 0.25], "description": "Follow-viewport scale."},
+    "fit_to_view": {"type": "boolean"}
+  }
+})";
+        tool.handler = [this](const quantiloom::String& argumentsJson) {
+            QJsonObject args;
+            mcp::ToolResult error;
+            if (!ParseArgs(argumentsJson, args, error)) {
+                return error;
+            }
+
+            using Mode = viewport::ResolutionPolicy::Mode;
+            viewport::ResolutionPolicy policy = m_resolution;
+            if (args.contains(QStringLiteral("mode"))) {
+                const QString mode = args.value(QStringLiteral("mode")).toString();
+                if (mode == QLatin1String("fixed")) {
+                    policy.mode = Mode::Fixed;
+                } else if (mode == QLatin1String("viewport")) {
+                    policy.mode = Mode::Follow;
+                } else {
+                    return mcp::ToolResult::Error("mode must be 'fixed' or 'viewport'");
+                }
+            }
+            const auto readSide = [&args](const QString& key, int& side, bool& given,
+                                          mcp::ToolResult& failure) {
+                if (!args.contains(key)) return true;
+                const int value = args.value(key).toInt(-1);
+                if (value < viewport::kMinRenderSide || value > viewport::kMaxRenderSide) {
+                    failure = mcp::ToolResult::Error(
+                        key.toStdString() + " must be an integer in [" +
+                        std::to_string(viewport::kMinRenderSide) + ", " +
+                        std::to_string(viewport::kMaxRenderSide) + "]");
+                    return false;
+                }
+                side = value;
+                given = true;
+                return true;
+            };
+            int width = policy.fixed.width();
+            int height = policy.fixed.height();
+            bool sizeGiven = false;
+            if (!readSide(QStringLiteral("width"), width, sizeGiven, error) ||
+                !readSide(QStringLiteral("height"), height, sizeGiven, error)) {
+                return error;
+            }
+            if (sizeGiven) {
+                policy.fixed = QSize(width, height);
+                if (!args.contains(QStringLiteral("mode"))) policy.mode = Mode::Fixed;
+            }
+            if (args.contains(QStringLiteral("scale"))) {
+                const float scale =
+                    static_cast<float>(args.value(QStringLiteral("scale")).toDouble(-1.0));
+                const bool offered =
+                    std::any_of(std::begin(viewport::kFollowScales),
+                                std::end(viewport::kFollowScales),
+                                [scale](float s) { return qFuzzyCompare(s, scale); });
+                if (!offered) {
+                    return mcp::ToolResult::Error("scale must be one of 1, 0.75, 0.5, 0.25");
+                }
+                policy.followScale = scale;
+            }
+
+            applyRenderResolution(policy);
+            if (args.contains(QStringLiteral("fit_to_view"))) {
+                applyFitToView(args.value(QStringLiteral("fit_to_view")).toBool());
+            }
+
+            QJsonObject out;
+            out["resolution_mode"] =
+                m_resolution.mode == Mode::Fixed ? QStringLiteral("fixed")
+                                                  : QStringLiteral("viewport");
+            out["fixed_width"] = m_resolution.fixed.width();
+            out["fixed_height"] = m_resolution.fixed.height();
+            out["follow_scale"] = static_cast<double>(m_resolution.followScale);
+            out["fit_to_view"] = m_fitToView;
             return Json(out);
         };
         add(tool);

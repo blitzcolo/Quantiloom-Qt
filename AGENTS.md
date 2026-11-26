@@ -98,7 +98,7 @@ exported symbols). `src/libQuantiloom/AGENTS.md` over there has the rule.
 | `src/config/` | TOML load/save (`ConfigManager`) |
 | `src/editing/` | Selection, undo stack, transform gizmo |
 | `src/i18n/` | Qt Linguist `.ts` (en + zh_CN) and the runtime `LanguageManager` |
-| `src/McpTools.cpp` | The 31 `ql_*` tools the embedded MCP server answers on `127.0.0.1:8600`; edits made through them enter the undo stack. `ql_set_thermal` takes every field of a solve, and `ql_get_thermal_status` reports them all. `ql_set_vertex_colors` refuses any scene but a Minecraft export with `COLOR_0`, the rule the Render panel's combo follows |
+| `src/McpTools.cpp` | The 32 `ql_*` tools the embedded MCP server answers on `127.0.0.1:8600`; edits made through them enter the undo stack. `ql_set_thermal` takes every field of a solve, and `ql_get_thermal_status` reports them all. `ql_set_vertex_colors` refuses any scene but a Minecraft export with `COLOR_0`, the rule the Render panel's combo follows |
 | `src/ThermalNames.hpp` | The four converters (to and from names) between two `[thermal]` vocabularies and the SDK enums: the convection model and the parameter-sensitivity list. A TOML key and a tool argument are the same string, so both boundaries read this one header |
 | `src/AssetPaths.cpp` | Where Studio looks for what it ships — beside the executable first, then the working directory — and for the NN atmosphere pack, in the CLI's order: env, working directory, `quantiloom::GetResourceRoot()` (pinned by `main()`: the SDK's own `share/quantiloom`, read in place, or a copy beside the executable when built with `QUANTILOOM_BUNDLE_SDK_RESOURCES=ON`) |
 | `assets/configs/` | Hand-written TOML scene configs; also the core CLI's input format |
