@@ -33,7 +33,8 @@
 # roughness (the library's n,k still bind); one with a normalTexture makes
 # every one of its primitives upload tangents. "mr" costs ~341 MiB of GPU
 # memory at the atlas's 8192 px; "normal" adds another ~341 MiB and ~188 MiB
-# of tangents, so "mr" is the sensible default. The pack is not
+# of tangents, so "mr" is the generator's default and "normal" or "both" must
+# be asked for. The pack is not
 # redistributable: the maps stay in assets/models, which git ignores.
 #
 # Texture detail survives: a block bound to one entry is modulated in the

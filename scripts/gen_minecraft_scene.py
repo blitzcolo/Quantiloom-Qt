@@ -13,7 +13,11 @@ glTF is a byte copy of the input. With --pbr-pack the script works out which blo
 texture each atlas tile is (exact pixel match against the vanilla 16x textures, then
 a tolerant match against the texture of the material's own name, for the glass the
 exporter blends), reads that block's LabPBR _s / _n maps from the pack, resamples
-them onto the same tile grid and writes two UV-aligned images next to the glTF:
+them onto the same tile grid and writes UV-aligned images next to the glTF. --pbr-maps
+chooses which: mr (the default), normal or both. A normal map costs a second map's GPU
+memory plus a tangent upload for every vertex of the materials that use it, for 16 texels
+per tile, so it is opt-in.
+
 
   <atlas>_mr.png   G = 1 - smoothness (perceptual roughness), B = 1 for LabPBR metal
                    ids 230-237 and 255, else 0 (a fraction where a tile mixes them),
@@ -204,7 +208,7 @@ def main():
     ap.add_argument("gltf", type=Path, help="the exporter's glTF (its .bin and atlas stay beside it)")
     ap.add_argument("--out", type=Path, help="derived glTF (default: <name>.derived.gltf beside the input)")
     ap.add_argument("--pbr-pack", type=Path, metavar="PACK.zip", help="a LabPBR resource pack to take _s / _n maps from")
-    ap.add_argument("--pbr-maps", choices=("mr", "normal", "both"), help="which maps to write (default: both, with --pbr-pack)")
+    ap.add_argument("--pbr-maps", choices=("mr", "normal", "both"), help="which maps to write (default: mr; normal adds a second map and a tangent upload per vertex)")
     ap.add_argument("--vanilla", type=Path, help="the vanilla textures/block directory the atlas was exported from (required with --pbr-pack)")
     ap.add_argument("--pbr-size", type=int, help="map edge in texels (default: the atlas edge, texel for texel)")
     args = ap.parse_args()
@@ -218,7 +222,7 @@ def main():
         return 0
     if not args.vanilla:
         ap.error("--pbr-pack needs --vanilla")
-    maps = args.pbr_maps or "both"
+    maps = args.pbr_maps or "mr"
     t0 = time.time()
 
     gltf = Gltf(args.gltf)
