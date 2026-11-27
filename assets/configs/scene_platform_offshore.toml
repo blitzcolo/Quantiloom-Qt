@@ -60,6 +60,16 @@ atmosphere_temperature_k = 288.15
 solar_lut = "assets/luts/astmg173.csv"
 solar_lut_columns = [4, 3]
 solar_lut_diffuse_is_global = true
+# The sky's shape when the NN atmosphere is switched off (the NN sky wins while it is on).
+sky_distribution = "hosek_wilkie"
+
+# The sea carries on past the site mesh. A ground plane at sea level (y = 0, the
+# site datum) with a water-like albedo gives a ray that leaves the mesh below the
+# horizon more sea to see instead of nothing.
+[ground]
+enabled = true
+height = 0.0
+albedo = 0.06
 
 [atmosphere]
 # "maritime" is no preset: it fell back to "clear" with a warning. A maritime

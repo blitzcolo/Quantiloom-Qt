@@ -66,6 +66,13 @@ atmosphere_temperature_k = 298.15
 solar_lut = "assets/luts/astmg173.csv"
 solar_lut_columns = [4, 3]
 solar_lut_diffuse_is_global = true
+# The sky's shape when the NN atmosphere is switched off (the NN sky wins while it is on).
+sky_distribution = "hosek_wilkie"
+
+# A virtual ground below the horizon: a ray that leaves the site downward
+# would otherwise see nothing. Its height follows the scene's lowest point.
+[ground]
+enabled = true
 
 [atmosphere]
 preset = "turbulent_clear"

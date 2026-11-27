@@ -86,6 +86,13 @@ solar_lut_diffuse_is_global = true
 # "unit_luminance"` divides by the sun's own luminance, which on this LUT is a
 # large number -- it takes the frame several stops DOWN, not to a neutral
 # exposure. It is not an exposure control.
+# The sky's shape when the NN atmosphere is switched off (the NN sky wins while it is on).
+sky_distribution = "hosek_wilkie"
+
+# A virtual ground below the horizon: a ray that leaves the site downward
+# would otherwise see nothing. Its height follows the scene's lowest point.
+[ground]
+enabled = true
 
 [atmosphere]
 # Clear sky. The sun above is ASTM G-173 -- the beam after one clear rural
