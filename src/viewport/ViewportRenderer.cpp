@@ -849,6 +849,8 @@ void ViewportRenderer::loadScene(const QString& filePath, bool adoptSceneCamera)
                          : tr("Loading scene\u2026"),
         [&result, usd, path = filePath.toStdString(),
          lighting = m_hasLightingParams ? std::optional(m_lightingParams) : std::nullopt,
+         ground = m_ground, skyDistribution = m_skyDistribution,
+         skyTurbidity = m_skyTurbidity,
          mode = m_spectralMode, debugView = m_debugMode, spp = m_targetSPP,
          seed = m_samplingSeed, wavelengthNm = m_wavelength](quantiloom::ExternalRenderContext& context) {
             result = usd ? context.LoadSceneFromUsd(path) : context.LoadSceneFromGltf(path);
@@ -859,6 +861,8 @@ void ViewportRenderer::loadScene(const QString& filePath, bool adoptSceneCamera)
             if (lighting) {
                 context.SetLightingParams(*lighting);
             }
+            context.SetGround(ground);
+            context.SetSkyDistribution(skyDistribution, skyTurbidity);
             context.SetSpectralMode(mode);
             context.SetDebugMode(debugView);
             context.SetSPP(spp);
@@ -1041,6 +1045,9 @@ bool ViewportRenderer::applyConfigToContext(bool isFreshOpen) {
     if (isFreshOpen) {
         m_lightingParams = m_renderContext->GetLightingParams();
         m_hasLightingParams = true;
+        m_ground = m_renderContext->GetGround();
+        m_skyDistribution = m_renderContext->GetSkyDistribution();
+        m_skyTurbidity = m_renderContext->GetSkyTurbidity();
         m_spectralMode = m_renderContext->GetSpectralMode();
         m_wavelength = m_renderContext->GetWavelength();
         m_targetSPP = m_renderContext->GetSPP();
@@ -1080,6 +1087,8 @@ bool ViewportRenderer::applyConfigToContext(bool isFreshOpen) {
         if (m_hasLightingParams) {
             m_renderContext->SetLightingParams(m_lightingParams);
         }
+        m_renderContext->SetGround(m_ground);
+        m_renderContext->SetSkyDistribution(m_skyDistribution, m_skyTurbidity);
         m_renderContext->SetSpectralMode(m_spectralMode);
         m_renderContext->SetWavelength(m_wavelength);
         m_renderContext->SetSPP(m_targetSPP);
@@ -1405,6 +1414,24 @@ void ViewportRenderer::setLightingParams(const quantiloom::LightingParams& param
     m_hasLightingParams = true;
     if (m_renderContext) {
         m_renderContext->SetLightingParams(params);
+        resetAccumulation();
+    }
+}
+
+void ViewportRenderer::setGround(const quantiloom::GroundParams& ground) {
+    m_ground = ground;  // Store for restore
+    if (m_renderContext) {
+        m_renderContext->SetGround(ground);
+        resetAccumulation();
+    }
+}
+
+void ViewportRenderer::setSkyDistribution(quantiloom::SkyDistribution distribution,
+                                          float turbidity) {
+    m_skyDistribution = distribution;  // Store for restore
+    m_skyTurbidity = turbidity;
+    if (m_renderContext) {
+        m_renderContext->SetSkyDistribution(distribution, turbidity);
         resetAccumulation();
     }
 }

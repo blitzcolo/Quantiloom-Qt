@@ -26,6 +26,7 @@
 
 #include "MainWindow.hpp"
 
+#include "SkyNames.hpp"
 #include "ThermalNames.hpp"
 
 #include "config/ConfigManager.hpp"
@@ -147,6 +148,23 @@ bool ReadVec3(const QJsonObject& args, const char* key, glm::vec3& value,
                       static_cast<float>(array[1].toDouble()),
                       static_cast<float>(array[2].toDouble()));
     return true;
+}
+
+/// The virtual ground as ql_set_ground and ql_get_status report it. The
+/// height is the word "auto" until a number was given, the same two spellings
+/// the [ground] key takes.
+QJsonObject WriteGround(const quantiloom::GroundParams& ground) {
+    QJsonObject out;
+    out["enabled"] = ground.enabled;
+    if (ground.heightAuto) {
+        out["height"] = QStringLiteral("auto");
+    } else {
+        out["height"] = static_cast<double>(ground.height);
+    }
+    out["albedo"] = static_cast<double>(ground.albedo);
+    out["emissivity"] = static_cast<double>(ground.emissivity);
+    out["temperature_k"] = static_cast<double>(ground.temperatureK);
+    return out;
 }
 
 QJsonArray WriteVec3(const glm::vec3& v) {
@@ -545,6 +563,12 @@ void MainWindow::registerMcpTools() {
             out["follow_scale"] = static_cast<double>(m_resolution.followScale);
             out["fit_to_view"] = m_fitToView;
             out["display_zoom"] = displayZoom();
+            // The virtual ground and the sky's directional model, as the
+            // renderer runs them.
+            out["ground"] = WriteGround(m_viewport->ground());
+            out["sky_distribution"] =
+                skynames::skyDistributionName(m_viewport->skyDistribution());
+            out["sky_turbidity"] = static_cast<double>(m_viewport->skyTurbidity());
             return Json(out);
         };
         add(tool);
@@ -1124,6 +1148,140 @@ void MainWindow::registerMcpTools() {
             out["sky_radiance"] = WriteVec3(now.skyRadiance_rgb);
             out["shadow_rays"] = now.enableShadowRays != 0;
             out["environment_map_enabled"] = now.enableEnvironmentMap != 0;
+            return Json(out);
+        };
+        add(tool);
+    }
+
+    {
+        mcp::ToolDef tool;
+        tool.name = "ql_set_ground";
+        tool.description =
+            "The virtual ground: a grey Lambert plane below the horizon for rays that would "
+            "otherwise see nothing. Give any subset.\n"
+            "\n"
+            "When on, a ray that goes down and starts above the plane hits it and returns the "
+            "plane's radiance -- lit by the sun (with shadows) and the sky -- instead of the "
+            "sky model's. Off by default in the SDK.\n"
+            "\n"
+            "height is a number in world units or the string 'auto' (the scene's lowest point). "
+            "albedo is the reflectance in the reflective bands and RGB, emissivity the "
+            "thermal-band emissivity, temperature_k the plane's temperature (0 = the scene's "
+            "default temperature).\n"
+            "\n"
+            "Undoable. Resets accumulation. The result is the ground as applied.";
+        tool.inputSchemaJson = R"({
+  "type": "object",
+  "properties": {
+    "enabled": {"type": "boolean"},
+    "height": {"description": "World units, or the string 'auto'."},
+    "albedo": {"type": "number", "minimum": 0, "maximum": 1},
+    "emissivity": {"type": "number", "minimum": 0, "maximum": 1},
+    "temperature_k": {"type": "number", "minimum": 0, "description": "0 uses the scene's default temperature."}
+  }
+})";
+        tool.handler = [this](const quantiloom::String& argumentsJson) {
+            QJsonObject args;
+            mcp::ToolResult error;
+            if (!ParseArgs(argumentsJson, args, error)) {
+                return error;
+            }
+
+            quantiloom::GroundParams ground = m_viewport->ground();
+            if (args.contains(QStringLiteral("enabled"))) {
+                ground.enabled = args.value(QStringLiteral("enabled")).toBool();
+            }
+            if (args.contains(QStringLiteral("height"))) {
+                const QJsonValue height = args.value(QStringLiteral("height"));
+                if (height.isString() && height.toString() == QLatin1String("auto")) {
+                    ground.heightAuto = true;
+                } else if (height.isDouble() && std::isfinite(height.toDouble())) {
+                    ground.heightAuto = false;
+                    ground.height = static_cast<float>(height.toDouble());
+                } else {
+                    return mcp::ToolResult::Error("height must be a finite number or 'auto'");
+                }
+            }
+            const auto readRange = [&args](const char* key, double low, double high,
+                                           float& field, mcp::ToolResult& failure) {
+                const QString name = QString::fromLatin1(key);
+                if (!args.contains(name)) return true;
+                const QJsonValue value = args.value(name);
+                if (!value.isDouble() || !(value.toDouble() >= low) ||
+                    !(value.toDouble() <= high)) {
+                    failure = mcp::ToolResult::Error(
+                        std::string(key) + " must be a number in [" + std::to_string(low) +
+                        ", " + std::to_string(high) + "]");
+                    return false;
+                }
+                field = static_cast<float>(value.toDouble());
+                return true;
+            };
+            if (!readRange("albedo", 0.0, 1.0, ground.albedo, error) ||
+                !readRange("emissivity", 0.0, 1.0, ground.emissivity, error) ||
+                !readRange("temperature_k", 0.0, 1.0e4, ground.temperatureK, error)) {
+                return error;
+            }
+
+            // Through the history, like every other route into a setting.
+            editGround(ground);
+            return Json(WriteGround(m_viewport->ground()));
+        };
+        add(tool);
+    }
+
+    {
+        mcp::ToolDef tool;
+        tool.name = "ql_set_sky_distribution";
+        tool.description =
+            "How the sky's light is spread over the dome when the NN atmosphere is off. Give "
+            "any subset.\n"
+            "\n"
+            "'isotropic' is one colour everywhere. 'hosek_wilkie' is the analytic daylight "
+            "model: brighter toward the sun and the horizon, bluer at the zenith, scaled so the "
+            "horizontal sky irradiance is unchanged. It applies to the visible bands only; with "
+            "the NN atmosphere on, the atmosphere's own sky is used instead. turbidity is the "
+            "model's haze, 1 (clear) to 10.\n"
+            "\n"
+            "Undoable. Resets accumulation. The result is the model as applied.";
+        tool.inputSchemaJson = R"({
+  "type": "object",
+  "properties": {
+    "distribution": {"type": "string", "enum": ["isotropic", "hosek_wilkie"]},
+    "turbidity": {"type": "number", "minimum": 1, "maximum": 10}
+  }
+})";
+        tool.handler = [this](const quantiloom::String& argumentsJson) {
+            QJsonObject args;
+            mcp::ToolResult error;
+            if (!ParseArgs(argumentsJson, args, error)) {
+                return error;
+            }
+
+            quantiloom::SkyDistribution distribution = m_viewport->skyDistribution();
+            float turbidity = m_viewport->skyTurbidity();
+            if (args.contains(QStringLiteral("distribution"))) {
+                const QString name = args.value(QStringLiteral("distribution")).toString();
+                if (name != QLatin1String("isotropic") && name != QLatin1String("hosek_wilkie")) {
+                    return mcp::ToolResult::Error(
+                        "distribution must be 'isotropic' or 'hosek_wilkie'");
+                }
+                distribution = skynames::skyDistributionFromName(name);
+            }
+            if (args.contains(QStringLiteral("turbidity"))) {
+                const QJsonValue value = args.value(QStringLiteral("turbidity"));
+                if (!value.isDouble() || !(value.toDouble() >= 1.0) ||
+                    !(value.toDouble() <= 10.0)) {
+                    return mcp::ToolResult::Error("turbidity must be a number in [1, 10]");
+                }
+                turbidity = static_cast<float>(value.toDouble());
+            }
+
+            editSkyDistribution(distribution, turbidity);
+
+            QJsonObject out;
+            out["distribution"] = skynames::skyDistributionName(m_viewport->skyDistribution());
+            out["turbidity"] = static_cast<double>(m_viewport->skyTurbidity());
             return Json(out);
         };
         add(tool);

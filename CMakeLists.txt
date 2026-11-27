@@ -237,6 +237,7 @@ set(GUI_SOURCES
     src/MainWindow.cpp
     src/MainWindow.hpp
     src/ThermalNames.hpp
+    src/SkyNames.hpp
     src/AssetPaths.cpp
     src/AssetPaths.hpp
     # MainWindow's MCP tool catalogue -- its own translation unit because it is

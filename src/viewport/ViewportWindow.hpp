@@ -18,6 +18,8 @@
 #include <core/SpectralData.hpp>
 #include <core/Types.hpp>
 #include <postprocess/CameraPipeline.hpp>
+#include <renderer/ExternalRenderContext.hpp>
+#include <renderer/GroundParams.hpp>
 #include <renderer/Pick.hpp>
 #include <renderer/PixelReading.hpp>
 #include <renderer/DisplayControl.hpp>
@@ -177,6 +179,12 @@ public:
     void setLightingParams(const quantiloom::LightingParams& params);
 
     /**
+     * @brief The virtual ground below the horizon, and the sky's directional model
+     */
+    void setGround(const quantiloom::GroundParams& ground);
+    void setSkyDistribution(quantiloom::SkyDistribution distribution, float turbidity);
+
+    /**
      * @brief Update material at specified index
      */
     void updateMaterial(int index, const quantiloom::Material& material);
@@ -279,6 +287,9 @@ public:
      * no renderer yet.
      */
     quantiloom::LightingParams lightingParams() const;
+    quantiloom::GroundParams ground() const;
+    quantiloom::SkyDistribution skyDistribution() const;
+    float skyTurbidity() const;
     quantiloom::SpectralMode spectralMode() const;
     float wavelength() const;
     quantiloom::AtmosphereNNConfig atmosphericConfig() const;

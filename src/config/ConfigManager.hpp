@@ -18,6 +18,7 @@ class QTextStream;
 #include <core/Config.hpp>
 #include <core/Types.hpp>
 #include <glm/glm.hpp>
+#include <renderer/GroundParams.hpp>
 #include <renderer/LightingParams.hpp>
 #include <postprocess/CameraPipeline.hpp>
 #include <postprocess/Thermography.hpp>
@@ -326,6 +327,20 @@ struct SceneConfig {
 
     // [lighting]
     quantiloom::LightingParams lighting;
+
+    /// [ground] -- the virtual ground below the horizon, and
+    /// lighting.sky_distribution / lighting.sky_turbidity -- the sky's
+    /// directional model ("isotropic" or "hosek_wilkie", the same words the MCP
+    /// tools use; see SkyNames.hpp). The SDK reads them on load, so these hold
+    /// what the renderer runs on at save time. Each is written only when it
+    /// differs from the SDK's default or the document spelled it out, so a
+    /// file that never named either does not acquire them.
+    quantiloom::GroundParams ground;
+    bool groundPresent = false;
+    QString skyDistribution = QStringLiteral("isotropic");
+    bool skyDistributionPresent = false;
+    float skyTurbidity = 3.0f;
+    bool skyTurbidityPresent = false;
 
     // [atmosphere]
     QString atmosphericPreset = "disabled";  // Preset name

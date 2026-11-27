@@ -1376,6 +1376,86 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <source>Environment Maps (*.exr *.hdr *.png *.jpg *.jpeg);;All Files (*)</source>
         <translation>环境贴图 (*.exr *.hdr *.png *.jpg *.jpeg);;所有文件 (*)</translation>
     </message>
+    <message>
+        <source>Virtual Ground</source>
+        <translation>虚拟地面</translation>
+    </message>
+    <message>
+        <source>Ground plane below the horizon</source>
+        <translation>地平线以下的地面平面</translation>
+    </message>
+    <message>
+        <source>A grey Lambert plane for rays that would otherwise see nothing below the horizon. It is lit by the sun, with shadows, and by the sky, and it reflects that light back onto the scene. Off, those rays see the sky model alone.</source>
+        <translation>为本会在地平线以下什么也看不到的光线提供一个灰色朗伯平面。它由太阳（带阴影）和天空照亮，并把这些光反射回场景。关闭时，这些光线只会看到天空模型。</translation>
+    </message>
+    <message>
+        <source>Height from the scene's lowest point</source>
+        <translation>高度取自场景最低点</translation>
+    </message>
+    <message>
+        <source>Height:</source>
+        <translation>高度：</translation>
+    </message>
+    <message>
+        <source>Height of the plane in world units, along the up axis.</source>
+        <translation>平面高度，单位为世界单位，沿向上轴。</translation>
+    </message>
+    <message>
+        <source>Albedo:</source>
+        <translation>反照率：</translation>
+    </message>
+    <message>
+        <source>Lambert reflectance in the reflective bands (VIS, NIR, SWIR) and RGB.</source>
+        <translation>反射波段（VIS、NIR、SWIR）与 RGB 中的朗伯反射率。</translation>
+    </message>
+    <message>
+        <source>Emissivity:</source>
+        <translation>发射率：</translation>
+    </message>
+    <message>
+        <source>Emissivity in the thermal bands (MWIR, LWIR).</source>
+        <translation>热波段（MWIR、LWIR）中的发射率。</translation>
+    </message>
+    <message>
+        <source>Ground temperature:</source>
+        <translation>地表温度：</translation>
+    </message>
+    <message>
+        <source>Scene default</source>
+        <translation>场景默认值</translation>
+    </message>
+    <message>
+        <source>Surface temperature of the plane in the thermal bands. 0 uses the scene's default temperature.</source>
+        <translation>热波段中平面的表面温度。0 表示使用场景的默认温度。</translation>
+    </message>
+    <message>
+        <source>Sky Distribution</source>
+        <translation>天空分布</translation>
+    </message>
+    <message>
+        <source>Model:</source>
+        <translation>模型：</translation>
+    </message>
+    <message>
+        <source>Isotropic</source>
+        <translation>各向同性</translation>
+    </message>
+    <message>
+        <source>Hosek-Wilkie</source>
+        <translation>Hosek-Wilkie</translation>
+    </message>
+    <message>
+        <source>How the sky's light is spread over the dome without the NN atmosphere, in the visible bands. The horizontal sky irradiance is unchanged; only its distribution is. With the NN atmosphere on, its own sky is used instead.</source>
+        <translation>未启用 NN 大气时，在可见光波段中天空光在天穹上的分布方式。水平方向的天空辐照度不变，改变的只是它的分布。启用 NN 大气时，改用其自带的天空。</translation>
+    </message>
+    <message>
+        <source>Turbidity:</source>
+        <translation>浊度：</translation>
+    </message>
+    <message>
+        <source>Haze of the Hosek-Wilkie sky, 1 (clear) to 10 (hazy).</source>
+        <translation>Hosek-Wilkie 天空的雾霾程度，从 1（清澈）到 10（浑浊）。</translation>
+    </message>
 </context>
 <context>
     <name>MainWindow</name>
@@ -2952,6 +3032,50 @@ Remove it from the recent files?</source>
     <message>
         <source>Height:</source>
         <translation>高度：</translation>
+    </message>
+    <message>
+        <source>Virtual &amp;Ground</source>
+        <translation>虚拟地面(&amp;G)</translation>
+    </message>
+    <message>
+        <source>A grey ground plane below the horizon, lit by the sun and sky</source>
+        <translation>地平线以下的灰色地面平面，由太阳和天空照亮</translation>
+    </message>
+    <message>
+        <source>Sky &amp;Distribution</source>
+        <translation>天空分布(&amp;D)</translation>
+    </message>
+    <message>
+        <source>&amp;Hosek-Wilkie</source>
+        <translation>Hosek-Wilkie(&amp;H)</translation>
+    </message>
+    <message>
+        <source>&amp;Isotropic</source>
+        <translation>各向同性(&amp;I)</translation>
+    </message>
+    <message>
+        <source>Virtual ground on</source>
+        <translation>虚拟地面：开</translation>
+    </message>
+    <message>
+        <source>Virtual ground off</source>
+        <translation>虚拟地面：关</translation>
+    </message>
+    <message>
+        <source>Sky distribution: Hosek-Wilkie</source>
+        <translation>天空分布：Hosek-Wilkie</translation>
+    </message>
+    <message>
+        <source>Sky distribution: isotropic</source>
+        <translation>天空分布：各向同性</translation>
+    </message>
+    <message>
+        <source>Virtual ground</source>
+        <translation>虚拟地面</translation>
+    </message>
+    <message>
+        <source>Sky distribution</source>
+        <translation>天空分布</translation>
     </message>
 </context>
 <context>

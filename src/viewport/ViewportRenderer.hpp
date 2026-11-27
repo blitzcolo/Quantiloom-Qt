@@ -25,6 +25,7 @@
 #include <core/SpectralData.hpp>
 #include <core/Types.hpp>
 #include <renderer/LightingParams.hpp>
+#include <renderer/GroundParams.hpp>
 #include <atmos/AtmosphereNNConfig.hpp>
 #include <postprocess/CameraPipeline.hpp>
 #include <postprocess/Thermography.hpp>
@@ -143,6 +144,10 @@ public:
     void setSpectralMode(quantiloom::SpectralMode mode);
     void setDebugMode(quantiloom::DebugVisualizationMode mode);
     void setLightingParams(const quantiloom::LightingParams& params);
+    /// The virtual ground below the horizon, and the sky's directional model.
+    /// Both change what every pixel holds, so both reset the accumulation.
+    void setGround(const quantiloom::GroundParams& ground);
+    void setSkyDistribution(quantiloom::SkyDistribution distribution, float turbidity);
     void updateMaterial(int index, const quantiloom::Material& material);
     int addComplexRefractiveIndex(const quantiloom::ComplexRefractiveIndex& cri);
 
@@ -239,6 +244,11 @@ public:
     [[nodiscard]] const quantiloom::LightingParams& lightingParams() const {
         return m_lightingParams;
     }
+    [[nodiscard]] const quantiloom::GroundParams& ground() const { return m_ground; }
+    [[nodiscard]] quantiloom::SkyDistribution skyDistribution() const {
+        return m_skyDistribution;
+    }
+    [[nodiscard]] float skyTurbidity() const { return m_skyTurbidity; }
     [[nodiscard]] quantiloom::SpectralMode spectralMode() const { return m_spectralMode; }
     [[nodiscard]] float wavelength() const { return m_wavelength; }
     [[nodiscard]] const quantiloom::AtmosphereNNConfig& atmosphericConfig() const {
@@ -767,6 +777,12 @@ private:
     // Lighting params (stored for a context rebuild)
     quantiloom::LightingParams m_lightingParams = quantiloom::CreateDefaultLightingParams();
     bool m_hasLightingParams = false;  // True if set from config
+
+    // Virtual ground and sky distribution (stored for a context rebuild and a
+    // bare-model load; a fresh config open takes both from the context)
+    quantiloom::GroundParams m_ground;
+    quantiloom::SkyDistribution m_skyDistribution = quantiloom::SkyDistribution::Isotropic;
+    float m_skyTurbidity = 3.0f;
 
     // Atmosphere configuration (NN MODTRAN surrogate)
     quantiloom::AtmosphereNNConfig m_atmosphericConfig;  // Default: disabled

@@ -1250,6 +1250,86 @@ Whether it is right depends on the render mode. RGB and the preview bands multip
         <source>Environment Maps (*.exr *.hdr *.png *.jpg *.jpeg);;All Files (*)</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>Virtual Ground</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ground plane below the horizon</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>A grey Lambert plane for rays that would otherwise see nothing below the horizon. It is lit by the sun, with shadows, and by the sky, and it reflects that light back onto the scene. Off, those rays see the sky model alone.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Height from the scene's lowest point</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Height:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Height of the plane in world units, along the up axis.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Albedo:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Lambert reflectance in the reflective bands (VIS, NIR, SWIR) and RGB.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Emissivity:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Emissivity in the thermal bands (MWIR, LWIR).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ground temperature:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Scene default</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Surface temperature of the plane in the thermal bands. 0 uses the scene's default temperature.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sky Distribution</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Model:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Isotropic</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Hosek-Wilkie</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>How the sky's light is spread over the dome without the NN atmosphere, in the visible bands. The horizontal sky irradiance is unchanged; only its distribution is. With the NN atmosphere on, its own sky is used instead.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Turbidity:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Haze of the Hosek-Wilkie sky, 1 (clear) to 10 (hazy).</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>MainWindow</name>
@@ -2747,6 +2827,50 @@ Remove it from the recent files?</source>
     </message>
     <message>
         <source>Height:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Virtual &amp;Ground</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>A grey ground plane below the horizon, lit by the sun and sky</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sky &amp;Distribution</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Hosek-Wilkie</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Isotropic</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Virtual ground on</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Virtual ground off</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sky distribution: Hosek-Wilkie</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sky distribution: isotropic</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Virtual ground</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sky distribution</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

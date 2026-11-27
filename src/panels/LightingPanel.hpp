@@ -14,6 +14,8 @@
 #include "../ui/PanelBase.hpp"
 
 #include <core/Types.hpp>
+#include <renderer/ExternalRenderContext.hpp>
+#include <renderer/GroundParams.hpp>
 #include <renderer/LightingParams.hpp>
 #include <glm/glm.hpp>
 
@@ -54,6 +56,12 @@ public:
     /// scene. An empty path is a scene with no map of its own, which still has
     /// image-based lighting from the fallback sky unless @p enabled is false.
     void setEnvironmentMap(const QString& path, bool enabled);
+
+    /// The virtual ground and the sky's directional model, as the renderer has
+    /// them. Pure: they show the values and emit nothing, so reading a loaded
+    /// document back into the panel never reads as an edit.
+    void setGround(const quantiloom::GroundParams& ground);
+    void setSkyDistribution(quantiloom::SkyDistribution distribution, float turbidity);
 
     /**
      * @struct IlluminantChoice
@@ -121,6 +129,11 @@ signals:
     /// @p enabled true means the fallback sky.
     void environmentMapChanged(const QString& path, bool enabled);
 
+    /// The ground or the sky model was edited here. Each is one whole edit, so
+    /// the shell wraps it in one undo entry.
+    void groundChanged(const quantiloom::GroundParams& ground);
+    void skyDistributionChanged(quantiloom::SkyDistribution distribution, float turbidity);
+
     /// A slider drag began and ended. The shell snapshots on the first and
     /// pushes one undo entry on the second, so a drag is one step rather than
     /// forty -- and so the panel is not written back to mid-drag, which would
@@ -146,6 +159,8 @@ private slots:
     void onSunIntensityChanged(double value);
     void onSkyIntensityChanged(double value);
     void onEnvironmentEnabledToggled(bool enabled);
+    void onGroundEdited();
+    void onSkyDistributionEdited();
 
 public slots:
     /// The Render ▸ Lighting entries. Each does exactly what its widget does,
@@ -213,6 +228,10 @@ private:
     /// Show the path elided to the label's width, with the whole of it in the
     /// tooltip. Also refreshes the double-count notice.
     void updateEnvironmentDisplay();
+    /// Which ground fields are live: none while the ground is off, and the
+    /// height only when it is not "auto".
+    void updateGroundWidgets();
+    [[nodiscard]] quantiloom::GroundParams readGround() const;
 
     // Sun angles (degrees)
     float m_sunAzimuth = 180.0f;    // 0 = North, 90 = East, 180 = South
@@ -262,6 +281,26 @@ private:
     QLabel* m_sunCaption = nullptr;
     QDoubleSpinBox* m_skyIntensitySpin = nullptr;
     QLabel* m_skyCaption = nullptr;
+
+    // Virtual ground
+    QGroupBox* m_groundGroup = nullptr;
+    QCheckBox* m_groundEnabledCheck = nullptr;
+    QCheckBox* m_groundAutoHeightCheck = nullptr;
+    QDoubleSpinBox* m_groundHeightSpin = nullptr;
+    QLabel* m_groundHeightCaption = nullptr;
+    QDoubleSpinBox* m_groundAlbedoSpin = nullptr;
+    QLabel* m_groundAlbedoCaption = nullptr;
+    QDoubleSpinBox* m_groundEmissivitySpin = nullptr;
+    QLabel* m_groundEmissivityCaption = nullptr;
+    QDoubleSpinBox* m_groundTemperatureSpin = nullptr;
+    QLabel* m_groundTemperatureCaption = nullptr;
+
+    // Sky distribution
+    QGroupBox* m_skyDistGroup = nullptr;
+    QComboBox* m_skyDistCombo = nullptr;
+    QLabel* m_skyDistCaption = nullptr;
+    QDoubleSpinBox* m_turbiditySpin = nullptr;
+    QLabel* m_turbidityCaption = nullptr;
 
     // Illuminant
     IlluminantChoice m_illuminant;

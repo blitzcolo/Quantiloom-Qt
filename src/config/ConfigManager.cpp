@@ -786,6 +786,13 @@ void ConfigManager::extractQuantitativeSpectral(const quantiloom::Config& config
         out.renderSolarScale = config.Get<double>("lighting.render_solar_scale", 1.0);
     }
 
+    // [ground] and the sky model are applied by the SDK; only whether the
+    // document spelled them out is read here, so a save leaves an absent one
+    // absent.
+    out.groundPresent = config.HasSection("ground");
+    out.skyDistributionPresent = config.Has("lighting.sky_distribution");
+    out.skyTurbidityPresent = config.Has("lighting.sky_turbidity");
+
     // [spectral] NMF basis.
     out.basisFile = QString::fromStdString(config.GetString("spectral.basis_file", ""));
     out.materialsJson = QString::fromStdString(config.GetString("spectral.materials_json", ""));
@@ -1149,7 +1156,37 @@ void ConfigManager::writeConfig(QTextStream& stream, const SceneConfig& config) 
     if (config.renderSolarScale) {
         out << "render_solar_scale = " << *config.renderSolarScale << "\n";
     }
+    if (config.skyDistributionPresent ||
+        config.skyDistribution != QLatin1String("isotropic")) {
+        out << "sky_distribution = " << tomlQuoted(config.skyDistribution) << "\n";
+    }
+    if (config.skyTurbidityPresent || config.skyTurbidity != 3.0f) {
+        out << "sky_turbidity = " << config.skyTurbidity << "\n";
+    }
     out << "\n";
+
+    // [ground]
+    const quantiloom::GroundParams defaultGround;
+    const quantiloom::GroundParams& ground = config.ground;
+    const bool groundIsDefault =
+        ground.enabled == defaultGround.enabled &&
+        ground.heightAuto == defaultGround.heightAuto &&
+        ground.height == defaultGround.height && ground.albedo == defaultGround.albedo &&
+        ground.emissivity == defaultGround.emissivity &&
+        ground.temperatureK == defaultGround.temperatureK;
+    if (config.groundPresent || !groundIsDefault) {
+        out << "[ground]\n";
+        out << "enabled = " << (ground.enabled ? "true" : "false") << "\n";
+        if (ground.heightAuto) {
+            out << "height = \"auto\"\n";
+        } else {
+            out << "height = " << ground.height << "\n";
+        }
+        out << "albedo = " << ground.albedo << "\n";
+        out << "emissivity = " << ground.emissivity << "\n";
+        out << "temperature_k = " << ground.temperatureK << "\n";
+        out << "\n";
+    }
 
     // [atmosphere] - preset plus the nine weather features. extractSceneConfig
     // reads all of them (and maps the legacy [atmospheric] names onto the

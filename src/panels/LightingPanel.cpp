@@ -243,6 +243,98 @@ void LightingPanel::setupUi() {
 
     mainLayout->addWidget(m_illuminantGroup);
     mainLayout->addWidget(m_envGroup);
+
+    // ------------------------------------------------------------------
+    // Virtual ground
+    // ------------------------------------------------------------------
+    // A grey Lambert plane below the horizon for rays that would otherwise
+    // see nothing. Off by default in the SDK, so a document that never names
+    // one renders as it always did.
+    m_groundGroup = new QGroupBox(this);
+    auto* groundLayout = new QFormLayout(m_groundGroup);
+
+    m_groundEnabledCheck = new QCheckBox(m_groundGroup);
+    connect(m_groundEnabledCheck, &QCheckBox::toggled, this, &LightingPanel::onGroundEdited);
+    groundLayout->addRow(m_groundEnabledCheck);
+
+    m_groundAutoHeightCheck = new QCheckBox(m_groundGroup);
+    m_groundAutoHeightCheck->setChecked(true);
+    connect(m_groundAutoHeightCheck, &QCheckBox::toggled,
+            this, &LightingPanel::onGroundEdited);
+    groundLayout->addRow(m_groundAutoHeightCheck);
+
+    m_groundHeightSpin = new QDoubleSpinBox(m_groundGroup);
+    m_groundHeightSpin->setRange(-1.0e6, 1.0e6);
+    m_groundHeightSpin->setDecimals(3);
+    m_groundHeightSpin->setSingleStep(0.1);
+    m_groundHeightSpin->setKeyboardTracking(false);
+    connect(m_groundHeightSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &LightingPanel::onGroundEdited);
+    m_groundHeightCaption = new QLabel(m_groundGroup);
+    groundLayout->addRow(m_groundHeightCaption, m_groundHeightSpin);
+
+    m_groundAlbedoSpin = new QDoubleSpinBox(m_groundGroup);
+    m_groundAlbedoSpin->setRange(0.0, 1.0);
+    m_groundAlbedoSpin->setDecimals(3);
+    m_groundAlbedoSpin->setSingleStep(0.01);
+    m_groundAlbedoSpin->setKeyboardTracking(false);
+    connect(m_groundAlbedoSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &LightingPanel::onGroundEdited);
+    m_groundAlbedoCaption = new QLabel(m_groundGroup);
+    groundLayout->addRow(m_groundAlbedoCaption, m_groundAlbedoSpin);
+
+    m_groundEmissivitySpin = new QDoubleSpinBox(m_groundGroup);
+    m_groundEmissivitySpin->setRange(0.0, 1.0);
+    m_groundEmissivitySpin->setDecimals(3);
+    m_groundEmissivitySpin->setSingleStep(0.01);
+    m_groundEmissivitySpin->setKeyboardTracking(false);
+    connect(m_groundEmissivitySpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &LightingPanel::onGroundEdited);
+    m_groundEmissivityCaption = new QLabel(m_groundGroup);
+    groundLayout->addRow(m_groundEmissivityCaption, m_groundEmissivitySpin);
+
+    m_groundTemperatureSpin = new QDoubleSpinBox(m_groundGroup);
+    m_groundTemperatureSpin->setRange(0.0, 2000.0);
+    m_groundTemperatureSpin->setDecimals(1);
+    m_groundTemperatureSpin->setSingleStep(1.0);
+    m_groundTemperatureSpin->setSuffix(QStringLiteral(" K"));   // unit symbol, not translated
+    m_groundTemperatureSpin->setKeyboardTracking(false);
+    connect(m_groundTemperatureSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &LightingPanel::onGroundEdited);
+    m_groundTemperatureCaption = new QLabel(m_groundGroup);
+    groundLayout->addRow(m_groundTemperatureCaption, m_groundTemperatureSpin);
+
+    mainLayout->addWidget(m_groundGroup);
+    updateGroundWidgets();
+
+    // ------------------------------------------------------------------
+    // Sky distribution
+    // ------------------------------------------------------------------
+    m_skyDistGroup = new QGroupBox(this);
+    auto* skyDistLayout = new QFormLayout(m_skyDistGroup);
+
+    m_skyDistCombo = new QComboBox(m_skyDistGroup);
+    // Data carries the enumerator; the display text is translated around it.
+    m_skyDistCombo->addItem(QString(), static_cast<int>(quantiloom::SkyDistribution::Isotropic));
+    m_skyDistCombo->addItem(QString(), static_cast<int>(quantiloom::SkyDistribution::HosekWilkie));
+    connect(m_skyDistCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &LightingPanel::onSkyDistributionEdited);
+    m_skyDistCaption = new QLabel(m_skyDistGroup);
+    skyDistLayout->addRow(m_skyDistCaption, m_skyDistCombo);
+
+    m_turbiditySpin = new QDoubleSpinBox(m_skyDistGroup);
+    m_turbiditySpin->setRange(1.0, 10.0);
+    m_turbiditySpin->setDecimals(1);
+    m_turbiditySpin->setSingleStep(0.5);
+    m_turbiditySpin->setValue(3.0);
+    m_turbiditySpin->setKeyboardTracking(false);
+    m_turbiditySpin->setEnabled(false);
+    connect(m_turbiditySpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &LightingPanel::onSkyDistributionEdited);
+    m_turbidityCaption = new QLabel(m_skyDistGroup);
+    skyDistLayout->addRow(m_turbidityCaption, m_turbiditySpin);
+
+    mainLayout->addWidget(m_skyDistGroup);
     mainLayout->addStretch();
 }
 
@@ -721,8 +813,99 @@ void LightingPanel::retranslateUi() {
     m_envBrowseButton->setText(tr("Browse…"));
     m_envClearButton->setText(tr("Clear"));
 
+    m_groundGroup->setTitle(tr("Virtual Ground"));
+    m_groundEnabledCheck->setText(tr("Ground plane below the horizon"));
+    m_groundEnabledCheck->setToolTip(
+        tr("A grey Lambert plane for rays that would otherwise see nothing below the "
+           "horizon. It is lit by the sun, with shadows, and by the sky, and it reflects "
+           "that light back onto the scene. Off, those rays see the sky model alone."));
+    m_groundAutoHeightCheck->setText(tr("Height from the scene's lowest point"));
+    m_groundHeightCaption->setText(tr("Height:"));
+    m_groundHeightSpin->setToolTip(tr("Height of the plane in world units, along the up axis."));
+    m_groundAlbedoCaption->setText(tr("Albedo:"));
+    m_groundAlbedoSpin->setToolTip(
+        tr("Lambert reflectance in the reflective bands (VIS, NIR, SWIR) and RGB."));
+    m_groundEmissivityCaption->setText(tr("Emissivity:"));
+    m_groundEmissivitySpin->setToolTip(tr("Emissivity in the thermal bands (MWIR, LWIR)."));
+    m_groundTemperatureCaption->setText(tr("Ground temperature:"));
+    m_groundTemperatureSpin->setSpecialValueText(tr("Scene default"));
+    m_groundTemperatureSpin->setToolTip(
+        tr("Surface temperature of the plane in the thermal bands. 0 uses the scene's "
+           "default temperature."));
+
+    m_skyDistGroup->setTitle(tr("Sky Distribution"));
+    m_skyDistCaption->setText(tr("Model:"));
+    m_skyDistCombo->setItemText(0, tr("Isotropic"));
+    m_skyDistCombo->setItemText(1, tr("Hosek-Wilkie"));
+    m_skyDistCombo->setToolTip(
+        tr("How the sky's light is spread over the dome without the NN atmosphere, in the "
+           "visible bands. The horizontal sky irradiance is unchanged; only its "
+           "distribution is. With the NN atmosphere on, its own sky is used instead."));
+    m_turbidityCaption->setText(tr("Turbidity:"));
+    m_turbiditySpin->setToolTip(tr("Haze of the Hosek-Wilkie sky, 1 (clear) to 10 (hazy)."));
 
     updateEnvironmentDisplay();
+}
+
+quantiloom::GroundParams LightingPanel::readGround() const {
+    quantiloom::GroundParams ground;
+    ground.enabled = m_groundEnabledCheck->isChecked();
+    ground.heightAuto = m_groundAutoHeightCheck->isChecked();
+    ground.height = static_cast<float>(m_groundHeightSpin->value());
+    ground.albedo = static_cast<float>(m_groundAlbedoSpin->value());
+    ground.emissivity = static_cast<float>(m_groundEmissivitySpin->value());
+    ground.temperatureK = static_cast<float>(m_groundTemperatureSpin->value());
+    return ground;
+}
+
+void LightingPanel::updateGroundWidgets() {
+    const bool on = m_groundEnabledCheck->isChecked();
+    m_groundAutoHeightCheck->setEnabled(on);
+    m_groundHeightSpin->setEnabled(on && !m_groundAutoHeightCheck->isChecked());
+    m_groundAlbedoSpin->setEnabled(on);
+    m_groundEmissivitySpin->setEnabled(on);
+    m_groundTemperatureSpin->setEnabled(on);
+}
+
+void LightingPanel::setGround(const quantiloom::GroundParams& ground) {
+    {
+        const QSignalBlocker b1(m_groundEnabledCheck);
+        const QSignalBlocker b2(m_groundAutoHeightCheck);
+        const QSignalBlocker b3(m_groundHeightSpin);
+        const QSignalBlocker b4(m_groundAlbedoSpin);
+        const QSignalBlocker b5(m_groundEmissivitySpin);
+        const QSignalBlocker b6(m_groundTemperatureSpin);
+        m_groundEnabledCheck->setChecked(ground.enabled);
+        m_groundAutoHeightCheck->setChecked(ground.heightAuto);
+        m_groundHeightSpin->setValue(static_cast<double>(ground.height));
+        m_groundAlbedoSpin->setValue(static_cast<double>(ground.albedo));
+        m_groundEmissivitySpin->setValue(static_cast<double>(ground.emissivity));
+        m_groundTemperatureSpin->setValue(static_cast<double>(ground.temperatureK));
+    }
+    updateGroundWidgets();
+}
+
+void LightingPanel::onGroundEdited() {
+    updateGroundWidgets();
+    emit groundChanged(readGround());
+}
+
+void LightingPanel::setSkyDistribution(quantiloom::SkyDistribution distribution,
+                                       float turbidity) {
+    const QSignalBlocker b1(m_skyDistCombo);
+    const QSignalBlocker b2(m_turbiditySpin);
+    // By value, never by index -- see src/i18n/AGENTS.md.
+    m_skyDistCombo->setCurrentIndex(
+        std::max(0, m_skyDistCombo->findData(static_cast<int>(distribution))));
+    m_turbiditySpin->setValue(static_cast<double>(turbidity));
+    m_turbiditySpin->setEnabled(distribution == quantiloom::SkyDistribution::HosekWilkie);
+}
+
+void LightingPanel::onSkyDistributionEdited() {
+    const auto distribution =
+        static_cast<quantiloom::SkyDistribution>(m_skyDistCombo->currentData().toInt());
+    m_turbiditySpin->setEnabled(distribution == quantiloom::SkyDistribution::HosekWilkie);
+    emit skyDistributionChanged(distribution, static_cast<float>(m_turbiditySpin->value()));
 }
 
 void LightingPanel::setEnvironmentMap(const QString& path, bool enabled) {

@@ -59,6 +59,9 @@ enum class CommandId {
     // [scene] vertex_colors: document state, applied by re-applying the
     // document, so undoing it reloads the scene the same way.
     ModifyVertexColors = 18,
+    // The virtual ground and the sky's directional model.
+    ModifyGround = 19,
+    ModifySkyDistribution = 20,
 };
 
 /**

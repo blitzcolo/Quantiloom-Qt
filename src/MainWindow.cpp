@@ -100,6 +100,7 @@
 #include <postprocess/CameraConfigIO.hpp>
 #include <scene/Scene.hpp>
 #include <renderer/LightingParams.hpp>
+#include "SkyNames.hpp"
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <cmath>
@@ -238,6 +239,12 @@ MainWindow::MainWindow(QVulkanInstance* vulkanInstance, QWidget* parent)
 }
 
 MainWindow::~MainWindow() = default;
+
+bool settingsEqual(const quantiloom::GroundParams& a, const quantiloom::GroundParams& b) {
+    return a.enabled == b.enabled && a.heightAuto == b.heightAuto && a.height == b.height &&
+           a.albedo == b.albedo && a.emissivity == b.emissivity &&
+           a.temperatureK == b.temperatureK;
+}
 
 bool settingsEqual(const quantiloom::AtmosphereNNConfig& a,
                    const quantiloom::AtmosphereNNConfig& b) {
@@ -719,12 +726,40 @@ void MainWindow::setupMenus() {
         connect(action, &QAction::triggered, this,
                 [this, id]() { m_lightingPanel->requestIlluminantKind(id); });
     }
+    // The virtual ground and the sky's directional model: the panel's group
+    // boxes are shortcuts to these, and both routes end in the same edit.
+    m_lightingMenu->addSeparator();
+    m_groundAction = m_lightingMenu->addAction(QString());
+    m_groundAction->setCheckable(true);
+    connect(m_groundAction, &QAction::triggered, this, [this](bool enabled) {
+        quantiloom::GroundParams ground = m_viewport->ground();
+        ground.enabled = enabled;
+        editGround(ground);
+    });
+    m_skyDistributionMenu = m_lightingMenu->addMenu(QString());
+    m_skyDistributionGroup = new QActionGroup(this);
+    m_skyDistributionGroup->setExclusive(true);
+    for (const auto distribution : {quantiloom::SkyDistribution::Isotropic,
+                                    quantiloom::SkyDistribution::HosekWilkie}) {
+        QAction* action = m_skyDistributionMenu->addAction(QString());
+        action->setCheckable(true);
+        action->setData(static_cast<int>(distribution));
+        m_skyDistributionGroup->addAction(action);
+        connect(action, &QAction::triggered, this, [this, distribution]() {
+            editSkyDistribution(distribution, m_viewport->skyTurbidity());
+        });
+    }
     // The ticks are read from the panel when the menu opens rather than
     // pushed from every path that can change them.
     connect(m_lightingMenu, &QMenu::aboutToShow, this, [this]() {
         m_envEnabledAction->setChecked(m_lightingPanel->environmentEnabled());
         m_envEnabledAction->setEnabled(m_lightingPanel->hasEnvironmentMap());
         m_envClearAction->setEnabled(m_lightingPanel->hasEnvironmentMap());
+        m_groundAction->setChecked(m_viewport->ground().enabled);
+        const int distribution = static_cast<int>(m_viewport->skyDistribution());
+        for (QAction* action : m_skyDistributionGroup->actions()) {
+            action->setChecked(action->data().toInt() == distribution);
+        }
         const QString kind = m_lightingPanel->illuminantKind();
         for (QAction* action : m_illuminantGroup->actions()) {
             const QString actionKind = action->data().toString();
@@ -1277,6 +1312,40 @@ void MainWindow::applyLightingParams(const quantiloom::LightingParams& params) {
     m_atmosphericPanel->setAnalyticSky(m_skyClearModel,
                                        m_lightingParams->atmosphereTemperature_K,
                                        m_skyRelativeHumidity);
+}
+
+void MainWindow::applyGround(const quantiloom::GroundParams& ground) {
+    m_viewport->setGround(ground);
+    m_lightingPanel->setGround(ground);
+    setSceneModified(true);
+    showStatusMessage(ground.enabled ? tr("Virtual ground on") : tr("Virtual ground off"));
+}
+
+void MainWindow::applySkyDistribution(quantiloom::SkyDistribution distribution,
+                                      float turbidity) {
+    m_viewport->setSkyDistribution(distribution, turbidity);
+    m_lightingPanel->setSkyDistribution(distribution, turbidity);
+    setSceneModified(true);
+    showStatusMessage(distribution == quantiloom::SkyDistribution::HosekWilkie
+                          ? tr("Sky distribution: Hosek-Wilkie")
+                          : tr("Sky distribution: isotropic"));
+}
+
+void MainWindow::editGround(const quantiloom::GroundParams& ground) {
+    pushSettingCommand(CommandId::ModifyGround, tr("Virtual ground"),
+                       m_viewport->ground(), ground,
+                       [this](const quantiloom::GroundParams& v) { applyGround(v); });
+}
+
+void MainWindow::editSkyDistribution(quantiloom::SkyDistribution distribution,
+                                     float turbidity) {
+    pushSettingCommand(CommandId::ModifySkyDistribution, tr("Sky distribution"),
+                       SkyDistributionSetting{m_viewport->skyDistribution(),
+                                              m_viewport->skyTurbidity()},
+                       SkyDistributionSetting{distribution, turbidity},
+                       [this](const SkyDistributionSetting& v) {
+                           applySkyDistribution(v.distribution, v.turbidity);
+                       });
 }
 
 void MainWindow::applyEnvironmentMap(const QString& path, bool enabled) {
@@ -2728,6 +2797,10 @@ void MainWindow::setupDockWidgets() {
             this, &MainWindow::onEnvironmentMapChanged);
     connect(m_lightingPanel, &LightingPanel::illuminantChanged,
             this, &MainWindow::applyIlluminant);
+    connect(m_lightingPanel, &LightingPanel::groundChanged,
+            this, &MainWindow::editGround);
+    connect(m_lightingPanel, &LightingPanel::skyDistributionChanged,
+            this, &MainWindow::editSkyDistribution);
 
     // A slider drag applies live but enters the history once, as one entry
     // from where the drag started to where it ended. Snapshot on press,
@@ -3691,6 +3764,16 @@ void MainWindow::retranslateUi() {
     m_envEnabledAction->setText(tr("&Light from Environment Map"));
     m_envClearAction->setText(tr("&Clear Environment Map"));
     m_illuminantMenu->setTitle(tr("&Illuminant"));
+    m_groundAction->setText(tr("Virtual &Ground"));
+    m_groundAction->setToolTip(
+        tr("A grey ground plane below the horizon, lit by the sun and sky"));
+    m_skyDistributionMenu->setTitle(tr("Sky &Distribution"));
+    for (QAction* action : m_skyDistributionGroup->actions()) {
+        action->setText(action->data().toInt() ==
+                                static_cast<int>(quantiloom::SkyDistribution::HosekWilkie)
+                            ? tr("&Hosek-Wilkie")
+                            : tr("&Isotropic"));
+    }
     // The entries take the panel's labels when the menu opens; see setupMenus.
     m_cameraSimulationAction->setText(tr("&Camera Simulation"));
     m_cameraSimulationAction->setToolTip(
@@ -5972,6 +6055,9 @@ void MainWindow::syncPanelsFromRenderer() {
     m_lightingPanel->setEnvironmentMap(
         m_lastConfig ? m_lastConfig->environmentMap : QString(),
         lighting.enableEnvironmentMap != 0);
+    m_lightingPanel->setGround(m_viewport->ground());
+    m_lightingPanel->setSkyDistribution(m_viewport->skyDistribution(),
+                                        m_viewport->skyTurbidity());
 
     const auto mode = m_viewport->spectralMode();
     syncSpectralModeUi(mode);
@@ -6221,6 +6307,13 @@ void MainWindow::collectCurrentConfig(SceneConfig& config) {
                     m_lastConfig ? m_lastConfig->lighting.skyRadiance_spectral : 0.0f);
         }
     }
+
+    // The ground and the sky model as the renderer runs them. Whether they are
+    // written is the exporter's call: a document that never named either does
+    // not acquire it on save.
+    config.ground = m_viewport->ground();
+    config.skyDistribution = skynames::skyDistributionName(m_viewport->skyDistribution());
+    config.skyTurbidity = m_viewport->skyTurbidity();
 
     // "None" in a spectral mode is the sun and sky switched off, and the
     // lighting panel shows both at 0. The file says the same, so it renders

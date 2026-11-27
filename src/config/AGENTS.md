@@ -49,6 +49,12 @@ the SDK's serialization in both directions: `ParseCameraConfig` on load, which
 migrates a legacy unversioned `[sensor]` block, and `CameraConfigToToml` on save, so
 Studio writes exactly what the CLI writes.
 
+`[ground]` and `lighting.sky_distribution` / `lighting.sky_turbidity` are in this group too,
+owned by the Lighting panel. The SDK reads them on load; `collectCurrentConfig()` takes what the
+renderer runs on, and the writer emits each only when it differs from the SDK's default or the
+document spelled it out (`groundPresent`, `skyDistributionPresent`, `skyTurbidityPresent`), so a
+file that never named them does not acquire them on save.
+
 `scene.vertex_colors` is in this group too, owned by the Render panel's Scene combo.
 The panel is seeded from what the SDK read (`Scene::vertexColors.mode`), so a value
 written into a scene the combo will not edit (anything but a Minecraft export with

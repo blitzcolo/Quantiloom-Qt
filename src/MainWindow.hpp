@@ -331,6 +331,14 @@ private:
     void applyTheme(const QString& themeId);
     void applyWavelength(float wavelength_nm);
     void applyLightingParams(const quantiloom::LightingParams& params);
+    /// The single place the virtual ground and the sky's directional model are
+    /// applied: renderer and panel, and so what a load, an undo or a tool call
+    /// shows. The menu, the panel and the MCP tools all enter through the
+    /// edit* wrappers, which add the history entry.
+    void applyGround(const quantiloom::GroundParams& ground);
+    void applySkyDistribution(quantiloom::SkyDistribution distribution, float turbidity);
+    void editGround(const quantiloom::GroundParams& ground);
+    void editSkyDistribution(quantiloom::SkyDistribution distribution, float turbidity);
     void applyEnvironmentMap(const QString& path, bool enabled);
     void applyAtmosphere(const quantiloom::AtmosphereNNConfig& config);
     void applySensorEnabled(bool enabled);
@@ -864,6 +872,9 @@ private:
     QAction* m_envClearAction = nullptr;
     QMenu* m_illuminantMenu = nullptr;
     QActionGroup* m_illuminantGroup = nullptr;
+    QAction* m_groundAction = nullptr;
+    QMenu* m_skyDistributionMenu = nullptr;
+    QActionGroup* m_skyDistributionGroup = nullptr;
     QAction* m_cameraSimulationAction = nullptr;
     QAction* m_thermalSolveAction = nullptr;
     QAction* m_autoExportAction = nullptr;
@@ -1059,6 +1070,18 @@ private:
     TitleBar* m_titleBar = nullptr;
     std::unique_ptr<WindowChrome> m_chrome;
 };
+
+/// The sky's directional model and its turbidity, which undo as one setting.
+struct SkyDistributionSetting {
+    quantiloom::SkyDistribution distribution = quantiloom::SkyDistribution::Isotropic;
+    float turbidity = 3.0f;
+    bool operator==(const SkyDistributionSetting&) const = default;
+};
+
+/// GroundParams mixes a bool with floats, so comparing its bytes would compare
+/// padding. Defined in MainWindow.cpp.
+[[nodiscard]] bool settingsEqual(const quantiloom::GroundParams& a,
+                                 const quantiloom::GroundParams& b);
 
 /// "Nothing changed" for the two settings that hold strings or arrays, where
 /// comparing bytes compares the heap pointers inside them and every re-emit of

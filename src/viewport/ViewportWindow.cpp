@@ -217,6 +217,18 @@ quantiloom::LightingParams ViewportWindow::lightingParams() const {
                       : quantiloom::CreateDefaultLightingParams();
 }
 
+quantiloom::GroundParams ViewportWindow::ground() const {
+    return m_renderer ? m_renderer->ground() : quantiloom::GroundParams{};
+}
+
+quantiloom::SkyDistribution ViewportWindow::skyDistribution() const {
+    return m_renderer ? m_renderer->skyDistribution() : quantiloom::SkyDistribution::Isotropic;
+}
+
+float ViewportWindow::skyTurbidity() const {
+    return m_renderer ? m_renderer->skyTurbidity() : 3.0f;
+}
+
 quantiloom::SpectralMode ViewportWindow::spectralMode() const {
     return m_renderer ? m_renderer->spectralMode() : quantiloom::SpectralMode::RGB;
 }
@@ -281,6 +293,17 @@ void ViewportWindow::setDebugMode(quantiloom::DebugVisualizationMode mode) {
 
 void ViewportWindow::setLightingParams(const quantiloom::LightingParams& params) {
     withRenderer([params](ViewportRenderer& r) { r.setLightingParams(params); });
+}
+
+void ViewportWindow::setGround(const quantiloom::GroundParams& ground) {
+    withRenderer([ground](ViewportRenderer& r) { r.setGround(ground); });
+}
+
+void ViewportWindow::setSkyDistribution(quantiloom::SkyDistribution distribution,
+                                        float turbidity) {
+    withRenderer([distribution, turbidity](ViewportRenderer& r) {
+        r.setSkyDistribution(distribution, turbidity);
+    });
 }
 
 void ViewportWindow::updateMaterial(int index, const quantiloom::Material& material) {
