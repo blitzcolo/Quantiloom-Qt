@@ -13,7 +13,7 @@ The pieces, and which one to touch:
 | `GpuDevice` | Device creation, by calling the SDK's `vk::CreateDevice`/`vk::DestroyDevice` with QRhi's preferred-for-import extensions as optional, `VK_KHR_swapchain` as required and the present predicate. QRhi cannot do this itself: it has no way to enable the ray tracing feature structs |
 | `ViewportRenderer` | The QRhi, the swapchain, the frame textures, the frame loop, the context jobs, the camera and every setter |
 | `SdkFrameBridge` | **Every SDK call that takes a Vulkan handle** (`Create` with `vk::Handles`, the three frame calls and `BlitDepthTo` with `vk::Commands`/`vk::Target`) and every `VkImageLayout`. Nowhere else in src/ has either |
-| `OverlayRenderer` | The grid, the gizmo and the selection box as QRhi pipelines, the composite pass, the composited-capture readback |
+| `OverlayRenderer` | The sun disk, the grid, the gizmo and the selection box as QRhi pipelines, the composite pass, the composited-capture readback |
 | `CameraMatrices` | The SDK's camera as matrices and pixel rays. The projection is OpenGL's convention; a backend's comes from `clipSpaceCorrMatrix()` in front of it |
 
 One frame: `beginFrame`, the SDK records into the frame texture between
@@ -104,6 +104,25 @@ Re-presenting there used to show a loop stopped at its target an acquisition tha
 longer existed: a black frame, and the new one never traced. `setGridVisible` is
 display-only too but compositing rather than post-processing, so it just requests a
 frame.
+
+## The sun disk is a viewer aid, not a render
+
+`OverlayRenderer`'s first pass draws the sun (`shaders/overlay/sun.frag`, on the grid's
+fullscreen triangle) before the grid. The fragment shader rebuilds the primary ray the way
+`grid.frag` does and draws only where the SDK depth AOV is -1 (a miss) **and** the ray's
+`dir.y` is positive, so buildings occlude it and the horizon clips it per pixel. What it
+draws comes from `ExternalRenderContext::GetSunDisk()`, which `renderFrame()` asks every
+frame (a pure query; while a context job holds the context the last answer stands): a disk
+of the real angular radius with linear limb darkening, a near-white core tinted by the beam
+colour, and an exponential glow scaled by `sqrt(transmittance)`, all multiplied by
+`aboveHorizon`. Nothing is drawn when the info is not `valid` or `aboveHorizon` is 0.
+
+Like the grid it is display-only: `setSunDiskVisible` requests a frame and never resets the
+accumulation, and it is composited onto the frame texture **after** the SDK wrote it, never
+into the SDK's own buffers -- so exports, `ql_capture_viewport`, auto exposure, the
+comparison panel and pixel reads never contain it, while `ql_capture_composited` does. The
+output is premultiplied (blend `One` / `OneMinusSrcAlpha`), so the glow adds light and the
+disk covers it.
 
 ## The viewport's size is not the render's
 

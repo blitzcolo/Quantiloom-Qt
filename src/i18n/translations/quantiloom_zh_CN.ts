@@ -3077,6 +3077,14 @@ Remove it from the recent files?</source>
         <source>Sky distribution</source>
         <translation>天空分布</translation>
     </message>
+    <message>
+        <source>Show &amp;Sun Disk</source>
+        <translation>显示太阳圆盘(&amp;S)</translation>
+    </message>
+    <message>
+        <source>Draw the sun over the sky as a viewing aid. It is never part of the render: exports, pixel readings and the comparison never contain it.</source>
+        <translation>在天空中绘制太阳，仅作观察辅助。它不属于渲染本身：导出、像素读数和对比都不包含它。</translation>
+    </message>
 </context>
 <context>
     <name>MaterialEditorPanel</name>

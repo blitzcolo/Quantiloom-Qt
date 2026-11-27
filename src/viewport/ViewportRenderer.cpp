@@ -488,6 +488,21 @@ void ViewportRenderer::renderFrame() {
         // Editor overlay (grid, gizmo) over the SDK's frame. The pass runs
         // even with nothing to draw: it is the use the frame texture's layout
         // was left for (SdkFrameBridge.hpp).
+        // The sun is asked of the context every frame: a pure query, cheaper
+        // than tracking every change that moves it (the sun direction, the
+        // solar LUT, the atmosphere, the mode). While a job holds the context
+        // the last answer stands.
+        if (m_renderContext) {
+            const quantiloom::SunDiskInfo sun = m_renderContext->GetSunDisk();
+            viewport::SunDisk disk;
+            disk.direction = sun.direction;
+            disk.angularRadius = sun.angularRadius;
+            disk.color = sun.color;
+            disk.transmittance = sun.transmittance;
+            disk.aboveHorizon = sun.aboveHorizon;
+            disk.valid = sun.valid;
+            m_overlay.setSunDisk(disk);
+        }
         const viewport::CameraMatrices overlayCam = overlayCamera();
         m_gizmoVertices.clear();
         m_window->buildGizmoDrawList(overlayCam, m_gizmoVertices);
@@ -1889,6 +1904,15 @@ void ViewportRenderer::setGridVisible(bool visible) {
     // One redraw so the toggle shows after the loop stopped at its target.
     // Past-target frames re-present the accumulation, so this costs no
     // sample; the guard is the same trade as requestDisplayReprocess()'s.
+    if (!m_paused || m_sampleCount > 0) {
+        m_window->requestUpdate();
+    }
+}
+
+void ViewportRenderer::setSunDiskVisible(bool visible) {
+    m_overlay.setSunDiskVisible(visible);
+    // Display-only, like the grid: one frame so the toggle shows after the
+    // loop stopped at its target.
     if (!m_paused || m_sampleCount > 0) {
         m_window->requestUpdate();
     }

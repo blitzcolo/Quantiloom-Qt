@@ -617,6 +617,11 @@ void ViewportWindow::setGridVisible(bool visible) {
     requestOverlayRedraw();
 }
 
+void ViewportWindow::setSunDiskVisible(bool visible) {
+    withRenderer([visible](ViewportRenderer& r) { r.setSunDiskVisible(visible); });
+    requestOverlayRedraw();
+}
+
 bool ViewportWindow::isGridVisible() const {
     return m_renderer && m_renderer->isGridVisible();
 }

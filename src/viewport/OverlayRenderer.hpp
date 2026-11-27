@@ -3,7 +3,7 @@
  * @brief The editor overlay and the composite, drawn with QRhi
  *
  * Two passes a frame, both QRhi's. The overlay pass draws onto the frame
- * texture the SDK has just written: the viewport grid, then the transform
+ * texture the SDK has just written: the sun disk, the viewport grid, then the transform
  * gizmo and the selection box, with LOAD/STORE so the render underneath is
  * kept. It runs on every frame with an image, even with nothing to draw,
  * because it is the use QRhi's layout tracking expects next (see
@@ -30,6 +30,8 @@
 #include "CameraMatrices.hpp"
 #include "../editing/GizmoModel.hpp"
 
+#include <glm/glm.hpp>
+
 #include <QSize>
 #include <QString>
 #include <QtGlobal>
@@ -52,6 +54,17 @@ struct QRhiReadbackResult;
 
 namespace viewport {
 
+/// What the sun pass draws: the SDK's SunDiskInfo, kept as plain data so this
+/// file needs no SDK header.
+struct SunDisk {
+    glm::vec3 direction{0.0f, 1.0f, 0.0f};  ///< unit, toward the sun, world
+    float angularRadius = 0.004654f;        ///< radians
+    glm::vec3 color{1.0f};                  ///< beam chromaticity, max component 1
+    float transmittance = 1.0f;
+    float aboveHorizon = 1.0f;              ///< fraction of the disk above the horizon
+    bool valid = false;                     ///< false when nothing defines a sun
+};
+
 class OverlayRenderer {
 public:
     OverlayRenderer();
@@ -65,6 +78,15 @@ public:
     void setGridVisible(bool visible) { m_gridVisible = visible; }
     [[nodiscard]] bool gridVisible() const { return m_gridVisible; }
 
+    /// The sun disk, a viewer aid like the grid: display-only, drawn on the
+    /// frame texture after the SDK has written it and never into the SDK's
+    /// own buffers, so exports, captures of the SDK frame and pixel reads
+    /// never contain it. Nothing is drawn while the sun is not valid or is
+    /// wholly below the horizon.
+    void setSunDiskVisible(bool visible) { m_sunDiskVisible = visible; }
+    [[nodiscard]] bool sunDiskVisible() const { return m_sunDiskVisible; }
+    void setSunDisk(const SunDisk& sun) { m_sunDisk = sun; }
+
     /// Ready this frame's drawing: build what is missing, and put the grid
     /// and gizmo uniforms, this frame's gizmo triangles and the composite's
     /// parameters into @p updates. @p overlayPass is the frame render
@@ -77,7 +99,8 @@ public:
                  QRhiTexture* depthTexture, const CameraMatrices& camera,
                  const std::vector<editing::GizmoVertex>& gizmoVertices, bool encodeSrgb);
 
-    /// Inside the overlay pass: the grid, then the gizmo, over @p extent.
+    /// Inside the overlay pass: the sun, then the grid, then the gizmo, over
+    /// @p extent.
     void draw(QRhiCommandBuffer* cb, QSize extent);
 
     /// Inside the composite pass: the frame texture into @p shown, which may
@@ -119,17 +142,22 @@ private:
     void saveCapture();
 
     bool m_gridVisible = false;
+    bool m_sunDiskVisible = true;
+    SunDisk m_sunDisk;
 
     std::unique_ptr<QRhiSampler> m_nearestSampler;  // depth, never interpolated
     std::unique_ptr<QRhiSampler> m_linearSampler;   // the fitted frame
     std::unique_ptr<QRhiBuffer> m_gridUniforms;
+    std::unique_ptr<QRhiBuffer> m_sunUniforms;
     std::unique_ptr<QRhiBuffer> m_gizmoUniforms;
     std::unique_ptr<QRhiBuffer> m_compositeUniforms;
     std::unique_ptr<QRhiBuffer> m_gizmoVertices;
     std::unique_ptr<QRhiShaderResourceBindings> m_gridBindings;
+    std::unique_ptr<QRhiShaderResourceBindings> m_sunBindings;
     std::unique_ptr<QRhiShaderResourceBindings> m_gizmoBindings;
     std::unique_ptr<QRhiShaderResourceBindings> m_compositeBindings;
     std::unique_ptr<QRhiGraphicsPipeline> m_gridPipeline;
+    std::unique_ptr<QRhiGraphicsPipeline> m_sunPipeline;
     std::unique_ptr<QRhiGraphicsPipeline> m_gizmoPipeline;
     std::unique_ptr<QRhiGraphicsPipeline> m_compositePipeline;
     /// What the bindings were built against. The textures are resized in

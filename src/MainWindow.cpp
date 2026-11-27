@@ -114,6 +114,7 @@ constexpr int  kMaxRecentFiles = 8;
 constexpr auto kGeometryKey    = "window/geometry";
 constexpr auto kStateVersionKey = "window/state_version";
 constexpr auto kShowGridKey    = "viewport/show_grid";
+constexpr auto kShowSunDiskKey = "viewport/show_sun_disk";
 constexpr auto kMotionAdaptiveResolutionKey = "viewport/motion_adaptive_resolution";
 constexpr auto kFitToViewKey = "viewport/fit_to_view";
 
@@ -190,6 +191,7 @@ MainWindow::MainWindow(QVulkanInstance* vulkanInstance, QWidget* parent)
     {
         QSettings settings;
         applyGridVisible(settings.value(kShowGridKey, true).toBool());
+        applySunDiskVisible(settings.value(kShowSunDiskKey, true).toBool());
         applyMotionAdaptiveResolution(
             settings.value(kMotionAdaptiveResolutionKey, true).toBool());
         applyFitToView(settings.value(kFitToViewKey, true).toBool());
@@ -603,6 +605,11 @@ void MainWindow::setupMenus() {
     m_showGridAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_QuoteLeft));
     connect(m_showGridAction, &QAction::triggered,
             this, &MainWindow::applyGridVisible);
+
+    m_showSunDiskAction = m_viewMenu->addAction(QString());
+    m_showSunDiskAction->setCheckable(true);
+    connect(m_showSunDiskAction, &QAction::triggered,
+            this, &MainWindow::applySunDiskVisible);
 
     m_motionAdaptiveResolutionAction = m_viewMenu->addAction(QString());
     m_motionAdaptiveResolutionAction->setCheckable(true);
@@ -2384,6 +2391,21 @@ void MainWindow::applyGridVisible(bool visible) {
     settings.setValue(kShowGridKey, visible);
 }
 
+void MainWindow::applySunDiskVisible(bool visible) {
+    // Single application point for the sun disk overlay. Display-only like the
+    // grid: the render is unchanged, so toggling it must not restart
+    // convergence. Unlike the grid it is not tied to a workspace -- where the
+    // sun is in the picture matters in every one of them.
+    m_sunDiskVisible = visible;
+    m_viewport->setSunDiskVisible(visible);
+    if (m_showSunDiskAction) {
+        const QSignalBlocker blocker(m_showSunDiskAction);
+        m_showSunDiskAction->setChecked(visible);
+    }
+    QSettings settings;
+    settings.setValue(kShowSunDiskKey, visible);
+}
+
 void MainWindow::applyMotionAdaptiveResolution(bool enabled) {
     // Single application point for the motion-adaptive render extent. Nothing
     // about the estimator changes either way -- this only decides whether a
@@ -3660,6 +3682,10 @@ void MainWindow::retranslateUi() {
     m_displayEnhancementAction->setText(tr("Display &Enhancement"));
     m_displayEnhancementAction->setToolTip(
         tr("Affects the viewport and screenshots only; exported images keep their raw values."));
+    m_showSunDiskAction->setText(tr("Show &Sun Disk"));
+    m_showSunDiskAction->setToolTip(
+        tr("Draw the sun over the sky as a viewing aid. It is never part of the render: "
+           "exports, pixel readings and the comparison never contain it."));
     m_showGridAction->setText(tr("Show &Grid"));
     m_showGridAction->setToolTip(
         tr("Ground grid overlay in the viewport; does not affect renders or accumulation."));

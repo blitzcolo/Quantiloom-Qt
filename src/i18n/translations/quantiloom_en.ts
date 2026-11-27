@@ -2873,6 +2873,14 @@ Remove it from the recent files?</source>
         <source>Sky distribution</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>Show &amp;Sun Disk</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Draw the sun over the sky as a viewing aid. It is never part of the render: exports, pixel readings and the comparison never contain it.</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>MaterialEditorPanel</name>

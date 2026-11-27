@@ -317,6 +317,12 @@ public:
     void setGridVisible(bool visible);
     [[nodiscard]] bool isGridVisible() const { return m_overlay.gridVisible(); }
 
+    /// Show or hide the sun disk, a viewer aid drawn over the frame like the
+    /// grid and display-only in the same way: no accumulation reset, and it is
+    /// never written into the SDK's frame.
+    void setSunDiskVisible(bool visible);
+    [[nodiscard]] bool isSunDiskVisible() const { return m_overlay.sunDiskVisible(); }
+
     /// The camera the frame on screen was rendered with, as matrices and
     /// pixel rays. Only valid while a scene is loaded.
     [[nodiscard]] viewport::CameraMatrices overlayCamera() const;

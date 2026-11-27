@@ -300,6 +300,7 @@ private:
     void updateEditModeLabel();
     void applyDisplayEnhancementEnabled(bool enabled);
     void applyGridVisible(bool visible);
+    void applySunDiskVisible(bool visible);
     void applyMotionAdaptiveResolution(bool enabled);
     /// What the render extent follows: a fixed size or the viewport's. The
     /// Render menu, the panel's controls and ql_set_resolution all come
@@ -886,6 +887,7 @@ private:
     QAction* m_aboutQtAction = nullptr;
     QAction* m_displayEnhancementAction = nullptr;
     QAction* m_showGridAction = nullptr;
+    QAction* m_showSunDiskAction = nullptr;
     QAction* m_motionAdaptiveResolutionAction = nullptr;
 
     // Mode submenus. Each holds one exclusive action group, and each group is
@@ -1030,6 +1032,7 @@ private:
     // the Layout workspace being active -- the preference survives visits to
     // the other workspaces, where the grid never draws.
     bool m_gridUserVisible = true;
+    bool m_sunDiskVisible = true;
 
     // Whether a camera or gizmo gesture may trace at a reduced extent. Mirrors
     // the renderer's own flag so the status bar can say so without reaching

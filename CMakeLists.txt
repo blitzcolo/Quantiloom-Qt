@@ -449,6 +449,7 @@ qt_add_shaders(QuantiloomQt "viewport_shaders"
     FILES
         shaders/overlay/grid.vert
         shaders/overlay/grid.frag
+        shaders/overlay/sun.frag
         shaders/overlay/gizmo.vert
         shaders/overlay/gizmo.frag
         shaders/overlay/composite.vert

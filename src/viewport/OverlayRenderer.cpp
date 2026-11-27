@@ -24,6 +24,20 @@ struct GridUniforms {
 };
 static_assert(sizeof(GridUniforms) == 80, "GridUniforms must match grid.frag's PC block");
 
+/// sun.frag's PC block, std140: the camera's five vec4 (laid out like the
+/// grid's, the last lane of the third unused) and three for the sun.
+struct SunUniforms {
+    glm::vec4 camPosFov;               // xyz camera position, w tan(fovY/2)
+    glm::vec4 forwardAspect;           // xyz forward, w aspect
+    glm::vec4 right;                   // xyz right
+    glm::vec4 upOrtho;                 // xyz up, w orthographic film height (0 = perspective)
+    glm::vec4 ndc;                     // x: +1 when clip y points up, -1 when down
+    glm::vec4 sunDirRadius;            // xyz toward the sun, w angular radius
+    glm::vec4 sunColorTransmittance;   // rgb beam colour, w transmittance
+    glm::vec4 sunParams;               // x fraction of the disk above the horizon
+};
+static_assert(sizeof(SunUniforms) == 128, "SunUniforms must match sun.frag's PC block");
+
 /// The largest handle set is well under 1000 triangles; 64 KiB has headroom.
 constexpr quint32 kGizmoVertexCapacity = 64 * 1024;
 
@@ -40,6 +54,17 @@ QRhiGraphicsPipeline::TargetBlend alphaBlend() {
     QRhiGraphicsPipeline::TargetBlend blend;
     blend.enable = true;
     blend.srcColor = QRhiGraphicsPipeline::SrcAlpha;
+    blend.dstColor = QRhiGraphicsPipeline::OneMinusSrcAlpha;
+    blend.srcAlpha = QRhiGraphicsPipeline::One;
+    blend.dstAlpha = QRhiGraphicsPipeline::OneMinusSrcAlpha;
+    return blend;
+}
+
+/// For shaders that output premultiplied colour: rgb adds light, alpha covers.
+QRhiGraphicsPipeline::TargetBlend premultipliedBlend() {
+    QRhiGraphicsPipeline::TargetBlend blend;
+    blend.enable = true;
+    blend.srcColor = QRhiGraphicsPipeline::One;
     blend.dstColor = QRhiGraphicsPipeline::OneMinusSrcAlpha;
     blend.srcAlpha = QRhiGraphicsPipeline::One;
     blend.dstAlpha = QRhiGraphicsPipeline::OneMinusSrcAlpha;
@@ -80,6 +105,9 @@ void OverlayRenderer::ensureResources(QRhi* rhi, QRhiRenderPassDescriptor* overl
         m_gridUniforms.reset(rhi->newBuffer(QRhiBuffer::Dynamic, QRhiBuffer::UniformBuffer,
                                             static_cast<quint32>(sizeof(GridUniforms))));
         m_gridUniforms->create();
+        m_sunUniforms.reset(rhi->newBuffer(QRhiBuffer::Dynamic, QRhiBuffer::UniformBuffer,
+                                           static_cast<quint32>(sizeof(SunUniforms))));
+        m_sunUniforms->create();
         m_gizmoUniforms.reset(rhi->newBuffer(QRhiBuffer::Dynamic, QRhiBuffer::UniformBuffer,
                                              static_cast<quint32>(sizeof(glm::mat4))));
         m_gizmoUniforms->create();
@@ -111,6 +139,16 @@ void OverlayRenderer::ensureResources(QRhi* rhi, QRhiRenderPassDescriptor* overl
             m_gridUniforms.get()),
     });
     m_gridBindings->create();
+
+    m_sunBindings.reset(rhi->newShaderResourceBindings());
+    m_sunBindings->setBindings({
+        QRhiShaderResourceBinding::sampledTexture(0, QRhiShaderResourceBinding::FragmentStage,
+                                                  depthTexture, m_nearestSampler.get()),
+        QRhiShaderResourceBinding::uniformBuffer(
+            1, QRhiShaderResourceBinding::VertexStage | QRhiShaderResourceBinding::FragmentStage,
+            m_sunUniforms.get()),
+    });
+    m_sunBindings->create();
 
     m_gizmoBindings.reset(rhi->newShaderResourceBindings());
     m_gizmoBindings->setBindings({
@@ -144,6 +182,21 @@ void OverlayRenderer::ensureResources(QRhi* rhi, QRhiRenderPassDescriptor* overl
     grid->setShaderResourceBindings(m_gridBindings.get());
     grid->setRenderPassDescriptor(overlayPass);
     m_gridPipeline = built(std::move(grid), "grid");
+
+    // Sun: the same fullscreen triangle (grid.vert), premultiplied blend. Like
+    // the grid it ignores raster depth; the fragment shader tests the SDK's
+    // depth AOV itself. Drawn first, so the grid and the gizmo cover it.
+    std::unique_ptr<QRhiGraphicsPipeline> sun(rhi->newGraphicsPipeline());
+    sun->setShaderStages({{QRhiShaderStage::Vertex, loadShader("grid.vert")},
+                          {QRhiShaderStage::Fragment, loadShader("sun.frag")}});
+    sun->setTargetBlends({premultipliedBlend()});
+    sun->setDepthTest(false);
+    sun->setDepthWrite(false);
+    sun->setCullMode(QRhiGraphicsPipeline::None);
+    sun->setTopology(QRhiGraphicsPipeline::Triangles);
+    sun->setShaderResourceBindings(m_sunBindings.get());
+    sun->setRenderPassDescriptor(overlayPass);
+    m_sunPipeline = built(std::move(sun), "sun");
 
     // Gizmo: world-space triangles with a colour each. Depth on, against the
     // overlay's just-cleared depth buffer: the gizmo always covers scene and
@@ -205,6 +258,18 @@ void OverlayRenderer::prepare(QRhi* rhi, QRhiResourceUpdateBatch* updates,
     updates->updateDynamicBuffer(m_gridUniforms.get(), 0, static_cast<quint32>(sizeof(grid)),
                                  &grid);
 
+    SunUniforms sun{};
+    sun.camPosFov = grid.camPosFov;
+    sun.forwardAspect = grid.forwardAspect;
+    sun.right = glm::vec4(camera.right(), 0.0f);
+    sun.upOrtho = grid.upPad;
+    sun.ndc = grid.ndc;
+    sun.sunDirRadius = glm::vec4(m_sunDisk.direction, m_sunDisk.angularRadius);
+    sun.sunColorTransmittance = glm::vec4(m_sunDisk.color, m_sunDisk.transmittance);
+    sun.sunParams = glm::vec4(m_sunDisk.aboveHorizon, 0.0f, 0.0f, 0.0f);
+    updates->updateDynamicBuffer(m_sunUniforms.get(), 0, static_cast<quint32>(sizeof(sun)),
+                                 &sun);
+
     const glm::mat4 viewProj = glm::make_mat4(rhi->clipSpaceCorrMatrix().constData()) *
                                camera.projGL() * camera.view();
     updates->updateDynamicBuffer(m_gizmoUniforms.get(), 0, static_cast<quint32>(sizeof(viewProj)),
@@ -230,6 +295,12 @@ void OverlayRenderer::prepare(QRhi* rhi, QRhiResourceUpdateBatch* updates,
 void OverlayRenderer::draw(QRhiCommandBuffer* cb, QSize extent) {
     const QRhiViewport whole(0.0f, 0.0f, static_cast<float>(extent.width()),
                              static_cast<float>(extent.height()));
+    if (m_sunDiskVisible && m_sunDisk.valid && m_sunDisk.aboveHorizon > 0.0f && m_sunPipeline) {
+        cb->setGraphicsPipeline(m_sunPipeline.get());
+        cb->setViewport(whole);
+        cb->setShaderResources(m_sunBindings.get());
+        cb->draw(3);  // fullscreen triangle, no vertex buffer
+    }
     if (m_gridVisible && m_gridPipeline) {
         cb->setGraphicsPipeline(m_gridPipeline.get());
         cb->setViewport(whole);
@@ -312,13 +383,16 @@ void OverlayRenderer::releaseResources() {
     m_compositePipeline.reset();
     m_gizmoPipeline.reset();
     m_gridPipeline.reset();
+    m_sunPipeline.reset();
     m_compositeBindings.reset();
     m_gizmoBindings.reset();
     m_gridBindings.reset();
+    m_sunBindings.reset();
     m_gizmoVertices.reset();
     m_compositeUniforms.reset();
     m_gizmoUniforms.reset();
     m_gridUniforms.reset();
+    m_sunUniforms.reset();
     m_linearSampler.reset();
     m_nearestSampler.reset();
     m_boundFrame = nullptr;

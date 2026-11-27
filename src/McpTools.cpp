@@ -566,6 +566,7 @@ void MainWindow::registerMcpTools() {
             // The virtual ground and the sky's directional model, as the
             // renderer runs them.
             out["ground"] = WriteGround(m_viewport->ground());
+            out["sun_disk"] = m_sunDiskVisible;
             out["sky_distribution"] =
                 skynames::skyDistributionName(m_viewport->skyDistribution());
             out["sky_turbidity"] = static_cast<double>(m_viewport->skyTurbidity());
@@ -1148,6 +1149,41 @@ void MainWindow::registerMcpTools() {
             out["sky_radiance"] = WriteVec3(now.skyRadiance_rgb);
             out["shadow_rays"] = now.enableShadowRays != 0;
             out["environment_map_enabled"] = now.enableEnvironmentMap != 0;
+            return Json(out);
+        };
+        add(tool);
+    }
+
+    {
+        mcp::ToolDef tool;
+        tool.name = "ql_set_sun_disk";
+        tool.description =
+            "Show or hide the sun disk, the viewing aid drawn over the sky where the sun is.\n"
+            "\n"
+            "Display-only, like the grid: it does not touch the accumulation and is never part "
+            "of the SDK's frame, so ql_capture_viewport, exports, pixel reads and auto exposure "
+            "never contain it. ql_capture_composited shows it. It appears only where the "
+            "primary ray misses the scene and points above the horizon, and only while the sun "
+            "itself is above it. The setting persists across sessions.";
+        tool.inputSchemaJson = R"({
+  "type": "object",
+  "properties": {
+    "visible": {"type": "boolean"}
+  },
+  "required": ["visible"]
+})";
+        tool.handler = [this](const quantiloom::String& argumentsJson) {
+            QJsonObject args;
+            mcp::ToolResult error;
+            if (!ParseArgs(argumentsJson, args, error)) {
+                return error;
+            }
+            if (!args.value(QStringLiteral("visible")).isBool()) {
+                return mcp::ToolResult::Error("visible must be a boolean");
+            }
+            applySunDiskVisible(args.value(QStringLiteral("visible")).toBool());
+            QJsonObject out;
+            out["sun_disk"] = m_sunDiskVisible;
             return Json(out);
         };
         add(tool);

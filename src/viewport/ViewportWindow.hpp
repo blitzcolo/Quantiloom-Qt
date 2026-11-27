@@ -469,6 +469,13 @@ public:
      */
     void setGridVisible(bool visible);
 
+    /**
+     * @brief Show or hide the sun disk overlay
+     *
+     * Display-only and queued like setGridVisible().
+     */
+    void setSunDiskVisible(bool visible);
+
     [[nodiscard]] bool isGridVisible() const;
 
     /**
