@@ -510,6 +510,7 @@ void MainWindow::setupMenus() {
 
     m_exitAction = m_fileMenu->addAction(QString(), this, &QWidget::close);
     m_exitAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_Q));
+    m_exitAction->setMenuRole(QAction::QuitRole);
 
     // --- Edit -----------------------------------------------------------
     m_editMenu = m_menuBar->addMenu(QString());
@@ -899,6 +900,11 @@ void MainWindow::setupMenus() {
     m_helpMenu->addSeparator();
     m_aboutAction = m_helpMenu->addAction(QString(), this, &MainWindow::onAbout);
     m_aboutQtAction = m_helpMenu->addAction(QString(), qApp, &QApplication::aboutQt);
+    // Explicit roles: Cocoa's text heuristic keeps "About Qt" apart from "About" only
+    // when the caption ends in "Qt", which "关于 Qt(&Q)" does not, so both would merge
+    // into the application menu's single About slot.
+    m_aboutAction->setMenuRole(QAction::AboutRole);
+    m_aboutQtAction->setMenuRole(QAction::AboutQtRole);
 }
 
 void MainWindow::buildCameraMenu(QMenu* menu) {
